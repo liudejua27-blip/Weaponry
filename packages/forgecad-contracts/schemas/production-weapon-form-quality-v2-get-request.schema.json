@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-quality-v2-get-request.schema.json",
+  "title": "ProductionWeaponFormQualityGetRequest@2",
+  "description": "Closed read-only lookup for one immutable passing FormQuality@2 receipt. Fresh lookups may carry the exact source/proposal dual scope and baseline lineage; legacy lookups remain unchanged.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "form_quality_id", "session_id", "project_id", "candidate_id", "form_stage", "evidence_source_kind"],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormQualityGetRequest@2"},
+    "form_quality_id": {"$ref": "#/$defs/id"}, "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"}, "candidate_id": {"$ref": "#/$defs/id"},
+    "form_stage": {"enum": ["blockout", "primary", "secondary"]},
+    "source_candidate_id": {"$ref": "#/$defs/nullable_id"}, "source_candidate_state_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_artifact_id": {"$ref": "#/$defs/nullable_id"}, "source_artifact_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "evidence_source_kind": {"enum": ["legacy-source", "fresh-baseline-proposal"]},
+    "source_fresh_baseline_id": {"$ref": "#/$defs/nullable_id"},
+    "source_fresh_baseline_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_fresh_baseline_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_registration_lineage_id": {"$ref": "#/$defs/nullable_id"},
+    "source_registration_lineage_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_registration_lineage_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_registered_rig_v2_id": {"$ref": "#/$defs/nullable_id"},
+    "source_registered_rig_v2_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_registered_rig_v2_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_runtime_build_cohort_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_candidate_id": {"$ref": "#/$defs/nullable_id"}, "proposal_candidate_state_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_artifact_id": {"$ref": "#/$defs/nullable_id"}, "proposal_artifact_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_artifact_readback_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_worker_build_cohort_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "cross_view_evidence_bundle_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_form_art_evidence_id": {"$ref": "#/$defs/nullable_id"},
+    "proposal_form_art_evidence_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_form_art_evidence_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_part_id_evidence_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_negative_space_evidence_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_line_flow_evidence_sha256": {"$ref": "#/$defs/nullable_sha256"}
+  },
+  "allOf": [
+    {"if": {"properties": {"evidence_source_kind": {"const": "fresh-baseline-proposal"}}, "required": ["evidence_source_kind"]}, "then": {"required": ["source_candidate_id", "source_candidate_state_sha256", "source_artifact_id", "source_artifact_sha256", "source_fresh_baseline_id", "source_fresh_baseline_canonical_sha256", "source_fresh_baseline_receipt_object_sha256", "source_registration_lineage_id", "source_registration_lineage_canonical_sha256", "source_registration_lineage_receipt_object_sha256", "source_registered_rig_v2_id", "source_registered_rig_v2_object_sha256", "source_registered_rig_v2_canonical_sha256", "source_runtime_build_cohort_sha256", "proposal_candidate_id", "proposal_candidate_state_sha256", "proposal_artifact_id", "proposal_artifact_sha256", "proposal_artifact_readback_sha256", "proposal_worker_build_cohort_sha256", "cross_view_evidence_bundle_sha256", "proposal_form_art_evidence_id", "proposal_form_art_evidence_object_sha256", "proposal_form_art_evidence_canonical_sha256", "proposal_part_id_evidence_sha256", "proposal_negative_space_evidence_sha256", "proposal_line_flow_evidence_sha256"]}},
+    {"if": {"properties": {"evidence_source_kind": {"const": "legacy-source"}}, "required": ["evidence_source_kind"]}, "then": {"properties": {"source_candidate_id": {"const": null}, "source_candidate_state_sha256": {"const": null}, "source_artifact_id": {"const": null}, "source_artifact_sha256": {"const": null}, "source_fresh_baseline_id": {"const": null}, "source_fresh_baseline_canonical_sha256": {"const": null}, "source_fresh_baseline_receipt_object_sha256": {"const": null}, "source_registration_lineage_id": {"const": null}, "source_registration_lineage_canonical_sha256": {"const": null}, "source_registration_lineage_receipt_object_sha256": {"const": null}, "source_registered_rig_v2_id": {"const": null}, "source_registered_rig_v2_object_sha256": {"const": null}, "source_registered_rig_v2_canonical_sha256": {"const": null}, "source_runtime_build_cohort_sha256": {"const": null}, "proposal_candidate_id": {"const": null}, "proposal_candidate_state_sha256": {"const": null}, "proposal_artifact_id": {"const": null}, "proposal_artifact_sha256": {"const": null}, "proposal_artifact_readback_sha256": {"const": null}, "proposal_worker_build_cohort_sha256": {"const": null}, "cross_view_evidence_bundle_sha256": {"const": null}, "proposal_form_art_evidence_id": {"const": null}, "proposal_form_art_evidence_object_sha256": {"const": null}, "proposal_form_art_evidence_canonical_sha256": {"const": null}, "proposal_part_id_evidence_sha256": {"const": null}, "proposal_negative_space_evidence_sha256": {"const": null}, "proposal_line_flow_evidence_sha256": {"const": null}}}}
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_id": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/id"}]},
+    "nullable_sha256": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]}
+  }
+}

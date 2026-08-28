@@ -1,0 +1,22 @@
+{
+  "schema_version": "ForgeCADFormReviewConfirmationValidation@1",
+  "status": "READY_FOR_RUNTIME_TARGET_PREPARE",
+  "proposal_file_sha256": "78bbd80429e7eb9bb16a579d315abc7b370ad5ca7fb819851e73ea2b6721e195",
+  "proposal_canonical_sha256": "864bf2134538b85e7e69aaa72980ae2ded2b8286c9f3b5c5576edf9e061abec2",
+  "proposal_validation_sha256": "d12ab2d4a9527690e01cd5b862e36e7bf516388dc43c3b9d6440170e7cb6a83c",
+  "confirmation_canonical_sha256": "a084f1825647adbeab13ba4a237f58dd6500eacbf5eee7d3f685bf5c5a0c89f1",
+  "accepted_line_flow_count": 25,
+  "accepted_line_flow_mapping_sha256": "c85f1d0621cbf6d3cbe00f868d88fbbb0cb66c44ce9848942f9af01f512382bb",
+  "negative_space_structure_id": "rear3q.open-stock-void",
+  "negative_space_contour_point_count": 15,
+  "negative_space_contour_area": 0.014834350922,
+  "outer_contour_point_count": 40,
+  "outer_contour_area": 0.516678249765,
+  "depth_status": "UNKNOWN",
+  "candidate_match_status": "NOT_RUN",
+  "visual_quality_status": "NOT_PROVEN",
+  "runtime_write": false,
+  "worker_started": false,
+  "next_required_action": "Runtime-owned target prepare, FormArt projection, and same-candidate quality evaluation",
+  "validation_sha256": "972bced38a443eb8ef79d18e90252f128a896d07695fcab2aedef1ec84ce9c3f"
+}

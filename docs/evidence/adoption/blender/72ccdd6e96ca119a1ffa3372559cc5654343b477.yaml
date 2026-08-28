@@ -1,7 +1,9 @@
 project: blender
 source_url: https://github.com/blender/blender
 revision: 72ccdd6e96ca119a1ffa3372559cc5654343b477
-identity: official-reference-only-research
+identity: tool/worker
+source_identity: official-reference-only-research
+adoption_status: approved-for-evaluation
 license_name: GNU General Public License version 2 or later
 license_spdx: GPL-2.0-or-later
 license_file: COPYING
@@ -11,22 +13,47 @@ full_license_file: doc/license/GPL-license.txt
 full_license_file_git_blob: 8860b2a8afa8c8586992f7f374a099956563a152
 full_license_file_sha256: f2703dec1b0118070caabd3302e21738c00211b0cc3260dbeb1168d6eda726b7
 research_status: authorized
+evaluation_scope:
+  - fixed_signed_blender_headless_worker_only
+  - fixed_recipe_and_frozen_python_bundle
+  - typed_scene_material_bake_render_contracts
+  - runtime_owned_cas_readback_and_receipts
+  - non_promoting_evidence_first
+binary_sha256: null
+recipe_sha256: null
+python_bundle_sha256: null
+binary_execution: not-run
+license_review_status: pending
+source_offer_status: pending
+notice_status: pending
 vendored_files: []
 reference_paths:
   - source/blender/blenkernel/BKE_modifier.hh
   - source/blender/depsgraph/DEG_depsgraph.hh
+  - source/blender/modifiers/intern/MOD_shrinkwrap.cc
+  - source/blender/blenkernel/intern/mesh_remap.cc
+  - source/blender/render/intern/bake.cc
 reference_git_blobs:
   source/blender/blenkernel/BKE_modifier.hh: 237a1f28a1155562e2877bed45e967191c0199b6
   source/blender/depsgraph/DEG_depsgraph.hh: a1e85cbebbf54c3a80146023406463ee6fcb9b30
+  source/blender/modifiers/intern/MOD_shrinkwrap.cc: 728bdfbe97fdb2e8c775ca1d3f7aea9e1a50403d
+  source/blender/blenkernel/intern/mesh_remap.cc: 7c0e139f4e839bff8a3f537e6f19d5c2e278f94d
+  source/blender/render/intern/bake.cc: 7c10cb5490f469e26b87b0704a6bf2190f8c7581
 official_manual_refs:
   - https://docs.blender.org/manual/en/latest/modeling/modifiers/introduction.html
   - https://docs.blender.org/manual/en/latest/animation/index.html
+  - https://docs.blender.org/manual/en/latest/modeling/modifiers/deform/shrinkwrap.html
+  - https://docs.blender.org/manual/en/latest/modeling/meshes/retopology.html
+  - https://docs.blender.org/manual/en/latest/render/cycles/baking.html
 target: clean-room product-owned typed modifier evaluation, evaluated-state separation, immutable action-like data and read-only discrete frame projection
 adaptation_result:
   - keep ordered modifier data separate from evaluated geometry
   - keep immutable action and rest-frame identities separate from evaluated frame identities
   - keep Viewer playhead ephemeral and Runtime evaluation authoritative
   - bind every projected rigid Part delta to exact candidate, artifact, clip, scheduled tick, Worker cohort and transient artifact hash
+  - express nearest-surface and project-along-normal Cage diagnostics as product-owned typed Rust kernels rather than copying Shrinkwrap implementation
+  - express High-to-Low correspondence, selected-to-active ray policy, Cage distance and UV margin as closed ForgeCAD contracts with independent replay
+  - keep Blender mesh remap and bake implementation details out of the product while reusing their problem decomposition as clean-room test requirements
 denied_capabilities:
   - blender_source_copy_or_link
   - blender_build_or_execution
@@ -36,13 +63,24 @@ denied_capabilities:
   - arbitrary_dependency_graph
   - armature_skinning_or_deformation
   - runtime_network_or_dynamic_code
+  - user_supplied_python_or_addon
+  - user_supplied_blend_macro
+  - caller_paths_urls_environment_or_secrets
+  - runtime_cas_or_sqlite_write
+  - candidate_version_stage_confirm_or_export
+  - unbounded_cpu_gpu_memory_time_or_output
 lockfile_or_package_change: false
-sbom_status: not-applicable-reference-only
+runtime_allowlist_change: false
+package_or_installer_change: false
+persistent_user_data_touched: false
+sbom_status: required-before-evaluation
 static_security_review:
-  - only official documentation and exact frozen source headers were inspected; no upstream file entered the product tree or build
-  - GPL implementation remains reference-only; ForgeCAD behavior is expressed through independently owned closed Schema, Rust Runtime, fixed Worker and TypeScript Viewer code
-  - no Blender process, addon, Python runtime, install script, archive or repository clone was executed
-approval: research-authorized
+  - only official documentation and exact frozen source paths were inspected through GitHub at the pinned revision; no upstream file entered the product tree or build
+  - GPL implementation remains reference-only; the evaluation candidate is a separately specified signed Tool/Worker boundary, not copied Blender code or an accepted dependency
+  - evaluation contract requires Runtime to remain the SQLite/CAS/candidate/version/Stage/rollback sole writer; `.blend` is only scratch
+  - no Blender process, binary, addon, Python runtime, install script, archive or repository clone was executed
+  - static security, sandbox, deterministic replay, resource, rollback/restart, source-offer, NOTICE and SBOM evaluation gates remain not-run/pending
+approval: approved-for-evaluation
 accepted_as_dependency: false
-next_gate: retain reference-only status; any future source reuse, linking, execution or distribution requires a separate license review, SBOM, security, determinism, resource and removal Gate
-fallback_or_removal_plan: ForgeCAD remains functional through its product-owned bounded operators and Runtime contracts; remove this research receipt without affecting Runtime, Viewer, lockfiles or packaged behavior.
+next_gate: complete the ADR-0028 fixed-binary/Recipe/Python-bundle, GPL/source-offer/NOTICE/legal, SPDX/SBOM, strict typed-contract, offline sandbox, negative-input, resource, deterministic-replay, CAS-readback, rollback/restart, packaged-signing and removal gates; only then may a separate accepted proposal be considered
+fallback_or_removal_plan: until every evaluation gate passes, expose capability as unavailable and use ForgeCAD Native Rust/Render Workers; if evaluation is rejected, retain the reason and remove only the isolated binary/bundle/cache, without changing Runtime, Viewer, lockfiles, CAS truth or packaged core behavior.

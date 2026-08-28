@@ -1,11 +1,17 @@
 # ForgeCAD Runtime 运维
 
-版本：2026-08-09
-状态：单用户 MVP 运维基座；MCP004 生命周期、MCP005 reference、MCP007–009 workers/GLB 已启用，distribution release 在 MCP013
+> 2026-08-26 现行 source：**525 schemas / 112 read + 84 write = 196 tools**。CameraLock child 新表与 CAS roots 需经 Runtime prepare/get/restart 验证；MaterialLayerGraph plan 是无状态 Worker 结果。未获用户 rear3q approval 时正常状态是零写阻断。
+
+> 2026-08-26 商业 Job 运维：High/retopo/UV/bake/texture/LOD/engine validation 全部是有界、可取消、可重启核验的 typed Job；每个 Job 记录 input/output hash、worker cohort、resource peak、stage binding 和失败诊断。引擎 runner 只能读取 exact export package 并回传签名 receipt，不能写 Runtime 数据库；目标引擎不可用时保持 `NOT_RUN`。
+
+版本：2026-08-25
+状态：单用户 MVP 运维基座；MCP004 生命周期、MCP005 reference、MCP007–009 workers/GLB 已启用，FGC-MCP010F 推进中，distribution release 在 MCP013。商业 High/Low/UV/Cage/Bake/Surface/LOD Workers 当前仍按逐模块 Gate 开发，不得因目标文档存在而视为可运维能力。
+
+商业资产生产模块、当前可用性与退出门以 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md` 为准；运维文档只描述已进入实际包和 allowlist 的组件。
 
 ## 1. 进程
 
-开发 MVP 运行集合是：`forgecad-runtime`、`forgecad-mcp`、ForgeCAD Viewer，以及 bounded geometry/appearance software worker（MCP008 的 fixed render 在同一受限 worker library 中执行）。first-party Skills 在 MCP006 加载；Blender worker 不属于 MVP。
+开发 MVP 运行集合是：`forgecad-runtime`、`forgecad-mcp`、ForgeCAD Viewer，以及 ForgeCAD 自带的 bounded typed workers。目标发布包可增加 Authoring Mesh、High、Low/Retopo、UV、Cage/Bake、Surface、LOD/Collision、Render/AOV Worker，但每个都必须固定版本/签名/cohort、离线运行、无数据库/CAS写权且资源受限。Blender、Substance、Maya 或任意外部 DCC worker 不属于产品。
 
 Runtime 是唯一常驻产品状态写者。MCP 由 Codex 按需以 stdio 启动或连接本地 Runtime；Workers 由 Runtime 按 Job 启动。无端口 8000、FastAPI、Provider 守护进程、模型服务或常驻外部 3D API 轮询器。
 
@@ -64,3 +70,11 @@ Audit 记录永久事务、Skill 安装/撤销、恢复和导出；Job event 与
 ## 8. 禁止操作
 
 不要手工编辑 SQLite/CAS、移动 version head、删除确认对象、复用旧 migration、启动端口 8000、注入模型 Key、让 MCP/Viewer 直接写库，或通过修改 QualityReport 绕过硬门。
+
+## 9. 商业 Worker 运维边界（future / queued）
+
+目标中的 AuthoringMesh、Native High、Retopology、Hero UV、Cage-Bake、Surface 和 LOD/Collision/Socket Worker 只能由 Runtime 按 `ForgeCadModule@1` 启动。模块 manifest 必须绑定 schema/operator refs、有限 CPU/time/RSS/bytes/element/texture/CAS budget、正/负/损坏/超预算/replay fixture、LICENSE/NOTICE、SPDX SBOM、source/build provenance、signature、module/contract/input/output hash；未闭合时 health 只能报告 `unavailable` 或 `queued`。
+
+运行时边界固定为：Worker 无 SQLite/CAS 写权、无网络、无动态插件、无 Python/JavaScript/shell、无任意路径/URL；临时输入输出由 Runtime 以 hash 引用，Worker 退出后由 Runtime 重新验证 readback。第三方 Manifold、OpenSubdiv、QuadriFlow、xatlas、Embree、MaterialX、OIIO、OCIO、meshoptimizer、glTF Validator 若未来采用，也只能作为签名、固定 revision、离线、确定性的内建 module；Blender、Substance、Maya 与任意外部 DCC 永不成为产品 worker。
+
+当前运维只承诺已启用的 bounded typed workers，以及 Hero UV `get/prepare` structural/source 链：真实 prepare/replay/drop-reopen/get 1/1、四个 Hero CAS roots linked/GC；artist UV、packaged same-cohort、Cage/Bake、Surface、LOD、EngineValidationReceipt@1、HeroArtReviewReceipt@1 仍 `NOT_RUN/NOT_PROVEN`，不创建 Stage/confirm/version/export。当前 source 口径仍为 **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 tools**。

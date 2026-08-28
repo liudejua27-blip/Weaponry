@@ -1,5 +1,9 @@
 # ADR-0025：Codex-only MCP 3D Runtime
 
+> 2026-08-25 解释性补充：商业游戏武器质量路线仍完全服从本 ADR。ForgeCAD Runtime 继续是唯一写者；商业级缺口由 ForgeCAD-owned typed Worker/Schema/Gate 补齐，不通过 Blender、DCC 插件、Provider、任意脚本或第二项目真值绕过。执行基线见 `../COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+> 2026-08-26 Cage/Bake 解释：public preflight/get/prepare 与 Store seam 不授权 caller 提交 inline High/Low/UV/Cage truth。Runtime 必须从同 project/session/candidate/Stage head 的 durable records 解析输入，resolver 零写；任一 binding/provenance/cohort 缺失都 fail closed。当前 producer unavailable 与零写结果符合本 ADR，不能因 Worker/source seam PASS 解释为商业 Bake 已完成。
+
 日期：2026-08-07；2026-08-09 增补 MCP005–009 functional-core、工具/Skill 目录与 MCP010A–F 质量轨道
 状态：accepted
 决策者：产品负责人
@@ -55,9 +59,9 @@ User
                       ├─ forgecad-store  SQLite + CAS + immutable versions
                       ├─ forgecad-core   typed design/geometry/appearance/quality
                       ├─ skill-registry  signed declarative Skill Bundles
-                      ├─ geometry-worker restricted typed compiler
-                      ├─ render-worker   deterministic headless evidence
-                      └─ optional signed Blender worker; never arbitrary scripts
+                      ├─ geometry-worker ForgeCAD-owned restricted typed compiler
+                      ├─ production-workers ForgeCAD-owned typed authoring/high/low/UV/bake/surface/FPS executors
+                      └─ render-worker   deterministic headless evidence
 
 ForgeCAD Desktop Viewer
   └─ runtime read model + ephemeral camera/selection/isolation/explosion preview
@@ -66,6 +70,21 @@ ForgeCAD Desktop Viewer
 Codex IDE/VS Code/Cursor/Windsurf 的 MCP 兼容代码可以保留，但不属于当前 P0 产品链路、安装要求或 MCP003/MCP004 发布阻断。
 
 Runtime、MCP 和 Viewer 使用同一组 `packages/forgecad-contracts` Schema。MCP 不直接访问 SQLite/CAS；Viewer 不创建第二版本头；Worker 不拥有项目状态。
+
+### 3.1 商业级能力仍是 ForgeCAD 原生执行器
+
+当前 ForgeCAD 仍是可验证的高级灰模/技术管线，不是商业级资产生产软件。根因不是缺一个外部模型或 DCC，而是上游资产真值和艺术生产能力尚未闭合：可审的 reference/form/AuthoringMesh 还没有形成可编辑的 High/Low/UV/Cage/Bake/Material/FPS/LOD 生产链，也没有独立 HeroArtReview 与 EngineValidation 证据。商业能力只能由 ForgeCAD 自有 Schema、Runtime 和固定 typed Worker 补齐；外部 DCC、`.blend`、插件、任意脚本或第二项目真值不进入产品运行时。
+
+| ForgeCAD-owned 能力 | 职责 | 解锁门/当前边界 |
+| --- | --- | --- |
+| AuthoringMesh | 保存 original/evaluated 拓扑、语义 Part/source map、稳定 identity lineage 与可编辑操作 | split/collapse/dissolve 的 durable/restart 结构链通过；general correspondence、evaluated retarget、edge-flow/editor 仍未证明，不能解锁 secondary |
+| Native High / Native Low | High 负责非破坏 detail graph；Low 负责 artist-editable quad retopo 与 High↔Low correspondence | High source durable 结构回放通过但 `FPS-HIGH-05=NOT_PASSED`；Low 保持 `DRAFT_UNREVIEWED / structural_only / promotion_eligible=false`，两者都不能宣称商业通过 |
+| Hero UV / Cage / Bake | Hero UV 绑定 Low、density/seam/stretch/padding/tangent；Cage/Bake 绑定 High/Low/UV 与逐 Part ray diagnostics | Hero UV 7 contracts 的 durable restart 为 1/1 PASS，但仅 structural；正式 artist unwrap、独立 cage、miss/skew/cross-hit bake 未通过 |
+| Material Layer Graph | 以 layer/mask/generator/wear/microdetail 和 provenance 生成可审 PBR surface | 必须消费通过的 UV+Bake 并通过多视图/第一人称 readability；当前 fixed-formula preview 不解锁 `material-approved` |
+| LOD / FPS / Art Director Viewer | LOD0/1/2、collision/socket 与 FPS presentation；Viewer 提供只读 AOV/compare/Part/MaterialZone/阶段矩阵 | authored LOD、FPS readability 和 Viewer 的人审门仍未完成；Viewer 永远不写产品状态 |
+| EngineValidation / HeroArtReview | 目标引擎往返与切线/材质/LOD/socket/animation/collision；独立艺术家盲审、原创性/IP 与同 export hash | 两项均是独立发布门，当前 `NOT_RUN`，Codex/结构测试不能代替 |
+
+所有 executor 只能由 Runtime `prepare → compile/readback → evaluate → approval → confirm` 编排；Runtime 是 SQLite/CAS/Stage 的唯一写者，MCP/Viewer/Worker 无数据库写权限、无网络、无任意脚本和 DCC 运行依赖。上述结构 slice 通过不会把当前视觉状态改成商业通过。
 
 ## 4. 保留的历史原则
 

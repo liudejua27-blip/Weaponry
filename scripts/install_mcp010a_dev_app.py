@@ -9,7 +9,6 @@ user's persistent ForgeCAD Runtime database.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import shutil
@@ -18,30 +17,31 @@ import tempfile
 import time
 from pathlib import Path
 
+try:
+    from .compute_build_cohort import (
+        EXCLUDED_PARTS,
+        ROOT,
+        SOURCE_INPUTS,
+        sha256_file,
+        source_cohort,
+        source_files,
+    )
+except ImportError:  # Script execution keeps the scripts directory on sys.path.
+    from compute_build_cohort import (  # type: ignore[no-redef]
+        EXCLUDED_PARTS,
+        ROOT,
+        SOURCE_INPUTS,
+        sha256_file,
+        source_cohort,
+        source_files,
+    )
 
-ROOT = Path(__file__).resolve().parents[1]
+
 TAURI_ROOT = ROOT / "apps" / "desktop" / "src-tauri"
 DEV_BUNDLE = TAURI_ROOT / "target" / "release" / "bundle" / "macos" / "ForgeCAD Runtime Dev.app"
 INSTALL_ROOT = Path.home() / "Applications"
 INSTALL_TARGET = INSTALL_ROOT / "ForgeCAD Runtime Dev.app"
 DEFAULT_EVIDENCE = ROOT / "docs" / "evidence" / "mcp010a" / "dev-app-install.json"
-EXCLUDED_PARTS = {".git", "target", "node_modules", "dist", "__pycache__"}
-SOURCE_INPUTS = (
-    ROOT / "apps" / "desktop" / "src",
-    ROOT / "apps" / "desktop" / "package.json",
-    ROOT / "apps" / "desktop" / "src-tauri",
-    ROOT / "apps" / "geometry-worker" / "Cargo.toml",
-    ROOT / "apps" / "geometry-worker" / "Cargo.lock",
-    ROOT / "apps" / "geometry-worker" / "src",
-    ROOT / "apps" / "render-worker" / "Cargo.toml",
-    ROOT / "apps" / "render-worker" / "Cargo.lock",
-    ROOT / "apps" / "render-worker" / "src",
-    ROOT / "packages" / "forgecad-contracts",
-    ROOT / "packages" / "forgecad-skills",
-    ROOT / "package.json",
-    ROOT / "package-lock.json",
-    ROOT / "script" / "with_rust_toolchain.sh",
-)
 LOCKFILES = (
     ROOT / "package-lock.json",
     TAURI_ROOT / "Cargo.lock",
@@ -69,41 +69,6 @@ def parse_args() -> argparse.Namespace:
         help="Receipt path, relative to the repository or absolute beneath its evidence directory.",
     )
     return parser.parse_args()
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def source_files() -> list[Path]:
-    files: set[Path] = set()
-    for source in SOURCE_INPUTS:
-        if not source.exists():
-            continue
-        candidates = [source] if source.is_file() else source.rglob("*")
-        for candidate in candidates:
-            if any(part in EXCLUDED_PARTS for part in candidate.parts):
-                continue
-            if candidate.is_symlink():
-                raise SystemExit(f"source cohort refuses symlink: {candidate.relative_to(ROOT)}")
-            if candidate.is_file():
-                files.add(candidate)
-    return sorted(files, key=lambda path: path.relative_to(ROOT).as_posix())
-
-
-def source_cohort() -> tuple[str, int]:
-    digest = hashlib.sha256()
-    files = source_files()
-    for path in files:
-        relative = path.relative_to(ROOT).as_posix().encode("utf-8")
-        digest.update(len(relative).to_bytes(4, "big"))
-        digest.update(relative)
-        digest.update(bytes.fromhex(sha256_file(path)))
-    return digest.hexdigest(), len(files)
 
 
 def lock_hashes() -> dict[str, str]:

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/blender-task-result.schema.json",
+  "title": "BlenderTaskResult@1",
+  "description": "Closed non-promoting result for the future blender.render_fixed@1 evaluation operation. Runtime must validate and read back outputs before CAS adoption.",
+  "x-operation": "blender.render_fixed@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "candidate_id", "recipe_sha256",
+    "python_bundle_sha256", "build_cohort_sha256", "input_canonical_sha256",
+    "outputs", "checks", "runtime_write", "worker_started", "stage_advanced",
+    "candidate_confirmed", "version_created", "export_performed", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "BlenderTaskResult@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "recipe_sha256": {"$ref": "#/$defs/sha256"},
+    "python_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+    "input_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "outputs": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/output"}},
+    "checks": {"$ref": "#/$defs/checks"},
+    "runtime_write": {"const": false},
+    "worker_started": {"type": "boolean"},
+    "stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "canonical_sha256": {
+      "$ref": "#/$defs/sha256",
+      "description": "SHA-256 of the canonical UTF-8 JSON object formed from every result field except canonical_sha256, with object keys recursively sorted lexicographically, arrays kept in contract order, and output transport bytes hashed as their exact bounded strings."
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "mime", "byte_size", "sha256", "canonical_sha256", "lineage_sha256", "transport_bytes_base64", "cas_owner", "durability"],
+      "properties": {
+        "kind": {"enum": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"]},
+        "mime": {"enum": ["image/png", "model/gltf-binary", "application/json"]},
+        "byte_size": {"type": "integer", "minimum": 1, "maximum": 100663296},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "lineage_sha256": {"$ref": "#/$defs/sha256"},
+        "transport_bytes_base64": {"type": "string", "minLength": 1, "maxLength": 100663296, "contentEncoding": "base64", "description": "Runtime-internal bounded transport only; this field is not a public MCP media result."},
+        "cas_owner": {"const": "runtime"},
+        "durability": {"const": "pending_runtime_adoption"}
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validator_status", "readback_status", "deterministic_replay_status", "stage_eligibility"],
+      "properties": {
+        "validator_status": {"enum": ["passed", "failed", "not-run"]},
+        "readback_status": {"enum": ["passed", "failed", "not-run"]},
+        "deterministic_replay_status": {"enum": ["passed", "failed", "not-run"]},
+        "stage_eligibility": {"const": "non-promoting"}
+      }
+    }
+  }
+}

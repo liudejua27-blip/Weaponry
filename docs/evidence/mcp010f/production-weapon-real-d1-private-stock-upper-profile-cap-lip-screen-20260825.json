@@ -1,0 +1,19 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04T-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-CAP-LIP-SCREEN",
+  "task_id": "FPS-FORM-04T",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 648.54,
+  "fixture_log_filename": "forgecad-d1-04t-stock-upper-profile-cap-lip-20260825.log",
+  "fixture_log_sha256": "97593c776cc190c546eb6a9c8c3608dc2ff06fcc88f1ce43270b948c86dd7c80",
+  "operator_id": "forgecad.geometry.profile-loft@2",
+  "variant_scope": "private-complete-cap-facing-inner-lip-variant-only",
+  "baseline_04q_085_owner_intrusion_pixels": [302, 492, 587],
+  "trials": [
+    {"cap_lip_longitudinal_m": -0.405, "owner_intrusion_pixels": [302, 492, 587], "owner_boundary_adjacency_pixels": [55, 67, 72], "owner_boundary_adjacency_milli": [319, 343, 248], "directional_axis_pass": false, "owner_screen_pass": false, "status": "BLOCKED_OWNER_SCREEN"},
+    {"cap_lip_longitudinal_m": -0.395, "owner_intrusion_pixels": [302, 492, 587], "owner_boundary_adjacency_pixels": [55, 67, 72], "owner_boundary_adjacency_milli": [319, 343, 248], "directional_axis_pass": false, "owner_screen_pass": false, "status": "BLOCKED_OWNER_SCREEN"}
+  ],
+  "conclusion": {"identity_preserved_all_views": true, "pixel_level_change_observed": false, "continue_cap_lip_axis_search": false, "promote_to_public_sink": false, "advance_candidate_to_six_view": false},
+  "promotion": {"diagnostic_only": true, "promotable": false, "quality_status": "NOT_PROVEN", "depth_status": "UNKNOWN", "production_stage_advanced": false, "secondary_form_approved": false, "candidate_confirmed": false, "version_created": false, "export_performed": false}
+}

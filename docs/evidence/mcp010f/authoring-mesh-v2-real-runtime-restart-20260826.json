@@ -1,0 +1,32 @@
+{
+  "schema_version": "ForgeCADAuthoringMeshV2RuntimeRestartEvidence@1",
+  "recorded_on": "2026-08-26",
+  "task_id": "FPS-AUTHORING-MESH-V2-01",
+  "scope": "structural_only_nonfunctional_game_asset_authoring",
+  "build_cohort_sha256": "2026082620260826202608262026082620260826202608262026082620260826",
+  "mesh_id": "fps-hero-authoring-mesh-v2",
+  "lineage_id": "fps-hero-authoring-lineage-v2",
+  "genesis": {
+    "revision_id": "amrev-cd64958bddbc098550959779ce385572e16694f743a7b38ce5e8aa60",
+    "revision_sha256": "3f47d15aa62aeaa62c264e027a3dd24ee2a1e46aa9ac314cf0a0382878eb3dcd",
+    "cas_object_sha256": "eb713c6b7cf3e093a4ab15d28d440715a5038df71716d5cf6c4bcc4b7e7d1077",
+    "counts": {"vertices": 4, "edges": 5, "halfedges": 6, "faces": 2, "corners": 6, "tombstones": 0}
+  },
+  "split_edge": {
+    "revision_id": "amrev-e003fc2ecffb548d6f2c91d0e91f29e693994e5e029eba4fc1c53cd9",
+    "revision_sha256": "907be8758a83ee6115bbd4c6e54877aec6d449e3608810d1c741a0b96e355656",
+    "cas_object_sha256": "cfbec82263a17210c02cb814fd74f3e0dde418d83cb4ccd6ec07a02b806cd7ae",
+    "revision_index": 1,
+    "counts": {"vertices": 5, "edges": 6, "halfedges": 8, "faces": 2, "corners": 8, "tombstones": 5},
+    "runtime_write_performed": true,
+    "structural_only": true
+  },
+  "restart_readback": {
+    "replayed": true,
+    "restart_hash_verified": true,
+    "runtime_write_performed": false,
+    "persistent_user_data": false,
+    "canonical_result_sha256": "1105f070eea388549048bf488dee471dc0f4ea66b1e8573d21b8675e97379249"
+  },
+  "truth_boundary": "This proves durable stable-ID half-edge genesis, one local split-edge revision and exact Runtime restart readback. It is not yet bound to the real D1 weapon, evaluated High mesh, merge DAG, shading, UV, bake or commercial quality."
+}

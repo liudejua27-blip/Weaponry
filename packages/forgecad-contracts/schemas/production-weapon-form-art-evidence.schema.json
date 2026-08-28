@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-evidence.schema.json",
+  "title": "ProductionWeaponFormArtEvidence@1",
+  "description": "Additive six-view, candidate-bound art observation evidence. It reuses durable FormEvidence@1 lineage, records typed part/negative-space/line-flow observations, and remains NOT_PROVEN without stage, confirmation, version, export or human-review side effects.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "art_evidence_id", "session_id", "project_id", "candidate_id",
+    "candidate_state_sha256", "artifact_id", "artifact_sha256", "reference_canvas_object_sha256",
+    "reference_canvas_canonical_sha256", "design_spec_object_sha256", "design_spec_canonical_sha256",
+    "camera_lock_id", "camera_lock_canonical_sha256", "camera_rig_object_sha256",
+    "camera_rig_canonical_sha256", "camera_lock_receipt_object_sha256",
+    "camera_lock_source_transition_id", "camera_lock_source_transition_sha256",
+    "camera_lock_source_head_canonical_sha256", "form_evidence_object_sha256",
+    "form_evidence_canonical_sha256", "view_kinds", "views", "part_id_aggregate",
+    "art_evidence_policy", "art_evidence_policy_sha256", "quality_status",
+    "runtime_write_performed", "production_stage_advanced", "candidate_confirmed",
+    "version_created", "export_performed", "request_sha256", "input_sha256",
+    "receipt_object_sha256", "canonical_sha256", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtEvidence@1"},
+    "art_evidence_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_canvas_object_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_canvas_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "design_spec_object_sha256": {"$ref": "#/$defs/sha256"},
+    "design_spec_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_lock_id": {"$ref": "#/$defs/id"},
+    "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_rig_object_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_rig_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_lock_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_lock_source_transition_id": {"$ref": "#/$defs/id"},
+    "camera_lock_source_transition_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_lock_source_head_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "form_evidence_object_sha256": {"$ref": "#/$defs/sha256"},
+    "form_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "view_kinds": {"const": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+    "views": {
+      "type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": false,
+      "prefixItems": [
+        {"$ref": "https://forgecad.local/contracts/production-weapon-form-art-evidence-view.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/production-weapon-form-art-evidence-view.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/production-weapon-form-art-evidence-view.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/production-weapon-form-art-evidence-view.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/production-weapon-form-art-evidence-view.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/production-weapon-form-art-evidence-view.schema.json"}
+      ]
+    },
+    "part_id_aggregate": {"$ref": "#/$defs/part_id_aggregate"},
+    "art_evidence_policy": {"const": "production-weapon-form-art-evidence-six-view-typed-observation@1"},
+    "art_evidence_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_status": {"const": "NOT_PROVEN"},
+    "runtime_write_performed": {"const": true},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "x-forgecad-thresholds": {
+    "negative_space": {"iou_milli_min": 850, "boundary_f1_milli_min": 800, "area_ratio_milli_min": 850, "area_ratio_milli_max": 1150, "centroid_error_milli_max": 3000},
+    "line_flow": {"coverage_milli_min": 900, "continuity_milli_min": 900, "symmetric_chamfer_milli_max": 3000, "max_deviation_milli_max": 5000, "direction_order_milli_min": 950, "duplicate_crossing_count_max": 0}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "minLength": 1, "maxLength": 128},
+    "part_id_aggregate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "expected_count", "observed_count", "missing_count", "unexpected_count", "coverage_milli"],
+      "properties": {
+        "status": {"enum": ["observed", "inferred", "unknown"]},
+        "expected_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "observed_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "missing_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "unexpected_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "coverage_milli": {"type": "integer", "minimum": 0, "maximum": 1000}
+      }
+    }
+  }
+}

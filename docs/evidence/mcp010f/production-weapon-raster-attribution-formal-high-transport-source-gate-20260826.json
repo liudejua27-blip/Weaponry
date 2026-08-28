@@ -1,0 +1,73 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "receipt_id": "production-weapon-raster-attribution-formal-high-transport-source-gate-20260826",
+  "task_id": "FGC-MCP010F",
+  "date": "2026-08-26",
+  "scope": "source-focused transient raster attribution plus Formal High negative transport and cleanup",
+  "result": "PASS_SOURCE_WITH_POSITIVE_AND_REAL_D1_GATES_NOT_RUN",
+  "raster_attribution": {
+    "operation": "render_glb_raster_attribution",
+    "worker_protocol": "closed typed request and response",
+    "projection": "512x512 pixel to triangle to semantic Part and source node",
+    "runtime_validation": [
+      "triangle raster sha256",
+      "canonical source table sha256",
+      "contiguous triangle indexes",
+      "semantic Part and source node identifiers",
+      "lineage contains source node",
+      "fixed renderer profile and worker cohort",
+      "zero-write flags"
+    ],
+    "form_diagnostic": "ranks source nodes by reviewed-region, expected-void and owner-mask-delta pixels",
+    "render_worker_focused_test": "PASS_1_OF_1",
+    "runtime_focused_test": "PASS_1_OF_1",
+    "real_d1_exact_binding": "NOT_RUN",
+    "runtime_write": false,
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "formal_high_transport": {
+    "raw_stdio": "PASS_NEGATIVE_FAIL_CLOSED",
+    "default_surface": "GET_ONLY",
+    "ponytail_preflight": "PASS",
+    "write_disabled_error": "PRODUCTION_WEAPON_FORMAL_HIGH_WRITE_TOOLS_DISABLED",
+    "explicit_write_opt_in_surface": "GET_AND_PREPARE",
+    "missing_stage_source_error": "PRODUCTION_WEAPON_FORMAL_HIGH_SOURCE_TRANSITION_MISSING",
+    "empty_store_get_error": "PRODUCTION_WEAPON_FORMAL_HIGH_PUBLIC_INVALID",
+    "reservation_failure_cleanup_test": "PASS_1_OF_1",
+    "positive_prepare_replay_drop_reopen_get": "NOT_RUN",
+    "positive_blocker": "no legal typed producer fixture reaches a FormQuality@2-backed secondary-form-approved Stage head",
+    "forbidden_shortcuts": [
+      "raw SQL Stage insertion",
+      "fabricated Stage head",
+      "structural-only legacy FormQuality parent"
+    ]
+  },
+  "source_files": {
+    "worker_protocol_sha256": "93d576536353b3ba25daf44e406936f7c5fb17f13151e56784ddaf3ca06cd3ee",
+    "render_worker_sha256": "6b68d028986d992682ba0eb0e02f73ac8ba13c6a0b0e1b8eefffdd7427dc1cae",
+    "runtime_render_adapter_sha256": "932915e80684aa4c21fe2da8298ca931770149b9312c3407ee529e8707e119c0",
+    "runtime_form_diagnostic_sha256": "cf38b0aae886eb7da3d4c4536ee9b4d6eba339c9eddf351e548aa6cae78cc664",
+    "store_sha256": "0311b5f27fe89c43bf3793476a696c38c995fa0481c2493c274754d0f62813cc",
+    "runtime_skill_registry_sha256": "c9b74246a9d0d069324326470c15507489c72994ca0efabd4f31d2fe12e61eaa",
+    "runtime_ipc_sha256": "e6462505000c33a5dc491a8dd68790d0321a14807855967f033951ea2f130b0f",
+    "mcp_main_sha256": "e36e62c5e66fc6881e1414d4758e036e376441ef9ccfca71236a41d47dbe490f"
+  },
+  "current_truth": {
+    "schema_count": 515,
+    "operator_count": 28,
+    "read_tool_count": 111,
+    "write_tool_count": 83,
+    "total_tool_count": 194,
+    "production_stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "fps_high_05": "NOT_PASSED",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "human_review": "NOT_RUN",
+    "engine_validation": "NOT_RUN",
+    "commercial_quality": "NOT_PROVEN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  }
+}

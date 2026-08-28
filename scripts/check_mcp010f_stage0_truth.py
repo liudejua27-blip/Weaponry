@@ -34,19 +34,92 @@ ROOT = Path(__file__).resolve().parents[1]
 TRUTH_PATH = ROOT / "docs/evidence/mcp010f/current-benchmark-truth.json"
 CONTRACT_MANIFEST = ROOT / "packages/forgecad-contracts/manifest.json"
 SCHEMA_ROOT = ROOT / "packages/forgecad-contracts/schemas"
+EXPECTED_STAGE0_SCHEMA_COUNT = 579
+EXPECTED_STAGE0_SCHEMA_CONTENT_SET_SHA256 = "2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1"
+EXPECTED_STAGE0_CONTRACT_MANIFEST_SHA256 = "7e985b7a1c3ead95ee2e96858501357f028a5afe6f08ced7cd7ea1858a10accf"
+EXPECTED_STAGE0_READ_TOOL_COUNT = 128
+EXPECTED_STAGE0_WRITE_TOOL_COUNT = 94
+EXPECTED_STAGE0_TOTAL_TOOL_COUNT = 222
 MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs"
+WEAPON_FOUNDATION_MCP_SOURCE = (
+    ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/weapon_foundation_tools.rs"
+)
+WEAPON_FOUNDATION_AUTHORING_MCP_SOURCE = (
+    ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/weapon_foundation_authoring_materialization_tools.rs"
+)
+FPS_PRESENTATION_PACKAGE_V2_MCP_SOURCE = (
+    ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/fps_presentation_package_v2_tools.rs"
+)
+FPS_PRESENTATION_PACKAGE_V2_CANDIDATE_MCP_SOURCE = (
+    ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/fps_presentation_package_v2_candidate_tools.rs"
+)
 AGENTIC_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_tools.rs"
 AGENTIC_WRITE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools.rs"
 AGENTIC_ACTION_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_action_tools.rs"
 OPTIMIZATION_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/optimization_tools.rs"
 ORCHESTRATOR_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_orchestrator_tools.rs"
 PROMOTION_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/cross_view_promotion_tools.rs"
+AUTHORING_MESH_DURABLE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/authoring_mesh_durable_tools.rs"
+AUTHORING_MESH_V2_DURABLE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/authoring_mesh_v2_durable_tools.rs"
+FORM_ART_MESH_PROPOSAL_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_mesh_proposal_tools.rs"
+)
+OWNER_REVIEWED_VOID_CALIBRATION_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_owner_reviewed_void_calibration_tools.rs"
+)
+FORM_ART_BASELINE_PREFLIGHT_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_baseline_preflight_tools.rs"
+)
+FORM_ART_BASELINE_MATERIALIZER_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_baseline_materializer_tools.rs"
+)
+FORM_ART_COMPOSITE_PROPOSAL_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_composite_proposal_tools.rs"
+)
+FORM_ART_COMPOSITE_EVIDENCE_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_composite_evidence_tools.rs"
+)
+FORM_ART_REPAIR_PLAN_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_repair_plan_tools.rs"
+)
+FORM_ART_FAILURE_DIAGNOSTIC_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_failure_diagnostic_tools.rs"
+)
+NATIVE_HIGH_DURABLE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/native_high_durable_tools.rs"
+LOW_QUAD_DURABLE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/low_quad_durable_tools.rs"
+HERO_UV_DURABLE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/hero_uv_durable_tools.rs"
+FORMAL_HIGH_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_formal_high_tools.rs"
+HIGH_LOW_BAKE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_high_low_bake_tools.rs"
+AUTHORING_MESH_IDENTITY_LINEAGE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/authoring_mesh_identity_lineage_tools.rs"
+AUTHORING_MESH_TOPOLOGY_EDIT_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/authoring_mesh_topology_edit_tools.rs"
+CAMERA_LOCK_REGISTRATION_LINEAGE_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_camera_lock_registration_lineage_tools.rs"
+)
 RUNTIME_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs"
 VIEWER_SOURCE = ROOT / "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx"
 FIT_PLAN_SOURCE = ROOT / "scripts/build_mcp010f_fit_plan.py"
 TOOL_SUMMARY_PATH = ROOT / "docs/evidence/mcp010f/source-tool-manifest-summary.json"
 RUN_INVENTORY_PATH = ROOT / "docs/evidence/mcp010f/real-codex-run-inventory.json"
 EVIDENCE_MANIFEST_PATH = ROOT / "docs/evidence/mcp010f/manifest.json"
+FPS_PRESENTATION_PACKAGE_V2_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/fps-presentation-package-v2-composite-runtime-gate-20260827.json"
+)
+FORM_ART_BASELINE_PREFLIGHT_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/production-weapon-form-art-lineage-baseline-preflight-source-gate-04ak-20260827.json"
+)
+EXPECTED_FORM_ART_BASELINE_PREFLIGHT_RECEIPT_SHA256 = (
+    "409056891fece6774429c9d1609cbfc48e9c8e0df958664b84534cd150e4384a"
+)
 SUBDIVISION_ARTIFACT_LINEAGE_RECEIPT_PATH = (
     ROOT / "docs/evidence/mcp010f/blender-subdivision-artifact-lineage-source-gate-20260819.json"
 )
@@ -71,6 +144,31 @@ AUTHORING_MESH_RECEIPT_PATH = (
     ROOT / "docs/evidence/mcp010f/blender-authoring-mesh-source-gate-20260819.json"
 )
 EXPECTED_AUTHORING_MESH_RECEIPT_SHA256 = "0be79adc15e3bd1d35bec2d37c88b338d18a7d8ef15754d13b8cae7a69fc8f59"
+AUTHORING_MESH_IDENTITY_LINEAGE_V2_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/authoring-mesh-identity-lineage-v2-source-gate-20260825.json"
+)
+EXPECTED_AUTHORING_MESH_IDENTITY_LINEAGE_V2_RECEIPT_SHA256 = (
+    "937e845754a2dbd800da4f1af28997beb577c649e40fd9714729e2f9ac82487c"
+)
+AUTHORING_MESH_TYPED_TOPOLOGY_OPERATIONS_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/authoring-mesh-typed-topology-operations-source-gate-20260825.json"
+)
+EXPECTED_AUTHORING_MESH_TYPED_TOPOLOGY_OPERATIONS_RECEIPT_SHA256 = (
+    "664f387ef93b0ab0408b482d17d90047541e8ea5087c5b18bc01c16ae9459b4c"
+)
+AUTHORING_MESH_TYPED_TOPOLOGY_IDENTITY_LINEAGE_MATERIALIZATION_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/authoring-mesh-typed-topology-identity-lineage-materialization-source-gate-20260825.json"
+)
+EXPECTED_AUTHORING_MESH_TYPED_TOPOLOGY_IDENTITY_LINEAGE_MATERIALIZATION_RECEIPT_SHA256 = (
+    "2391b9b3c848035cd7d1ce38ea9c356b2079691b8971e47ff53e663ce9660350"
+)
+NATIVE_HIGH_LOW_AUTHORING_SOURCE_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/native-high-low-authoring-source-slice-20260825.json"
+)
+EXPECTED_NATIVE_HIGH_LOW_AUTHORING_SOURCE_RECEIPT_SHA256 = (
+    "c0129bf53321d9648a894eaa9a9620784064416a87527b6a220fb04f8e5bb4e7"
+)
 AUTHORING_TOPOLOGY_EDIT_PREVIEW_RECEIPT_PATH = (
     ROOT / "docs/evidence/mcp010f/blender-authoring-topology-edit-preview-source-gate-20260819.json"
 )
@@ -85,7 +183,29 @@ GEOMETRY_PREPARE_EXACT_RECEIPT_PATH = (
     ROOT / "docs/evidence/mcp010f/blender-geometry-prepare-exact-source-gate-20260819.json"
 )
 EXPECTED_GEOMETRY_PREPARE_EXACT_RECEIPT_SHA256 = "46976b994e48e721ea793e72e0842906461a2b4c34bd0d02f1162c29895a2d52"
-EXPECTED_EVIDENCE_MANIFEST_SHA256 = "ba9191e06c1a4451467ebc961f3894e376ff3c079747f0823cbf6e4506b7a730"
+EXPECTED_EVIDENCE_MANIFEST_SHA256 = "f46aebaf300a41c099c4591dde61c805e7617151f1884b3b08f23780c2b3453b"
+FORM_ART_COMPOSITE_DURABLE_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/production-weapon-form-art-composite-reviewable-candidate-durable-runtime-gate-04be-b-20260828.json"
+)
+EXPECTED_FORM_ART_COMPOSITE_DURABLE_RECEIPT_SHA256 = (
+    "a32c4418acacd20b97eb9bc6c9c15c18381a01522d8695ca1ccba59ba5449542"
+)
+FORM_ART_FAILURE_DIAGNOSTIC_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/production-weapon-form-art-failure-diagnostic-real-d1-04be-f-20260828.json"
+)
+EXPECTED_FORM_ART_FAILURE_DIAGNOSTIC_RECEIPT_SHA256 = (
+    "197cbd68fd4a207f6e1c03cdcd33f20e499c5c065bbb39f61e790c7c0e9618aa"
+)
+ASSEMBLY_PARAMETER_SINK_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/production-weapon-assembly-parameter-sink-source-gate-20260823.json"
+)
+EXPECTED_ASSEMBLY_PARAMETER_SINK_RECEIPT_SHA256 = "d1e07e3f12529a33826bbe84dbff770fd80f97e14398bff4a42e7c92c56e312d"
+ART_DECISION_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/production-weapon-art-decision-proposal-source-gate-20260823.json"
+)
+EXPECTED_ART_DECISION_RECEIPT_SHA256 = "2e3afa4c5dc9b4bf4692fe3fbd920522af37a8631cfa205d4e61ac7167189267"
 GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_RECEIPT_PATH = (
     ROOT / "docs/evidence/mcp010f/game-weapon-animated-glb-socket-transform-projection-v2-source-gate-20260822.json"
 )
@@ -121,6 +241,19 @@ WRITE_NAME_FUNCTIONS = (
     "mcp009_write_tool_names",
     "mcp010c_write_tool_names",
     "mcp010f_write_tool_names",
+    "authoring_mesh_durable_write_tool_names",
+    "authoring_mesh_v2_durable_write_tool_names",
+    "production_weapon_form_art_baseline_write_tool_names",
+    "production_weapon_form_art_composite_proposal_write_tool_names",
+    "production_weapon_form_art_composite_evidence_write_tool_names",
+    "production_weapon_form_art_mesh_proposal_write_tool_names",
+    "native_high_durable_write_tool_names",
+    "low_quad_durable_write_tool_names",
+    "hero_uv_durable_write_tool_names",
+    "production_weapon_formal_high_write_tool_names",
+    "production_weapon_high_low_bake_write_tool_names",
+    "authoring_mesh_identity_lineage_write_tool_names",
+    "production_camera_lock_registration_lineage_write_tool_names",
     "optimization_write_tool_names",
     "agentic_orchestrator_write_tool_names",
     "agentic_write_tool_names",
@@ -192,7 +325,7 @@ OBSERVATION_KEYS = frozenset(
 EVIDENCE_MANIFEST_GATE_KEYS = frozenset(
     "agentic_runtime_projection_conformance boundary_error_runtime camera_fit_runtime codex_correction_queue comparison_sheet_helper contour_canvas "
     "contour_draft_binding_validator contour_first_workflow_display contour_target_runtime difference_heatmap "
-    "export_restart_hash fit_plan_helper full_360_reference human_visual_review latest_attempt latest_completed_transport subdivision_artifact_lineage_source subdivision_artifact_lineage_sidecar_source mechanical_pose_geometry_preview_source render_evidence_replay_source mechanical_animation_clip_source authoring_mesh_source authoring_topology_edit_preview_source authoring_mesh_edit_prepare_source geometry_prepare_exact_source modifier_apply_source "
+    "export_restart_hash fit_plan_helper full_360_reference human_visual_review latest_attempt latest_completed_transport subdivision_artifact_lineage_source subdivision_artifact_lineage_sidecar_source mechanical_pose_geometry_preview_source render_evidence_replay_source mechanical_animation_clip_source authoring_mesh_source authoring_topology_edit_preview_source authoring_mesh_edit_prepare_source authoring_mesh_identity_lineage_v2_source authoring_mesh_typed_topology_operations_source geometry_prepare_exact_source modifier_apply_source "
     "packaged_current_cohort_contour_rebuild packaged_current_cohort_viewer packaged_viewer_core_controls "
     "packaged_viewer_provisional_observation_binding packaged_viewer_read_model packaged_viewer_window "
     "part_aware_rig_proposal part_contour_fit_runtime part_contour_target_slice_runtime part_correction_preflight_order part_correction_source_probe "
@@ -202,12 +335,16 @@ EVIDENCE_MANIFEST_GATE_KEYS = frozenset(
     "real_codex_rig_fit_review_recovery_transport real_codex_rig_fit_transport real_codex_silhouette_first "
     "real_codex_single_part_attempt36 reference_contour_aid silhouette_candidate_compare_runtime "
     "silhouette_fit_runtime silhouette_part_error_runtime silhouette_rig_hash_runtime stage0_truth_integrity "
-    "strict_visible_view_policy_implemented viewer_accessibility_e2e viewer_browser_dom_smoke "
+    "strict_visible_view_policy_implemented viewer_accessibility_e2e viewer_browser_dom_smoke fps_foundation_typed_importer fps_foundation_authoring_mesh_v2_materialization fps_presentation_package_v2_composite fps_presentation_package_v2_reviewable_candidate "
     "viewer_contour_annotation viewer_contour_real_execution viewer_keyboard_navigation viewer_native_window_smoke "
- "viewer_candidate_artifact_binding viewer_candidate_binding_fixtures viewer_visual_evidence_binding_fixtures viewer_quality_report_contract_alignment viewer_source_contract viewer_tauri_compile viewer_typescript_build viewer_write_boundary "
-    "agentic_runtime_observe_plan agentic_runtime_session_checkpoint packaged_render_worker_landing viewer_provenance_graph_source mechanical_animation_viewer_discrete_frame_source mechanical_animation_glb_prepare_source game_asset_delivery_source game_asset_delivery_raw_stdio threejs_game_asset_consumer game_asset_delivery_durable_source game_asset_delivery_durable_raw_stdio threejs_game_asset_consumer_v2 game_asset_auto_lod_source game_asset_auto_lod_raw_stdio godot_headless_import commercial_engine_import weapon_surface_bake_source animated_socket_transform_projection_source mechanical_animation_v2_source mechanical_animation_v2_public".split()
+    "viewer_candidate_artifact_binding viewer_candidate_binding_fixtures viewer_visual_evidence_binding_fixtures viewer_quality_report_contract_alignment viewer_source_contract viewer_tauri_compile viewer_typescript_build viewer_write_boundary authoring_mesh_typed_topology_identity_lineage_materialization native_high_detail_graph_source native_low_feature_protection_source authoring_mesh_bevel_v2_modifier_stack_source "
+    "agentic_runtime_observe_plan agentic_runtime_session_checkpoint packaged_render_worker_landing viewer_provenance_graph_source mechanical_animation_viewer_discrete_frame_source mechanical_animation_glb_prepare_source game_asset_delivery_source game_asset_delivery_raw_stdio threejs_game_asset_consumer game_asset_delivery_durable_source game_asset_delivery_durable_raw_stdio threejs_game_asset_consumer_v2 game_asset_auto_lod_source game_asset_auto_lod_raw_stdio godot_headless_import commercial_engine_import weapon_surface_bake_source animated_socket_transform_projection_source mechanical_animation_v2_source mechanical_animation_v2_public production_weapon_form_art_evidence_source production_weapon_form_art_raster_attribution_source production_weapon_owner_reviewed_void_calibration_source production_weapon_form_art_evidence_quality production_weapon_camera_registration_lineage production_weapon_fresh_form_art_baseline production_weapon_boundary_bridge_real_d1 production_weapon_boundary_bridge_relaxation_real_d1 production_weapon_form_quality_v2_source production_weapon_form_quality_v2_normalized_scope_contract_source production_weapon_trigger_guard_aperture_source production_weapon_form_art_composite_proposal_plan_source production_weapon_form_art_composite_proposal_durable_runtime production_weapon_form_art_composite_evidence_durable_runtime production_weapon_form_art_repair_plan_real_d1 production_weapon_form_art_failure_diagnostic_real_d1 production_weapon_form_quality_v2_quality production_weapon_retopology_cage_source_durable production_weapon_assembly_parameter_sink_source".split()
 )
 EXPECTED_EVIDENCE_MANIFEST_GATES = {
+    "fps_foundation_typed_importer": "PASS_SOURCE_RUNTIME_STRUCTURAL_WITH_AUTHORING_MESH_MATERIALIZATION_COMPLETE",
+    "fps_foundation_authoring_mesh_v2_materialization": "PASS_RUNTIME_ATOMIC_REPLAY_RESTART_STRUCTURAL_ONLY",
+    "fps_presentation_package_v2_composite": "PASS_RUNTIME_EDITABLE_COMPOSITE_REPLAY_RESTART_STRUCTURAL_ONLY",
+    "fps_presentation_package_v2_reviewable_candidate": "PASS_RUNTIME_REVIEWABLE_CANDIDATE_REPLAY_RESTART_STRUCTURAL_ONLY",
     "agentic_runtime_projection_conformance": "PASS_CURRENT_COHORT_NESTED_RUNTIME_MCP_PROJECTION_CONTRACTS",
     "agentic_runtime_session_checkpoint": "PASS_CURRENT_COHORT_ISOLATED_DURABLE_SESSION_CHECKPOINT_READBACK",
     "agentic_runtime_observe_plan": "PASS_CURRENT_COHORT_ISOLATED_READ_ONLY_OBSERVE_PLAN",
@@ -246,9 +383,34 @@ EXPECTED_EVIDENCE_MANIFEST_GATES = {
     "animated_socket_transform_projection_source": "PASS_SOURCE_RUNTIME_DURABLE_REPLAYABLE_READ_ONLY",
     "mechanical_animation_v2_source": "PASS_SOURCE_STRUCTURAL_ONLY",
     "mechanical_animation_v2_public": "PASS_PUBLIC_STRUCTURAL_ONLY_NOT_PROVEN",
+    "production_weapon_form_art_evidence_source": "PASS_REAL_USER_REFERENCE_CAMERA_LOCK_FORM_EVIDENCE_AND_FORM_ART_DURABLE",
+    "production_weapon_form_art_raster_attribution_source": "PASS_REAL_D1_UNIQUE_REAR_STOCK_SOURCE_ZERO_WRITE",
+    "production_weapon_owner_reviewed_void_calibration_source": "PASS_SOURCE_COMPILE_READ_ONLY_NON_PROMOTING_REAL_D1_NOT_RUN",
+    "production_weapon_form_art_evidence_quality": "NOT_PROVEN",
+    "production_weapon_camera_registration_lineage": "PASS_REAL_D1_DURABLE_APPROVED_CAMERA_RIG_V2_RESTART",
+    "production_weapon_fresh_form_art_baseline": "PASS_REAL_D1_SAME_COHORT_6_VIEW_54_AOV_RESTART_NON_PROMOTING",
+    "production_weapon_boundary_bridge_real_d1": "PASS_RUNTIME_MATERIALIZED_REJECTED_BY_SIX_VIEW_REGRESSION",
+    "production_weapon_boundary_bridge_relaxation_real_d1": "PASS_RUNTIME_SIX_VIEW_NON_REGRESSING_BLOCKED_PROPOSAL_FORM_ART_EVIDENCE",
+    "production_weapon_form_quality_v2_source": "PASS_REAL_FIXTURE_DURABLE_LEGACY_PARENT_WITH_PREFLIGHT_BLOCKED_ZERO_WRITE",
+    "production_weapon_form_quality_v2_normalized_scope_contract_source": "PASS_SOURCE_COMPILE_NORMALIZED_SCOPE_NO_VISUAL_PROMOTION",
+    "production_weapon_trigger_guard_aperture_source": "PASS_SOURCE_FIXED_XY_APERTURE_WORKER_COMPILE_BLOCKED_COMPOSITE_PROPOSAL_LINEAGE",
+    "production_weapon_form_art_composite_proposal_plan_source": "PASS_SOURCE_TYPED_ORIGINAL_CURRENT_BASE_DISJOINT_COMPOSITION_WORKER_COMPILE_NO_DURABLE_CANDIDATE",
+    "production_weapon_form_art_composite_proposal_durable_runtime": "PASS_RUNTIME_DURABLE_COMPOSITE_REVIEWABLE_CANDIDATE_RESTART_GET_NON_PROMOTING",
+    "production_weapon_form_art_composite_evidence_durable_runtime": "PASS_RUNTIME_DURABLE_SIX_VIEW_EVIDENCE_RESTART_GET_WITH_QUALITY_TARGET_NOT_MET",
+    "production_weapon_form_art_repair_plan_real_d1": "PASS_READ_ONLY_EVIDENCE_BOUND_REPAIR_PLAN_WITH_QUALITY_TARGET_NOT_MET",
+    "production_weapon_form_art_failure_diagnostic_real_d1": "PASS_READ_ONLY_EXACT_REJECTED_REPAIR_ROOT_CAUSE_SEPARATION_ZERO_WRITE",
+    "production_weapon_form_quality_v2_quality": "NOT_PROVEN",
+    "production_weapon_retopology_cage_source_durable": "PASS_SOURCE_RUNTIME_DURABLE_NON_PROMOTING",
+    "production_weapon_assembly_parameter_sink_source": "PASS_SOURCE_PURE_TYPED_PROJECTION_AND_REAL_D1_READ_ONLY_RESTART",
     "authoring_mesh_source": "PASS_SOURCE_STRUCTURAL_AUTHORING_MESH_OPERATOR_ONLY",
     "authoring_topology_edit_preview_source": "PASS_SOURCE_STRUCTURAL_RAW_STDIO",
     "authoring_mesh_edit_prepare_source": "PASS_SOURCE_STRUCTURAL_APPROVAL_GATED_STAGED_CANDIDATE",
+    "authoring_mesh_identity_lineage_v2_source": "PASS_RUNTIME_RESTART_BASIC_CROSS_CANDIDATE_IDENTITY",
+    "authoring_mesh_typed_topology_operations_source": "PASS_RUNTIME_TYPED_TOPOLOGY_SOURCE_CORRESPONDENCE",
+    "authoring_mesh_typed_topology_identity_lineage_materialization": "PASS_RUNTIME_DURABLE_TYPED_SPLIT_COLLAPSE_DISSOLVE_FULL_CHAIN",
+    "native_high_detail_graph_source": "PASS_ISOLATED_TYPED_JSON_SOURCE_NOT_RUNTIME_INTEGRATED",
+    "native_low_feature_protection_source": "PASS_SOURCE_SPLIT_NORMAL_TANGENT_AND_HARD_CREASE_PROTECTED",
+    "authoring_mesh_bevel_v2_modifier_stack_source": "PASS_RUNTIME_MCP_STABLE_EDGE_READ_ONLY_LOWERING",
     "geometry_prepare_exact_source": "PASS_SOURCE_STRUCTURAL_EXPLICIT_HEAD_ATOMIC_IDEMPOTENT_STAGING",
     "modifier_apply_source": "PASS_SOURCE_STRUCTURAL_CANDIDATE_BOUND_PART_EXACT_STAGING",
     "viewer_provenance_graph_source": "PASS_SOURCE_READ_ONLY_STRUCTURAL_PROVENANCE_GRAPH",
@@ -420,9 +582,309 @@ def source_tool_names() -> tuple[list[str], list[str]]:
             )
             require(name_match is not None, f"optimization read tool variant has no name: {variant}")
             read_names.append(name_match.group(1))
+    if "tools.extend(authoring_mesh_durable_tools::read_tools());" in source:
+        durable_source = AUTHORING_MESH_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"authoring_mesh_durable_get"' in durable_source,
+            "cannot locate durable AuthoringMesh read tool",
+        )
+        read_names.append("authoring_mesh_durable_get")
+    if "tools.extend(authoring_mesh_v2_durable_tools::read_tools());" in source:
+        durable_v2_source = AUTHORING_MESH_V2_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"authoring_mesh_v2_durable_get"' in durable_v2_source,
+            "cannot locate durable AuthoringMesh V2 read tool",
+        )
+        read_names.append("authoring_mesh_v2_durable_get")
+    if "tools.extend(production_weapon_form_art_mesh_proposal_tools::read_tools());" in source:
+        proposal_source = FORM_ART_MESH_PROPOSAL_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"production_weapon_form_art_mesh_proposal_get"' in proposal_source,
+            "cannot locate production weapon FormArt mesh proposal read tool",
+        )
+        read_names.append("production_weapon_form_art_mesh_proposal_get")
+    if "tools.extend(production_weapon_owner_reviewed_void_calibration_tools::read_tools());" in source:
+        calibration_source = OWNER_REVIEWED_VOID_CALIBRATION_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"production_weapon_owner_reviewed_void_calibration_get"' in calibration_source,
+            "cannot locate production weapon owner reviewed-void calibration read tool",
+        )
+        read_names.append("production_weapon_owner_reviewed_void_calibration_get")
+    if "tools.extend(production_weapon_form_art_baseline_preflight_tools::read_tools());" in source:
+        baseline_source = FORM_ART_BASELINE_PREFLIGHT_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"production_weapon_form_art_baseline_preflight_get"' in baseline_source,
+            "cannot locate production weapon FormArt baseline preflight read tool",
+        )
+        read_names.append("production_weapon_form_art_baseline_preflight_get")
+    if "tools.extend(production_weapon_form_art_baseline_materializer_tools::read_tools());" in source:
+        baseline_source = FORM_ART_BASELINE_MATERIALIZER_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"production_weapon_form_art_baseline_get"' in baseline_source,
+            "cannot locate production weapon FormArt baseline read tool",
+        )
+        read_names.append("production_weapon_form_art_baseline_get")
+    if "tools.extend(production_weapon_form_art_composite_proposal_tools::read_tools());" in source:
+        composite_source = FORM_ART_COMPOSITE_PROPOSAL_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"production_weapon_form_art_composite_proposal_get"' in composite_source,
+            "cannot locate production weapon FormArt composite proposal read tool",
+        )
+        read_names.append("production_weapon_form_art_composite_proposal_get")
+    if "tools.extend(production_weapon_form_art_composite_evidence_tools::read_tools());" in source:
+        composite_evidence_source = FORM_ART_COMPOSITE_EVIDENCE_MCP_SOURCE.read_text(
+            encoding="utf-8"
+        )
+        require(
+            '"production_weapon_form_art_composite_evidence_get"'
+            in composite_evidence_source,
+            "cannot locate production weapon FormArt composite evidence read tool",
+        )
+        read_names.append("production_weapon_form_art_composite_evidence_get")
+    if "tools.extend(production_weapon_form_art_repair_plan_tools::read_tools());" in source:
+        repair_plan_source = FORM_ART_REPAIR_PLAN_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"production_weapon_form_art_repair_plan_get"' in repair_plan_source,
+            "cannot locate production weapon FormArt repair-plan read tool",
+        )
+        read_names.append("production_weapon_form_art_repair_plan_get")
+    if "tools.extend(production_weapon_form_art_failure_diagnostic_tools::read_tools());" in source:
+        failure_diagnostic_source = FORM_ART_FAILURE_DIAGNOSTIC_MCP_SOURCE.read_text(
+            encoding="utf-8"
+        )
+        require(
+            '"production_weapon_form_art_failure_diagnostic_get"'
+            in failure_diagnostic_source,
+            "cannot locate production weapon FormArt failure diagnostic read tool",
+        )
+        read_names.append("production_weapon_form_art_failure_diagnostic_get")
+    if "tools.extend(native_high_durable_tools::read_tools());" in source:
+        native_high_source = NATIVE_HIGH_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"native_high_durable_get"' in native_high_source,
+            "cannot locate Native High durable read tool",
+        )
+        read_names.append("native_high_durable_get")
+    if "tools.extend(low_quad_durable_tools::read_tools());" in source:
+        low_quad_source = LOW_QUAD_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"low_quad_draft_durable_get"' in low_quad_source,
+            "cannot locate Low quad durable read tool",
+        )
+        read_names.append("low_quad_draft_durable_get")
+    if "tools.extend(hero_uv_durable_tools::read_tools());" in source:
+        hero_uv_source = HERO_UV_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"hero_uv_durable_get"' in hero_uv_source,
+            "cannot locate Hero UV durable read tool",
+        )
+        read_names.append("hero_uv_durable_get")
+    if "tools.extend(production_weapon_formal_high_tools::read_tools());" in source:
+        formal_high_source = FORMAL_HIGH_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"production_weapon_formal_high_get"' in formal_high_source,
+            "cannot locate Formal High read tool",
+        )
+        read_names.append("production_weapon_formal_high_get")
+    if "tools.extend(production_weapon_high_low_bake_tools::read_tools());" in source:
+        high_low_bake_source = HIGH_LOW_BAKE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"production_weapon_high_low_bake_get"' in high_low_bake_source,
+            "cannot locate formal High/Low Bake read tool",
+        )
+        read_names.append("production_weapon_high_low_bake_get")
+    if "tools.extend(authoring_mesh_identity_lineage_tools::read_tools());" in source:
+        identity_source = AUTHORING_MESH_IDENTITY_LINEAGE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"authoring_mesh_identity_lineage_get"' in identity_source,
+            "cannot locate durable AuthoringMesh identity-lineage read tool",
+        )
+        read_names.append("authoring_mesh_identity_lineage_get")
+    if "tools.extend(authoring_mesh_topology_edit_tools::read_tools());" in source:
+        topology_edit_source = AUTHORING_MESH_TOPOLOGY_EDIT_MCP_SOURCE.read_text(encoding="utf-8")
+        read_names_match = re.search(
+            r"const READ_NAMES:\s*\[&str;\s*\d+\]\s*=\s*\[(.*?)\];",
+            topology_edit_source,
+            flags=re.DOTALL,
+        )
+        require(read_names_match is not None, "cannot locate typed topology-edit read tools")
+        topology_edit_read_names = re.findall(r'"([a-z0-9_]+)"', read_names_match.group(1))
+        require(topology_edit_read_names, "typed topology-edit read tool list is empty")
+        read_names.extend(topology_edit_read_names)
+    if "tools.extend(production_camera_lock_registration_lineage_tools::read_tools());" in source:
+        lineage_source = CAMERA_LOCK_REGISTRATION_LINEAGE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"production_camera_lock_registration_lineage_get"' in lineage_source,
+            "cannot locate CameraLock registration lineage read tool",
+        )
+        read_names.append("production_camera_lock_registration_lineage_get")
+        require(
+            '"production_camera_lock_registration_lineage_preflight_get"' in lineage_source,
+            "cannot locate CameraLock registration lineage preflight read tool",
+        )
+        read_names.append("production_camera_lock_registration_lineage_preflight_get")
+        require(
+            '"production_camera_lock_registration_lineage_preflight_projection_get"'
+            in lineage_source,
+            "cannot locate CameraLock registration-lineage Runtime-derived projection read tool",
+        )
+        read_names.append(
+            "production_camera_lock_registration_lineage_preflight_projection_get"
+        )
+    if "tools.extend(weapon_foundation_tools::read_tools());" in source:
+        foundation_source = WEAPON_FOUNDATION_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            'Self::Get => "weapon_foundation_asset_get"' in foundation_source,
+            "cannot locate weapon foundation read tool",
+        )
+        read_names.append("weapon_foundation_asset_get")
+    if "tools.extend(weapon_foundation_authoring_materialization_tools::read_tools());" in source:
+        foundation_authoring_source = WEAPON_FOUNDATION_AUTHORING_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            'Self::Get => "weapon_foundation_authoring_materialization_get"' in foundation_authoring_source,
+            "cannot locate weapon foundation AuthoringMesh materialization read tool",
+        )
+        read_names.append("weapon_foundation_authoring_materialization_get")
+    if "tools.extend(fps_presentation_package_v2_tools::read_tools());" in source:
+        package_source = FPS_PRESENTATION_PACKAGE_V2_MCP_SOURCE.read_text(encoding="utf-8")
+        for name in [
+            "fps_presentation_package_v2_get",
+            "fps_presentation_package_v2_production_preflight_get",
+        ]:
+            require(f'"{name}"' in package_source, f"cannot locate composite FPS package read tool: {name}")
+            read_names.append(name)
+    if "tools.extend(fps_presentation_package_v2_candidate_tools::read_tools());" in source:
+        candidate_source = FPS_PRESENTATION_PACKAGE_V2_CANDIDATE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"fps_presentation_package_v2_candidate_get"' in candidate_source,
+            "cannot locate composite FPS package candidate read tool",
+        )
+        read_names.append("fps_presentation_package_v2_candidate_get")
 
     write_names: list[str] = []
     for function_name in WRITE_NAME_FUNCTIONS:
+        if function_name == "authoring_mesh_durable_write_tool_names":
+            durable_source = AUTHORING_MESH_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"authoring_mesh_durable_prepare"' in durable_source,
+                "cannot locate durable AuthoringMesh write tool",
+            )
+            write_names.append("authoring_mesh_durable_prepare")
+            continue
+        if function_name == "authoring_mesh_v2_durable_write_tool_names":
+            durable_v2_source = AUTHORING_MESH_V2_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"authoring_mesh_v2_durable_prepare"' in durable_v2_source,
+                "cannot locate durable AuthoringMesh V2 write tool",
+            )
+            write_names.append("authoring_mesh_v2_durable_prepare")
+            require(
+                '"production_weapon_authoring_mesh_v2_source_prepare"' in durable_v2_source,
+                "cannot locate source-bound AuthoringMesh V2 write tool",
+            )
+            write_names.append("production_weapon_authoring_mesh_v2_source_prepare")
+            continue
+        if function_name == "production_weapon_form_art_mesh_proposal_write_tool_names":
+            proposal_source = FORM_ART_MESH_PROPOSAL_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"production_weapon_form_art_mesh_proposal_prepare"' in proposal_source,
+                "cannot locate production weapon FormArt mesh proposal write tool",
+            )
+            write_names.append("production_weapon_form_art_mesh_proposal_prepare")
+            continue
+        if function_name == "production_weapon_form_art_baseline_write_tool_names":
+            baseline_source = FORM_ART_BASELINE_MATERIALIZER_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"production_weapon_form_art_baseline_prepare"' in baseline_source,
+                "cannot locate production weapon FormArt baseline write tool",
+            )
+            write_names.append("production_weapon_form_art_baseline_prepare")
+            continue
+        if function_name == "production_weapon_form_art_composite_proposal_write_tool_names":
+            composite_source = FORM_ART_COMPOSITE_PROPOSAL_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                "tools.extend(production_weapon_form_art_composite_proposal_tools::write_tools());"
+                in source,
+                "composite proposal write tool is not registered",
+            )
+            require(
+                '"production_weapon_form_art_composite_proposal_prepare"' in composite_source,
+                "cannot locate production weapon FormArt composite proposal write tool",
+            )
+            write_names.append("production_weapon_form_art_composite_proposal_prepare")
+            continue
+        if function_name == "production_weapon_form_art_composite_evidence_write_tool_names":
+            composite_evidence_source = FORM_ART_COMPOSITE_EVIDENCE_MCP_SOURCE.read_text(
+                encoding="utf-8"
+            )
+            require(
+                "tools.extend(production_weapon_form_art_composite_evidence_tools::write_tools());"
+                in source,
+                "composite evidence write tool is not registered",
+            )
+            require(
+                '"production_weapon_form_art_composite_evidence_prepare"'
+                in composite_evidence_source,
+                "cannot locate production weapon FormArt composite evidence write tool",
+            )
+            write_names.append("production_weapon_form_art_composite_evidence_prepare")
+            continue
+        if function_name == "native_high_durable_write_tool_names":
+            native_high_source = NATIVE_HIGH_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"native_high_durable_prepare"' in native_high_source,
+                "cannot locate Native High durable write tool",
+            )
+            write_names.append("native_high_durable_prepare")
+            continue
+        if function_name == "low_quad_durable_write_tool_names":
+            low_quad_source = LOW_QUAD_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"low_quad_draft_durable_prepare"' in low_quad_source,
+                "cannot locate Low quad durable write tool",
+            )
+            write_names.append("low_quad_draft_durable_prepare")
+            continue
+        if function_name == "hero_uv_durable_write_tool_names":
+            hero_uv_source = HERO_UV_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"hero_uv_durable_prepare"' in hero_uv_source,
+                "cannot locate Hero UV durable write tool",
+            )
+            write_names.append("hero_uv_durable_prepare")
+            continue
+        if function_name == "production_weapon_formal_high_write_tool_names":
+            formal_high_source = FORMAL_HIGH_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"production_weapon_formal_high_prepare"' in formal_high_source,
+                "cannot locate Formal High write tool",
+            )
+            write_names.append("production_weapon_formal_high_prepare")
+            continue
+        if function_name == "production_weapon_high_low_bake_write_tool_names":
+            high_low_bake_source = HIGH_LOW_BAKE_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"production_weapon_high_low_bake_prepare"' in high_low_bake_source,
+                "cannot locate formal High/Low Bake write tool",
+            )
+            write_names.append("production_weapon_high_low_bake_prepare")
+            continue
+        if function_name == "authoring_mesh_identity_lineage_write_tool_names":
+            identity_source = AUTHORING_MESH_IDENTITY_LINEAGE_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"authoring_mesh_identity_lineage_prepare"' in identity_source,
+                "cannot locate durable AuthoringMesh identity-lineage write tool",
+            )
+            write_names.append("authoring_mesh_identity_lineage_prepare")
+            continue
+        if function_name == "production_camera_lock_registration_lineage_write_tool_names":
+            lineage_source = CAMERA_LOCK_REGISTRATION_LINEAGE_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                '"production_camera_lock_registration_lineage_prepare"' in lineage_source,
+                "cannot locate CameraLock registration lineage write tool",
+            )
+            write_names.append("production_camera_lock_registration_lineage_prepare")
+            continue
         if function_name == "optimization_write_tool_names":
             optimization_source = OPTIMIZATION_MCP_SOURCE.read_text(encoding="utf-8")
             names_function = re.search(
@@ -525,6 +987,35 @@ def source_tool_names() -> tuple[list[str], list[str]]:
         names = re.findall(r'"([a-z0-9_]+)"', match.group(1))
         require(names, f"{function_name} contains no tool names")
         write_names.extend(names)
+
+    if "names.extend(weapon_foundation_tools::write_tool_names());" in source:
+        foundation_source = WEAPON_FOUNDATION_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            'Self::Prepare => "weapon_foundation_asset_prepare"' in foundation_source,
+            "cannot locate weapon foundation write tool",
+        )
+        write_names.append("weapon_foundation_asset_prepare")
+    if "names.extend(weapon_foundation_authoring_materialization_tools::write_tool_names());" in source:
+        foundation_authoring_source = WEAPON_FOUNDATION_AUTHORING_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            'Self::Prepare => "weapon_foundation_authoring_materialization_prepare"' in foundation_authoring_source,
+            "cannot locate weapon foundation AuthoringMesh materialization write tool",
+        )
+        write_names.append("weapon_foundation_authoring_materialization_prepare")
+    if "names.extend(fps_presentation_package_v2_tools::write_tool_names());" in source:
+        package_source = FPS_PRESENTATION_PACKAGE_V2_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"fps_presentation_package_v2_prepare"' in package_source,
+            "cannot locate composite FPS package write tool",
+        )
+        write_names.append("fps_presentation_package_v2_prepare")
+    if "names.extend(fps_presentation_package_v2_candidate_tools::write_tool_names());" in source:
+        candidate_source = FPS_PRESENTATION_PACKAGE_V2_CANDIDATE_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            '"fps_presentation_package_v2_candidate_prepare"' in candidate_source,
+            "cannot locate composite FPS package candidate write tool",
+        )
+        write_names.append("fps_presentation_package_v2_candidate_prepare")
 
     require(len(read_names) == len(set(read_names)), "duplicate read-only tool names")
     require(len(write_names) == len(set(write_names)), "duplicate write tool names")
@@ -1618,10 +2109,220 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         manifest["status"] == "stage0-truth-and-source-and-packaged-read-model-structural-with-visual-quality-not-met",
         "evidence manifest status drifted or was promoted",
     )
-    require(manifest["persistent_user_data_touched"] is False, "evidence manifest claims a persistent user-data write")
+    require(
+        manifest["persistent_user_data_touched"] is True,
+        "evidence manifest must retain the real D1 composite candidate write",
+    )
+    composite_receipt_path = (
+        "docs/evidence/mcp010f/production-weapon-form-art-composite-reviewable-candidate-durable-runtime-gate-04be-b-20260828.json"
+    )
+    require(composite_receipt_path in manifest["evidence"], "durable composite receipt is not inventoried")
+    require(
+        sha256_file(FORM_ART_COMPOSITE_DURABLE_RECEIPT_PATH)
+        == EXPECTED_FORM_ART_COMPOSITE_DURABLE_RECEIPT_SHA256,
+        "durable composite receipt changed without an explicit checker revision",
+    )
+    composite_receipt = load_json(FORM_ART_COMPOSITE_DURABLE_RECEIPT_PATH)
+    require(
+        composite_receipt.get("task_id") == "FPS-FORM-04BE-B"
+        and composite_receipt.get("status")
+        == "PASS_RUNTIME_DURABLE_COMPOSITE_REVIEWABLE_CANDIDATE_RESTART_GET_NON_PROMOTING"
+        and composite_receipt.get("restart_readback", {}).get("restart_hash_verified") is True
+        and composite_receipt.get("durable_result", {}).get("status")
+        == "PREPARED_REVIEWABLE_CANDIDATE_AWAITING_SIX_VIEW"
+        and composite_receipt.get("final_state", {}).get("quality_status") == "QUALITY_TARGET_NOT_MET"
+        and composite_receipt.get("final_state", {}).get("candidate_confirm_allowed") is False
+        and composite_receipt.get("final_state", {}).get("production_stage_advanced") is False,
+        "durable composite receipt must retain restart and non-promotion truth",
+    )
+    failure_diagnostic_path = (
+        "docs/evidence/mcp010f/production-weapon-form-art-failure-diagnostic-real-d1-04be-f-20260828.json"
+    )
+    require(
+        failure_diagnostic_path in manifest["evidence"],
+        "04BE-F failure diagnostic receipt is not inventoried",
+    )
+    require(
+        sha256_file(FORM_ART_FAILURE_DIAGNOSTIC_RECEIPT_PATH)
+        == EXPECTED_FORM_ART_FAILURE_DIAGNOSTIC_RECEIPT_SHA256,
+        "04BE-F failure diagnostic receipt changed without an explicit checker revision",
+    )
+    failure_diagnostic = load_json(FORM_ART_FAILURE_DIAGNOSTIC_RECEIPT_PATH)
+    require(
+        failure_diagnostic.get("task_id") == "FPS-FORM-04BE-F"
+        and failure_diagnostic.get("status") == "PASS_READ_ONLY_FAILURE_ROOT_CAUSES_SEPARATED"
+        and failure_diagnostic.get("restart_readback", {}).get("canonical_hash_equal") is True
+        and failure_diagnostic.get("read_only_integrity", {}).get("sqlite_unchanged") is True
+        and failure_diagnostic.get("read_only_integrity", {}).get("cas_unchanged") is True
+        and failure_diagnostic.get("diagnostic", {}).get("diagnostic_status")
+        == "FAILURE_ROOT_CAUSES_SEPARATED_NO_GEOMETRY_REPAIR_AUTHORIZED"
+        and failure_diagnostic.get("diagnostic", {}).get("form_quality_v2_status") == "NOT_CREATED",
+        "04BE-F receipt must retain read-only restart equality and the no-repair/no-promotion boundary",
+    )
+    sink_receipt = load_json(ASSEMBLY_PARAMETER_SINK_RECEIPT_PATH)
+    require(
+        sha256_file(ASSEMBLY_PARAMETER_SINK_RECEIPT_PATH) == EXPECTED_ASSEMBLY_PARAMETER_SINK_RECEIPT_SHA256,
+        "assembly parameter sink source receipt changed without an explicit checker revision",
+    )
+    require(
+        sink_receipt.get("schema_version") == "ProductionWeaponAssemblyParameterSinkSourceGateReceipt@1"
+        and sink_receipt.get("task_id") == "FPS-ASSEMBLY-SINK-04C"
+        and sink_receipt.get("status")
+        == "PASS_SOURCE_PURE_TYPED_PROJECTION_AND_REAL_D1_READ_ONLY_RESTART"
+        and sink_receipt.get("canonical_sha256") == canonical_sha256(sink_receipt)
+        and sink_receipt.get("truth_boundaries", {}).get("source_only") is False
+        and sink_receipt.get("truth_boundaries", {}).get("pure_projection_only") is True
+        and sink_receipt.get("truth_boundaries", {}).get("real_d1_fixture")
+        == "PASS_READ_ONLY_PROJECTION_7_TYPED_5_UNAVAILABLE"
+        and sink_receipt.get("truth_boundaries", {}).get("real_restart") == "PASS_EQUAL",
+        "assembly parameter sink receipt must retain pure projection and exact real D1/restart truth",
+    )
+    sink_source_hashes = sink_receipt.get("source_hashes", {})
+    require(
+        sink_source_hashes.get("runtime_mutator_source_sha256") == "b0f2dc3910bf6c98ec4fc88e9507570cb4ebba5d59588dc9f0feb5136243a525"
+        and sink_source_hashes.get("runtime_sink_source_sha256") == "d019962e631c4258c1ed08eb607580b712017cba4f988f8d4ceb316ab374777e"
+        and sink_source_hashes.get("runtime_art_decision_source_sha256") == "9adc42e3509a410eded9bbe1be5808650ccf02d34e2d06aa64f9a6e8e6b41d7e"
+        and sink_source_hashes.get("runtime_lib_source_sha256") == "682c28c4154c247304bb8ec92ccda68ee1ed0026b0bff41dac33c2a258f0e50e"
+        and sink_source_hashes.get("mcp_agentic_write_source_sha256") == "a57bd0afad19291bc56f6aac13edbce6ad93160e7f970a713424357d05640ed1",
+        "assembly parameter sink source hash freeze drifted",
+    )
+    art_receipt = load_json(ART_DECISION_RECEIPT_PATH)
+    require(
+        sha256_file(ART_DECISION_RECEIPT_PATH) == EXPECTED_ART_DECISION_RECEIPT_SHA256,
+        "art decision source receipt changed without an explicit checker revision",
+    )
+    art_surface = art_receipt.get("contract_surface", {})
+    art_fixture = art_receipt.get("real_fixture", {})
+    art_source_hashes = {
+        entry.get("path"): entry.get("sha256") for entry in art_receipt.get("source_hashes", [])
+    }
+    require(
+        art_receipt.get("schema_version") == "ProductionWeaponArtDecisionProposalSourceGateReceipt@1"
+        and art_receipt.get("task_id") == "FPS-ART-DECISION-04B"
+        and art_receipt.get("canonical_sha256") == canonical_sha256(art_receipt)
+        and art_receipt.get("source_truth", {}).get("schema_count") == 462
+        and art_receipt.get("source_truth", {}).get("read_tool_count") == 100
+        and art_receipt.get("source_truth", {}).get("write_tool_count") == 76
+        and art_receipt.get("source_truth", {}).get("total_tool_count") == 176
+        and art_surface.get("typed_parameter_sink_resolver") is True
+        and art_surface.get("ready_for_search_group_ids") == ["receiver-envelope", "muzzle-axis"]
+        and art_surface.get("blocked_parameter_sink_group_ids")
+        == ["stock-open-frame", "trigger-void", "rail-spine"]
+        and art_surface.get("parameter_sink_gate_status") == "BLOCKED"
+        and art_surface.get("negative_space_gate_status") == "BLOCKED_NEGATIVE_SPACE"
+        and art_fixture.get("negative_space_projection", {}).get("source_shape") == "bbox"
+        and art_fixture.get("negative_space_projection", {}).get("mask_operation") == "none"
+        and art_fixture.get("negative_space_projection", {}).get("exact_subtract_fixture") == "NOT_RUN"
+        and art_source_hashes.get("apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_art_decision_proposal.rs")
+        == "e39b61250061255c897f6a912b42d119f87da737455189df78af5c9c03ae0027"
+        and art_source_hashes.get("apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs")
+        == "372873d0d41249d649e4d843382e6c8010545d533a579b46bd0e8763043027a5",
+        "art decision receipt must freeze typed resolver readiness and real 04A negative-space boundary",
+    )
     gates = manifest["gates"]
     require_exact_keys(gates, EVIDENCE_MANIFEST_GATE_KEYS, "MCP010F evidence manifest gates")
     require(gates == EXPECTED_EVIDENCE_MANIFEST_GATES, "MCP010F evidence manifest gate values drifted")
+    typed_topology_receipt_path = (
+        "docs/evidence/mcp010f/authoring-mesh-typed-topology-operations-source-gate-20260825.json"
+    )
+    require(
+        typed_topology_receipt_path in manifest["evidence"],
+        "typed AuthoringMesh topology-operation receipt is not inventoried",
+    )
+    require(
+        sha256_file(AUTHORING_MESH_TYPED_TOPOLOGY_OPERATIONS_RECEIPT_PATH)
+        == EXPECTED_AUTHORING_MESH_TYPED_TOPOLOGY_OPERATIONS_RECEIPT_SHA256,
+        "typed AuthoringMesh topology-operation receipt changed without an explicit checker revision",
+    )
+    typed_topology_receipt = load_json(AUTHORING_MESH_TYPED_TOPOLOGY_OPERATIONS_RECEIPT_PATH)
+    require(
+        typed_topology_receipt.get("schema_version")
+        == "AuthoringMeshTypedTopologyOperationsSourceGateReceipt@1"
+        and typed_topology_receipt.get("task_id")
+        == "CQ-02-AUTHORING-MESH-TYPED-TOPOLOGY-OPERATIONS"
+        and typed_topology_receipt.get("status")
+        == "PASS_RUNTIME_TYPED_TOPOLOGY_SOURCE_CORRESPONDENCE"
+        and typed_topology_receipt.get("canonical_sha256")
+        == canonical_sha256(typed_topology_receipt)
+        and typed_topology_receipt.get("identity_truth", {}).get("identity_namespace_status")
+        == "source-element-only-not-materialized-to-identity-lineage@1"
+        and typed_topology_receipt.get("identity_truth", {}).get("identity_lineage_materialization")
+        == "NOT_PROVEN"
+        and typed_topology_receipt.get("product_state", {}).get("visual_status")
+        == "QUALITY_TARGET_NOT_MET",
+        "typed AuthoringMesh topology receipt overclaims IdentityLineage or visual quality",
+    )
+    typed_identity_receipt_path = (
+        "docs/evidence/mcp010f/authoring-mesh-typed-topology-identity-lineage-materialization-source-gate-20260825.json"
+    )
+    require(
+        typed_identity_receipt_path in manifest["evidence"],
+        "typed topology IdentityLineage materialization receipt is not inventoried",
+    )
+    require(
+        sha256_file(AUTHORING_MESH_TYPED_TOPOLOGY_IDENTITY_LINEAGE_MATERIALIZATION_RECEIPT_PATH)
+        == EXPECTED_AUTHORING_MESH_TYPED_TOPOLOGY_IDENTITY_LINEAGE_MATERIALIZATION_RECEIPT_SHA256,
+        "typed topology IdentityLineage materialization receipt changed without an explicit checker revision",
+    )
+    typed_identity_receipt = load_json(
+        AUTHORING_MESH_TYPED_TOPOLOGY_IDENTITY_LINEAGE_MATERIALIZATION_RECEIPT_PATH
+    )
+    identity_truth = typed_identity_receipt.get("identity_truth", {})
+    product_state = typed_identity_receipt.get("product_state", {})
+    require(
+        typed_identity_receipt.get("schema_version")
+        == "AuthoringMeshTypedTopologyIdentityLineageMaterializationSourceGateReceipt@1"
+        and typed_identity_receipt.get("task_id")
+        == "CQ-02-AUTHORING-MESH-TYPED-TOPOLOGY-IDENTITY-LINEAGE"
+        and typed_identity_receipt.get("status")
+        == "PASS_RUNTIME_DURABLE_TYPED_SPLIT_COLLAPSE_DISSOLVE_IDENTITY_LINEAGE_MATERIALIZATION"
+        and typed_identity_receipt.get("canonical_sha256") == canonical_sha256(typed_identity_receipt)
+        and identity_truth.get("split_edge_one_to_many_identity_relation") == "PASS_REAL_RUNTIME_CHAIN"
+        and identity_truth.get("collapse_edge_many_to_one_materialization_path")
+        == "PASS_REAL_RUNTIME_CHAIN"
+        and identity_truth.get("dissolve_edge_many_to_one_materialization_path")
+        == "PASS_REAL_RUNTIME_CHAIN"
+        and identity_truth.get("general_correspondence_beyond_typed_operations") == "NOT_PROVEN"
+        and product_state.get("visual_status") == "QUALITY_TARGET_NOT_MET"
+        and product_state.get("human_status") == "NOT_RUN"
+        and product_state.get("engine_status") == "NOT_RUN"
+        and product_state.get("distribution_status") == "NOT_RUN"
+        and product_state.get("hq_360") == "BLOCKED_REFERENCE_COVERAGE",
+        "typed topology IdentityLineage receipt overclaims correspondence or product quality",
+    )
+    native_high_low_receipt_path = (
+        "docs/evidence/mcp010f/native-high-low-authoring-source-slice-20260825.json"
+    )
+    require(
+        native_high_low_receipt_path in manifest["evidence"],
+        "Native High/Low authoring source receipt is not inventoried",
+    )
+    require(
+        sha256_file(NATIVE_HIGH_LOW_AUTHORING_SOURCE_RECEIPT_PATH)
+        == EXPECTED_NATIVE_HIGH_LOW_AUTHORING_SOURCE_RECEIPT_SHA256,
+        "Native High/Low authoring source receipt changed without an explicit checker revision",
+    )
+    native_receipt = load_json(NATIVE_HIGH_LOW_AUTHORING_SOURCE_RECEIPT_PATH)
+    native_high = native_receipt.get("native_high", {})
+    native_low = native_receipt.get("native_low", {})
+    native_product = native_receipt.get("product_state", {})
+    require(
+        native_receipt.get("schema_version") == "NativeHighLowAuthoringSourceSliceReceipt@1"
+        and native_receipt.get("status")
+        == "PASS_SOURCE_ISOLATED_HIGH_DETAIL_GRAPH_AND_LOW_FEATURE_PROTECTION"
+        and native_receipt.get("canonical_sha256") == canonical_sha256(native_receipt)
+        and native_high.get("high_05_gate") == "NOT_PASSED"
+        and native_high.get("stable_authoring_identity_adapter") == "NOT_IMPLEMENTED"
+        and native_low.get("artist_authored_quad_topology") is False
+        and native_low.get("edge_flow_status") == "NOT_PROVEN"
+        and native_low.get("uv_only_seam") == "NOT_PROVEN_WIRE_CONTRACT_CANNOT_EXPRESS_SAFELY"
+        and native_product.get("visual_status") == "QUALITY_TARGET_NOT_MET"
+        and native_product.get("human_status") == "NOT_RUN"
+        and native_product.get("engine_status") == "NOT_RUN"
+        and native_product.get("distribution_status") == "NOT_RUN"
+        and native_product.get("hq_360") == "BLOCKED_REFERENCE_COVERAGE",
+        "Native High/Low source receipt overclaims integration, topology or product quality",
+    )
     observation = truth["provisional_retained_observation"]
     expected_projection = {
         "provisional_observation_truth_binding": truth["evidence_status"],
@@ -1644,7 +2345,7 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         require(forbidden not in limitation_text, f"evidence manifest contains a forbidden promotion claim: {forbidden}")
     require(isinstance(manifest["scope"], list) and manifest["scope"], "evidence manifest scope must be a non-empty list")
     require(isinstance(manifest["limitations"], list) and manifest["limitations"], "evidence manifest limitations must be non-empty")
-    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 182, "evidence manifest frozen evidence count drifted")
+    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 236, "evidence manifest frozen evidence count drifted")
     require(len(set(manifest["evidence"])) == len(manifest["evidence"]), "evidence manifest contains duplicate entries")
     for index, entry in enumerate(manifest["evidence"]):
         require(isinstance(entry, str) and entry, f"evidence entry {index} must be a non-empty string")
@@ -1666,6 +2367,49 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         if symbol is not None:
             source = evidence_path.read_text(encoding="utf-8")
             require(re.search(rf"\b{re.escape(symbol)}\b", source) is not None, f"evidence symbol is missing: {entry}")
+
+    fps_package_receipt = load_json(FPS_PRESENTATION_PACKAGE_V2_RECEIPT_PATH)
+    require(
+        fps_package_receipt.get("schema_version")
+        == "ForgeCADFpsPresentationPackageV2CompositeRuntimeGate@1"
+        and fps_package_receipt.get("status")
+        == "PASS_RUNTIME_EDITABLE_COMPOSITE_REPLAY_RESTART_STRUCTURAL_ONLY"
+        and fps_package_receipt.get("canonical_sha256") == canonical_sha256(fps_package_receipt)
+        and fps_package_receipt.get("runtime_probe", {}).get("restart_hash_verified") is True
+        and fps_package_receipt.get("runtime_probe", {}).get("editable_composite_ready") is True
+        and fps_package_receipt.get("production_gates", {}).get("formal_high")
+        == "BLOCKED_SECONDARY_FORM_APPROVAL_AND_CANDIDATE_BINDING"
+        and fps_package_receipt.get("quality_truth", {}).get("commercial_fps_quality")
+        == "NOT_PROVEN"
+        and fps_package_receipt.get("quality_truth", {}).get("engine_roundtrip") == "NOT_RUN"
+        and fps_package_receipt.get("quality_truth", {}).get("human_review") == "NOT_RUN",
+        "composite FPS package receipt overclaims the production or review closure",
+    )
+
+    baseline_preflight_path = (
+        "docs/evidence/mcp010f/production-weapon-form-art-lineage-baseline-preflight-source-gate-04ak-20260827.json"
+    )
+    require(baseline_preflight_path in manifest["evidence"], "FormArt baseline preflight receipt is not inventoried")
+    require(
+        sha256_file(FORM_ART_BASELINE_PREFLIGHT_RECEIPT_PATH)
+        == EXPECTED_FORM_ART_BASELINE_PREFLIGHT_RECEIPT_SHA256,
+        "frozen FormArt baseline preflight receipt changed without an explicit checker revision",
+    )
+    baseline_preflight = load_json(FORM_ART_BASELINE_PREFLIGHT_RECEIPT_PATH)
+    require(
+        baseline_preflight.get("schema_version")
+        == "ForgeCADProductionWeaponFormArtLineageBaselinePreflightSourceGate@1"
+        and baseline_preflight.get("task_id") == "FPS-FORM-04AK"
+        and baseline_preflight.get("status")
+        == "PASS_SOURCE_COMPILE_ZERO_WRITE_PREFLIGHT_WITH_MATERIALIZER_UNAVAILABLE"
+        and baseline_preflight.get("canonical_sha256") == canonical_sha256(baseline_preflight)
+        and baseline_preflight.get("capability", {}).get("reason")
+        == "FRESH_BASELINE_MATERIALIZER_UNAVAILABLE"
+        and baseline_preflight.get("real_d1_boundary", {}).get("runtime_write") is False
+        and baseline_preflight.get("real_d1_boundary", {}).get("persistent_user_data_touched") is False
+        and baseline_preflight.get("real_d1_boundary", {}).get("quality") == "QUALITY_TARGET_NOT_MET",
+        "FormArt baseline preflight receipt overclaims materialization, real-D1 writes or visual quality",
+    )
 
     receipt_path = "docs/evidence/mcp010f/blender-subdivision-artifact-lineage-source-gate-20260819.json"
     require(receipt_path in manifest["evidence"], "Subdivision artifact-lineage receipt is not inventoried")
@@ -1858,6 +2602,54 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
     require(
         authoring_receipt.get("quality_truth", {}).get("visible_view") == "QUALITY_TARGET_NOT_MET",
         "Authoring mesh receipt promoted visual quality",
+    )
+
+    identity_receipt_path = (
+        "docs/evidence/mcp010f/authoring-mesh-identity-lineage-v2-source-gate-20260825.json"
+    )
+    require(
+        identity_receipt_path in manifest["evidence"],
+        "AuthoringMesh IdentityLineage V2 receipt is not inventoried",
+    )
+    require(
+        sha256_file(AUTHORING_MESH_IDENTITY_LINEAGE_V2_RECEIPT_PATH)
+        == EXPECTED_AUTHORING_MESH_IDENTITY_LINEAGE_V2_RECEIPT_SHA256,
+        "AuthoringMesh IdentityLineage V2 receipt changed without an explicit checker revision",
+    )
+    identity_receipt = load_json(AUTHORING_MESH_IDENTITY_LINEAGE_V2_RECEIPT_PATH)
+    require(
+        identity_receipt.get("schema_version")
+        == "AuthoringMeshIdentityLineageV2SourceGateReceipt@1"
+        and identity_receipt.get("task_id") == "CQ-02-AUTHORING-MESH-IDENTITY-LINEAGE-V2"
+        and identity_receipt.get("status")
+        == gates["authoring_mesh_identity_lineage_v2_source"]
+        and identity_receipt.get("canonical_sha256") == canonical_sha256(identity_receipt),
+        "AuthoringMesh IdentityLineage V2 receipt identity, status or canonical hash drifted",
+    )
+    identity_runtime = identity_receipt.get("runtime", {})
+    identity_store = identity_receipt.get("store", {})
+    identity_mcp = identity_receipt.get("mcp", {})
+    identity_product = identity_receipt.get("product_state", {})
+    require(
+        identity_store.get("focused_identity_lineage_tests") == "PASS_4_OF_4"
+        and identity_runtime.get("positive_prepare_get_fixture") == "PASS_1_OF_1"
+        and identity_runtime.get("drop_reopen_restart_fixture")
+        == "PASS_EXACT_IDENTITY_AND_HASH_READBACK"
+        and identity_runtime.get("same_lineage_two_candidate_fixture")
+        == "PASS_BASIC_PRESERVING_AND_TOPOLOGY_EDIT"
+        and identity_runtime.get("derived_correspondence")
+        == "PASS_PRESERVED_CREATED_RETIRED_ONLY"
+        and identity_runtime.get("monotonic_tombstone_non_reuse") == "PASS"
+        and identity_runtime.get("split_merge_correspondence") == "NOT_PROVEN"
+        and identity_mcp.get("focused_tests") == "PASS_3_OF_3"
+        and identity_mcp.get("raw_stdio_positive_roundtrip") == "NOT_RUN"
+        and identity_product.get("product_cross_version_stable_identity") == "NOT_PROVEN"
+        and identity_product.get("visual_status") == "QUALITY_TARGET_NOT_MET"
+        and identity_product.get("human_status") == "NOT_RUN"
+        and identity_product.get("engine_status") == "NOT_RUN"
+        and identity_product.get("distribution_status") == "NOT_RUN"
+        and identity_product.get("hq_360") == "BLOCKED_REFERENCE_COVERAGE",
+        "AuthoringMesh IdentityLineage V2 structural or commercial truth boundary drifted",
     )
 
     topology_receipt_path = (
@@ -2125,6 +2917,15 @@ def check_truth() -> dict[str, Any]:
     schema_paths = list(SCHEMA_ROOT.glob("*.json"))
     actual = sorted(path.name for path in schema_paths)
     require(declared == actual, "contract manifest and schema directory drifted")
+    require(len(actual) == EXPECTED_STAGE0_SCHEMA_COUNT, "Stage 0 schema count is not the frozen current count")
+    require(
+        sha256_file(CONTRACT_MANIFEST) == EXPECTED_STAGE0_CONTRACT_MANIFEST_SHA256,
+        "Stage 0 contracts manifest hash is not the frozen current hash",
+    )
+    require(
+        contract_schema_content_set_sha256(schema_paths) == EXPECTED_STAGE0_SCHEMA_CONTENT_SET_SHA256,
+        "Stage 0 schema content-set hash is not the frozen current hash",
+    )
 
     parsed_read_names, parsed_write_names = source_tool_names()
     tool_summary = load_json(TOOL_SUMMARY_PATH)
@@ -2137,7 +2938,11 @@ def check_truth() -> dict[str, Any]:
         "MCP tool manifest summary",
     )
     require(tool_summary.get("schema_version") == "ForgeCADMcpToolManifestSummary@1", "unexpected MCP tool summary schema")
-    require(tool_summary["build_cohort_sha256"] is None, "source tool summary unexpectedly claims a build cohort")
+    require(
+        tool_summary["build_cohort_sha256"] is None
+        or re.fullmatch(r"[0-9a-f]{64}", str(tool_summary["build_cohort_sha256"])) is not None,
+        "compiled source tool summary build cohort is malformed",
+    )
     read_names = tool_summary.get("read_names")
     write_names = tool_summary.get("write_names")
     require(isinstance(read_names, list) and all(isinstance(name, str) for name in read_names), "tool summary read names are invalid")
@@ -2162,6 +2967,9 @@ def check_truth() -> dict[str, Any]:
     require(tool_summary.get("read_count") == len(read_names), "tool summary read count is stale")
     require(tool_summary.get("write_count") == len(write_names), "tool summary write count is stale")
     require(tool_summary.get("total_count") == len(read_names) + len(write_names), "tool summary total count is stale")
+    require(tool_summary.get("read_count") == EXPECTED_STAGE0_READ_TOOL_COUNT, "Stage 0 read tool count drifted")
+    require(tool_summary.get("write_count") == EXPECTED_STAGE0_WRITE_TOOL_COUNT, "Stage 0 write tool count drifted")
+    require(tool_summary.get("total_count") == EXPECTED_STAGE0_TOTAL_TOOL_COUNT, "Stage 0 total tool count drifted")
     # The frozen receipt is emitted by the compiled MCP and hashes complete
     # tool definitions, including input schemas.  The independent source
     # parser below intentionally projects names only, so its digest must never

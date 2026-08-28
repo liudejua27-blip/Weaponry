@@ -1,6 +1,10 @@
 # ForgeCAD 单用户 MVP 架构
 
-版本：2026-08-09
+> 2026-08-26 商业扩展边界：MVP 不改成 DCC，也不引入 Blender/Substance 作为运行时；在现有单写者基座上增加 ForgeCAD-owned authoring kernel 与隔离 typed workers。Manifold/OpenSubdiv/QuadriFlow/xatlas/Embree/MaterialX/meshoptimizer/glTF Transform 等只能按固定职责、版本、许可证、SBOM 和 receipt 采用，绝不成为第二真值。
+
+> 2026-08-26 解释边界：MVP 单用户 host、锁、CAS、事务和回退架构是商业资产生产的基础设施，不是商业美术质量本身。Authoring/High/Low/UV/Cage-Bake 已有若干 bounded source/durable slices；完整商业执行器、artist review 与质量门仍未闭合。后续 Surface/FPS/LOD/Engine 继续作为 Runtime 管理的 fixed typed Worker/validator 接入，不能引入第二写者、任意脚本或网络服务。详见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+版本：2026-08-26
 状态：MCP005–MCP009 单用户 MVP host golden path 已完成；视觉/packaged 证据仍单独分层
 
 ## 产品边界
@@ -27,6 +31,14 @@ ForgeCAD Viewer（可选）
 ~~~
 
 forgecad-mcp-host 不再是产品入口。MCP 与 Runtime 的启动监督逻辑位于 forgecad-mcp 内，后端只保留 forgecad-mcp 和 forgecad-runtime 两个 executable。
+
+## 商业生产执行器边界
+
+MVP 的锁、CAS、事务、回退和 read model 只是商业资产生产的基础设施；当前 ForgeCAD 仍是可验证高级灰模/技术管线，缺少闭合的上游资产真值与艺术生产能力，因此不能称商业级资产生产软件。后续能力必须保持 ForgeCAD-only：固定 typed Worker 依次负责 AuthoringMesh、Native High/Low、Hero UV、Cage/Bake、Material Layer Graph、LOD/FPS；Art Director Viewer 只读呈现阶段/AOV/compare；EngineValidation 与 HeroArtReview 提供独立引擎和艺术家门。
+
+每个 Worker 只消费 Runtime 经过审批的 typed input，返回 hash-bound artifact/readback/receipt；它不能写 SQLite/CAS、推进 Stage、运行任意脚本/DCC/网络服务或生成第二项目真值。当前机器真值仍是：唯一 `in_progress=FGC-MCP010F`，Stage=`camera-calibrated`，`secondary-form-approved=NOT_CREATED`，`FPS-HIGH-05=NOT_PASSED`，Low=`DRAFT_UNREVIEWED / structural_only / promotion_eligible=false`，proposal=`registered=false`，visual=`QUALITY_TARGET_NOT_MET`，human/engine/distribution=`NOT_RUN`，HQ360=`BLOCKED_REFERENCE_COVERAGE`，无 confirm/version/export。
+
+Hero UV 的 7 个 registered contracts 已接入 public `hero_uv_durable_get/prepare`，Runtime drop/reopen/get **1/1 PASS** 且四个 CAS roots linked/GC；Formal High internal materializer 与 Cage/Bake fixed Worker、8-map/dilation、七记录 Store/MCP seam 也只有 source/compile/focused，完整 positive restart/public surface/current-D1 receipt 缺失。它们都不是 artist unwrap、visual、human、engine、commercial 或 packaged PASS。
 
 ## 单写者策略
 
@@ -55,7 +67,7 @@ runtime.writer.lock
 8. Runtime 意外退出时，仍存活的 MCP supervisor 最多进行一次简单重启；选主锁避免并发启动风暴，失败则进入 Degraded。
 9. Runtime 可跨适配器会话存活不等于 Job 已有 checkpoint 保证；MVP 仍不承诺 Codex 断线或 Runtime 崩溃后继续未完成 Job。
 
-这只是单用户本地进程复用，不是常驻 daemon、后台 broker 或多客户端服务治理。MCP010A 的共享生命周期 focused/aggregate tests、同 cohort Dev.app 重建、package verify、隔离 probe 和第二次 Desktop 重启后的真实工具 Gate 均已 PASS；MCP010B f488 Dev.app 的安装、三资源 verify、隔离 Ready/project、V2 semantic-Part graph raw probe 与 exact packaged Worker structural E2E均为历史 cohort evidence。历史 `bfa56ac…de9` 52-contract Dev.app receipt保留；当前 `d9c23b…ac0bd` Dev.app 已通过 ad-hoc/package、隔离 Ready/project、V2 raw、matching Worker、真实 Codex CLI structural 子门和完整重启后的 live Desktop structural activation；010A 已完成，B–F 仍按依赖阻断。
+这只是单用户本地进程复用，不是常驻 daemon、后台 broker 或多客户端服务治理。MCP010A 已完成；MCP010B structural source Gate 已通过但 Darwin OS memory hard cap deferred；C 为 source-focused、D/E 为 source + packaged structural，F 仍唯一 `in_progress`。各历史 Dev.app cohort receipt 只按自身范围保留，不能用 package/transport 证据替代视觉、人评或商业验收。
 
 ## 写入流程
 

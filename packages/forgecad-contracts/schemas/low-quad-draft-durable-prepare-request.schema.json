@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/low-quad-draft-durable-prepare-request.schema.json",
+  "title": "LowQuadDraftDurablePrepareRequest@1",
+  "description": "Closed Runtime-only prepare request for one candidate-bound explicit all-quad Low draft. It remains DRAFT_UNREVIEWED and cannot advance ProductionStage.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version","project_id","candidate_id","candidate_state_sha256","base_version_id","source_high_artifact_id","source_high_artifact_object_sha256","source_high_artifact_sha256","source_high_artifact_readback_object_sha256","source_high_artifact_readback_sha256","low_quad_draft_worker_request","low_quad_draft_worker_request_sha256","idempotency_key","max_response_bytes","source_only","runtime_write_performed","writer_policy","canonicalization_policy","input_sha256"],
+  "properties": {
+    "schema_version":{"const":"LowQuadDraftDurablePrepareRequest@1"},
+    "project_id":{"$ref":"#/$defs/id"},"candidate_id":{"$ref":"#/$defs/id"},"candidate_state_sha256":{"$ref":"#/$defs/sha256"},"base_version_id":{"$ref":"#/$defs/nullable_id"},
+    "source_high_artifact_id":{"$ref":"#/$defs/id"},"source_high_artifact_object_sha256":{"$ref":"#/$defs/sha256"},"source_high_artifact_sha256":{"$ref":"#/$defs/sha256"},"source_high_artifact_readback_object_sha256":{"$ref":"#/$defs/sha256"},"source_high_artifact_readback_sha256":{"$ref":"#/$defs/sha256"},
+    "low_quad_draft_worker_request":{"$ref":"https://forgecad.local/contracts/low-quad-draft-worker-request.schema.json"},"low_quad_draft_worker_request_sha256":{"$ref":"#/$defs/sha256"},
+    "idempotency_key":{"$ref":"#/$defs/id"},"max_response_bytes":{"const":1048576},"source_only":{"const":true},"runtime_write_performed":{"const":false},"writer_policy":{"const":"forgecad-runtime-only-state-writer@1"},"canonicalization_policy":{"const":"canonical-json-sha256-excluding-canonical-sha256@1"},"input_sha256":{"$ref":"#/$defs/sha256"}
+  },
+  "$defs":{"id":{"type":"string","pattern":"^[A-Za-z0-9_.:-]{1,128}$"},"nullable_id":{"type":["string","null"],"pattern":"^[A-Za-z0-9_.:-]{1,128}$"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": "ProductionWeaponFormEvidenceFixtureReceipt@1",
+  "task_id": "FPS-FORM-EVIDENCE-04A",
+  "recorded_at": "2026-08-23",
+  "status": "PASS_SOURCE_SAME_COHORT_SIX_VIEW_DURABLE_EVIDENCE",
+  "build_cohort_sha256": "25850d9305b8a5f39422136560b7fcf4965b32802863f664b0be1cafbd5dec82",
+  "fixture": {
+    "project_id": "project-56e25734c4c9409fb51a1a90c17dd373",
+    "candidate_id": "candidate-554f36d682024d658b4993ccb633e591",
+    "artifact_sha256": "60c5d4b5ed1c9db24e75dfa829d8ec00c20c9b57a7390f8597383d435ce9a1a5",
+    "camera_lock_id": "v3-six-view-fixture-camera-lock",
+    "camera_lock_canonical_sha256": "b1c408b0edf455e67f5303f147dbd1423b213e266c4b4f46491846bbe6f16f64",
+    "form_evidence_id": "v3-six-view-fixture-form-evidence",
+    "form_evidence_canonical_sha256": "b855f63ecdb11c835ec002e5cf39e7540af50817c2b215813a6ebfca8052940a",
+    "form_evidence_receipt_object_sha256": "2925238b4d0c6012139fc30647c9b28977bc209b7b5b8d3d8ac7aa22ee8cbfc6",
+    "view_kinds": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "top",
+      "rear-three-quarter"
+    ],
+    "render_set_object_sha256s": [
+      "1bdf587f9b6643fa902335d3e0c4db9a9c81e107b25ad1169fce1b88aaf6f248",
+      "f4e702efade3af8cc16588c034b06c3522a71d18b3646f61727e76628c9a4223",
+      "6079948c65b9b7163128f509f483552a202fce1d1908e74803254d73207344f1",
+      "5f3580148b83979d4d6c3c02a75185ce00bc9de1318fae77659f874c83fb82aa",
+      "84ea60b0c9e37aa7412bf08961d83e7cd763d50c82121c0f67b711e3274dab07",
+      "8aa7b600574e884eeda378338ba950e6f1d8ac762102ed5855972ae1f7fc7a67"
+    ],
+    "render_set_count": 6,
+    "aov_pass_count": 54,
+    "owned_receipt_object_count": 7,
+    "same_key_replay_zero_new_objects": true,
+    "restart_get_hash_verified": true,
+    "cross_view_retarget_zero_write_rejected": true
+  },
+  "side_effect_boundary": {
+    "quality_status": "NOT_PROVEN",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "persistent_user_project_touched": false
+  },
+  "limitations": [
+    "The fixture proves source-built same-cohort six-view rendering, durable typed evidence, replay and restart integrity only.",
+    "The fixture uses a bounded synthetic shell candidate and does not prove the user weapon reference likeness or Hero Asset quality.",
+    "Part-ID is observed from existing AOVs; negative-space remains inferred or unknown and line-flow remains unknown.",
+    "Human Hero Art Review, High/Low/Cage bake, engine import and final export remain NOT_RUN."
+  ]
+}

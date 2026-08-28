@@ -1,7 +1,13 @@
 # ForgeCAD 开发指南
 
-版本：2026-08-09
-状态：MCP001–009 基座/参考导入/first-party Skill Bundles/bounded geometry/appearance/render/change/export functional core 已通过；下一开发任务为可选 MCP010 产品化
+> 2026-08-26 现行 source 口径：**527 schemas / 28 operators / 115 read + 87 write = 202 tools**。真实 D1 `MoveVertices` 纵切已编译、物化、回读和六视图 replay；proposal 仍因 fresh owner/void/Part-ID FormArt 缺失而 blocked。后续开发必须沿同一资产完成 AuthoringMesh→High→editable Low→UV→Bake→Material→FPS→Engine，不能用 source compile 代替 `PASS_ASSET`。
+
+> 2026-08-26 商业路线开发规则：先做能编译的最小纵向切片，再立即在同一 Hero candidate 上取真实 receipt；只为高风险合同、hash/lineage、崩溃/资源/确定性和真实关键链写测试。禁止为增加覆盖数量重复堆 fixture，也禁止用 source green 替代资产、引擎或人审。
+
+版本：2026-08-25
+状态：MCP001–009 functional core 已通过；FGC-MCP010F 是唯一 `in_progress`，当前开发主线已重排为商业 FPS Hero Asset 原生生产链。AuthoringMesh 已有只读 Runtime/MCP projection、7 个 durable contracts、Runtime/Store/MCP 三对象 prepare/get、Viewer source card和公共三对象 restart 1/1。IdentityLineage V2 的 4 合同、Store 4/4、Runtime restart 1/1、MCP 3/3 与联合编译已通过；basic preserving/topology edit 的稳定 authored ID、单调 tombstone 和 `preserved/created/retired` correspondence已有真实同 lineage多 candidate证据。split/merge、完整编辑历史以及 High/Low/UV/Cage/Bake/Material/LOD/engine/human 完整链仍未完成。
+
+开发 workstream 固定为 `FormQuality → secondary-form-approved → AuthoringMesh → Native High → editable Low/Retopo → Hero UV → Cage/Bake → Material Layer Graph → FPS Presentation → LOD/Collision/Socket → commercial engine + independent human review → export/restart`。模块可提前做 source 工程，但 ProductionStage 只能按 19 状态顺序晋级，且 `hero-art-review-approved → engine-validated → export-confirmed`。第三方算法只能经固定 revision、许可证/SBOM、determinism/resource/security/package/removal Gate 后，以 ForgeCAD 自带 typed Worker 进入；不得直接安装 GitHub 插件或依赖外部 DCC。
 
 ## 1. 目标布局
 
@@ -100,3 +106,11 @@ git diff --check
 ## 9. 代码评审红线
 
 发现内置模型/Provider、任意脚本、8000/FastAPI、MCP 直写库、Viewer 版本头、未绑定质量的 confirm、未授权路径、absolute path 输出、未 pin GitHub 代码或旧合同恢复时，评审必须拒绝。
+
+## 10. 商业模块的合同先行顺序（future / queued）
+
+商业生产扩展必须逐模块建立 `Schema → Operator → budget → fixture → LICENSE/NOTICE → SBOM → provenance → signature/hash` 闭环，再接 Runtime/MCP/Viewer。预期顺序为：`AuthoringMesh@1`（当前 partial structural）→ Native High → Retopology/Low → Hero UV → Cage-Bake → Surface → LOD/Collision/Socket → `EngineValidationReceipt@1` → `HeroArtReviewReceipt@1`。Native High 的 source durable、Low 的 `DRAFT_UNREVIEWED` durable 与 Hero UV durable 1/1 replay 不能被写成商业模块已激活；Cage/Bake、Surface、LOD、Engine 和 Hero Art Review 当前 `NOT_RUN/NOT_PROVEN`。
+
+每个模块必须由产品内建 `ForgeCadModule@1` 描述：`schema_refs`、`operator_refs`、有限 `budget`、deterministic 正/负 `fixture_refs`、LICENSE/NOTICE hashes、SPDX SBOM、source/build provenance、signature、module/contract/input/output hashes，以及 `network=false`、`dynamic_plugin=false`、`script=false`、`direct_db_write=false`、`direct_cas_write=false`。Worker 只接受 closed typed message；Runtime 是唯一 CAS/SQLite 写者；MCP/Viewer 只做 adapter/read projection。未有同 cohort benchmark、恶意输入/资源、重放和 package receipt 时保持 `queued`，不得新增 active tool 或跨阶段放行。
+
+第三方 Manifold、OpenSubdiv、QuadriFlow、xatlas、Embree、MaterialX、OIIO、OCIO、meshoptimizer、glTF Validator 只可在 `EXTERNAL_PROJECT_ADOPTION.md` 的审计后，以签名确定性 ForgeCAD Worker 封装；Blender、Substance、Maya、任意 DCC、脚本、联网服务都不是产品依赖。所有当前口径仍为 **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 tools**，不得用文档中的目标模块数量反推已实现能力。

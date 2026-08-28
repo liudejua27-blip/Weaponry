@@ -1,0 +1,87 @@
+{
+  "schema_version": "ForgeCADSourceGateReceipt@1",
+  "receipt_id": "production-weapon-real-d1-semantic-camera-relock-source-attribution-pass-20260826",
+  "task_id": "FGC-MCP010F/FPS-FORM-04AB",
+  "recorded_at": "2026-08-26",
+  "status": "PASS_REAL_D1_UNIQUE_REAR_STOCK_SOURCE",
+  "source_compile": {
+    "command_scope": "cargo check -p forgecad-runtime -p forgecad-mcp",
+    "status": "PASS"
+  },
+  "real_d1_durable_rebuild": {
+    "status": "PASS_1_OF_1",
+    "focused_invocation_seconds": 800.81,
+    "candidate_count": 30,
+    "camera_lock_records": 1,
+    "form_evidence_records": 1,
+    "form_art_records": 1,
+    "render_set_count": 6,
+    "aov_pass_count": 54,
+    "restart_hash_verified": true,
+    "candidate_confirmed": false,
+    "version_count": 0,
+    "export_count": 0
+  },
+  "binding": {
+    "session_id": "fps-form-04a-session",
+    "project_id": "project-318e4de6aa4d4f33b2f740988fed6fa1",
+    "candidate_id": "candidate-8b35615c93e34775a7ca0d5418272adb",
+    "candidate_state_sha256": "47f7d2117a88beabc38d4cb123e694dbc425608a8aa43a5af40d10040c82ea67",
+    "artifact_sha256": "fa5d81fd9d219eaf85f7bb9094adb7d89338b3395f6263443b1159918418368e",
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "camera_lock_canonical_sha256": "cfe4a96f2f83722482e83aed9fa830ce0d852ed9c65e7d26be38819f1698c846",
+    "subject_camera_rig_object_sha256": "e7169768d8bee506a2fdc99beeaf4a3c55ce2e55605eab22c4e5aa6c86c80d23",
+    "subject_camera_rig_canonical_sha256": "c39b432423e4138972eebd7bd4231f29e257c872880633dff9a5e852eec6cdde",
+    "registered_camera_rig_canonical_sha256": "a1afaf767604d47888ec499c5da3111febf99f70714c82134b4b70b4dc5aa860",
+    "form_evidence_object_sha256": "58c1e8c3e17f2446a0317aa15d8a390854cad7550a019f2a826f14d8ecebec85",
+    "form_evidence_canonical_sha256": "4edbe7e42e43555c58671e6469cb18bd5085ec3eb07b78686c3d31aa0fc51951",
+    "form_art_evidence_object_sha256": "23a235882fae829282f8de414c24c1596a1a63e43caad4a9aeedb21d9e848015",
+    "form_art_evidence_canonical_sha256": "34cce417f7947f0b7fcd0d06272db7f36b1de2457fc2d845a83dbb8b9fde3d03",
+    "view_kind": "left",
+    "view_id": "fps-form-04a-left-view",
+    "camera_hash": "2ba94a37aa6e9285d047d235b806183d22a6f3fffa40c6c9c577f369753afedb"
+  },
+  "raster_source_attribution": {
+    "diagnostic_id": "fps-form-04ab-left-source-attribution",
+    "diagnostic_canonical_sha256": "54c5facb2e3cbe0020308132718665dc6e0cab5f1d41df32da205b4c7c333b1a",
+    "source_table_sha256": "7eef91e949c72010963afba3b7ea11fb3021501881d8748902f4779098daed8e",
+    "reviewed_region_structure_id": "left.open-stock-void",
+    "highest_impact_basis": "expected-void-pixels",
+    "highest_impact_pixel_count": 548,
+    "highest_impact_semantic_part_id": "rear-stock",
+    "highest_impact_source_node_id": "rear-stock",
+    "second_impact_semantic_part_id": "receiver-main",
+    "second_impact_pixel_count": 114,
+    "muzzle_shroud_pixel_count": 0,
+    "expected_semantic_part_ids": [
+      "rear-stock"
+    ],
+    "highest_impact_semantic_match": true,
+    "repair_target_status": "UNIQUE_HIGHEST_IMPACT_SOURCE_OBSERVED",
+    "runtime_write": false,
+    "production_stage_advanced": false
+  },
+  "camera_truth": {
+    "subject_to_registered_replay": "PASS_EXACT_HASH",
+    "reference_canvas_primary_binding": "REGISTERED_LEFT_CAMERA",
+    "form_evidence_camera_space": "REGISTERED_RENDERER_VIEWS",
+    "form_art_camera_space": "REGISTERED_RENDERER_VIEWS",
+    "cross_view_camera_space": "REGISTERED_RENDERER_VIEWS",
+    "rear_three_quarter_reference_orientation": "BLOCKED_SEPARATE_AUTHORED_ROTATION_CONTRACT"
+  },
+  "commercial_contract_decision": {
+    "legacy_camera_lock_v1": "HISTORICAL_COMPATIBILITY_ONLY_FOR_SEMANTIC_REPAIR",
+    "required_successor": "ProductionCameraLock@2 + ProductionWeaponSemanticLandmarkOrdering@1 + RegisteredCameraRigCalibration@2 + semantic FormEvidence/FormArt lineage",
+    "reason": "The current Runtime projection proves the repair target on a fresh D1 run, but the semantic registration and authored reference ordering are not durable first-class parents in the legacy @1 receipts."
+  },
+  "authoritative_state": {
+    "stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "quality": "QUALITY_TARGET_NOT_MET",
+    "fps_high_05": "NOT_PASSED",
+    "human": "NOT_RUN",
+    "engine": "NOT_RUN",
+    "distribution": "NOT_RUN"
+  },
+  "required_next_action": "Create one bounded RepairIntent targeting only source node rear-stock, re-render left/right/rear-three-quarter and all six identity views, then request user approval only if the strict owner-void, cross-view non-regression and visual review gates pass. In parallel, replace the legacy semantic repair path with durable V2 semantic camera contracts before commercial promotion."
+}

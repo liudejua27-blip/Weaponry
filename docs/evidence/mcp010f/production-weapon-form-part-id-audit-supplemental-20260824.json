@@ -1,0 +1,125 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-PART-ID-AUDIT-04F",
+  "task_id": "FPS-FORM-PART-ID-AUDIT-04F",
+  "recorded_at": "2026-08-24T00:00:00Z",
+  "status": "BLOCKED_OWNER_BINDING",
+  "execution_origin": "real-d1-ephemeral-fixture",
+  "baseline": {
+    "candidate_id": "candidate-a8eede52d89e4e8da17f0f40238e15a0",
+    "artifact_sha256": "9d7722e4649715b795b1a7024f9344061c3126609be25b38ff48900894893760"
+  },
+  "trial": {
+    "candidate_id": "candidate-57701d4b3e864d8e9c02a49981c321be",
+    "artifact_sha256": "fe0e8e3ab2d4092d56fd6f6ddf07887c71ad3e8f055f5ace6e4290b272b19134",
+    "parameter_id": "stock-open-frame-angle",
+    "value": 0.12,
+    "baseline_value": 0.16,
+    "depth_fields_modified": false,
+    "rear_cap_modified": false
+  },
+  "frozen_camera_rig_canonical_sha256": "7f368e678247196eae19690faaaeb3bd751eafc06a61ba43d4f04f1d50ec9502",
+  "id_palette_definition_sha256": "d2d08af0fc7bfa8148fc8fadb733c34843663fb16174f391557832777ebc0ae4",
+  "part_id_vocabulary": [
+    "receiver-main", "receiver-upper", "receiver-lower", "rear-stock", "rear-cap", "grip", "trigger-guard", "underbrace", "top-fin", "top-rail", "bottom-rail", "side-light-left", "side-light-right", "muzzle-shroud", "muzzle-emitter", "muzzle-core", "energy-ring", "energy-core", "core-housing", "side-panel-a", "side-panel-b", "magazine", "rear-light"
+  ],
+  "owner_part_id": "rear-stock",
+  "views": {
+    "left": {
+      "structure_id": "left.open-stock-void",
+      "expected_bbox_px": [380, 261, 457, 280],
+      "expected_pixels": 1018,
+      "baseline_owner_bbox_px": [67, 268, 145, 336],
+      "trial_owner_bbox_px": [67, 268, 145, 335],
+      "baseline_owner_pixels": 2614,
+      "trial_owner_pixels": 2614,
+      "owner_expected_void_overlap_pixels": 0,
+      "boundary_adjacency_pixels": 0,
+      "baseline_owner_minus_expected_centroid_delta_milli_px": [-310838, 26745],
+      "trial_owner_minus_expected_centroid_delta_milli_px": [-310845, 26749],
+      "owner_mask_delta_pixels": 126,
+      "baseline_part_id_pass_sha256": "9d6f6f024f82c70d54b55cf48f82668e05bebd17b05e3eeb9d899c80015b51f7",
+      "trial_part_id_pass_sha256": "e4d2fc7568ed8eaf1cda929d20e956bcd3cdf05d34afd573dd76fb3df798664d",
+      "status": "unbound"
+    },
+    "right": {
+      "structure_id": "right.open-stock-void",
+      "expected_bbox_px": [51, 260, 139, 284],
+      "expected_pixels": 1623,
+      "baseline_owner_bbox_px": [365, 262, 444, 331],
+      "trial_owner_bbox_px": [365, 262, 444, 329],
+      "baseline_owner_pixels": 2566,
+      "trial_owner_pixels": 2564,
+      "owner_expected_void_overlap_pixels": 0,
+      "boundary_adjacency_pixels": 0,
+      "baseline_owner_minus_expected_centroid_delta_milli_px": [310123, 20175],
+      "trial_owner_minus_expected_centroid_delta_milli_px": [310109, 20157],
+      "owner_mask_delta_pixels": 128,
+      "baseline_part_id_pass_sha256": "532996f8b654f551fc6715db19ef5d95e2b3fecea3597e6e719e3cc09d616dd5",
+      "trial_part_id_pass_sha256": "abb604049760b970409b6b09877d17ca7b2a217c5d2a0f30bed2c770cfad9a94",
+      "status": "unbound"
+    },
+    "rear-three-quarter": {
+      "structure_id": "rear3q.open-stock-void",
+      "expected_bbox_px": [126, 266, 168, 398],
+      "expected_pixels": 3792,
+      "baseline_owner_bbox_px": [99, 157, 174, 233],
+      "trial_owner_bbox_px": [99, 157, 174, 226],
+      "baseline_owner_pixels": 2435,
+      "trial_owner_pixels": 2394,
+      "owner_expected_void_overlap_pixels": 0,
+      "boundary_adjacency_pixels": 0,
+      "baseline_owner_minus_expected_centroid_delta_milli_px": [-15544, -142517],
+      "trial_owner_minus_expected_centroid_delta_milli_px": [-15574, -142773],
+      "owner_mask_delta_pixels": 63,
+      "baseline_part_id_pass_sha256": "31124f2ba085a5639e5dffc4d3efba55fb2665ae800248e6eba81352f12f9640",
+      "trial_part_id_pass_sha256": "8b180695906331ae2efa371c882038e625c896060b03077da3d83b372830c50c",
+      "status": "unbound"
+    }
+  },
+  "aggregate": {
+    "all_open_stock_owner_bindings_ready": false,
+    "any_open_stock_owner_mask_changed": true,
+    "mutator_execution_proven": true,
+    "baseline_retained": true
+  },
+  "truth_boundary": {
+    "diagnostic_only": true,
+    "form_art_canonical_unchanged": true,
+    "promotable": false,
+    "depth_status": "UNKNOWN",
+    "cross_view_aggregate_status": "QUALITY_TARGET_NOT_MET",
+    "form_quality_v2_status": "PREFLIGHT_BLOCKED_ZERO_WRITE",
+    "secondary_form_approved": "NOT_CREATED",
+    "human_visual_review": "NOT_RUN"
+  },
+  "side_effects": {
+    "runtime_mode": "ephemeral_fixture",
+    "runtime_write_performed": true,
+    "worker_started": true,
+    "trial_candidate_generated": true,
+    "persistent_user_data_touched": false,
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "runtime_test": {
+    "name": "production_weapon_form_evidence_real_user_weapon_d1_is_durable_replay_safe_and_coverage_blocked",
+    "passed": 1,
+    "failed": 0,
+    "duration_seconds": 371.07
+  },
+  "source_hashes": {
+    "agentic_session_sha256": "c0fa28aec23729b1fc4ea896da571f85e448bedaa1cf02e8e9d8686fed26c827",
+    "production_weapon_form_art_evidence_sha256": "c10ec66a86d9fafc59d50cc51b7869d3e5a19ec8d3e6289d2576d4de5094a74b"
+  },
+  "stage0_hash_impact": "UNCHANGED_SUPPLEMENTAL_NOT_IN_MANIFEST_OR_CURRENT_TRUTH",
+  "next_action": "FPS-FORM-04H-AUTHORED-VIEW-ORIENTATION-REGISTRATION",
+  "limitations": [
+    "The exact Part-ID mask proves that the bounded stock mutator executed, but it does not prove FormQuality.",
+    "All three reviewed open-stock regions are spatially unbound from rear-stock, so their old unchanged void metrics cannot accept or reject further stock parameter trials.",
+    "04G isolated stable image-space transform candidates; the next slice must author explicit view orientation/registration while retaining the user-confirmed source contour and UNKNOWN depth.",
+    "No production stage transition, candidate confirmation, version creation, export, visual pass, or human pass is claimed."
+  ]
+}

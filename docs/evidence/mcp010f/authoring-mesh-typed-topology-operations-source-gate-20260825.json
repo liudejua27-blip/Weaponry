@@ -1,0 +1,75 @@
+{
+  "schema_version": "AuthoringMeshTypedTopologyOperationsSourceGateReceipt@1",
+  "task_id": "CQ-02-AUTHORING-MESH-TYPED-TOPOLOGY-OPERATIONS",
+  "recorded_on": "2026-08-25",
+  "status": "PASS_RUNTIME_TYPED_TOPOLOGY_SOURCE_CORRESPONDENCE",
+  "scope": "fictional-nonfunctional-game-visual-authoring-only@1",
+  "source_surface": {
+    "schema_count": 488,
+    "read_tools": 106,
+    "write_tools": 78,
+    "total_tools": 184,
+    "edit_policy_sha256": "fc76c6dffef2a41c05ff0a65ff160c8fce5eb37d312a3ef7f78043ef92539144"
+  },
+  "contracts": {
+    "preview_request_sha256": "77009c178f5912b214324aedb53c9a3fdfe2c79f4426d403c14a8e8ecca70d4b",
+    "preview_result_sha256": "0af53e107c8e9413e7f18810ecea5801c40ade419f062f2ef9c8d8433976f18b",
+    "prepare_result_sha256": "c3c1f4b513df6f1fc1466b006dcf15d2ab354ede790703653dfdad8b772a6973",
+    "operations": ["split_edge", "collapse_edge", "dissolve_edge"],
+    "contract_check": "PASS_488_OF_488"
+  },
+  "runtime": {
+    "source_sha256": "0cc1285fc97fd8494ef2efc0d13b56e82f33a1e9584576d4c1da8b8f6a7fca3f",
+    "focused_real_worker_test": "PASS_1_OF_1",
+    "split_edge": "PASS_DETERMINISTIC_ONE_TO_MANY_SOURCE_EDGE_CORRESPONDENCE",
+    "collapse_edge": "PASS_DETERMINISTIC_MANY_TO_ONE_SOURCE_VERTEX_CORRESPONDENCE",
+    "dissolve_edge": "PASS_DETERMINISTIC_MANY_TO_ONE_SOURCE_FACE_CORRESPONDENCE",
+    "worker_double_replay": "PASS",
+    "strict_glb_readback": "PASS",
+    "split_staged_candidate": "PASS_REVIEWABLE_NO_VERSION_CONFIRM_OR_EXPORT"
+  },
+  "store": {
+    "source_sha256": "46a1f4f8e80a6180b40e8f09d94ee94f9e35e2522c9a133f04bca526998e43b5",
+    "existing_atomic_edit_transaction_reused": true,
+    "typed_source_element_proof_validation": "PASS_VIA_STAGED_SPLIT_FIXTURE",
+    "top_level_identity_lineage_claim_rejected": true
+  },
+  "mcp": {
+    "source_sha256": "37d41a6cc28c45c93282246ddfaa53324c39d6aca29f6725829c5f8103e9d38f",
+    "existing_tool_names_reused": ["authoring_topology_get", "authoring_mesh_edit_preview", "authoring_mesh_edit_prepare"],
+    "focused_closed_surface_test": "PASS_1_OF_1",
+    "focused_source_correspondence_summary_test": "PASS_1_OF_1",
+    "existing_round_trip_test": "PASS_1_OF_1",
+    "raw_stdio_positive_roundtrip": "NOT_RUN"
+  },
+  "identity_truth": {
+    "source_element_correspondence": "PASS",
+    "tombstone_projection": "PASS_RUNTIME_AND_STORE_VALIDATED",
+    "identity_namespace_status": "source-element-only-not-materialized-to-identity-lineage@1",
+    "identity_lineage_materialization": "NOT_PROVEN",
+    "cross_candidate_stable_child_identity_binding": "NOT_PROVEN",
+    "complete_edit_history": "NOT_PROVEN"
+  },
+  "product_state": {
+    "runtime_sole_writer": true,
+    "stage": "camera-calibrated",
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "SOURCE_ELEMENT_CORRESPONDENCE_IS_NOT_IDENTITY_LINEAGE_MATERIALIZATION",
+    "NO_CROSS_CANDIDATE_STABLE_CHILD_ID_PROOF",
+    "NO_COMPLETE_SELECTION_HISTORY_OR_UNDO_LEDGER",
+    "NO_RAW_STDIO_PACKAGE_OR_LIVE_DESKTOP_PROOF",
+    "NO_VISUAL_HUMAN_ENGINE_OR_DISTRIBUTION_PASS"
+  ],
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "canonical_sha256": "c2a0102ac302124a448511aa970d7ac583952a7d6360ee3b9952d48aa199d09a"
+}

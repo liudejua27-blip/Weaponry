@@ -1,0 +1,65 @@
+{
+  "schema_version": "ForgeCADProductionWeaponOwnerReviewedVoidCalibrationSourceCompileGateReceipt@1",
+  "task_id": "FPS-FORM-04AV",
+  "recorded_on": "2026-08-27",
+  "status": "PASS_SOURCE_COMPILE_READ_ONLY_NON_PROMOTING",
+  "route_changed": false,
+  "implementation": {
+    "contract": "ProductionWeaponOwnerReviewedVoidCalibrationProjection@1",
+    "tool": "production_weapon_owner_reviewed_void_calibration_get",
+    "runtime_only_inputs": [
+      "durable-production-weapon-form-art",
+      "durable-fresh-same-cohort-baseline",
+      "approved-camera-lock-registration-lineage",
+      "silhouette-rig-v2",
+      "part-id-aov",
+      "depth-aov",
+      "reviewed-negative-space-targets"
+    ],
+    "fixed_owner_part_id": "rear-stock",
+    "fixed_view_kinds": [
+      "left",
+      "right",
+      "rear-three-quarter"
+    ],
+    "calibration_acceptance": "unique direct identity plus owner/depth/boundary thresholds; owner-versus-void overlap is excluded from calibration eligibility",
+    "strict_acceptance": "raw owner intersection expected-void equals zero remains a separate exact gate",
+    "runtime_store_cas_worker_stage_side_effects": false,
+    "caller_mask_transform_camera_raw_mesh_path_url_or_script_accepted": false
+  },
+  "build": {
+    "contract_schema_count": 568,
+    "contract_schema_content_set_sha256": "ccb206f677561aff8082a709511a806206e99c2d0d1d17f69fa8d2a51994fdc0",
+    "mcp_read_count": 124,
+    "mcp_write_count": 92,
+    "mcp_total_count": 216,
+    "read_manifest_sha256": "9d0eaeb1bfa5d5d763e7d36313ff14e06306874a0e1de0605f67ac0882e85509",
+    "write_enabled_manifest_sha256": "7c3aa69b0a397d165c7f71c3bca20b6c4387e924773bb4daf401e2c6a8db6fef",
+    "contracts_store_runtime_mcp_compile": "PASS_WITH_EXISTING_WARNINGS",
+    "contract_checker": "PASS_568_SCHEMAS",
+    "stage0_truth_gate": "PASS",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "real_d1": {
+    "runtime_projection_run": "NOT_RUN_SOURCE_DATABASE_UNAVAILABLE",
+    "binding_eligible": "NOT_PROVEN",
+    "strict_owner_void_all_views_passed": "NOT_PROVEN",
+    "new_bounded_shape_authored": false
+  },
+  "final_state": {
+    "stage": "camera-calibrated",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "secondary_form_approved": "NOT_CREATED",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "commercial_quality": "NOT_PROVEN",
+    "high_low_uv_bake": "NOT_RUN"
+  },
+  "next_atomic_action": "Create a fresh same-cohort real D1 FormArt baseline, call production_weapon_owner_reviewed_void_calibration_get, and author exactly one bounded rear-stock rail shape only if all three calibration views are ELIGIBLE. Do not advance Stage or start High/Low/UV/Bake until the subsequent strict visual gates pass."
+}

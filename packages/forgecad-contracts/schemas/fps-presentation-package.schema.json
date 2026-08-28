@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fps-presentation-package.schema.json",
+  "title": "FpsPresentationPackage@1",
+  "description": "A deliberately incomplete ForgeCAD FPS presentation package draft. It binds normalized foundation topology, sockets and rig maps, but does not claim complete clips, event timing, engine validation or human approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "package_id",
+    "foundation_import_record_sha256",
+    "source_asset_ids",
+    "coordinate_spec_sha256",
+    "topology_object_sha256",
+    "socket_map_object_sha256",
+    "rig_map_object_sha256",
+    "presentation_policy",
+    "status",
+    "promotion_eligible",
+    "authoring_mesh_materialization_status",
+    "required_clip_ids",
+    "clips",
+    "missing_clip_ids",
+    "complete_required_clips",
+    "required_event_marker_ids",
+    "event_markers",
+    "missing_event_marker_ids",
+    "complete_event_markers",
+    "camera_profiles",
+    "screen_occupancy",
+    "reticle_safe_region",
+    "muzzle_safe_region",
+    "hands_weapon_clipping_status",
+    "vfx_cues",
+    "audio_cues",
+    "gameplay_beats",
+    "complete_vfx_audio_timeline",
+    "engine_validation_status",
+    "human_review_status",
+    "visual_quality_status",
+    "commercial_fps_quality_status",
+    "materialization_status",
+    "quality_status",
+    "runtime_write_performed",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "actual_engine_roundtrip",
+    "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "FpsPresentationPackage@1"},
+    "package_id": {"$ref": "#/$defs/id"},
+    "foundation_import_record_sha256": {"$ref": "#/$defs/sha256"},
+    "source_asset_ids": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/asset_id"}},
+    "coordinate_spec_sha256": {"$ref": "#/$defs/sha256"},
+    "topology_object_sha256": {"$ref": "#/$defs/sha256"},
+    "socket_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "rig_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "presentation_policy": {"const": "forgecad-fps-presentation-package-foundation-draft@1"},
+    "status": {"const": "DRAFT_UNREVIEWED"},
+    "promotion_eligible": {"const": false},
+    "authoring_mesh_materialization_status": {"const": "PENDING"},
+    "required_clip_ids": {"const": ["idle", "equip", "fire_recoil", "reload", "inspect", "ads_in", "ads_out", "sprint", "holster"]},
+    "clips": {"type": "array", "maxItems": 9, "uniqueItems": true, "items": {"$ref": "#/$defs/clip"}},
+    "missing_clip_ids": {"const": ["idle", "equip", "fire_recoil", "reload", "inspect", "ads_in", "ads_out", "sprint", "holster"]},
+    "complete_required_clips": {"const": false},
+    "required_event_marker_ids": {"const": ["equip_start", "ads_in", "ads_out", "fire", "reload_start", "reload_insert", "reload_end", "inspect_start", "inspect_end", "sprint_start", "holster"]},
+    "event_markers": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/event_marker"}},
+    "missing_event_marker_ids": {"const": ["equip_start", "ads_in", "ads_out", "fire", "reload_start", "reload_insert", "reload_end", "inspect_start", "inspect_end", "sprint_start", "holster"]},
+    "complete_event_markers": {"const": false},
+    "camera_profiles": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/camera_profile"}},
+    "screen_occupancy": {"$ref": "#/$defs/measurement_status"},
+    "reticle_safe_region": {"$ref": "#/$defs/measurement_status"},
+    "muzzle_safe_region": {"$ref": "#/$defs/measurement_status"},
+    "hands_weapon_clipping_status": {"const": "NOT_EVALUATED"},
+    "vfx_cues": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/cue"}},
+    "audio_cues": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/cue"}},
+    "gameplay_beats": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/gameplay_beat"}},
+    "complete_vfx_audio_timeline": {"const": false},
+    "engine_validation_status": {"const": "NOT_RUN"},
+    "human_review_status": {"const": "NOT_RUN"},
+    "visual_quality_status": {"const": "NOT_PROVEN"},
+    "commercial_fps_quality_status": {"const": "NOT_PROVEN"},
+    "materialization_status": {"const": "DRAFT_ONLY"},
+    "quality_status": {"const": "structural_only"},
+    "runtime_write_performed": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "asset_id": {
+      "type": "string",
+      "enum": [
+        "pichuliru-weapon-west",
+        "lightning-low-pbr",
+        "wrad-arms"
+      ]
+    },
+    "clip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clip_id", "source_clip_id", "status", "clip_object_sha256", "event_markers_complete"],
+      "properties": {
+        "clip_id": {"enum": ["idle", "equip", "fire_recoil", "reload", "inspect", "ads_in", "ads_out", "sprint", "holster"]},
+        "source_clip_id": {"type": ["string", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+        "status": {"enum": ["MISSING", "DRAFT", "READY"]},
+        "clip_object_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "event_markers_complete": {"const": false}
+      }
+    },
+    "event_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["marker_id", "clip_id", "status", "time_ticks"],
+      "properties": {
+        "marker_id": {"enum": ["equip_start", "ads_in", "ads_out", "fire", "reload_start", "reload_insert", "reload_end", "inspect_start", "inspect_end", "sprint_start", "holster"]},
+        "clip_id": {"enum": ["idle", "equip", "fire_recoil", "reload", "inspect", "ads_in", "ads_out", "sprint", "holster"]},
+        "status": {"const": "MISSING"},
+        "time_ticks": {"type": "null"}
+      }
+    },
+    "camera_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "status", "camera_object_sha256", "source_of_truth"],
+      "properties": {
+        "profile_id": {"enum": ["hip", "ads", "inspect", "third_person", "ground_pickup"]},
+        "status": {"const": "MISSING_TYPED_CAMERA"},
+        "camera_object_sha256": {"type": "null"},
+        "source_of_truth": {"const": "PENDING_RUNTIME_DERIVATION"}
+      }
+    },
+    "measurement_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "measurement_sha256"],
+      "properties": {
+        "status": {"const": "NOT_EVALUATED"},
+        "measurement_sha256": {"type": "null"}
+      }
+    },
+    "cue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cue_id", "status", "cue_object_sha256"],
+      "properties": {
+        "cue_id": {"$ref": "#/$defs/id"},
+        "status": {"const": "MISSING"},
+        "cue_object_sha256": {"type": "null"}
+      }
+    },
+    "gameplay_beat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beat_id", "status", "beat_object_sha256"],
+      "properties": {
+        "beat_id": {"$ref": "#/$defs/id"},
+        "status": {"const": "MISSING"},
+        "beat_object_sha256": {"type": "null"}
+      }
+    }
+  }
+}

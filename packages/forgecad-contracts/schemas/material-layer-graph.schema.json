@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/material-layer-graph.schema.json",
+  "title": "MaterialLayerGraph@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "graph_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "low_artifact_sha256",
+    "hero_uv_layout_sha256",
+    "bake_set_sha256",
+    "material_pack_manifest_sha256",
+    "nodes",
+    "budget",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "MaterialLayerGraph@1" },
+    "graph_id": { "$ref": "#/$defs/id" },
+    "project_id": { "$ref": "#/$defs/id" },
+    "candidate_id": { "$ref": "#/$defs/id" },
+    "candidate_state_sha256": { "$ref": "#/$defs/sha256" },
+    "low_artifact_sha256": { "$ref": "#/$defs/sha256" },
+    "hero_uv_layout_sha256": { "$ref": "#/$defs/sha256" },
+    "bake_set_sha256": { "$ref": "#/$defs/sha256" },
+    "material_pack_manifest_sha256": { "$ref": "#/$defs/sha256" },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_resolution", "max_nodes", "max_output_textures", "max_output_bytes", "max_runtime_ms"],
+      "properties": {
+        "max_resolution": { "enum": [2048, 4096] },
+        "max_nodes": { "const": 256 },
+        "max_output_textures": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "max_output_bytes": { "type": "integer", "minimum": 1, "maximum": 536870912 },
+        "max_runtime_ms": { "type": "integer", "minimum": 1, "maximum": 120000 }
+      }
+    },
+    "canonical_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_ids", "material_zone_ids"],
+      "properties": {
+        "part_ids": { "type": "array", "minItems": 1, "maxItems": 512, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+        "material_zone_ids": { "type": "array", "minItems": 1, "maxItems": 512, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }
+      }
+    },
+    "inputs": { "type": "array", "maxItems": 4, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+    "baseNode": {
+      "type": "object",
+      "required": ["node_id", "kind", "inputs", "ownership"],
+      "properties": {
+        "node_id": { "$ref": "#/$defs/id" },
+        "kind": { "type": "string" },
+        "inputs": { "$ref": "#/$defs/inputs" },
+        "ownership": { "$ref": "#/$defs/ownership" }
+      }
+    },
+    "dataClass": { "enum": ["color", "data"] },
+    "colorSpace": { "enum": ["srgb", "linear", "data"] },
+    "node": {
+      "oneOf": [
+        { "$ref": "#/$defs/sourceNode" },
+        { "$ref": "#/$defs/constantNode" },
+        { "$ref": "#/$defs/anchorNode" },
+        { "$ref": "#/$defs/generatorNode" },
+        { "$ref": "#/$defs/maskNode" },
+        { "$ref": "#/$defs/filterNode" },
+        { "$ref": "#/$defs/transformNode" },
+        { "$ref": "#/$defs/blendNode" },
+        { "$ref": "#/$defs/normalCombineNode" },
+        { "$ref": "#/$defs/roughnessRemapNode" },
+        { "$ref": "#/$defs/decalNode" },
+        { "$ref": "#/$defs/trimNode" },
+        { "$ref": "#/$defs/channelPackNode" },
+        { "$ref": "#/$defs/outputNode" }
+      ]
+    },
+    "sourceNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["source_channel", "source_object_sha256", "data_class"], "properties": {
+          "kind": { "const": "Source" }, "inputs": { "maxItems": 0 },
+          "source_channel": { "$ref": "#/$defs/outputChannel" },
+          "source_object_sha256": { "$ref": "#/$defs/sha256" }, "data_class": { "$ref": "#/$defs/dataClass" }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "constantNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["value", "data_class", "color_space"], "properties": {
+          "kind": { "const": "Constant" }, "inputs": { "maxItems": 0 },
+          "value": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "number", "minimum": -65504, "maximum": 65504 } },
+          "data_class": { "$ref": "#/$defs/dataClass" }, "color_space": { "$ref": "#/$defs/colorSpace" }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "anchorNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["anchor_kind", "intensity", "evidence_sha256"], "properties": {
+          "kind": { "const": "Anchor" }, "inputs": { "maxItems": 0 },
+          "anchor_kind": { "enum": ["contact", "friction", "heat", "maintenance", "art_directed"] },
+          "intensity": { "type": "number", "minimum": 0, "maximum": 1 }, "evidence_sha256": { "$ref": "#/$defs/sha256" }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "generatorNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["generator_kind", "seed", "domain", "scale", "max_samples", "provenance_sha256"], "properties": {
+          "kind": { "const": "Generator" }, "inputs": { "maxItems": 1 },
+          "generator_kind": { "enum": ["edge_curvature", "ao_cavity", "directional_grain", "macro_variation", "microdetail"] },
+          "seed": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+          "domain": { "enum": ["uv0", "object", "part"] }, "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 4096 },
+          "max_samples": { "type": "integer", "minimum": 1, "maximum": 64 }, "provenance_sha256": { "$ref": "#/$defs/sha256" }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "maskNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["combine", "threshold", "feather"], "properties": {
+          "kind": { "const": "Mask" }, "inputs": { "minItems": 1, "maxItems": 4 },
+          "combine": { "enum": ["multiply", "min", "max", "invert"] },
+          "threshold": { "type": "number", "minimum": 0, "maximum": 1 }, "feather": { "type": "number", "minimum": 0, "maximum": 1 }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "filterNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["filter_kind", "radius", "amount"], "properties": {
+          "kind": { "const": "Filter" }, "inputs": { "minItems": 1, "maxItems": 1 },
+          "filter_kind": { "enum": ["levels", "blur", "sharpen", "dilate", "erode"] },
+          "radius": { "type": "integer", "minimum": 0, "maximum": 32 }, "amount": { "type": "number", "minimum": 0, "maximum": 4 }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "transformNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["scale", "offset", "rotation_degrees"], "properties": {
+          "kind": { "const": "Transform" }, "inputs": { "minItems": 1, "maxItems": 1 },
+          "scale": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "exclusiveMinimum": 0, "maximum": 4096 } },
+          "offset": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": -16, "maximum": 16 } },
+          "rotation_degrees": { "type": "number", "minimum": -360, "maximum": 360 }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "blendNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["blend_mode", "opacity"], "properties": {
+          "kind": { "const": "Blend" }, "inputs": { "minItems": 2, "maxItems": 3 },
+          "blend_mode": { "enum": ["normal", "multiply", "add", "screen", "overlay", "max", "min"] },
+          "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "normalCombineNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["method", "strength"], "properties": {
+          "kind": { "const": "NormalCombine" }, "inputs": { "minItems": 2, "maxItems": 2 },
+          "method": { "enum": ["reoriented", "whiteout"] }, "strength": { "type": "number", "minimum": 0, "maximum": 2 }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "roughnessRemapNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["input_range", "output_range"], "properties": {
+          "kind": { "const": "RoughnessRemap" }, "inputs": { "minItems": 1, "maxItems": 1 },
+          "input_range": { "$ref": "#/$defs/unitRange" }, "output_range": { "$ref": "#/$defs/unitRange" }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "decalNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["decal_object_sha256", "opacity", "color_space"], "properties": {
+          "kind": { "const": "Decal" }, "inputs": { "maxItems": 1 },
+          "decal_object_sha256": { "$ref": "#/$defs/sha256" }, "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+          "color_space": { "$ref": "#/$defs/colorSpace" }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "trimNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["trim_id", "uv_range"], "properties": {
+          "kind": { "const": "Trim" }, "inputs": { "minItems": 1, "maxItems": 1 }, "trim_id": { "$ref": "#/$defs/id" },
+          "uv_range": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "type": "number", "minimum": 0, "maximum": 1 } }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "channelPackNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["layout", "data_class"], "properties": {
+          "kind": { "const": "ChannelPack" }, "inputs": { "minItems": 2, "maxItems": 4 },
+          "layout": { "enum": ["orm", "rma", "rgba"] }, "data_class": { "const": "data" }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "outputNode": {
+      "allOf": [
+        { "$ref": "#/$defs/baseNode" },
+        { "type": "object", "required": ["channel", "data_class", "color_space"], "properties": {
+          "kind": { "const": "Output" }, "inputs": { "minItems": 1, "maxItems": 1 },
+          "channel": { "$ref": "#/$defs/outputChannel" }, "data_class": { "$ref": "#/$defs/dataClass" },
+          "color_space": { "$ref": "#/$defs/colorSpace" }
+        } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "outputChannel": {
+      "enum": ["base_color", "normal", "metallic_roughness", "ao", "emissive", "clearcoat", "clearcoat_roughness", "object_id", "material_id", "part_id"]
+    },
+    "unitRange": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "type": "number", "minimum": 0, "maximum": 1 }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "schema_version": "ForgeCadSourceCompileEvidence@1",
+  "recorded_on": "2026-08-26",
+  "task": "FGC-MCP010F-commercial-weapon-foundation",
+  "scope": "compile-first native AuthoringMesh V2, Native High evaluator, strict High-Low-Cage validation, and closed MaterialLayerGraph plan",
+  "source_status": "PASS_SOURCE_COMPILE_ONLY",
+  "visual_status": "NOT_RUN",
+  "human_review_status": "NOT_RUN",
+  "engine_validation_status": "NOT_RUN",
+  "commercial_quality_status": "NOT_PROVEN",
+  "runtime_persistence_status": "PARTIAL_EXISTING_SLICES_ONLY",
+  "stage_transition": false,
+  "candidate_write": false,
+  "capabilities": {
+    "authoring_mesh_v2": "STABLE_TYPED_IDS_REVISION_DAG_LOCAL_SPLIT_EDGE_SOURCE_ONLY",
+    "native_high_cpu_subdivision": "ACTIVE_CLOSED_REGULAR_QUAD_SUBSET_SOURCE_ONLY",
+    "native_high_manifold": "FEATURE_GATED_COMPILE_LINK_PASS_EXECUTION_NOT_RUN",
+    "native_high_opensubdiv": "RESEARCH_AUTHORIZED_NOT_VENDORED_NOT_LINKED",
+    "high_low_cage_correspondence": "STRICT_FAIL_CLOSED_VALIDATOR_SOURCE_ONLY",
+    "geometric_bake": "FAILED_DIAGNOSTICS_CANNOT_PROMOTE_BUT_FORMAL_PRODUCER_NOT_CONNECTED",
+    "material_layer_graph": "CLOSED_DAG_PLAN_VALIDATION_ONLY_TEXTURE_EVALUATION_NOT_IMPLEMENTED"
+  },
+  "source_files": [
+    {"path": "apps/desktop/src-tauri/crates/forgecad-contracts/src/authoring_mesh_v2.rs", "sha256": "3c982acebf844979b76c171ab91d5fc005ebf6c29efe539df8acde800ee09e20"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/authoring_mesh_v2.rs", "sha256": "03c26c43ab52a1c5a78f91c4d3822849420e020339212cb5ccdbe1c3f5c04c16"},
+    {"path": "apps/high-worker/src/module.rs", "sha256": "ead204fc0b114ce665fa5f0346f76f1267d5271c4b58c1250c7a4308d80fe1e8"},
+    {"path": "apps/high-worker/src/evaluator.rs", "sha256": "15159e31e186ee8eab2d83664915955043061a79dec4260bcc793252a3d0540b"},
+    {"path": "apps/high-worker/src/main.rs", "sha256": "311c0ff9227a26bbbe4e2ec3ec985e2cc1b65bb5f08ef397ef9702d9771197da"},
+    {"path": "apps/geometry-worker/src/material_layer_graph.rs", "sha256": "c03362bedb4c871e292db82017d9cabc150fdc81840598bb159ed29fb1056366"},
+    {"path": "apps/geometry-worker/src/high_low_cage_diagnostic.rs", "sha256": "bccff615a6a4c1b48d1b14051a5daf8a4aa83b98874dfed42bae65571040e7e1"},
+    {"path": "apps/geometry-worker/src/production_geometric_bake.rs", "sha256": "bdfa8e07703795fdae5745ba3c9c786e77229b004b16863694b0bc521c82ecfc"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_retopology_cage_source.rs", "sha256": "2f42ccf7820fe60067bed8e933b88e8be6ebbee3f8c9f6cd3f3c67ed53b6978b"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_high_low_bake.rs", "sha256": "ccbb3e7fa0a039bc0112d17b4d09ac87a6f3f0556cfb9ab696baa88993105760"},
+    {"path": "packages/forgecad-contracts/schemas/material-layer-graph.schema.json", "sha256": "54cdaea2d26a8f3938806cf3b7089a5e61f0a06f8b9843ead696cec7a161297e"},
+    {"path": "packages/forgecad-contracts/schemas/material-layer-graph-plan-result.schema.json", "sha256": "6a16e6486e3ea24f76708d0be568e02038972e33d0bd6f72e7f327d93b4fefd6"}
+  ],
+  "verification": [
+    {"command": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-contracts -p forgecad-runtime -p forgecad-worker-protocol", "status": "PASS"},
+    {"command": "cargo check --manifest-path apps/geometry-worker/Cargo.toml", "status": "PASS"},
+    {"command": "cargo check --tests --manifest-path apps/high-worker/Cargo.toml", "status": "PASS_COMPILE_ONLY"},
+    {"command": "cargo check --tests --manifest-path apps/high-worker/Cargo.toml --features manifold-backend", "status": "PASS_COMPILE_AND_LINK"},
+    {"command": "python3 scripts/check_forgecad_contracts.py", "status": "PASS_525_SCHEMAS"},
+    {"command": "git diff --check", "status": "PASS"}
+  ],
+  "explicit_non_claims": [
+    "No real D1 orientation approval was invented or written.",
+    "No secondary-form approval, High visual approval, Low unwrap approval, bake-map quality approval, FPS workbench approval, engine import approval, human Hero review, confirm, version, or export occurred.",
+    "Compile/link success does not prove Valorant-level art quality."
+  ]
+}

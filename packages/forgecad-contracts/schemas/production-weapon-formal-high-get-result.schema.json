@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-formal-high-get-result.schema.json",
+  "title": "ProductionWeaponFormalHighGetResult@1",
+  "description": "Runtime-derived exact Formal High readback. Candidate and High are returned from the requested project/session/artifact/candidate key; the read is restart-verified and non-promoting.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate",
+    "high",
+    "replayed",
+    "runtime_write",
+    "restart_hash_verified",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormalHighGetResult@1"},
+    "candidate": {"$ref": "https://forgecad.local/contracts/candidate.schema.json"},
+    "high": {"$ref": "https://forgecad.local/contracts/production-weapon-high-artifact.schema.json"},
+    "replayed": {"type": "boolean"},
+    "runtime_write": {"const": false},
+    "restart_hash_verified": {"const": true},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false}
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-baseline-preflight-request.schema.json",
+  "title": "ProductionWeaponFormArtBaselinePreflightRequest@1",
+  "description": "Closed read-only request that binds an approved CameraLock registration lineage and candidate scope. Camera matrices, camera hashes, RenderSet hashes, AOV bytes, paths and external FormArt content are forbidden.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "preflight_id", "registration_lineage_id",
+    "registration_lineage_canonical_sha256", "session_id", "project_id", "candidate_id",
+    "candidate_state_sha256", "artifact_id", "artifact_sha256", "max_response_bytes",
+    "writer_policy", "runtime_write_performed", "persistent_user_data_touched", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtBaselinePreflightRequest@1"},
+    "operation": {"const": "forgecad.production.weapon.form-art-baseline-preflight-get@1"},
+    "preflight_id": {"$ref": "#/$defs/id"},
+    "registration_lineage_id": {"$ref": "#/$defs/id"},
+    "registration_lineage_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "max_response_bytes": {"const": 1048576},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

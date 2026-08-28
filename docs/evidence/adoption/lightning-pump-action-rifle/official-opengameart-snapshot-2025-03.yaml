@@ -1,0 +1,38 @@
+project: lightning-pump-action-rifle
+source_url: https://opengameart.org/content/lightning-pump-action-rifle
+download_url: https://opengameart.org/sites/default/files/lightning_pump_action_0.zip
+revision: official-opengameart-snapshot-2025-03
+retrieved_at: 2026-08-27
+author: LonesomeDucky
+license_spdx: CC0-1.0
+research_status: accepted-evaluation-asset
+archive_sha256: b7a469de9ad14f28f2a2df357abf67f2b83217c14a13af992f456669092c1346
+source_contents:
+  reference_only_blend: colt_lightning139.blend
+  admitted_low_glb: lightning.glb
+official_claims:
+  - Blend contains the High and Low used for texture baking.
+  - GLB is the Low with 3058 tris, 2356 verts and 2048x2048 PBR textures.
+  - Asset has basic skinning plus pump and trigger animations.
+observed_glb:
+  sha256: 3f84f2b0d011ebfb142de7f7d9cfa7d57a59451a815b834b4f33603256c8f911
+  triangles_from_index_accessors: 3046
+  nodes: 9
+  meshes: 1
+  skins: 1
+  animations: [Fire, Pump]
+  pbr_images: [NormalsLow, BaseColorLow, MetalnessLow-RoughnessLow]
+selected_files:
+  - {path: assets/lightning/lightning.glb, sha256: 3f84f2b0d011ebfb142de7f7d9cfa7d57a59451a815b834b4f33603256c8f911}
+accepted_scope:
+  - high-low-bake-pbr-readback-benchmark
+  - basic-skin-and-animation-binding-benchmark
+denied_capabilities:
+  - blend_as_runtime_truth
+  - source_dimensions_as_truth
+  - source_visual_identity_as_fictional_master
+  - complete_fps_presentation_package
+  - commercial_quality_claim
+package: packages/forgecad-assets/forgecad-fps-production-foundation/0.1.0-proposal
+runtime_allowlist_changed: false
+fallback_or_removal_plan: Remove the admitted Low GLB and this receipt; the reference-only Blend remains outside the repository and no Runtime state migration is required.

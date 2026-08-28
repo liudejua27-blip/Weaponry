@@ -1,0 +1,18 @@
+ForgeCAD FPS Production Foundation 0.1.0-proposal
+
+This evaluation-only package contains selected byte-identical CC0 assets from
+Kenney Blaster Kit 2.1, Quaternius Sci-Fi Modular Gun Pack, Pichuliru CC0 Flat
+Guns and Attachments, Lightning Pump Action Rifle, and WRAD ARMS. Source URLs,
+frozen revisions or archive hashes, per-file hashes, license evidence and
+intended roles are recorded in manifest.json and the adoption receipts.
+
+The assets are admitted only as offline references for semantic part naming,
+socket vocabulary, rig mapping, blockout variation and High-Low-PBR readback
+benchmarking. They are not active Runtime geometry or a confirmed candidate.
+The Lightning source provides external High/Low/bake evidence and an admitted
+baked Low GLB, but it does not prove ForgeCAD-owned editable High-Low, Cage,
+UV, bake, complete FPS animation, engine or commercial Hero quality.
+
+ForgeCAD uses them only for legal, nonfunctional fictional game, film and
+visualization assets. No manufacturing dimensions, functional construction or
+performance guidance are included.

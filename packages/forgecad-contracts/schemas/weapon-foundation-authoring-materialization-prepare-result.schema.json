@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weapon-foundation-authoring-materialization-prepare-result.schema.json",
+  "title": "WeaponFoundationAuthoringMaterializationPrepareResult@1",
+  "description": "Runtime-owned prepare result for one foundation import. The response is bounded to a hash-only descriptor and compact per-Part summaries; topology is addressed by CAS hashes and never inlined.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "materialization_id", "descriptor_object_sha256",
+    "descriptor_sha256", "descriptor", "record_sha256", "record",
+    "request_input_sha256", "idempotency_key", "max_response_bytes", "materialization_profile",
+    "source_only", "materialization_status", "quality_status", "review_status", "response_shape",
+    "replayed", "restart_hash_verified", "runtime_write_performed",
+    "persistent_user_data_touched", "writer_policy", "limitations", "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponFoundationAuthoringMaterializationPrepareResult@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "materialization_id": {"$ref": "#/$defs/id"},
+    "descriptor_object_sha256": {"$ref": "#/$defs/sha256"},
+    "descriptor_sha256": {"$ref": "#/$defs/sha256"},
+    "descriptor": {"$ref": "https://forgecad.local/contracts/weapon-foundation-authoring-materialization-descriptor.schema.json"},
+    "record_sha256": {"$ref": "#/$defs/sha256"},
+    "record": {"$ref": "https://forgecad.local/contracts/weapon-foundation-authoring-materialization-record.schema.json"},
+    "request_input_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "max_response_bytes": {"const": 1048576},
+    "materialization_profile": {"const": "part-bounded-authoring-mesh-v2-genesis@1"},
+    "source_only": {"const": true},
+    "materialization_status": {"const": "runtime-owned-durable-authoring-mesh-v2-foundation@1"},
+    "quality_status": {"const": "structural_only"},
+    "review_status": {"const": "DRAFT_UNREVIEWED"},
+    "response_shape": {"const": "hash-only-per-part-summary-no-inline-topology@1"},
+    "replayed": {"type": "boolean"},
+    "restart_hash_verified": {"type": "boolean"},
+    "runtime_write_performed": {"const": true},
+    "persistent_user_data_touched": {"const": true},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "limitations": {"const": ["RUNTIME_SOLE_WRITER", "NO_CANDIDATE_BINDING", "NO_VERSION", "NO_EXPORT", "NO_PROMOTION", "DRAFT_UNREVIEWED", "STRUCTURAL_ONLY", "NO_INLINE_TOPOLOGY", "HASH_ONLY_SOURCE_DESCRIPTOR", "PART_BOUNDED_ONE_IMPORT_PER_CALL"]},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

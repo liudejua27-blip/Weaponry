@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-evidence-view.schema.json",
+  "title": "ProductionWeaponFormArtEvidenceView@1",
+  "description": "One fixed view of additive form art evidence. It binds existing FormEvidence@1 view receipt, target/visual-structure data and four hash-only AOV passes; all observations remain evidence-only and NOT_PROVEN.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "candidate_id", "candidate_state_sha256", "artifact_id", "artifact_sha256",
+    "view_kind", "view_id", "reference_id", "reference_sha256", "camera_hash", "camera_canonical_sha256",
+    "form_evidence_view_receipt_object_sha256", "form_evidence_view_receipt_canonical_sha256",
+    "target_object_sha256", "target_canonical_sha256", "visual_structure_canonical_sha256",
+    "visual_structure_review_status", "silhouette_pass_object_sha256", "part_id_pass_object_sha256",
+    "depth_pass_object_sha256", "normal_pass_object_sha256", "part_id_status", "part_id_expected_count",
+    "part_id_observed_count", "part_id_missing_count", "part_id_unexpected_count", "part_id_coverage_milli",
+    "negative_space_status", "negative_space_rows", "line_flow_status", "line_flow_rows",
+    "view_observation_status", "quality_status", "receipt_object_sha256", "canonical_sha256", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtEvidenceView@1"},
+    "project_id": {"$ref": "#/$defs/id"}, "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"}, "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "view_kind": {"enum": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+    "view_id": {"$ref": "#/$defs/id"}, "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"}, "camera_hash": {"$ref": "#/$defs/sha256"},
+    "camera_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "form_evidence_view_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "form_evidence_view_receipt_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "target_object_sha256": {"$ref": "#/$defs/sha256"}, "target_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "visual_structure_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "visual_structure_review_status": {"enum": ["user_confirmed", "inferred", "unknown"]},
+    "silhouette_pass_object_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id_pass_object_sha256": {"$ref": "#/$defs/sha256"},
+    "depth_pass_object_sha256": {"$ref": "#/$defs/sha256"},
+    "normal_pass_object_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id_status": {"enum": ["observed", "inferred", "unknown"]},
+    "part_id_expected_count": {"type": "integer", "minimum": 0, "maximum": 512},
+    "part_id_observed_count": {"type": "integer", "minimum": 0, "maximum": 512},
+    "part_id_missing_count": {"type": "integer", "minimum": 0, "maximum": 512},
+    "part_id_unexpected_count": {"type": "integer", "minimum": 0, "maximum": 512},
+    "part_id_coverage_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+    "negative_space_status": {"enum": ["observed", "inferred", "unknown", "not-applicable"]},
+    "negative_space_rows": {"type": "array", "minItems": 0, "maxItems": 512, "items": {"$ref": "#/$defs/negative_space_row"}},
+    "line_flow_status": {"enum": ["observed", "inferred", "unknown", "not-applicable"]},
+    "line_flow_rows": {"type": "array", "minItems": 0, "maxItems": 512, "items": {"$ref": "#/$defs/line_flow_row"}},
+    "view_observation_status": {"enum": ["observed", "inferred", "unknown"]},
+    "quality_status": {"const": "NOT_PROVEN"}, "receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}, "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "allOf": [
+    {"if": {"properties": {"negative_space_status": {"const": "not-applicable"}}}, "then": {"properties": {"negative_space_rows": {"maxItems": 0}, "visual_structure_review_status": {"const": "user_confirmed"}}}},
+    {"if": {"properties": {"line_flow_status": {"const": "not-applicable"}}}, "then": {"properties": {"line_flow_rows": {"maxItems": 0}, "visual_structure_review_status": {"const": "user_confirmed"}}}},
+    {"if": {"properties": {"negative_space_status": {"const": "observed"}}}, "then": {"properties": {"negative_space_rows": {"minItems": 1}}}},
+    {"if": {"properties": {"line_flow_status": {"const": "observed"}}}, "then": {"properties": {"line_flow_rows": {"minItems": 1}}}}
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "minLength": 1, "maxLength": 128},
+    "negative_space_row": {
+      "type": "object", "additionalProperties": false,
+      "required": ["structure_id", "expected_region_canonical_sha256", "iou_milli", "boundary_f1_milli", "area_ratio_milli", "centroid_error_milli", "sealed", "missing", "status"],
+      "properties": {
+        "structure_id": {"$ref": "#/$defs/id"}, "expected_region_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "iou_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "boundary_f1_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "area_ratio_milli": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "centroid_error_milli": {"type": "integer", "minimum": 0, "maximum": 100000},
+        "sealed": {"type": "boolean"}, "missing": {"type": "boolean"},
+        "status": {"enum": ["observed", "inferred", "unknown"]}
+      }
+    },
+    "line_flow_row": {
+      "type": "object", "additionalProperties": false,
+      "required": ["line_flow_id", "expected_line_canonical_sha256", "coverage_milli", "continuity_milli", "symmetric_chamfer_milli", "max_deviation_milli", "direction_order_milli", "duplicate_crossing_count", "status"],
+      "properties": {
+        "line_flow_id": {"$ref": "#/$defs/id"}, "expected_line_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "coverage_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "continuity_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "symmetric_chamfer_milli": {"type": "integer", "minimum": 0, "maximum": 100000},
+        "max_deviation_milli": {"type": "integer", "minimum": 0, "maximum": 100000},
+        "direction_order_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "duplicate_crossing_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "status": {"enum": ["observed", "inferred", "unknown"]}
+      }
+    }
+  }
+}

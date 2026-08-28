@@ -1,0 +1,147 @@
+{
+  "schema_version": "ProductionWeaponArtDecisionProposalSourceGateReceipt@1",
+  "task_id": "FPS-ART-DECISION-04B",
+  "recorded_at": "2026-08-23",
+  "status": "PASS_READ_ONLY_REAL_FIXTURE_BLOCKERS_EXPLICIT",
+  "source_truth": {
+    "schema_count": 462,
+    "operator_count": 28,
+    "read_tool_count": 100,
+    "write_tool_count": 76,
+    "total_tool_count": 176,
+    "tool_summary_canonical_sha256": "c16e8e5317818d2cc4e33e5778ce2a7e462e563cef9206e89604326f3419e977",
+    "tool_summary_receipt_sha256": "bef2a49b78636fa2d4a06585ade981f4fc031bed1d7bfe079bb269882d3f20e8"
+  },
+  "contract_surface": {
+    "registry_schema_version": "ProductionWeaponAssemblyDecisionRegistry@1",
+    "request_schema_version": "ProductionWeaponArtDecisionProposalGetRequest@1",
+    "result_schema_version": "ProductionWeaponArtDecisionProposalGetResult@1",
+    "view_count": 6,
+    "assembly_group_count": 5,
+    "gate_count": 10,
+    "assembly_group_ids": [
+      "receiver-envelope",
+      "muzzle-axis",
+      "stock-open-frame",
+      "trigger-void",
+      "rail-spine"
+    ],
+    "read_only": true,
+    "runtime_write_performed": false,
+    "worker_invoked": false,
+    "candidate_generated": false,
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "typed_parameter_sink_resolver": true,
+    "ready_for_search_group_ids": ["receiver-envelope", "muzzle-axis"],
+    "blocked_parameter_sink_group_ids": ["stock-open-frame", "trigger-void", "rail-spine"],
+    "parameter_sink_gate_status": "BLOCKED",
+    "negative_space_gate_status": "BLOCKED_NEGATIVE_SPACE",
+    "negative_space_source_policy": {
+      "required_views": ["left", "right", "rear-three-quarter"],
+      "required_rows_per_view": ["trigger-void", "open-stock-void"],
+      "row_requirements": [
+        "status=observed",
+        "sealed=false",
+        "missing=false",
+        "iou_milli>=850",
+        "boundary_f1_milli>=800",
+        "area_ratio_milli in 850..1150",
+        "centroid_error_milli<=3000"
+      ],
+      "front_back_top": "user_confirmed + not-applicable + empty rows",
+      "current_real_04a_status": "bbox_and_mask_operation_none_no_exact_subtract_fixture"
+    }
+  },
+  "real_fixture": {
+    "parent_task_id": "FPS-FORM-EVIDENCE-04A",
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "candidate_id": "candidate-741c84babfcb4a4e91cfe261c7caeb14",
+    "candidate_state_sha256": "25206f02c1a9b9d43aca5f4b1580d18bbb376c297760821f337d171609b6c5e9",
+    "artifact_sha256": "a6890e39d493f5a4585f6b9e93515ff595daadc8dcb5ad85ebbd62075c1d74bf",
+    "operator_catalog_sha256": "860f24812e651cbb7cded0d4058a354aabf231fc0ace73e4a4b06f6408a485d6",
+    "render_set_count": 6,
+    "aov_pass_count": 54,
+    "part_count": 23,
+    "projection_replay_equal": true,
+    "projection_restart_equal": true,
+    "projection_zero_new_cas_objects": true,
+    "blocker_codes": [
+      "BLOCKED_PARAMETER_SINK",
+      "BLOCKED_NEGATIVE_SPACE",
+      "BLOCKED_LINE_FLOW",
+      "BLOCKED_FIRST_PERSON_PROFILE"
+    ],
+    "negative_space_projection": {
+      "status": "BLOCKED_NEGATIVE_SPACE",
+      "view_kinds": ["left", "right", "rear-three-quarter"],
+      "source_shape": "bbox",
+      "mask_operation": "none",
+      "exact_subtract_fixture": "NOT_RUN"
+    }
+  },
+  "verification": [
+    {
+      "command": "python3 scripts/check_forgecad_contracts.py",
+      "result": "PASS_462_SCHEMAS"
+    },
+    {
+      "command": "cargo test -p forgecad-runtime production_weapon_art_decision_proposal::tests --lib",
+      "result": "PASS_4_OF_4"
+    },
+    {
+      "command": "cargo test -p forgecad-runtime production_weapon_form_evidence_real_user_weapon_d1_is_durable_replay_safe_and_coverage_blocked --lib -- --ignored --nocapture",
+      "result": "PASS_1_OF_1_164_66_SECONDS"
+    },
+    {
+      "command": "cargo test -p forgecad-mcp --bin forgecad-mcp production_weapon_art_decision_proposal_get",
+      "result": "PASS_2_OF_2"
+    },
+    {
+      "command": "python3 scripts/check_mcp010f_stage0_truth.py",
+      "result": "PASS_462_100_76_176"
+    }
+  ],
+  "source_hashes": [
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_art_decision_proposal.rs",
+      "sha256": "e39b61250061255c897f6a912b42d119f87da737455189df78af5c9c03ae0027"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+      "sha256": "372873d0d41249d649e4d843382e6c8010545d533a579b46bd0e8763043027a5"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/agentic_session.rs",
+      "sha256": "f24ceb5827e0e0b9e526e660829a596de8e9ba1f073b99af9ef54c2f69b8c753"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools.rs",
+      "sha256": "05dc91c28a8b5aa2dcad955f44ee72df3e6ae856fcbafdc4bf18100af1209f1d"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
+      "sha256": "d39a4e8629d39ec09d4db80d203446daecc2faaa642db814eef742aa7b428eb8"
+    }
+  ],
+  "quality_boundary": {
+    "current_stage_head": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "visual_quality_status": "NOT_PROVEN",
+    "high_low_status": "NOT_UNLOCKED",
+    "hero_uv_status": "NOT_RUN",
+    "formal_bake_status": "NOT_RUN",
+    "human_hero_art_review_status": "NOT_RUN",
+    "commercial_engine_status": "NOT_RUN"
+  },
+  "limitations": [
+    "This slice makes assembly-level art blockers deterministic and restart-readable; it does not generate or approve a new geometry candidate.",
+    "The five assembly groups have no first-class GeometryProgram parameter sink, so candidate search remains locked.",
+    "Open-stock and trigger-void evidence is not an observed subtract contour, line-flow match is not proven, and no first-person weapon profile is bound.",
+    "The result is not a FormQuality pass and does not authorize High/Low, Hero UV, bake, PBR, animation, VFX, engine import, confirm, version or export."
+  ],
+  "canonical_sha256": "31035dbb1a68c3814e638151e62489b49570f26eb9e19b2c1efbac0f6af282f8"
+}

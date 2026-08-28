@@ -1,5 +1,7 @@
 # ForgeCAD 废弃文档、代码与模块隔离计划
 
+> 2026-08-25 商业质量路线只增加 ForgeCAD-owned typed contracts/executors 的目标，不恢复 archived Provider、旧 workbench、BlenderMCP、任意 Python/JavaScript/shell 或 superseded Skill。研究缓存、教程笔记和候选第三方库均不得进入 active capability count；只有 accepted adoption receipt 才能改变产品依赖。
+
 版本：2026-08-13
 状态：隔离规则已更新；本轮已将三个 superseded Skill Bundle 移出 active `bundles/**`，放入 `packages/forgecad-skills/archive/superseded/`
 

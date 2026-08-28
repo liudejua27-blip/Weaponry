@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-authored-view-orientation.schema.json",
+  "title": "ProductionWeaponAuthoredViewOrientation@1",
+  "description": "Hash-bound authority for one reference-to-subject view orientation. Reference-pixel rotation, semantic stock/muzzle screen order and the closed registered-camera orbit are separate fields; a diagnostic 180-degree image match cannot substitute for an upright semantic camera choice or a dedicated user-authored receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "orientation_id", "project_id", "candidate_id", "candidate_state_sha256",
+    "artifact_id", "artifact_sha256", "reference_id", "reference_sha256", "view_kind", "source_view",
+    "reference_view_spec_canonical_sha256", "source_crop", "reference_to_subject_view", "post_render_transform",
+    "subject_screen_order", "registered_camera_orbit",
+    "target_landmark_status", "orientation_provenance", "status", "promotable", "read_only", "runtime_write",
+    "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponAuthoredViewOrientation@1"},
+    "orientation_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "view_kind": {"enum": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+    "source_view": {"enum": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+    "reference_view_spec_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "source_crop": {"$ref": "#/$defs/source_crop"},
+    "reference_to_subject_view": {"$ref": "#/$defs/transform"},
+    "post_render_transform": {"const": "identity"},
+    "subject_screen_order": {"enum": ["stock-left-muzzle-right", "muzzle-left-stock-right"]},
+    "registered_camera_orbit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["coordinate_space", "kind", "yaw_degrees"],
+      "properties": {
+        "coordinate_space": {"const": "registered-geometry-y-up"},
+        "kind": {"enum": ["identity", "yaw-around-world-origin"]},
+        "yaw_degrees": {"type": "integer", "enum": [0, 180]}
+      }
+    },
+    "target_landmark_status": {"enum": ["NOT_PRESENT", "PRESENT"]},
+    "orientation_provenance": {"$ref": "#/$defs/provenance"},
+    "status": {"enum": ["BLOCKED_AUTHORED_ORIENTATION", "APPROVED_AUTHORED_REFERENCE_ORIENTATION"]},
+    "promotable": {"type": "boolean"},
+    "read_only": {"const": true},
+    "runtime_write": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [{
+    "if": {"properties": {"promotable": {"const": true}}, "required": ["promotable"]},
+    "then": {"properties": {
+      "status": {"const": "APPROVED_AUTHORED_REFERENCE_ORIENTATION"},
+      "orientation_provenance": {"properties": {
+        "existing_confirmation_scope": {"const": "orientation-specific-user-approval"},
+        "orientation_explicitly_authored": {"const": true},
+        "source": {"const": "user-authored-orientation-receipt"},
+        "authored_receipt_sha256": {"$ref": "#/$defs/sha256"}
+      }}
+    }},
+    "else": {"properties": {
+      "status": {"const": "BLOCKED_AUTHORED_ORIENTATION"},
+      "orientation_provenance": {"properties": {
+        "existing_confirmation_scope": {"const": "visible-2d-reference-annotations-only"},
+        "orientation_explicitly_authored": {"const": false},
+        "source": {"const": "diagnostic-transform-discovery"},
+        "authored_receipt_sha256": {"type": "null"}
+      }}
+    }}
+  }, {
+    "if": {"properties": {"subject_screen_order": {"const": "stock-left-muzzle-right"}}, "required": ["subject_screen_order"]},
+    "then": {"properties": {"registered_camera_orbit": {"properties": {"yaw_degrees": {"const": 180}, "kind": {"const": "yaw-around-world-origin"}}}}},
+    "else": {"properties": {"registered_camera_orbit": {"properties": {"yaw_degrees": {"const": 0}, "kind": {"const": "identity"}}}}}
+  }],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_crop": {
+      "type": "object", "additionalProperties": false,
+      "required": ["board_size_px", "crop_xywh_px", "source_crop_sha256", "runtime_crop_png_sha256"],
+      "properties": {
+        "board_size_px": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 1}},
+        "crop_xywh_px": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "integer", "minimum": 0}},
+        "source_crop_sha256": {"$ref": "#/$defs/sha256"},
+        "runtime_crop_png_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "transform": {
+      "type": "object", "additionalProperties": false,
+      "required": ["coordinate_space", "kind", "rotation_degrees", "matrix_3x3", "translation", "scale"],
+      "properties": {
+        "coordinate_space": {"const": "crop-local-normalized-image"},
+        "kind": {"enum": ["identity", "rotate-clockwise"]},
+        "rotation_degrees": {"type": "integer", "enum": [-180, -90, 0, 90, 180]},
+        "matrix_3x3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}}},
+        "translation": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
+        "scale": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}
+      }
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["existing_confirmation_scope", "orientation_explicitly_authored", "source", "authored_receipt_sha256"],
+      "properties": {
+        "existing_confirmation_scope": {"enum": ["visible-2d-reference-annotations-only", "orientation-specific-user-approval"]},
+        "orientation_explicitly_authored": {"type": "boolean"},
+        "source": {"enum": ["diagnostic-transform-discovery", "user-authored-orientation-receipt"]},
+        "authored_receipt_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

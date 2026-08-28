@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-evidence-prepare-request.schema.json",
+  "title": "ProductionWeaponFormArtEvidencePrepareRequest@1",
+  "description": "Closed request for a Runtime-derived six-view art-evidence receipt. The caller binds only the existing FormEvidence@1 parent; candidate, artifact, reference canvas, camera and six child views are re-read by Runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "art_evidence_id", "session_id", "project_id", "candidate_id", "form_evidence_object_sha256", "form_evidence_canonical_sha256", "art_evidence_policy", "art_evidence_policy_sha256", "input_sha256", "idempotency_key"],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtEvidencePrepareRequest@1"},
+    "art_evidence_id": {"$ref": "#/$defs/id"}, "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"}, "candidate_id": {"$ref": "#/$defs/id"},
+    "form_evidence_object_sha256": {"$ref": "#/$defs/sha256"},
+    "form_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "art_evidence_policy": {"const": "production-weapon-form-art-evidence-six-view-typed-observation@1"},
+    "art_evidence_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}, "idempotency_key": {"$ref": "#/$defs/id"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,73 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: native-high
+version: 0.1.0
+status: development-only
+proposal_status: target-design
+registered: false
+publisher: forgecad-first-party
+related_skill: hard-surface-detail@0.2.0
+contract_range: forgecad-runtime-contracts@1
+input_schema: schemas/high-mesh-worker-request.schema.json
+output_schema: schemas/high-mesh-artifact.schema.json
+detail_graph_schema: schemas/detail-graph.schema.json
+embedded_schema_files:
+  - schemas/authoring-mesh-canonical.schema.json
+  - schemas/detail-graph.schema.json
+  - schemas/high-mesh-worker-request.schema.json
+  - schemas/high-mesh-artifact.schema.json
+  - schemas/native-high-durable-get-request.schema.json
+  - schemas/native-high-durable-get-result.schema.json
+  - schemas/native-high-durable-link.schema.json
+  - schemas/native-high-durable-prepare-request.schema.json
+  - schemas/native-high-durable-prepare-result.schema.json
+  - schemas/native-high-glb-materialize-request.schema.json
+  - schemas/native-high-glb-materialize-result.schema.json
+durable_glb_contracts:
+  - NativeHighDurableGetRequest@1
+  - NativeHighDurableGetResult@1
+  - NativeHighDurableLink@1
+  - NativeHighDurablePrepareRequest@1
+  - NativeHighDurablePrepareResult@1
+  - NativeHighGlbMaterializeRequest@1
+  - NativeHighGlbMaterializeResult@1
+worker_lock: workers/high-worker.lock.json
+glb_operation: forgecad.production.high-mesh-glb-materialize@1
+glb_worker_entry: --isolated-once-native-high-glb
+glb_request_schema: NativeHighGlbMaterializeRequest@1
+glb_result_schema: NativeHighGlbMaterializeResult@1
+recipe: recipes/default.recipe.json
+trust_profile: development-root
+signature: deferred-to-mcp012-013
+execution_availability: unavailable
+runtime_integration_gate: PASS_SOURCE_DURABLE_RESTART_MCP_ONLY
+runtime_integration_status: source-only-pass
+runtime_consumer: source-only-durable-pass
+mcp_consumer: source-only-compile-focused-pass
+cas_consumer: source-only-runtime-fixture-pass
+glb_materialization: runtime-owned-source-only-pass
+package_status: pending
+high_gate_status: NOT_PASSED
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: false
+  render_execution: false
+operator_ids:
+  - forgecad.production.high-mesh-prepare@1
+validator_ids:
+  - high_mesh_schema@1
+  - high_worker_determinism@1
+  - runtime_integration_gate@1
+budgets:
+  max_detail_nodes: 256
+  max_output_vertices: 300000
+  max_output_triangles: 600000
+benchmark_suite: native-high-structural-determinism
+known_limitations:
+  - This is an unregistered target-design proposal and cannot be selected by Runtime skill discovery.
+  - Source Runtime/MCP/CAS/GLB integration has a same-cohort real-process restart fixture and focused MCP compile/test PASS, but the proposal remains unregistered, unavailable to Skill discovery and not packaged.
+  - The embedded HighMesh/DetailGraph schemas, seven durable/GLB contracts, Worker source lock and benchmark receipts are synchronized to the stable-ID adapter and deterministic embedded-only GLB sibling; offline tests pass 6 library behavioral + 7 dedicated transport, but this does not create a High quality gate.
+  - Source determinism and base preservation do not prove High topology, visual, human, engine or distribution quality.

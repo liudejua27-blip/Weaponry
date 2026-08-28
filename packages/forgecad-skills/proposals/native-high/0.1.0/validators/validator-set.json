@@ -1,0 +1,10 @@
+{
+  "schema_version": "SkillValidatorSet@1",
+  "validators": [
+    {"id": "high_mesh_schema@1", "builtin": "closed_high_mesh_request_artifact_detail_graph_schema"},
+    {"id": "high_worker_determinism@1", "builtin": "fixed_worker_double_replay_byte_exact"},
+    {"id": "runtime_integration_gate@1", "builtin": "runtime_mcp_cas_glb_consumer_gate_fail_closed"}
+  ],
+  "network": false,
+  "dynamic_code": false
+}

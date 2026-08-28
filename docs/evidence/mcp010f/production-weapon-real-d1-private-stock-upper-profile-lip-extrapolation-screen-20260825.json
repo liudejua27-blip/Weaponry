@@ -1,0 +1,17 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04V-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-LIP-EXTRAPOLATION",
+  "task_id": "FPS-FORM-04V",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 727.10,
+  "fixture_log_filename": "forgecad-d1-04v-stock-upper-profile-lip-extrapolation-20260825.log",
+  "fixture_log_sha256": "b8e2ca00fcbf177e04cbd2d9276c208fddb54e5f31aaa0044b21f8a9d4433d1a",
+  "baseline_variant": "04Q@0.85",
+  "trials": [
+    {"lip_y_m": -0.015, "owner_intrusion_pixels": [296, 422, 587], "owner_boundary_adjacency_milli": [319, 317, 248], "left_strong_signal": true, "rear3q_strong_signal": false, "right_preferred_vs_04r": true, "formal_owner_gate_pass": false, "status": "BLOCKED_FORMAL_OWNER_GATE"},
+    {"lip_y_m": 0.005, "owner_intrusion_pixels": [280, 362, 585], "owner_boundary_adjacency_milli": [296, 271, 248], "owner_overlap_delta_pixels": [-22, -130, -2], "left_strong_signal": true, "rear3q_strong_signal": true, "right_preferred_vs_04r": true, "formal_owner_gate_pass": false, "status": "BLOCKED_FORMAL_OWNER_GATE"}
+  ],
+  "conclusion": {"selected_direction": "POSITIVE_LIP_Y", "selected_trial": "04V@+0.005", "all_views_strong_signal": true, "continue_once_with_values_m": [0.025, 0.045], "advance_candidate_to_six_view": false},
+  "promotion": {"diagnostic_only": true, "promotable": false, "quality_status": "NOT_PROVEN", "depth_status": "UNKNOWN_OR_OBSERVED_ONLY", "production_stage_advanced": false, "secondary_form_approved": false, "candidate_confirmed": false, "version_created": false, "export_performed": false}
+}

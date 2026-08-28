@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-identity-lineage.schema.json",
+  "title": "AuthoringMeshIdentityLineage@1",
+  "description": "Runtime-owned immutable identity ledger for one original AuthoringMesh lineage. Stable original IDs exclude candidate, program, evaluated artifact and readback hashes from their preimage; evaluated geometry remains non-bijective derived evidence and can never reconstruct authoring truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "lineage_id",
+    "project_id",
+    "authoring_node_id",
+    "part_id",
+    "genesis_source_mesh_sha256",
+    "current_source_mesh_sha256",
+    "candidate_id",
+    "candidate_state_sha256",
+    "base_version_id",
+    "parent_lineage_object_sha256",
+    "parent_lineage_sha256",
+    "revision_index",
+    "revision_kind",
+    "operation_lineage_sha256",
+    "source_program_object_sha256",
+    "source_program_sha256",
+    "source_artifact_object_sha256",
+    "source_artifact_sha256",
+    "source_artifact_readback_object_sha256",
+    "source_artifact_readback_sha256",
+    "elements",
+    "tombstones",
+    "correspondence",
+    "identity_policy",
+    "evaluated_identity_policy",
+    "budgets",
+    "writer_policy",
+    "canonicalization_policy",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "quality_status",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringMeshIdentityLineage@1"},
+    "lineage_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "authoring_node_id": {"$ref": "#/$defs/identifier"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "genesis_source_mesh_sha256": {"$ref": "#/$defs/sha256"},
+    "current_source_mesh_sha256": {"$ref": "#/$defs/sha256"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "base_version_id": {"$ref": "#/$defs/nullable_identifier"},
+    "parent_lineage_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "parent_lineage_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "revision_index": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "revision_kind": {"enum": ["genesis", "preserving-edit", "topology-edit"]},
+    "operation_lineage_sha256": {"$ref": "#/$defs/sha256"},
+    "source_program_object_sha256": {"$ref": "#/$defs/sha256"},
+    "source_program_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_object_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "elements": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32768,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/element"}
+    },
+    "tombstones": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 32768,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/tombstone"}
+    },
+    "correspondence": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 32768,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/correspondence"}
+    },
+    "identity_policy": {"const": "runtime-owned-authored-ids-with-monotonic-tombstones@1"},
+    "evaluated_identity_policy": {"const": "non-bijective-derived-only-no-authoring-source-reversal@1"},
+    "budgets": {"$ref": "#/$defs/budgets"},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "runtime_write_performed": {"const": true},
+    "persistent_user_data_touched": {"const": true},
+    "stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+    "nullable_identifier": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "element_kind": {
+      "enum": ["vertex", "edge", "half-edge", "corner", "face", "loop", "ring", "boundary"]
+    },
+    "element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_id",
+        "element_kind",
+        "source_element_id",
+        "origin",
+        "stability_status",
+        "parent_identity_ids",
+        "operation_lineage_sha256",
+        "role",
+        "ordinal"
+      ],
+      "properties": {
+        "identity_id": {"$ref": "#/$defs/identifier"},
+        "element_kind": {"$ref": "#/$defs/element_kind"},
+        "source_element_id": {"$ref": "#/$defs/nullable_identifier"},
+        "origin": {"enum": ["authored", "operation-derived", "representation-derived"]},
+        "stability_status": {"enum": ["cross-revision-stable", "same-revision-only"]},
+        "parent_identity_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "operation_lineage_sha256": {"$ref": "#/$defs/sha256"},
+        "role": {"$ref": "#/$defs/identifier"},
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 32767}
+      }
+    },
+    "tombstone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_id", "element_kind", "retired_revision_index", "operation_lineage_sha256", "reason"],
+      "properties": {
+        "identity_id": {"$ref": "#/$defs/identifier"},
+        "element_kind": {"$ref": "#/$defs/element_kind"},
+        "retired_revision_index": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "operation_lineage_sha256": {"$ref": "#/$defs/sha256"},
+        "reason": {"enum": ["deleted", "collapsed", "dissolved", "replaced", "merged"]}
+      }
+    },
+    "correspondence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "parent_identity_ids", "child_identity_ids", "operation_lineage_sha256"],
+      "properties": {
+        "kind": {"enum": ["preserved", "created", "retired", "one-to-many", "many-to-one", "many-to-many"]},
+        "parent_identity_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "child_identity_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "operation_lineage_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_response_bytes", "max_elements", "max_tombstones", "max_parent_ids", "max_evaluated_ids"],
+      "properties": {
+        "max_response_bytes": {"const": 1048576},
+        "max_elements": {"const": 32768},
+        "max_tombstones": {"const": 32768},
+        "max_parent_ids": {"const": 8},
+        "max_evaluated_ids": {"const": 64}
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/native-high-glb-materialize-result.schema.json",
+  "title": "NativeHighGlbMaterializeResult@1",
+  "description": "Closed source-only Native High embedded GLB result. Strict readback binds the GLB bytes to the source HighMeshArtifact without writing Runtime state or claiming production quality.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "glb_base64", "glb_sha256", "strict_readback", "runtime_write_performed", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "NativeHighGlbMaterializeResult@1"},
+    "glb_base64": {"type": "string", "minLength": 4, "pattern": "^[A-Za-z0-9+/]+={0,2}$"},
+    "glb_sha256": {"$ref": "#/$defs/sha256"},
+    "strict_readback": {"$ref": "#/$defs/strict_readback"},
+    "runtime_write_performed": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "strict_readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["glb_sha256", "source_artifact_id", "source_artifact_sha256", "part_ids", "base_primitive_count", "detail_primitive_count", "base_triangle_count", "detail_triangle_count", "triangle_count", "byte_length"],
+      "properties": {
+        "glb_sha256": {"$ref": "#/$defs/sha256"},
+        "source_artifact_id": {"$ref": "#/$defs/id"},
+        "source_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "part_ids": {"type": "array", "minItems": 1, "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "base_primitive_count": {"type": "integer", "minimum": 1, "maximum": 128},
+        "detail_primitive_count": {"type": "integer", "minimum": 1, "maximum": 256},
+        "base_triangle_count": {"type": "integer", "minimum": 1},
+        "detail_triangle_count": {"type": "integer", "minimum": 0},
+        "triangle_count": {"type": "integer", "minimum": 1},
+        "byte_length": {"type": "integer", "minimum": 1, "maximum": 100663296}
+      }
+    }
+  }
+}

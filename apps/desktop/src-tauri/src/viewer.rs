@@ -12,6 +12,10 @@ const AGENTIC_SESSION_READBACK_SCHEMA: &str = "ForgeCADAgenticDesignSessionReadb
 const MECHANICAL_ANIMATION_INVENTORY_SCHEMA: &str = "ViewerMechanicalAnimationInventory@1";
 const MECHANICAL_ANIMATION_FRAME_SCHEMA: &str = "MechanicalAnimationClipPreview@1";
 const PROVENANCE_GRAPH_SCHEMA: &str = "ViewerProvenanceGraph@1";
+const AUTHORING_MESH_SCHEMA: &str = "AuthoringMesh@1";
+const AUTHORING_MESH_POLICY_SHA256: &str =
+    "aa72cadabba90ddb43dd0014cfa434ab9b13f4e072b09258072f37334c72e709";
+const AUTHORING_MESH_MAX_RESPONSE_BYTES: usize = 1024 * 1024;
 
 /// Read the optional Viewer projection without starting Runtime or opening
 /// SQLite/CAS. The Viewer is deliberately a read-only IPC client.
@@ -202,6 +206,47 @@ pub fn read_provenance_graph(
             candidate_id,
             candidate_state_sha256,
             artifact_id,
+            &code,
+        ),
+    }
+}
+
+/// Read the exact Runtime-derived AuthoringMesh projection for one direct Part.
+/// The Viewer only forwards the already-known candidate/artifact lineage and
+/// accepts a complete structural response; it never opens the mesh payload,
+/// creates a local topology, or exposes an edit/stage action.
+pub fn read_authoring_mesh(
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+    artifact_readback_sha256: &str,
+    program_sha256: &str,
+    operator_catalog_sha256: &str,
+    readback_config_sha256: &str,
+    authoring_node_id: &str,
+    part_id: &str,
+) -> Value {
+    match runtime_data_root().and_then(|root| {
+        read_authoring_mesh_from_root(
+            &root,
+            project_id,
+            candidate_id,
+            artifact_id,
+            artifact_readback_sha256,
+            program_sha256,
+            operator_catalog_sha256,
+            readback_config_sha256,
+            authoring_node_id,
+            part_id,
+        )
+    }) {
+        Ok(value) => value,
+        Err(code) => unavailable_authoring_mesh(
+            project_id,
+            candidate_id,
+            artifact_id,
+            authoring_node_id,
+            part_id,
             &code,
         ),
     }
@@ -605,6 +650,172 @@ fn read_provenance_graph_from_root(
     Ok(value)
 }
 
+fn read_authoring_mesh_from_root(
+    root: &Path,
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+    artifact_readback_sha256: &str,
+    program_sha256: &str,
+    operator_catalog_sha256: &str,
+    readback_config_sha256: &str,
+    authoring_node_id: &str,
+    part_id: &str,
+) -> Result<Value, String> {
+    if project_id.is_empty()
+        || candidate_id.is_empty()
+        || authoring_node_id.is_empty()
+        || part_id.is_empty()
+        || !is_sha256_text(artifact_id)
+        || !is_sha256_text(artifact_readback_sha256)
+        || !is_sha256_text(program_sha256)
+        || !is_sha256_text(operator_catalog_sha256)
+        || !is_sha256_text(readback_config_sha256)
+    {
+        return Err("AUTHORING_MESH_BINDING_MISSING".to_owned());
+    }
+    let request = json!({
+        "schema_version":"AuthoringMeshRequest@1",
+        "project_id":project_id,
+        "candidate_id":candidate_id,
+        "artifact_id":artifact_id,
+        "artifact_readback_sha256":artifact_readback_sha256,
+        "program_sha256":program_sha256,
+        "operator_catalog_sha256":operator_catalog_sha256,
+        "readback_config_sha256":readback_config_sha256,
+        "authoring_node_id":authoring_node_id,
+        "part_id":part_id,
+        "authoring_mesh_policy_sha256":AUTHORING_MESH_POLICY_SHA256,
+        "max_response_bytes":AUTHORING_MESH_MAX_RESPONSE_BYTES,
+    });
+    let mut client = connect_runtime(root)?;
+    let value = client
+        .call("authoring_mesh_get", request)
+        .map_err(|_| "AUTHORING_MESH_UNAVAILABLE".to_owned())?;
+
+    let lineage = value.get("lineage");
+    let topology = value.get("topology");
+    let counts = value.get("counts");
+    let mut canonical_preimage = value.clone();
+    canonical_preimage
+        .as_object_mut()
+        .ok_or_else(|| "AUTHORING_MESH_INVALID".to_owned())?
+        .remove("canonical_sha256");
+    let canonical = value.get("canonical_sha256").and_then(Value::as_str);
+    let binding_matches = lineage.is_some_and(|lineage| {
+        lineage.get("project_id").and_then(Value::as_str) == Some(project_id)
+            && lineage.get("candidate_id").and_then(Value::as_str) == Some(candidate_id)
+            && lineage.get("artifact_id").and_then(Value::as_str) == Some(artifact_id)
+            && lineage
+                .get("artifact_readback_sha256")
+                .and_then(Value::as_str)
+                == Some(artifact_readback_sha256)
+            && lineage.get("program_sha256").and_then(Value::as_str) == Some(program_sha256)
+            && lineage
+                .get("operator_catalog_sha256")
+                .and_then(Value::as_str)
+                == Some(operator_catalog_sha256)
+            && lineage
+                .get("readback_config_sha256")
+                .and_then(Value::as_str)
+                == Some(readback_config_sha256)
+            && lineage.get("authoring_node_id").and_then(Value::as_str) == Some(authoring_node_id)
+            && lineage.get("part_id").and_then(Value::as_str) == Some(part_id)
+            && lineage.get("lineage_status").and_then(Value::as_str)
+                == Some("candidate-program-artifact-readback-bound@1")
+    });
+    let topology_valid = topology.is_some_and(|topology| {
+        topology
+            .get("non_manifold_edge_count")
+            .and_then(Value::as_u64)
+            == Some(0)
+            && topology
+                .get("orientation_conflict_count")
+                .and_then(Value::as_u64)
+                == Some(0)
+            && topology.get("validation_status").and_then(Value::as_str) == Some("passed")
+            && matches!(
+                topology.get("status").and_then(Value::as_str),
+                Some("closed_manifold") | Some("manifold_with_boundary")
+            )
+    });
+    let counts_valid = counts.is_some_and(|counts| {
+        [
+            "vertex_count",
+            "edge_count",
+            "half_edge_count",
+            "corner_count",
+            "face_count",
+            "loop_count",
+            "ring_count",
+            "boundary_edge_count",
+            "boundary_half_edge_count",
+            "hard_edge_count",
+            "crease_edge_count",
+            "uv_seam_count",
+        ]
+        .iter()
+        .all(|key| counts.get(*key).and_then(Value::as_u64).is_some())
+    });
+    if value.get("schema_version").and_then(Value::as_str) != Some(AUTHORING_MESH_SCHEMA)
+        || !binding_matches
+        || !counts_valid
+        || !topology_valid
+        || value.get("identity_policy").and_then(Value::as_str)
+            != Some("runtime-derived-original-evaluated-non-bijective@1")
+        || value.get("cross_version_stable").and_then(Value::as_bool) != Some(false)
+        || value
+            .get("evaluated_identity")
+            .and_then(Value::as_object)
+            .is_none_or(|identity| {
+                identity.get("artifact_id").and_then(Value::as_str) != Some(artifact_id)
+                    || identity
+                        .get("artifact_readback_sha256")
+                        .and_then(Value::as_str)
+                        != Some(artifact_readback_sha256)
+                    || identity
+                        .get("correspondence_policy")
+                        .and_then(Value::as_str)
+                        != Some("non-bijective-derived-only@1")
+            })
+        || value
+            .get("original_identity")
+            .and_then(Value::as_object)
+            .is_none_or(|identity| {
+                identity.get("identity_kind").and_then(Value::as_str)
+                    != Some("runtime-derived-original-authoring@1")
+                    || identity.get("namespace").and_then(Value::as_str) != Some("original")
+            })
+        || value
+            .get("authoring_mesh_policy_sha256")
+            .and_then(Value::as_str)
+            != Some(AUTHORING_MESH_POLICY_SHA256)
+        || value.get("max_response_bytes").and_then(Value::as_u64)
+            != Some(AUTHORING_MESH_MAX_RESPONSE_BYTES as u64)
+        || value
+            .get("runtime_write_performed")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || value
+            .get("persistent_user_data_touched")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || value.get("quality_status").and_then(Value::as_str) != Some("structural_only")
+        || canonical.is_none_or(|hash| canonical_json_hash(&canonical_preimage) != hash)
+        || serde_json::to_vec(&value)
+            .map_err(|_| "AUTHORING_MESH_INVALID")?
+            .len()
+            > AUTHORING_MESH_MAX_RESPONSE_BYTES
+    {
+        return Err("AUTHORING_MESH_BINDING_MISMATCH".to_owned());
+    }
+    Ok(value)
+}
+
+fn is_sha256_text(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
 fn connect_runtime(root: &Path) -> Result<LocalIpcClient, String> {
     let ready_path = root.join("ipc").join("ready.json");
     let handoff = read_bounded_json(&ready_path)?;
@@ -885,6 +1096,32 @@ fn unavailable_provenance_graph(
         "edges":[],
         "quality_status":"unavailable",
         "code":code,
+    })
+}
+
+fn unavailable_authoring_mesh(
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+    authoring_node_id: &str,
+    part_id: &str,
+    code: &str,
+) -> Value {
+    json!({
+        "schema_version": AUTHORING_MESH_SCHEMA,
+        "status": "Unavailable",
+        "retryable": true,
+        "read_only": true,
+        "runtime_write_performed": false,
+        "persistent_user_data_touched": false,
+        "quality_status": "structural_only",
+        "source": "Runtime authenticated read-only AuthoringMesh projection",
+        "code": code,
+        "project_id": project_id,
+        "candidate_id": candidate_id,
+        "artifact_id": artifact_id,
+        "authoring_node_id": authoring_node_id,
+        "part_id": part_id,
     })
 }
 

@@ -54,6 +54,13 @@ import {
   type ProvenanceGraphBinding,
   type ViewerProvenanceGraph,
 } from './provenance-graph'
+import {
+  isCurrentAuthoringMeshResponse,
+  normalizeAuthoringMesh,
+  unavailableAuthoringMesh,
+  type AuthoringMeshBinding,
+  type AuthoringMeshReadback,
+} from './authoring-mesh'
 
 const VIEWER_SELECTION_CACHE = '__forgecad_selection_state_v1'
 const VIEWER_HOVER_CACHE = '__forgecad_hover_state_v1'
@@ -70,6 +77,13 @@ type BottomDrawerTab = 'versions' | 'tasks' | 'issues' | 'activity'
 type CompactPanel = 'none' | 'scene' | 'inspector'
 type ViewportLayout = 'single' | 'dual' | 'quad'
 type ViewportShading = 'solid' | 'material' | 'wireframe'
+
+type ArtDirectorReviewRow = {
+  id: string
+  label: string
+  status: string
+  state: 'ready' | 'blocked' | 'not-run'
+}
 
 const clampPanelWidth = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -141,6 +155,8 @@ type ViewerProject = {
       canonical_sha256?: string
       candidate_id?: string
       program_sha256?: string
+      operator_catalog_sha256?: string
+      readback_config_sha256?: string
       mime?: string
       part_ids?: string[]
       source_node_ids?: string[]
@@ -1616,6 +1632,9 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const [selectedProvenanceNodeId, setSelectedProvenanceNodeId] = useState<string | null>(null)
   const [provenanceGraphLoading, setProvenanceGraphLoading] = useState(false)
   const [provenanceGraphError, setProvenanceGraphError] = useState<string | null>(null)
+  const [authoringMesh, setAuthoringMesh] = useState<AuthoringMeshReadback>(() => unavailableAuthoringMesh())
+  const [authoringMeshLoading, setAuthoringMeshLoading] = useState(false)
+  const [authoringMeshError, setAuthoringMeshError] = useState<string | null>(null)
   const [agenticProjection, setAgenticProjection] = useState<AgenticDesignProjection>(() => unavailableAgenticDesignProjection())
   const [agenticSession, setAgenticSession] = useState<AgenticSessionProjection>(() => unavailableAgenticSessionProjection())
   const [referenceImage, setReferenceImage] = useState<ArtifactBytes | null>(null)
@@ -1690,6 +1709,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const mechanicalAnimationClipRequestRef = useRef(0)
   const mechanicalAnimationFrameRequestRef = useRef(0)
   const provenanceGraphRequestRef = useRef(0)
+  const authoringMeshRequestRef = useRef(0)
   const threeRuntimeRef = useRef<Pick<typeof import('./three-runtime-core'), 'Box3' | 'Vector3'> | null>(null)
   const contourCanvasActive = selectedPass === 'silhouette' && compareMode === 'overlay' && !diffHeatmap
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -1996,6 +2016,66 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     }
     return null
   }, [selectedObjectId, artifactLoadState, artifactCandidateId, filteredSceneTreeByState])
+  const authoringMeshBinding = useMemo<AuthoringMeshBinding | null>(() => {
+    if (!projectId || !candidateId || !artifact || artifact.candidate_id !== candidateId) return null
+    const partId = selectedSceneObject?.data.partId ?? artifact.part_ids?.[0]
+    if (!partId) return null
+    const partBinding = artifact.part_bindings?.find((binding) => binding.part_id === partId)
+    if (!partBinding?.source_node_id
+      || !artifact.artifact_id
+      || !artifact.canonical_sha256
+      || !artifact.program_sha256
+      || !artifact.operator_catalog_sha256
+      || !artifact.readback_config_sha256) return null
+    return {
+      projectId,
+      candidateId,
+      artifactId: artifact.artifact_id,
+      artifactReadbackSha256: artifact.canonical_sha256,
+      programSha256: artifact.program_sha256,
+      operatorCatalogSha256: artifact.operator_catalog_sha256,
+      readbackConfigSha256: artifact.readback_config_sha256,
+      authoringNodeId: partBinding.source_node_id,
+      partId,
+    }
+  }, [artifact, candidateId, projectId, selectedSceneObject?.data.partId])
+  useEffect(() => {
+    let active = true
+    const requestId = ++authoringMeshRequestRef.current
+    setAuthoringMesh(unavailableAuthoringMesh(authoringMeshBinding, authoringMeshBinding ? 'AUTHORING_MESH_LOADING' : 'AUTHORING_MESH_BINDING_MISSING'))
+    setAuthoringMeshError(null)
+    setAuthoringMeshLoading(Boolean(authoringMeshBinding))
+    if (!authoringMeshBinding) return () => { active = false }
+    void runtimeInvoke<unknown>('viewer_authoring_mesh', {
+      projectId: authoringMeshBinding.projectId,
+      candidateId: authoringMeshBinding.candidateId,
+      artifactId: authoringMeshBinding.artifactId,
+      artifactReadbackSha256: authoringMeshBinding.artifactReadbackSha256,
+      programSha256: authoringMeshBinding.programSha256,
+      operatorCatalogSha256: authoringMeshBinding.operatorCatalogSha256,
+      readbackConfigSha256: authoringMeshBinding.readbackConfigSha256,
+      authoringNodeId: authoringMeshBinding.authoringNodeId,
+      partId: authoringMeshBinding.partId,
+    }).then((payload) => {
+      if (!active || authoringMeshRequestRef.current !== requestId) return
+      const next = normalizeAuthoringMesh(payload, authoringMeshBinding)
+      if (isCurrentAuthoringMeshResponse(active, requestId, authoringMeshRequestRef.current, next, authoringMeshBinding)) {
+        setAuthoringMesh(next)
+        setAuthoringMeshError(null)
+      } else {
+        setAuthoringMesh(unavailableAuthoringMesh(authoringMeshBinding, next.code ?? 'AUTHORING_MESH_BINDING_MISMATCH'))
+        setAuthoringMeshError(next.code ?? 'AUTHORING_MESH_BINDING_MISMATCH')
+      }
+    }).catch((error) => {
+      if (!active || authoringMeshRequestRef.current !== requestId) return
+      const code = readErrorCode(error, 'AUTHORING_MESH_REQUEST_FAILED')
+      setAuthoringMesh(unavailableAuthoringMesh(authoringMeshBinding, code))
+      setAuthoringMeshError(code)
+    }).finally(() => {
+      if (active && authoringMeshRequestRef.current === requestId) setAuthoringMeshLoading(false)
+    })
+    return () => { active = false }
+  }, [authoringMeshBinding, modelRefreshNonce])
   const sceneTreeNavigationNodes = useMemo<SceneTreeNavigationNode[]>(() => {
     const list: SceneTreeNavigationNode[] = []
     for (const part of filteredSceneTreeByState) {
@@ -3346,6 +3426,27 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const visualHardGatePassed = visualQualityReport?.hard_gate_passed === true
   const visualGateStatusClass = visualQualityReport ? (visualHardGatePassed ? 'passed' : 'failed') : 'not-run'
   const visualGateLabel = visualQualityReport ? (visualHardGatePassed ? '通过' : '未通过') : '未运行'
+  const artDirectorReviewRows = useMemo<ArtDirectorReviewRow[]>(() => {
+    const uvReady = artifact?.uv_status === 'passed'
+    const tangentReady = artifact?.tangent_status === 'passed'
+    const pbrReady = qualityCheckStatus(activeCandidate?.quality ?? null, 'pbr_material_zones') === '通过'
+    const authoringReady = authoringMesh.status === 'Ready' && Boolean(authoringMesh.mesh)
+    const animationReady = mechanicalAnimationInventory.status === 'Ready' && mechanicalAnimationInventory.clips.length > 0
+    return [
+      { id: 'reference', label: '参考 / 固定对比', status: activeCandidateChain.compareReady && activeCandidateChain.evidenceReady ? '已绑定' : '未闭合', state: activeCandidateChain.compareReady && activeCandidateChain.evidenceReady ? 'ready' : 'blocked' },
+      { id: 'authoring', label: 'AuthoringMesh', status: authoringReady ? '结构回读' : '未绑定', state: authoringReady ? 'ready' : 'not-run' },
+      { id: 'high', label: 'Native High', status: '未绑定 Viewer 工件', state: 'not-run' },
+      { id: 'low', label: 'Editable Low / Retopo', status: '未绑定', state: 'not-run' },
+      { id: 'uv', label: 'Hero UV / Tangent', status: uvReady && tangentReady ? '结构回读' : '未通过', state: uvReady && tangentReady ? 'ready' : 'blocked' },
+      { id: 'cage', label: 'Cage / Bake', status: '未绑定', state: 'not-run' },
+      { id: 'material', label: 'Material Layer', status: pbrReady ? '基础 PBR 回读' : '未通过', state: pbrReady ? 'ready' : 'blocked' },
+      { id: 'fps', label: 'Hip / ADS / Inspect / Reload', status: animationReady ? '仅结构动画回读' : '未绑定', state: animationReady ? 'ready' : 'not-run' },
+      { id: 'lod', label: 'LOD / Collision / Socket', status: '未绑定', state: 'not-run' },
+      { id: 'visual', label: '视觉质量门', status: visualGateLabel, state: visualHardGatePassed ? 'ready' : visualQualityReport ? 'blocked' : 'not-run' },
+      { id: 'human', label: '独立真人 Art Review', status: 'NOT_RUN', state: 'not-run' },
+      { id: 'engine', label: '商业引擎 / 分发', status: 'NOT_RUN', state: 'not-run' },
+    ]
+  }, [activeCandidate?.quality, activeCandidateChain.compareReady, activeCandidateChain.evidenceReady, artifact?.tangent_status, artifact?.uv_status, authoringMesh.mesh, authoringMesh.status, mechanicalAnimationInventory.clips.length, mechanicalAnimationInventory.status, visualGateLabel, visualHardGatePassed, visualQualityReport])
   const mechanicalAnimationHierarchy = useMemo(() => mechanicalAnimationHierarchyRows(mechanicalAnimationClip?.clip ?? null), [mechanicalAnimationClip])
   const mechanicalAnimationChannelsByLinkId = useMemo(() => new Map((mechanicalAnimationClip?.clip.poseAction.channels ?? []).map((channel) => [channel.linkId, channel])), [mechanicalAnimationClip])
   const mechanicalAnimationTicks = mechanicalAnimationClip?.clip.samplingPolicy.sampleTimeTicks ?? []
@@ -4733,9 +4834,51 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
             <div><span>材质</span><strong>{selectedSceneObject?.data.materialZoneId ?? '未选中'}</strong></div>
             <div><span>几何</span><strong>{artifact ? `${partCount} 个部件 · ${artifact.triangle_count ?? 0} 三角形` : '未绑定 GLB'}</strong></div>
           </div>}
-          {inspectorTab === 'geometry' && <div className="runtime-inspector-section-card"><h3>几何统计</h3><div className="property-list runtime-inspector-properties"><div><span>部件数量</span><strong>{partCount || '—'}</strong></div><div><span>三角形</span><strong>{artifact?.triangle_count ?? '—'}</strong></div><div><span>校验状态</span><strong>{artifact?.validator_status ?? '未运行'}</strong></div><div><span>流形</span><strong>{artifact ? 'Runtime 回读' : '未绑定'}</strong></div></div></div>}
+          {inspectorTab === 'geometry' && <>
+            <div className="runtime-inspector-section-card"><h3>几何统计</h3><div className="property-list runtime-inspector-properties"><div><span>部件数量</span><strong>{partCount || '—'}</strong></div><div><span>三角形</span><strong>{artifact?.triangle_count ?? '—'}</strong></div><div><span>校验状态</span><strong>{artifact?.validator_status ?? '未运行'}</strong></div><div><span>流形</span><strong>{artifact ? 'Runtime 回读' : '未绑定'}</strong></div></div></div>
+            <section className="runtime-inspector-section-card authoring-mesh-diagnostic" aria-labelledby="authoring-mesh-diagnostic-title">
+              <div className="authoring-mesh-diagnostic-heading">
+                <div><h3 id="authoring-mesh-diagnostic-title">AuthoringMesh 结构诊断</h3><span className="authoring-mesh-diagnostic-subtitle">当前 Part · {authoringMeshBinding?.partId ?? '未绑定'}</span></div>
+                <span className="authoring-mesh-readonly-badge" role="status">只读 · no-write</span>
+              </div>
+              {authoringMeshLoading ? <div className="authoring-mesh-diagnostic-empty" role="status" aria-live="polite">正在读取候选绑定的 AuthoringMesh…</div> : authoringMesh.status !== 'Ready' || !authoringMesh.mesh ? (
+                <div className="authoring-mesh-diagnostic-empty" role="status" aria-live="polite"><strong>结构投影不可用</strong><span>{authoringMeshError ?? authoringMesh.code ?? '等待 candidate / artifact / Part lineage'}</span><small>Viewer 不会从 GLB 或本地场景推断拓扑。</small></div>
+              ) : (() => {
+                const mesh = authoringMesh.mesh
+                const counts = mesh.counts
+                const topologyLabel = mesh.topology.status === 'closed_manifold' ? '封闭流形' : '带边界流形'
+                return <>
+                  <div className="authoring-mesh-diagnostic-tags"><span>structural_only</span><span>Runtime-derived</span><span>candidate-bound</span></div>
+                  <div className="property-list runtime-inspector-properties authoring-mesh-counts" aria-label="AuthoringMesh 元素计数">
+                    <div><span>顶点 / 边</span><strong>{counts.vertex_count} / {counts.edge_count}</strong></div>
+                    <div><span>半边 / 角点</span><strong>{counts.half_edge_count} / {counts.corner_count}</strong></div>
+                    <div><span>面 / Loop / Ring</span><strong>{counts.face_count} / {counts.loop_count} / {counts.ring_count}</strong></div>
+                    <div><span>边界边 / 边界半边</span><strong>{counts.boundary_edge_count} / {counts.boundary_half_edge_count}</strong></div>
+                    <div><span>硬边 / Crease / UV Seam</span><strong>{counts.hard_edge_count} / {counts.crease_edge_count} / {counts.uv_seam_count}</strong></div>
+                  </div>
+                  <div className="property-list runtime-inspector-properties authoring-mesh-topology" aria-label="AuthoringMesh 拓扑状态">
+                    <div><span>拓扑</span><strong>{topologyLabel}</strong></div>
+                    <div><span>验证</span><strong>{mesh.topology.validation_status === 'passed' ? '已通过 · fail-closed' : '未通过'}</strong></div>
+                    <div><span>非流形 / 方向冲突</span><strong>{mesh.topology.non_manifold_edge_count} / {mesh.topology.orientation_conflict_count}</strong></div>
+                    <div><span>Original identity</span><strong>authoring-local · 稳定于 lineage</strong></div>
+                    <div><span>Evaluated identity</span><strong>non-bijective · artifact-local</strong></div>
+                  </div>
+                  <p className="authoring-mesh-diagnostic-note">mesh 与 evaluated 元素不可视为一一对应；此处只展示 Runtime 已认证的结构投影，不提供编辑、Stage 或质量通过结论。</p>
+                </>
+              })()}
+            </section>
+          </>}
           {inspectorTab === 'material' && <div className="runtime-inspector-section-card"><h3>材质区</h3><div className="property-list runtime-inspector-properties"><div><span>当前材质</span><strong>{selectedSceneObject?.data.materialZoneId ?? '未选中'}</strong></div><div><span>材质区数量</span><strong>{materialZoneIds.length || '—'}</strong></div><div><span>PBR 绑定</span><strong>{artifact ? '查看 Runtime 证据' : '未绑定'}</strong></div></div></div>}
-          {inspectorTab === 'checks' && <div className="runtime-inspector-section-card"><h3>专业检查</h3><div className="runtime-check-summary"><div><CheckCircle size={15} /><span>几何完整性</span><strong>{artifact ? '已回读' : '未运行'}</strong></div><div><CheckCircle size={15} /><span>参考图偏差</span><strong>{visualGateLabel}</strong></div><div><CheckCircle size={15} /><span>{issueCategoryLabel}</span><strong>{errorConsoleItems.length}</strong></div></div></div>}
+          {inspectorTab === 'checks' && <>
+            <div className="runtime-inspector-section-card"><h3>专业检查</h3><div className="runtime-check-summary"><div><CheckCircle size={15} /><span>几何完整性</span><strong>{artifact ? '已回读' : '未运行'}</strong></div><div><CheckCircle size={15} /><span>参考图偏差</span><strong>{visualGateLabel}</strong></div><div><CheckCircle size={15} /><span>{issueCategoryLabel}</span><strong>{errorConsoleItems.length}</strong></div></div></div>
+            <section className="runtime-inspector-section-card art-director-review" aria-labelledby="art-director-review-title">
+              <div className="art-director-review-heading"><div><h3 id="art-director-review-title">Art Director 生产链检查</h3><span>只读 · Runtime evidence only</span></div><strong>{artDirectorReviewRows.filter((row) => row.state === 'ready').length}/{artDirectorReviewRows.length}</strong></div>
+              <div className="art-director-review-grid">
+                {artDirectorReviewRows.map((row) => <div key={row.id} className={`art-director-review-row art-director-review-${row.state}`}><span aria-hidden="true" /><label>{row.label}</label><strong>{row.status}</strong></div>)}
+              </div>
+              <p>Hip、ADS、Inspect、Equip、Reload、Recoil 只有在 Runtime 返回对应候选绑定证据后才显示就绪；Viewer 不从场景或截图推断通过状态。</p>
+            </section>
+          </>}
           <div className="runtime-basic-candidate-status" aria-label="当前模型版本状态">
             <div><span>当前版本</span><strong>{candidateId ? compactHash(candidateId) : '等待版本'}</strong></div>
             <div><span>生成状态</span><strong>{activeCandidate?.candidate?.state ? formatCandidateState(activeCandidate.candidate.state) : '未可用'}</strong></div>

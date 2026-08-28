@@ -1,0 +1,138 @@
+{
+  "schema_version": "ForgeCADRealD1BoundaryBridgeRelaxationFormQualityV2Receipt@1",
+  "task_id": "FPS-FORM-04BB",
+  "recorded_on": "2026-08-28",
+  "status": "BLOCKED_PROPOSAL_FORM_ART_EVIDENCE",
+  "route_changed": false,
+  "scope": "Continue the rejected 04BA BoundaryBridge topology with one typed six-vertex relaxation: remove the source-local Z wedge and retain one quarter of the Y opening curve. Re-evaluate against the exact 04AZ baseline and approved camera lineage without changing any other Part, camera, material, stage, version or export state.",
+  "source_binding": {
+    "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+    "session_id": "fps-form-04a-session",
+    "candidate_id": "candidate-86f6ed6ac95c413d9280c1061b33ee72",
+    "candidate_state_sha256": "dd1fdcf09aa62c6a0f5e84424ebbea2314f386d12785d1b758f37a5bef97a160",
+    "artifact_sha256": "87ca869f14f2ff5cd301886181974512b11916339587a34fd780b1bb9ee29c55",
+    "fresh_baseline_id": "fps-form-04az-fresh-baseline-v1",
+    "fresh_baseline_canonical_sha256": "93a53f186f34b1b38de2a0e132d44465cf80f03086ba8bfa739ab204a3b98860",
+    "registration_lineage_id": "fps-form-04az-camera-lineage-v2",
+    "rear_three_quarter_camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb",
+    "runtime_build_cohort_sha256": "367956245f14b5bd9730c88ff46d2541a25abe7ccc1788b4bde2323e7df43e5d"
+  },
+  "typed_repair": {
+    "schema_version": "AuthoringMeshMoveVertices@1",
+    "operation": "move_vertices",
+    "part_id": "rear-stock",
+    "source_node_id": "rear-stock",
+    "coordinate_space": "source-local",
+    "selection_policy": "explicit-stable-vertex-ids@1",
+    "profile_id": "registered-boundary-bridge-quarter-y-flat-z-relaxation@1",
+    "parent_revision_id": "amrev-4b0217d82cdd93aa99a6dae7622dc53eaa53d0924008ac62a0f899f1",
+    "moved_vertex_count": 6,
+    "y_curve_retained_ratio": 0.25,
+    "z_wedge_retained_ratio": 0.0,
+    "preserved": [
+      "all original source vertices",
+      "BoundaryBridge endpoints",
+      "rear-stock support beam",
+      "rear cap",
+      "outer envelope",
+      "all non-rear-stock Parts",
+      "camera and material state"
+    ]
+  },
+  "materialized_proposal": {
+    "child_revision_id": "amrev-1bb47e6db6980cd2c460ba09d121c7f1aa6d3c195fd2cad8ac421ee6",
+    "child_revision_sha256": "9a4ba211b1c23c3ef5f9523c116c693b9715593af7846dc4c351ced28918856a",
+    "candidate_id": "candidate-c0bb711f9ee44ec6a0dceb131917d3fc",
+    "candidate_state": "reviewable",
+    "candidate_state_sha256": "5fe3f58ba098c5895c0961105b78e8092240eec3d37a1474a2716e3cebe3792f",
+    "artifact_sha256": "70da1785c5f4ded640f1259e82b5857f8501c3b9b0acd95dda594b4d7ca37f43",
+    "artifact_readback_sha256": "19b5bb028d0580c4aec98d7d1c4d469ed28e1bf6e083b8c8fd0d83ce6df5d447",
+    "triangle_count": 1900,
+    "cross_view_evidence_bundle_sha256": "f20764d34aeb8c61060428da46460f71c998de66be62063da5ef4a4df1ab4174",
+    "proposal_form_art_evidence_object_sha256": "37dac12284c49e0301a21de5b5a9aedc8292b64115329ff78b606d11e4a85a9b",
+    "proposal_form_art_evidence_canonical_sha256": "ab686b9e57eb80d0a5cda07a77df1eaac7dbee18a65d049b43c45a1b923d5049"
+  },
+  "six_view_gate": {
+    "aggregate_status": "QUALITY_TARGET_NOT_MET",
+    "aggregate_improved": true,
+    "aggregate_improvement_ppm": 736,
+    "non_regressing": true,
+    "strict_primary_improvement": true,
+    "bounded_core_tradeoff": true,
+    "proposal_form_art_evidence_ready": false,
+    "secondary_form_eligibility": "BLOCKED_PROPOSAL_FORM_ART_EVIDENCE",
+    "candidate_confirm_allowed": false,
+    "material_improvements": [
+      "right.boundary_f1_4px improved by 3795 ppm",
+      "right.silhouette_iou improved by 483 ppm",
+      "left.silhouette_iou improved by 86 ppm",
+      "left.centroid_error improved by 6 ppm",
+      "right.centroid_error improved by 45 ppm"
+    ],
+    "regressions": [],
+    "unchanged_views": [
+      "front",
+      "back",
+      "top",
+      "rear-three-quarter"
+    ],
+    "04ba_regression_resolution": {
+      "left_boundary_f1_4px": "UNCHANGED_AT_PPM_PRECISION",
+      "top_centroid_error": "UNCHANGED_AT_PPM_PRECISION",
+      "top_silhouette_iou": "UNCHANGED_AT_PPM_PRECISION"
+    }
+  },
+  "proposal_form_art_gate": {
+    "part_id_all_views_observed": true,
+    "negative_space_all_views_resolved": false,
+    "line_flow_all_views_resolved": false,
+    "strict_owner_void_all_views_passed": false,
+    "left_negative_space_status": "unknown",
+    "right_negative_space_status": "unknown",
+    "left_line_flow_status": "unknown",
+    "right_line_flow_status": "unknown",
+    "rear_three_quarter_negative_space_status": "observed",
+    "rear_three_quarter_line_flow_status": "inferred",
+    "interpretation": "The bounded shape is six-view non-regressing, and the proposal-side producer did bind the exact candidate, RenderSets and AOVs. The false aggregate flags reflect measured asset failures rather than inherited historical state: both side trigger voids are sealed; left/right open-stock void IoU is 0.336/0.079; rear-stock owner overlap is 548/931 pixels in left/right; rear-three-quarter owner adjacency is zero; and most of the 25 reviewed line flows lack threshold-level coverage/continuity or contain ambiguous crossings. These failures cannot be promoted by rewriting evidence status."
+  },
+  "form_quality_v2": {
+    "prepare_called": false,
+    "durable_row_count": 0,
+    "status": "BLOCKED_PROPOSAL_FORM_ART_EVIDENCE"
+  },
+  "durable_store": {
+    "sqlite_integrity_check": "ok",
+    "database_sha256_after_probe": "79268c101ad46480908d1cb8955f8ed30b492a68b978e219a7b12fcc0ac4dcfc",
+    "cas_object_count": 1390,
+    "authoring_mesh_v2_record_count": 3,
+    "proposal_evidence_row_count": 2,
+    "stage_head": "camera-calibrated",
+    "stage_head_canonical_sha256": "526fab549a955bef9e9cba917995897fe6221a0ca18683d8c7080323a721cbc6",
+    "candidate_confirmed": false,
+    "version_count": 0,
+    "export_count": 0,
+    "cas_object_delta": 59
+  },
+  "verification": {
+    "runtime_compile": "PASS_WITH_EXISTING_WARNINGS",
+    "focused_real_probe": "PASS_1_OF_1",
+    "focused_real_probe_seconds": 73.72,
+    "parent_revision_restart_get": "PASS",
+    "stable_vertex_binding": "PASS_EXACT_SIX",
+    "proposal_geometry_and_six_view_materialization": "PASS",
+    "fail_closed_before_form_quality_v2_write": "PASS"
+  },
+  "final_state": {
+    "production_stage": "camera-calibrated",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "secondary_form_approved": "NOT_CREATED",
+    "high_low_uv_bake": "NOT_RUN",
+    "formal_human_review": "NOT_RUN",
+    "commercial_engine_validation": "NOT_RUN",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "commercial_quality": "NOT_PROVEN"
+  },
+  "next_atomic_action": "Keep the 04BB geometry as the best six-view non-regressing proposal. First close the FormQualityV2 fresh/legacy GET, replay and preflight contract drift so a future READY proposal can be consumed safely. Then choose one evidence-ranked geometry action: open the sealed side trigger voids or reconstruct the rear-stock owner boundary under the fixed approved cameras; rerender the exact six views and retain fail-closed status until owner-void, negative-space and reviewed line-flow metrics actually pass."
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weapon-foundation-authoring-materialization-prepare-request.schema.json",
+  "title": "WeaponFoundationAuthoringMaterializationPrepareRequest@1",
+  "description": "Closed project-bound request to materialize one already persisted WeaponFoundation import. Only existing foundation hashes are accepted; path, URL, bytes, script, mesh arrays and mutable production state are not representable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "foundation_request_id", "foundation_request_sha256",
+    "foundation_result_object_sha256", "topology_object_sha256", "socket_map_object_sha256",
+    "rig_map_object_sha256", "fps_presentation_package_object_sha256",
+    "materialization_profile", "idempotency_key", "max_response_bytes",
+    "runtime_write_performed", "writer_policy", "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponFoundationAuthoringMaterializationPrepareRequest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "foundation_request_id": {"$ref": "#/$defs/id"},
+    "foundation_request_sha256": {"$ref": "#/$defs/sha256"},
+    "foundation_result_object_sha256": {"$ref": "#/$defs/sha256"},
+    "topology_object_sha256": {"$ref": "#/$defs/sha256"},
+    "socket_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "rig_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "fps_presentation_package_object_sha256": {"$ref": "#/$defs/sha256"},
+    "materialization_profile": {"const": "part-bounded-authoring-mesh-v2-genesis@1"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

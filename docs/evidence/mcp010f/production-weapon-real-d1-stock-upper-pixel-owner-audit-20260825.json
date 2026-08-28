@@ -1,0 +1,40 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04U-REAL-D1-STOCK-UPPER-PIXEL-OWNER-AUDIT",
+  "task_id": "FPS-FORM-04U",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 700.95,
+  "fixture_log_filename": "forgecad-d1-04u-stock-upper-pixel-owner-audit-20260825.log",
+  "fixture_log_sha256": "ea16f43b619764a2f547657a3216bce8ea60b1595e50fe954b52a630e04909ec",
+  "baseline_variant": "04Q@0.85",
+  "triangle_attribution": "UNAVAILABLE_CURRENT_RENDER_RASTERHIT",
+  "trials": [
+    {
+      "variant": "04R@-0.035",
+      "views": {
+        "left": {"classification": "VISIBLE_CHANGE_OUTSIDE_REVIEWED_REGION", "changed": 142, "inside_expected_void": 0, "outside_reviewed_region": 142, "boundary_r1": 7, "boundary_r2": 18, "boundary_r4": 24, "overlap_delta": 0},
+        "right": {"classification": "OWNER_PIXEL_CHANGE_INSIDE_EXPECTED_VOID", "changed": 75, "inside_expected_void": 18, "outside_reviewed_region": 52, "boundary_r1": 10, "boundary_r2": 16, "boundary_r4": 34, "overlap_delta": -18},
+        "rear_three_quarter": {"classification": "VISIBLE_CHANGE_OUTSIDE_REVIEWED_REGION", "changed": 119, "inside_expected_void": 0, "outside_reviewed_region": 119, "boundary_r1": 0, "boundary_r2": 0, "boundary_r4": 12, "overlap_delta": 0}
+      }
+    },
+    {
+      "variant": "04S@-0.065",
+      "views": {
+        "left": {"classification": "VISIBLE_CHANGE_OUTSIDE_REVIEWED_REGION", "changed": 7, "inside_expected_void": 0, "boundary_r4": 1, "overlap_delta": 0},
+        "right": {"classification": "OWNER_PIXEL_CHANGE_INSIDE_EXPECTED_VOID", "changed": 6, "inside_expected_void": 6, "boundary_r4": 6, "overlap_delta": -6},
+        "rear_three_quarter": {"classification": "VISIBLE_CHANGE_OUTSIDE_REVIEWED_REGION", "changed": 23, "inside_expected_void": 0, "boundary_r4": 0, "overlap_delta": 0}
+      }
+    },
+    {
+      "variant": "04T@-0.405",
+      "all_views_classification": "VISIBLE_CHANGE_OUTSIDE_REVIEWED_REGION",
+      "owner_changed_pixels": [3, 5, 1],
+      "inside_expected_void_pixels": [0, 0, 0],
+      "boundary_r4_pixels": [0, 0, 0],
+      "overlap_delta_pixels": [0, 0, 0]
+    }
+  ],
+  "conclusion": {"best_direction": "CONTINUE_04R_LIP_Y_POSITIVE_EXTRAPOLATION", "mask_change_proven": true, "left_and_rear_change_outside_reviewed_region": true, "right_change_inside_expected_void": true, "occlusion_proven": false, "cause_direction_proven": false},
+  "promotion": {"diagnostic_only": true, "promotable": false, "quality_status": "NOT_PROVEN", "depth_status": "OBSERVED_DIAGNOSTIC_ONLY", "production_stage_advanced": false, "secondary_form_approved": false, "candidate_confirmed": false, "version_created": false, "export_performed": false}
+}

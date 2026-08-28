@@ -1,0 +1,37 @@
+schema_version: SkillBenchmarkSuite@1
+suite_id: native-high-structural-determinism
+status: passed_source_structural
+scope: source-only-native-high-worker-runtime-durable-restart-and-mcp
+fixtures:
+  - fixtures/valid.json
+  - fixtures/invalid-runtime-integration.json
+contracts:
+  - schemas/authoring-mesh-canonical.schema.json
+  - schemas/high-mesh-worker-request.schema.json
+  - schemas/high-mesh-artifact.schema.json
+  - schemas/detail-graph.schema.json
+  - schemas/native-high-durable-get-request.schema.json
+  - schemas/native-high-durable-get-result.schema.json
+  - schemas/native-high-durable-link.schema.json
+  - schemas/native-high-durable-prepare-request.schema.json
+  - schemas/native-high-durable-prepare-result.schema.json
+  - schemas/native-high-glb-materialize-request.schema.json
+  - schemas/native-high-glb-materialize-result.schema.json
+metrics:
+  - name: double_replay_byte_exact
+    threshold: 1
+  - name: base_authoring_mesh_preserved
+    threshold: 1
+  - name: glb_materialization_double_replay_byte_exact
+    threshold: 1
+  - name: glb_strict_readback
+    threshold: 1
+  - name: glb_embedded_only
+    threshold: 1
+  - name: glb_runtime_write_performed
+    threshold: 0
+  - name: runtime_integration_gate
+    threshold: PASS_SOURCE_DURABLE_RESTART_MCP_ONLY
+notes:
+  - The source prototype receipt is not an active Skill or High production PASS.
+  - Source Runtime/MCP/durable CAS restart evidence passes; packaged/candidate-bound quality integration remains pending.

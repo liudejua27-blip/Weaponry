@@ -1,0 +1,7 @@
+{
+  "schema_version": "SkillAssetIndex@1",
+  "skill_id": "native-high",
+  "assets": [],
+  "network": false,
+  "note": "No asset payload is bundled; Native High consumes an inline typed AuthoringMesh source only when a future Runtime consumer exists."
+}

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-assembly-parameter-sink-get-result.schema.json",
+  "title": "ProductionWeaponAssemblyParameterSinkGetResult@1",
+  "description": "Read-only structural sink-registry projection. It carries no visual-quality, human-review, Worker, candidate, stage, version, or export claim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "registry",
+    "registry_canonical_sha256",
+    "recomputed",
+    "restart_hash_verified",
+    "read_only",
+    "structural_status",
+    "quality_status",
+    "visual_quality_status",
+    "human_review_status",
+    "commercial_engine_status",
+    "runtime_write_performed",
+    "worker_invoked",
+    "candidate_generated",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponAssemblyParameterSinkGetResult@1"},
+    "registry": {
+      "$ref": "https://forgecad.local/contracts/production-weapon-assembly-parameter-sink-registry.schema.json"
+    },
+    "registry_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "recomputed": {"const": true},
+    "restart_hash_verified": {"const": true},
+    "read_only": {"const": true},
+    "structural_status": {"const": "structural_only"},
+    "quality_status": {"const": "structural_only"},
+    "visual_quality_status": {"const": "NOT_PROVEN"},
+    "human_review_status": {"const": "NOT_RUN"},
+    "commercial_engine_status": {"const": "NOT_RUN"},
+    "runtime_write_performed": {"const": false},
+    "worker_invoked": {"const": false},
+    "candidate_generated": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

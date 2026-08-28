@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-formal-high-prepare-request.schema.json",
+  "title": "ProductionWeaponFormalHighPrepareRequest@1",
+  "description": "Closed Runtime prepare request for one Formal High materialization. The caller supplies only the exact source Stage transition identity/hash, a distinct High candidate identity, idempotency/response policy and the request input hash; Runtime derives session/project, candidate state, High artifact, readback and receipt hashes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_stage_head_transition_id",
+    "source_stage_head_transition_sha256",
+    "source_stage_head_canonical_sha256",
+    "high_candidate_id",
+    "idempotency_key",
+    "max_response_bytes",
+    "writer_policy",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormalHighPrepareRequest@1"},
+    "source_stage_head_transition_id": {"$ref": "#/$defs/id"},
+    "source_stage_head_transition_sha256": {"$ref": "#/$defs/sha256"},
+    "source_stage_head_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "high_candidate_id": {"$ref": "#/$defs/id"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "max_response_bytes": {"const": 1048576},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "input_sha256": {
+      "$ref": "#/$defs/sha256",
+      "description": "Canonical SHA-256 of this request with input_sha256 omitted. Runtime treats it as the request binding and derives all output hashes itself."
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

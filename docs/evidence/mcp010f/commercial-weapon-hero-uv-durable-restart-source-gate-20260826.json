@@ -1,0 +1,129 @@
+{
+  "schema_version": "ForgeCADCommercialWeaponHeroUvDurableRestartSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-26",
+  "status": "PASS_SOURCE_WITH_POSITIVE_HERO_UV_RUNTIME_RESTART_AND_EXPLICIT_UNRUN_PRODUCT_GATES",
+  "current_surface": {
+    "schema_count": 511,
+    "operator_catalog_entries": 28,
+    "mcp_read_tools": 109,
+    "mcp_opt_in_write_tools": 81,
+    "mcp_total_tools": 190,
+    "contract_manifest_sha256": "ff0f971382b4f0151ea26923efb77c02719bdc6debaa3d203ada5395e7c9d30c",
+    "tool_manifest_summary_sha256": "78a6e3e1fb22fa62e2f7c0e4c2ec5e959cd09a22ad321ac9caf5cedb120403ba",
+    "tool_manifest_canonical_sha256": "095cc89ebde1e1f96a8e9f6b32a4e9b9088e324f82cb7922e64407527c1b5786"
+  },
+  "hero_uv_durable": {
+    "status": "PASS_REGISTERED_CONTRACTS_STORE_RUNTIME_MCP_AND_POSITIVE_RESTART_STRUCTURAL_ONLY",
+    "registered_contracts": 7,
+    "mcp_tools": [
+      "hero_uv_durable_get",
+      "hero_uv_durable_prepare"
+    ],
+    "source_sha256": {
+      "store_hero_uv_durable": "0add0ed13426d2c02f919b707575bad06d819decd62177c291e9bd7788714335",
+      "store_global_linked_gc": "9769e2547fab457cc0fb8e50c465f57c83b4848f22796abaa7e1ad567f0c62cf",
+      "store_low_candidate_artifact_lookup": "cd70c142b89c7fded27704cffd447db40e574f618e469473bca148ea3ae5cf29",
+      "runtime_hero_uv_durable": "395a1b604c74a2fc17c86afa89f9086c4c6d0e88f0c9cbf77a8f4ea69b139958",
+      "runtime_public_methods": "0ad7d7fe1b37248f4a0f691dea9ab20ba598c1515612a7ca2f06e90e0d65e536",
+      "runtime_worker_launcher": "27dbe6eb2eff9ea93d1fcf94ac9817938ef3594a8526348e237d1768110f19f8",
+      "geometry_worker_hero_uv_producer": "ff09c87904eefdc7386783abbbbbf15411650bc8815be786ff7a673f54b1d076",
+      "mcp_hero_uv_tools": "93be4c01286bc7e9d65cde9ca787a3a523698057e0851aa0bf7d01a3922c3998",
+      "mcp_manifest_and_dispatch": "1ac193946d9713895df6afef30efd8d0aa47e0202d5e60ee2b8eef53bc6d2c86",
+      "hero_uv_layout_request_schema": "8c34b6ed8945b91d5da094fe85ec9d01c7a54163ca57698234b1a5142db9f877"
+    },
+    "source_low_provenance": {
+      "status": "PASS_CURRENT_CANDIDATE_BOUND_EXACT_LOW_DURABLE_LOOKUP",
+      "bindings": [
+        "project_id",
+        "candidate_id",
+        "candidate_state_sha256",
+        "base_version_id",
+        "source_low_artifact_object_sha256",
+        "source_low_artifact_sha256",
+        "source_low_artifact_readback_object_sha256",
+        "source_low_artifact_readback_sha256"
+      ]
+    },
+    "worker_contract": {
+      "status": "PASS_DEDICATED_FIXED_WORKER_ENTRY_AND_DOUBLE_REPLAY",
+      "request_canonicalization": "PASS_EXCLUDES_CANONICAL_SHA256_FIELD",
+      "visibility_weight_canonicalization": "PASS_F32_WORKER_REPRESENTATION_NORMALIZED_BEFORE_HASH_AND_COMPARE",
+      "hard_edge_bound": "PASS_STRICT_EXCLUSIVE_0_1_TO_89_9_DEGREES",
+      "decoded_glb_bound_bytes": 33554432,
+      "schema_encoded_glb_max_length": 44739244
+    },
+    "cas_gc_reachability": {
+      "status": "PASS_ALL_FOUR_HERO_UV_ROOTS_RECOGNIZED_BY_GLOBAL_LINKED_QUERY",
+      "roots": [
+        "source_low_artifact_object_sha256",
+        "source_low_artifact_readback_object_sha256",
+        "hero_uv_layout_object_sha256",
+        "hero_uv_durable_link_object_sha256"
+      ]
+    },
+    "policy": {
+      "writer": "forgecad-runtime-only-state-writer@1",
+      "quality_status": "structural_only",
+      "source_only": true,
+      "promotion_eligible": false,
+      "production_stage_advanced": false,
+      "candidate_confirmed": false,
+      "version_created": false,
+      "export_performed": false
+    }
+  },
+  "positive_restart_fixture": {
+    "name": "hero_uv_durable_prepare_replay_drop_reopen_get_preserves_low_lineage_exactly",
+    "cohort_sha256": "724278fe8f6777c8b3d07bc5058208aee90aa5c700db5f9284d6297126fa79f6",
+    "result": "1/1 PASS",
+    "chain": "AuthoringMesh -> Native High -> Low durable -> Hero UV durable prepare -> replay -> drop/reopen -> get",
+    "assertions": [
+      "exact current Low artifact and readback lineage survives Runtime reopen",
+      "same Hero UV idempotency key replays without adding CAS objects",
+      "post-restart Hero UV get performs zero CAS writes",
+      "candidate and candidate inventory remain byte-equivalent",
+      "no version, Stage transition, confirmation or export is created"
+    ]
+  },
+  "focused_gates": {
+    "forgecad_contracts": "511/511 PASS",
+    "store_hero_uv_durable": "1/1 PASS",
+    "store_full_library": "150/150 PASS",
+    "runtime_hero_uv_durable": "6/6 PASS",
+    "runtime_positive_restart": "1/1 PASS",
+    "mcp_hero_uv_tools_and_live_schema": "4/4 PASS",
+    "forgecad_runtime_and_mcp_cargo_check": "PASS",
+    "source_tool_manifest_summary": "109 READ + 81 OPT_IN_WRITE = 190 PASS"
+  },
+  "unchanged_quality_truth": {
+    "production_stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "fps_high_05": "NOT_PASSED",
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "proposal_registered": false,
+    "low_edge_flow_status": "DRAFT_UNREVIEWED",
+    "low_quality_status": "structural_only",
+    "low_promotion_eligible": false
+  },
+  "unrun_gates": {
+    "packaged_same_cohort": "NOT_RUN",
+    "artist_uv_review": "NOT_RUN",
+    "artist_authored_unwrap": "NOT_PROVEN",
+    "visual_uv_acceptance": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "engine_import_validation": "NOT_RUN",
+    "commercial_asset_acceptance": "NOT_RUN"
+  },
+  "limitations": [
+    "Hero UV is a deterministic structural/source diagnostic and durable lineage slice, not an artist-authored unwrap or commercial UV acceptance.",
+    "The positive restart fixture uses isolated source-built sibling Workers; packaged Desktop and installed-app transport remain NOT_RUN.",
+    "Form raster attribution remains available in Render Core but is not yet bound into the exact candidate/reference/camera/hash Runtime Form diagnostic.",
+    "No visual, human, engine, distribution, confirmation, version, export or Stage gate is promoted."
+  ],
+  "persistent_user_data_touched": false
+}

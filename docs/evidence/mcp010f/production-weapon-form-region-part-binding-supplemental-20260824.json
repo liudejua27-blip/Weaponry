@@ -1,0 +1,407 @@
+{
+  "artifact_sha256": "9d7722e4649715b795b1a7024f9344061c3126609be25b38ff48900894893760",
+  "authored_orientation_contract_present": false,
+  "baseline_retained": true,
+  "calibration_mode": "EPHEMERAL_TRANSFORM_CANDIDATE",
+  "candidate_confirmed": false,
+  "candidate_id": "candidate-a8eede52d89e4e8da17f0f40238e15a0",
+  "depth_status": "UNKNOWN",
+  "diagnostic_only": true,
+  "export_performed": false,
+  "form_art_canonical_unchanged": true,
+  "frozen_camera_rig_canonical_sha256": "7f368e678247196eae19690faaaeb3bd751eafc06a61ba43d4f04f1d50ec9502",
+  "owner_part_id": "rear-stock",
+  "production_stage_advanced": false,
+  "promotable": false,
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04G-REGION-PART-ID-BINDING",
+  "status": "BLOCKED_AUTHORED_ORIENTATION_OR_REGISTRATION",
+  "trial_artifact_sha256": "fe0e8e3ab2d4092d56fd6f6ddf07887c71ad3e8f055f5ace6e4290b272b19134",
+  "trial_candidate_id": "candidate-57701d4b3e864d8e9c02a49981c321be",
+  "user_confirmed_contours_unchanged": true,
+  "version_created": false,
+  "views": {
+    "left": {
+      "authored_orientation_contract_present": false,
+      "baseline": {
+        "authored_transform": null,
+        "candidates": [
+          {
+            "bbox_edge_error_px": 313,
+            "centroid_error_px": 313,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "identity"
+          },
+          {
+            "bbox_edge_error_px": 56,
+            "centroid_error_px": 30,
+            "owner_boundary_adjacency_milli": 430,
+            "owner_boundary_adjacency_pixel_count": 74,
+            "owner_expected_void_overlap_milli": 588,
+            "owner_expected_void_overlap_pixel_count": 599,
+            "owner_region_pixel_count": 642,
+            "passes_discovery_thresholds": true,
+            "transform": "horizontal-flip"
+          },
+          {
+            "bbox_edge_error_px": 313,
+            "centroid_error_px": 317,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "vertical-flip"
+          },
+          {
+            "bbox_edge_error_px": 86,
+            "centroid_error_px": 57,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "rotate-180"
+          }
+        ],
+        "expected_region_canonical_sha256": "6c804da605b1290ea864e7a83277fd07a4f680fcf2ef98598623b45cb8e233cf",
+        "expected_void_pixel_count": 1018,
+        "promotable": false,
+        "selected_transform": "horizontal-flip",
+        "status": "ephemeral-transform-candidate"
+      },
+      "promotable": false,
+      "same_unique_transform": true,
+      "status": "EPHEMERAL_TRANSFORM_CANDIDATE",
+      "trial": {
+        "authored_transform": null,
+        "candidates": [
+          {
+            "bbox_edge_error_px": 313,
+            "centroid_error_px": 313,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "identity"
+          },
+          {
+            "bbox_edge_error_px": 55,
+            "centroid_error_px": 30,
+            "owner_boundary_adjacency_milli": 430,
+            "owner_boundary_adjacency_pixel_count": 74,
+            "owner_expected_void_overlap_milli": 588,
+            "owner_expected_void_overlap_pixel_count": 599,
+            "owner_region_pixel_count": 642,
+            "passes_discovery_thresholds": true,
+            "transform": "horizontal-flip"
+          },
+          {
+            "bbox_edge_error_px": 313,
+            "centroid_error_px": 317,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "vertical-flip"
+          },
+          {
+            "bbox_edge_error_px": 85,
+            "centroid_error_px": 57,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "rotate-180"
+          }
+        ],
+        "expected_region_canonical_sha256": "6c804da605b1290ea864e7a83277fd07a4f680fcf2ef98598623b45cb8e233cf",
+        "expected_void_pixel_count": 1018,
+        "promotable": false,
+        "selected_transform": "horizontal-flip",
+        "status": "ephemeral-transform-candidate"
+      }
+    },
+    "rear-three-quarter": {
+      "authored_orientation_contract_present": false,
+      "baseline": {
+        "authored_transform": null,
+        "candidates": [
+          {
+            "bbox_edge_error_px": 165,
+            "centroid_error_px": 143,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "identity"
+          },
+          {
+            "bbox_edge_error_px": 244,
+            "centroid_error_px": 274,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "horizontal-flip"
+          },
+          {
+            "bbox_edge_error_px": 44,
+            "centroid_error_px": 16,
+            "owner_boundary_adjacency_milli": 327,
+            "owner_boundary_adjacency_pixel_count": 95,
+            "owner_expected_void_overlap_milli": 333,
+            "owner_expected_void_overlap_pixel_count": 1263,
+            "owner_region_pixel_count": 1276,
+            "passes_discovery_thresholds": true,
+            "transform": "vertical-flip"
+          },
+          {
+            "bbox_edge_error_px": 244,
+            "centroid_error_px": 234,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "rotate-180"
+          }
+        ],
+        "expected_region_canonical_sha256": "0bd1466bbe8288c889a5865391e03ca5db3aea45a8725aeefb280dbbf1ca3177",
+        "expected_void_pixel_count": 3792,
+        "promotable": false,
+        "selected_transform": "vertical-flip",
+        "status": "ephemeral-transform-candidate"
+      },
+      "promotable": false,
+      "same_unique_transform": true,
+      "status": "EPHEMERAL_TRANSFORM_CANDIDATE",
+      "trial": {
+        "authored_transform": null,
+        "candidates": [
+          {
+            "bbox_edge_error_px": 172,
+            "centroid_error_px": 143,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "identity"
+          },
+          {
+            "bbox_edge_error_px": 244,
+            "centroid_error_px": 274,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "horizontal-flip"
+          },
+          {
+            "bbox_edge_error_px": 44,
+            "centroid_error_px": 16,
+            "owner_boundary_adjacency_milli": 289,
+            "owner_boundary_adjacency_pixel_count": 84,
+            "owner_expected_void_overlap_milli": 327,
+            "owner_expected_void_overlap_pixel_count": 1241,
+            "owner_region_pixel_count": 1253,
+            "passes_discovery_thresholds": true,
+            "transform": "vertical-flip"
+          },
+          {
+            "bbox_edge_error_px": 244,
+            "centroid_error_px": 234,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "rotate-180"
+          }
+        ],
+        "expected_region_canonical_sha256": "0bd1466bbe8288c889a5865391e03ca5db3aea45a8725aeefb280dbbf1ca3177",
+        "expected_void_pixel_count": 3792,
+        "promotable": false,
+        "selected_transform": "vertical-flip",
+        "status": "ephemeral-transform-candidate"
+      }
+    },
+    "right": {
+      "authored_orientation_contract_present": false,
+      "baseline": {
+        "authored_transform": null,
+        "candidates": [
+          {
+            "bbox_edge_error_px": 316,
+            "centroid_error_px": 311,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "identity"
+          },
+          {
+            "bbox_edge_error_px": 46,
+            "centroid_error_px": 23,
+            "owner_boundary_adjacency_milli": 646,
+            "owner_boundary_adjacency_pixel_count": 126,
+            "owner_expected_void_overlap_milli": 715,
+            "owner_expected_void_overlap_pixel_count": 1162,
+            "owner_region_pixel_count": 1196,
+            "passes_discovery_thresholds": true,
+            "transform": "horizontal-flip"
+          },
+          {
+            "bbox_edge_error_px": 316,
+            "centroid_error_px": 314,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "vertical-flip"
+          },
+          {
+            "bbox_edge_error_px": 80,
+            "centroid_error_px": 53,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "rotate-180"
+          }
+        ],
+        "expected_region_canonical_sha256": "fd840524b2e49d56363308cb272eaa014a390922c1bcbe09144c5faa6504b6cc",
+        "expected_void_pixel_count": 1623,
+        "promotable": false,
+        "selected_transform": "horizontal-flip",
+        "status": "ephemeral-transform-candidate"
+      },
+      "promotable": false,
+      "same_unique_transform": true,
+      "status": "EPHEMERAL_TRANSFORM_CANDIDATE",
+      "trial": {
+        "authored_transform": null,
+        "candidates": [
+          {
+            "bbox_edge_error_px": 316,
+            "centroid_error_px": 311,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "identity"
+          },
+          {
+            "bbox_edge_error_px": 44,
+            "centroid_error_px": 23,
+            "owner_boundary_adjacency_milli": 646,
+            "owner_boundary_adjacency_pixel_count": 126,
+            "owner_expected_void_overlap_milli": 715,
+            "owner_expected_void_overlap_pixel_count": 1162,
+            "owner_region_pixel_count": 1196,
+            "passes_discovery_thresholds": true,
+            "transform": "horizontal-flip"
+          },
+          {
+            "bbox_edge_error_px": 316,
+            "centroid_error_px": 314,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "vertical-flip"
+          },
+          {
+            "bbox_edge_error_px": 78,
+            "centroid_error_px": 53,
+            "owner_boundary_adjacency_milli": 0,
+            "owner_boundary_adjacency_pixel_count": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_expected_void_overlap_pixel_count": 0,
+            "owner_region_pixel_count": 0,
+            "passes_discovery_thresholds": false,
+            "transform": "rotate-180"
+          }
+        ],
+        "expected_region_canonical_sha256": "fd840524b2e49d56363308cb272eaa014a390922c1bcbe09144c5faa6504b6cc",
+        "expected_void_pixel_count": 1623,
+        "promotable": false,
+        "selected_transform": "horizontal-flip",
+        "status": "ephemeral-transform-candidate"
+      }
+    }
+  },
+  "task_id": "FPS-FORM-04G-REGION-PART-ID-BINDING",
+  "recorded_at": "2026-08-25T00:00:00+08:00",
+  "execution_origin": "real-d1-ephemeral-fixture",
+  "source_reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+  "geometry_program_source_sha256": "8f196f3804747ba15d1f5eecdf48f22c75901562b1c86339b15868b4b54e1fdf",
+  "source_part_id_audit_receipt_path": "docs/evidence/mcp010f/production-weapon-form-part-id-audit-supplemental-20260824.json",
+  "source_form_art_fixture_path": "docs/evidence/mcp010f/production-weapon-real-reference-confirmed-form-art-six-view-fixture-20260824.json",
+  "source_form_art_fixture_sha256": "3e68585f2591c76b08f5d7996972723ad2f5eca683d2240c80603202e95ca3a7",
+  "source_form_art_canonical_sha256": "ec2c9972d37dcabf3936897de508bec936a89936f6b60266053444ef72a9b240",
+  "discovery_thresholds": {
+    "min_owner_region_pixels": 1,
+    "min_boundary_adjacency_pixels": 1,
+    "max_owner_expected_void_overlap_milli": 1000,
+    "acceptance_use": "FORBIDDEN_DIAGNOSTIC_DISCOVERY_ONLY"
+  },
+  "aggregate": {
+    "all_three_views_unique_candidate": true,
+    "baseline_trial_same_transform_all_views": true,
+    "authored_orientation_or_registration_available": false,
+    "binding_promoted": false
+  },
+  "runtime_test": {
+    "name": "production_weapon_form_evidence_real_user_weapon_d1_is_durable_replay_safe_and_coverage_blocked",
+    "passed": 1,
+    "failed": 0,
+    "duration_seconds": 371.07
+  },
+  "source_hashes": {
+    "agentic_session_sha256": "c0fa28aec23729b1fc4ea896da571f85e448bedaa1cf02e8e9d8686fed26c827",
+    "production_weapon_form_art_evidence_sha256": "c10ec66a86d9fafc59d50cc51b7869d3e5a19ec8d3e6289d2576d4de5094a74b"
+  },
+  "stage0_hash_impact": "UNCHANGED_SUPPLEMENTAL_NOT_IN_MANIFEST_OR_CURRENT_TRUTH",
+  "next_action": "FPS-FORM-04H-AUTHORED-VIEW-ORIENTATION-REGISTRATION",
+  "limitations": [
+    "The selected transforms are deterministic image-space diagnostic candidates, not authored orientation or registration truth.",
+    "Horizontal flip is selected for left and right; vertical flip is selected for rear-three-quarter; baseline and trial agree in all three views.",
+    "The discovery threshold permits owner overlap with expected void and therefore cannot accept FormQuality.",
+    "User-confirmed contours, FormArt canonical truth, depth UNKNOWN, and the production stage remain unchanged.",
+    "No candidate confirmation, version creation, export, secondary-form approval, visual pass, or human pass is claimed."
+  ]
+}

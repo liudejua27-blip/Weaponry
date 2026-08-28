@@ -73,6 +73,38 @@
     },
     "canonical_sha256": {"$ref": "#/$defs/sha256"}
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"annotation_status": {"const": "unreviewed"}}
+      },
+      "then": {
+        "properties": {
+          "parts": {
+            "items": {
+              "properties": {"visibility": {"const": "unknown"}}
+            }
+          },
+          "landmarks": {
+            "items": {
+              "properties": {"visibility": {"const": "unknown"}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["annotation_status"],
+        "properties": {"annotation_status": {"const": "user_confirmed"}}
+      },
+      "then": {
+        "properties": {
+          "source": {"const": "user_refined"}
+        }
+      }
+    }
+  ],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "point": {

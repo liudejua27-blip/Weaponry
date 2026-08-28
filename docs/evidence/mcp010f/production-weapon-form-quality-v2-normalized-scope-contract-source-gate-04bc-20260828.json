@@ -1,0 +1,73 @@
+{
+  "schema_version": "ForgeCADProductionWeaponFormQualityV2NormalizedScopeContractSourceGate@1",
+  "task_id": "FPS-FORM-04BC",
+  "recorded_on": "2026-08-28",
+  "status": "PASS_SOURCE_COMPILE_NORMALIZED_SCOPE_NO_VISUAL_PROMOTION",
+  "route_changed": false,
+  "scope": "Close the ProductionWeaponFormQualityV2 fresh-baseline-proposal versus legacy-source evidence-scope contract across Runtime parsing, replay, GET, preflight, MCP validation and checked-in JSON Schema. Preserve the exact 04BB visual diagnosis and do not manufacture a quality promotion.",
+  "diagnostic_correction": {
+    "previous_interpretation": "The proposal FormArt producer inherited unresolved historical status.",
+    "correct_interpretation": "The proposal producer evaluated the exact 04BB candidate, six RenderSets and AOV evidence. The asset itself failed measured negative-space, owner-void and reviewed line-flow gates.",
+    "measured_failures": [
+      "left and right trigger voids are sealed",
+      "left open-stock void IoU 0.336, boundary F1 0.648 and area ratio 0.390",
+      "right open-stock void IoU 0.079, boundary F1 0.629 and area ratio 0.091",
+      "left rear-stock owner overlap 548 pixels, 53.8 percent",
+      "right rear-stock owner overlap 931 pixels, 57.3 percent",
+      "rear-three-quarter owner region and adjacency are zero",
+      "most of 25 reviewed line flows lack threshold coverage or continuity, or retain ambiguous crossings"
+    ]
+  },
+  "contract_changes": {
+    "normalized_scope_field_count": 27,
+    "legacy_source_rule": "all 27 proposal/source scope fields must be explicit null",
+    "fresh_baseline_proposal_rule": "all 27 proposal/source scope fields must be present and non-null",
+    "runtime": [
+      "Legacy resolution no longer attaches a discoverable fresh-baseline adapter.",
+      "Prepare, GET and preflight parse the same closed normalized evidence scope.",
+      "Replay preserves evidence_source_kind and all 27 scope fields.",
+      "GET rejects a request whose normalized scope differs from the durable row.",
+      "Previous FormQualityV2 ancestry remains bound to the source candidate and source artifact, not the evaluated proposal candidate."
+    ],
+    "mcp": [
+      "Legacy input validation rejects every non-null proposal/source scope field.",
+      "Generated MCP schemas express the complete all-null legacy constraint."
+    ],
+    "json_schema": "The record, prepare request, GET request, preflight request and preflight result schemas now express the same complete legacy all-null rule."
+  },
+  "source_evidence": {
+    "runtime_source_sha256": "3cdd324b56d8b7dc873fa1a52f981b68ca9ae4a2dde66948bd5ae46c5e8cc8cb",
+    "mcp_source_sha256": "04ac26eae396aad21e89f4ae10c502aa34d2e78932fa746ad4f992bbefb28137",
+    "schema_content_set_sha256": "29d0f7bd92e5106806c5a8ea8a1fd81ee36bc10cc1b3a474e86f847b1b3255b3",
+    "schema_count": 568
+  },
+  "verification": {
+    "contracts_checker": "PASS_568_SCHEMAS",
+    "cargo_check": "PASS_FORGECAD_CONTRACTS_RUNTIME_MCP_WITH_EXISTING_WARNINGS",
+    "focused_runtime_module_tests": "PASS_9_OF_9",
+    "focused_normalized_scope_test": "PASS_1_OF_1",
+    "stage0_truth_checker": "PASS_WITH_RETAINED_QUALITY_TARGET_NOT_MET_AND_BLOCKED_INCOMPLETE_BINDING",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS",
+    "real_visual_probe": "NOT_RERUN_GEOMETRY_UNCHANGED",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "final_state": {
+    "production_stage": "camera-calibrated",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "form_quality_v2_durable_row_count": 0,
+    "secondary_form_approved": "NOT_CREATED",
+    "high_low_uv_bake": "NOT_RUN",
+    "formal_human_review": "NOT_RUN",
+    "commercial_engine_validation": "NOT_RUN",
+    "commercial_quality": "NOT_PROVEN"
+  },
+  "next_atomic_action": "Materialize one typed trigger-guard aperture topology proposal that opens the currently sealed left/right trigger void under the fixed 04AZ camera and fresh-baseline bindings. Rerender the exact six views, retain only a non-regressing candidate, and keep FormQualityV2 fail-closed until the measured negative-space, owner-void and reviewed line-flow gates pass."
+}

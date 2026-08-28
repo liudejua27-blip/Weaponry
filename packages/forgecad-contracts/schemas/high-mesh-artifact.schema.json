@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/high-mesh-artifact.schema.json",
+  "title": "HighMeshArtifact@1",
+  "description": "Independent ForgeCAD Native High artifact projection. Base durable AuthoringMesh geometry is preserved, detail primitives are additive, and every detail node has candidate/head/source-hash-bound stable V/E/Loop/F lineage. This source slice is structural-only and does not advance Runtime stage.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "policy", "artifact_id", "artifact_sha256", "source_authoring_mesh_sha256", "detail_graph_canonical_sha256", "request_sha256", "input_sha256", "high_worker_algorithm_sha256", "high_worker_build_cohort_sha256", "replay_count", "replay_byte_exact", "base_parts", "detail_primitives", "detail_lineage", "part_ids", "material_zone_ids", "triangle_count", "base_triangle_count", "detail_triangle_count", "non_destructive", "high_topology_status", "high_authoring_topology_status", "uv_status", "tangent_status", "structural_status", "visual_status", "human_status", "engine_status", "distribution_status", "quality_status", "hard_gate_passed", "runtime_write_performed", "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "HighMeshArtifact@1"},
+    "operation": {"const": "forgecad.production.high-mesh-prepare@1"},
+    "policy": {"const": "forgecad-native-high-detail-graph@1"},
+    "artifact_id": {"type": "string", "pattern": "^high-mesh-[0-9a-f]{24}$"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "source_authoring_mesh_sha256": {"$ref": "#/$defs/sha256"},
+    "detail_graph_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "high_worker_algorithm_sha256": {"$ref": "#/$defs/sha256"},
+    "high_worker_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+    "replay_count": {"const": 2},
+    "replay_byte_exact": {"const": true},
+    "base_parts": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"$ref": "#/$defs/primitive"}},
+    "detail_primitives": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/primitive"}},
+    "detail_lineage": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/lineage"}},
+    "part_ids": {"type": "array", "minItems": 1, "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "material_zone_ids": {"type": "array", "minItems": 1, "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "triangle_count": {"type": "integer", "minimum": 1},
+    "base_triangle_count": {"type": "integer", "minimum": 1},
+    "detail_triangle_count": {"type": "integer", "minimum": 0},
+    "non_destructive": {"const": true},
+    "high_topology_status": {"const": "base-preserved-detail-primitives"},
+    "high_authoring_topology_status": {"const": "source-preserved"},
+    "uv_status": {"const": "NOT_RUN"},
+    "tangent_status": {"const": "NOT_RUN"},
+    "structural_status": {"const": "PASS_SOURCE_STRUCTURAL"},
+    "visual_status": {"const": "NOT_RUN"},
+    "human_status": {"const": "NOT_RUN"},
+    "engine_status": {"const": "NOT_RUN"},
+    "distribution_status": {"const": "NOT_RUN"},
+    "quality_status": {"const": "structural_only"},
+    "hard_gate_passed": {"const": false},
+    "runtime_write_performed": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "vertex": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}], "items": false, "minItems": 3, "maxItems": 3},
+    "triangle": {"type": "array", "prefixItems": [{"type": "integer", "minimum": 0}, {"type": "integer", "minimum": 0}, {"type": "integer", "minimum": 0}], "items": false, "minItems": 3, "maxItems": 3},
+    "geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["positions_m", "indices"],
+      "properties": {
+        "positions_m": {"type": "array", "maxItems": 300000, "items": {"$ref": "#/$defs/vertex"}},
+        "indices": {"type": "array", "maxItems": 600000, "items": {"$ref": "#/$defs/triangle"}}
+      }
+    },
+    "primitive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive_id", "kind", "part_id", "source_node_id", "material_zone_id", "source_element_lineage", "geometry"],
+      "properties": {
+        "primitive_id": {"$ref": "#/$defs/id"},
+        "kind": {"enum": ["authoring_base", "support_loop_patch", "crease_metadata", "floating_detail_box"]},
+        "part_id": {"$ref": "#/$defs/id"},
+        "source_node_id": {"$ref": "#/$defs/id"},
+        "material_zone_id": {"$ref": "#/$defs/id"},
+        "source_element_lineage": {"type": "array", "items": {"$ref": "#/$defs/id"}},
+        "geometry": {"$ref": "#/$defs/geometry"}
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["detail_node_id", "detail_kind", "parent_part_id", "parent_node_id", "source_edge", "source_vertex_ids", "source_loop_ids", "source_face_ids", "output_primitive_id", "relation", "geometry_delta", "non_destructive"],
+      "properties": {
+        "detail_node_id": {"$ref": "#/$defs/id"},
+        "detail_kind": {"enum": ["support_loop", "crease", "floating_detail"]},
+        "parent_part_id": {"$ref": "#/$defs/id"},
+        "parent_node_id": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "source_edge": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "source_vertex_ids": {"type": "array", "items": {"$ref": "#/$defs/id"}},
+        "source_loop_ids": {"type": "array", "items": {"$ref": "#/$defs/id"}},
+        "source_face_ids": {"type": "array", "items": {"$ref": "#/$defs/id"}},
+        "output_primitive_id": {"$ref": "#/$defs/id"},
+        "relation": {"enum": ["attached_edge_patch", "attached_edge_metadata", "detached_child_part"]},
+        "geometry_delta": {"enum": ["additive_support_surface", "none_crease_attribute_only", "additive_floating_detail"]},
+        "non_destructive": {"const": true}
+      }
+    }
+  }
+}

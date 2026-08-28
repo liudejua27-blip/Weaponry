@@ -1,0 +1,85 @@
+{
+  "schema_version": "ForgeCADCommercialWeaponDocumentationSyncReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-26",
+  "status": "PASS_SOURCE_DOCUMENTATION_SYNC_WITH_FORMAL_HIGH_PUBLIC_CAPABILITY_NOT_PROVEN",
+  "current_source": {
+    "schema_count": 515,
+    "operator_count": 28,
+    "read_tool_count": 111,
+    "write_tool_count": 83,
+    "total_tool_count": 194,
+    "only_in_progress": "FGC-MCP010F"
+  },
+  "historical_receipt_reconciliation": {
+    "commercial_weapon_hero_uv_durable_restart_source_gate_20260826": "SLICE_LOCAL_511_SCHEMAS_109_READ_81_WRITE_190_TOTAL",
+    "commercial_weapon_form_stage_policy_formal_high_source_gate_20260826": "PRE_PUBLIC_WRAPPER_511_SCHEMA_SNAPSHOT",
+    "policy": "Existing receipts remain immutable historical snapshots; this receipt records the later merged 515-schema and 194-tool source surface."
+  },
+  "formal_high_public_source": {
+    "closed_wrapper_contracts_registered": 4,
+    "runtime_public_adapter_compile": "PASS",
+    "runtime_ipc_route_compile": "PASS",
+    "mcp_get_prepare_exposed": true,
+    "store_public_idempotency_key_persisted": true,
+    "positive_materialize_restart": "NOT_RUN",
+    "exact_public_replay": "NOT_RUN",
+    "same_key_different_input_conflict": "NOT_RUN",
+    "cas_tamper": "NOT_RUN",
+    "sqlite_tamper": "NOT_RUN",
+    "failure_cleanup": "NOT_RUN",
+    "raw_mcp_receipt": "NOT_RUN",
+    "capability_status": "PASS_SOURCE_PUBLIC_SURFACE_IDEMPOTENCY_POSITIVE_NOT_PROVEN"
+  },
+  "commercial_research_conclusion": {
+    "current_maturity": "VERIFIABLE_ADVANCED_GRAYBOX_AND_STRUCTURAL_ASSET_PIPELINE",
+    "commercial_game_weapon_software": false,
+    "root_cause": "UPSTREAM_ART_TRUTH_AND_PRODUCTION_AUTHORING_CHAIN_NOT_CLOSED",
+    "required_same_hash_chain": [
+      "art-direction-reference-view-set",
+      "approved-form",
+      "authoring-mesh-and-editable-quad-flow",
+      "non-destructive-high",
+      "reviewed-low-retopology",
+      "hero-uv",
+      "part-isolated-cage-bake",
+      "typed-material-layer-graph",
+      "fps-presentation-and-lod",
+      "unreal-or-unity-roundtrip",
+      "independent-hero-art-review",
+      "confirm-version-export-restart"
+    ]
+  },
+  "real_d1_truth": {
+    "runtime_write": false,
+    "stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "fps_high_05": "NOT_PASSED",
+    "visual": "QUALITY_TARGET_NOT_MET",
+    "commercial": "NOT_PROVEN",
+    "human": "NOT_RUN",
+    "engine": "NOT_RUN",
+    "distribution": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "confirm_version_export": false
+  },
+  "identity_and_atomicity_risks": [
+    "A distinct Formal High candidate currently binds an existing Native High GLB identity; this is not evidence that a new independent commercial High GLB was generated.",
+    "CAS reservation cleanup after a failed SQLite commit is not yet proven by a public positive fixture.",
+    "Request hashing that includes an idempotency key does not replace Store persistence and scoped uniqueness for the public key.",
+    "A source or compile pass cannot replace visual, human, engine, packaged or commercial acceptance."
+  ],
+  "verification": {
+    "contracts_check": "PASS_515_SCHEMAS",
+    "contracts_runtime_compile": "PASS",
+    "stage0_truth_gate": "PASS_515_SCHEMAS_194_TOOLS_WITH_QUALITY_TARGET_NOT_MET",
+    "documentation_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "safety_scope": "PASS",
+    "secrets_files": "PASS",
+    "license_sbom": "PASS",
+    "diff_check": "PASS"
+  },
+  "quality_claim": "QUALITY_TARGET_NOT_MET",
+  "commercial_claim": "NOT_PROVEN"
+}

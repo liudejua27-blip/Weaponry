@@ -1,0 +1,69 @@
+{
+  "schema_version": "ForgeCADAuthoringMeshIdentityLineageFoundationSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "slice_id": "CQ-02-AUTHORING-MESH-IDENTITY-LINEAGE-FOUNDATION",
+  "recorded_on": "2026-08-25",
+  "status": "PASS_CONTRACT_AND_DETERMINISTIC_FOUNDATION_ONLY",
+  "scope": "ForgeCAD-only contract and internal deterministic identity foundation; not a public durable cross-version editing capability",
+  "contracts": {
+    "schema_count": 484,
+    "schema_content_set_sha256": "dadde788fcd1db16c0fa7e885a1993f0ae47829e4d6946d3e58d044f754a2e8b",
+    "schema": "AuthoringMeshIdentityLineage@1",
+    "schema_path": "packages/forgecad-contracts/schemas/authoring-mesh-identity-lineage.schema.json",
+    "schema_sha256": "883df6213c0b9113f1fea9b8b01955b609230961f87beccdd6407af14d9e15d2"
+  },
+  "identity_policy": {
+    "lineage_preimage": "project_id plus authoring_node_id plus part_id plus genesis_source_mesh_sha256",
+    "authored_identity_preimage": "lineage_id plus element_kind plus source_element_id plus authored origin",
+    "generated_identity_preimage": "lineage_id plus element_kind plus operation_lineage_sha256 plus sorted parent_identity_ids plus role plus ordinal",
+    "excluded_from_stable_identity": [
+      "candidate_id",
+      "candidate_state_sha256",
+      "program_sha256",
+      "artifact_id",
+      "artifact_object_sha256",
+      "readback_object_sha256"
+    ],
+    "tombstone_reuse": "REJECT",
+    "split_merge_correspondence": "REQUIRED_BUT_NOT_YET_PUBLICLY_PRODUCED",
+    "evaluated_glb_is_authoring_truth": false
+  },
+  "source_sha256": {
+    "runtime_authoring_mesh_identity": "5eab4ba13bd22be056483e07ff7edac503c7bb3c6257ffa9b68a460e7ef04db5"
+  },
+  "verification": {
+    "contracts": "PASS_484_SCHEMAS",
+    "runtime_internal_identity_tests": "PASS_2_OF_2",
+    "runtime_internal_identity_test_scope": "cross-hypothetical-candidate invariance, parent-order-independent generated identity, tombstone reuse and duplicate parent rejection"
+  },
+  "public_product_surface": {
+    "store_record_or_table": "NOT_IMPLEMENTED",
+    "cas_reachability_binding": "NOT_IMPLEMENTED",
+    "mcp_prepare_get_v2": "NOT_IMPLEMENTED",
+    "same_lineage_two_candidate_edit_fixture": "NOT_RUN",
+    "split_merge_correspondence_fixture": "NOT_RUN",
+    "evaluated_retarget_fixture": "NOT_RUN",
+    "cross_version_stable_element_ids": "NOT_PROVEN",
+    "complete_authoring_editor": "NOT_IMPLEMENTED"
+  },
+  "architecture": {
+    "runtime_single_writer": true,
+    "viewer_read_only": true,
+    "arbitrary_script_execution": false,
+    "dcc_runtime_dependency": false,
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "quality_truth": {
+    "production_stage": "camera-calibrated",
+    "secondary_form_candidate": "NOT_CREATED",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "human_visual_review": "NOT_RUN",
+    "engine_validation": "NOT_RUN",
+    "distribution_validation": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "next_required_gate": "Add closed public V2 prepare/get contracts and Runtime-owned Store/CAS/MCP identity-lineage producer, then pass a same-lineage two-candidate edit/restart fixture with deterministic generated IDs, monotonic tombstones and explicit split/merge correspondence."
+}

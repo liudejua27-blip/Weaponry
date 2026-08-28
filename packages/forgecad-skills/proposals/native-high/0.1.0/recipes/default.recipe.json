@@ -1,0 +1,22 @@
+{
+  "schema_version": "RecipePlan@1",
+  "skill_id": "native-high",
+  "recipe_id": "native-high",
+  "units": "meter",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": ["authoring-mesh-source", "detail-graph", "high-mesh-prepare", "high-mesh-glb-materialize"],
+  "edges": [
+    {"from": "authoring-mesh-source", "to": "high-mesh-prepare"},
+    {"from": "detail-graph", "to": "high-mesh-prepare"},
+    {"from": "high-mesh-prepare", "to": "high-mesh-glb-materialize"}
+  ],
+  "max_edges": 3,
+  "budgets": {"max_nodes": 4, "max_detail_nodes": 256, "max_output_vertices": 300000, "max_output_triangles": 600000},
+  "nodes": [
+    {"node_id": "authoring-mesh-source", "operator_id": "forgecad.production.authoring-mesh-source@1", "input_schema": "AuthoringMeshSource@1", "output_schema": "AuthoringMeshSource@1"},
+    {"node_id": "detail-graph", "operator_id": "forgecad.production.detail-graph@1", "input_schema": "DetailGraph@1", "output_schema": "DetailGraph@1"},
+    {"node_id": "high-mesh-prepare", "operator_id": "forgecad.production.high-mesh-prepare@1", "input_schema": "HighMeshWorkerRequest@1", "output_schema": "HighMeshArtifact@1"},
+    {"node_id": "high-mesh-glb-materialize", "operator_id": "forgecad.production.high-mesh-glb-materialize@1", "input_schema": "NativeHighGlbMaterializeRequest@1", "output_schema": "NativeHighGlbMaterializeResult@1"}
+  ],
+  "canonical_sha256": "7e4c7cdc19cc35cf7997541b4ff62aa5d0fa25aa2e4ea6d8d9468332a9589876"
+}

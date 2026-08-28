@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-camera-lock-prepare-result.schema.json",
+  "title": "ProductionCameraLockPrepareResult@1",
+  "description": "Runtime-owned prepare result for ProductionCameraLock@1. It is restart-hash verified and explicitly non-promoting: no ProductionStage head advance, candidate confirmation, version creation or export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "camera_lock",
+    "replayed",
+    "runtime_write",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "restart_hash_verified"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionCameraLockPrepareResult@1"},
+    "camera_lock": {"$ref": "https://forgecad.local/contracts/production-camera-lock.schema.json"},
+    "replayed": {"type": "boolean"},
+    "runtime_write": {"const": true},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "restart_hash_verified": {"const": true}
+  }
+}

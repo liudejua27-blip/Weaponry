@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-mesh-proposal-edit.schema.json",
+  "title": "ProductionWeaponFormArtMeshProposalEdit@5",
+  "description": "The closed typed edit union accepted by the Runtime-owned real-D1 FormArt mesh proposal. It carries no caller topology, script, path, URL or evaluated identity.",
+  "oneOf": [
+    {"$ref": "#/$defs/move_vertices"},
+    {"$ref": "#/$defs/open_frame_notch"},
+    {"$ref": "#/$defs/rear_stock_void_rail_bow"},
+    {"$ref": "#/$defs/rear_stock_void_boundary_bridge"}
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "position": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"type": "number", "minimum": -10, "maximum": 10}
+    },
+    "move_vertex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vertex_id", "before_position_m", "after_position_m"],
+      "properties": {
+        "vertex_id": {"$ref": "#/$defs/identifier"},
+        "before_position_m": {"$ref": "#/$defs/position"},
+        "after_position_m": {"$ref": "#/$defs/position"}
+      }
+    },
+    "move_vertices": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "operation", "source_node_id", "part_id", "coordinate_space", "selection_policy", "vertex_moves", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "AuthoringMeshMoveVertices@1"},
+        "operation": {"const": "move_vertices"},
+        "source_node_id": {"$ref": "#/$defs/identifier"},
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "coordinate_space": {"const": "source-local"},
+        "selection_policy": {"const": "explicit-stable-vertex-ids@1"},
+        "vertex_moves": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/move_vertex"}
+        },
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "open_frame_notch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "operation", "source_node_id", "part_id", "coordinate_space", "selection_policy", "opening_width_milli", "opening_height_milli", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "AuthoringMeshOpenFrameNotch@1"},
+        "operation": {"const": "open_frame_notch"},
+        "source_node_id": {"$ref": "#/$defs/identifier"},
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "coordinate_space": {"const": "source-local"},
+        "selection_policy": {"const": "runtime-derived-box-open-frame@1"},
+        "opening_width_milli": {"type": "integer", "minimum": 1, "maximum": 999},
+        "opening_height_milli": {"type": "integer", "minimum": 1, "maximum": 999},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "rear_stock_void_rail_bow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "operation", "source_node_id", "part_id", "coordinate_space", "selection_policy", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "AuthoringMeshRearStockVoidRailBow@1"},
+        "operation": {"const": "rear_stock_void_rail_bow"},
+        "source_node_id": {"$ref": "#/$defs/identifier"},
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "coordinate_space": {"const": "source-local"},
+        "selection_policy": {"const": "runtime-derived-rear-stock-void-rail-bow@1"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "rear_stock_void_boundary_bridge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "operation", "source_node_id", "part_id", "coordinate_space", "selection_policy", "profile_id", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "AuthoringMeshRearStockVoidBoundaryBridge@1"},
+        "operation": {"const": "rear_stock_void_boundary_bridge"},
+        "source_node_id": {"const": "rear-stock"},
+        "part_id": {"const": "rear-stock"},
+        "coordinate_space": {"const": "source-local"},
+        "selection_policy": {"const": "runtime-derived-rear-stock-void-boundary-bridge@1"},
+        "profile_id": {"const": "registered-void-boundary-depth-wedge-5@1"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

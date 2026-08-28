@@ -1,5 +1,9 @@
 # ADR-0026: Agentic Design Runtime
 
+> 2026-08-25 解释性补充：Agentic Runtime 可以观察、规划、提出 Repair 并组织证据，但不等于艺术总监、专业 retopo/bake 工具或独立验收者。商业 Hero Asset 的完整阶段、缺口和五轴 Gate 由 `../COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md` 约束；Critic/Codex 自评不能生成 human 或 engine PASS。
+
+> 2026-08-26 Cage/Bake 解释：Agentic plan/critic 只能引用 Runtime-owned durable High/Low/Hero UV/Cage IDs 与阻断状态，不能携带 inline artifact truth、重算 canonical hash 或绕过 `production_weapon_high_low_bake_preflight_get`。producer unavailable 时计划必须停在当前阶段；Agentic 层不得调用长测、推进 Material/Stage 或把 source seam 评为视觉 PASS。
+
 状态：Accepted as target architecture；observe/plan read-only projection、durable session/checkpoint/RepairIntent prepare/readback slice、`repair_intent_run_prepare` CAS-bound bounded run 与 MCP010F 窄范围 Primary Form 单动作 prepare/evaluate、bounded action-run/readback 已落地，通用单动作 orchestrator、Repair 应用和完整视觉 Gate 仍未完成
 日期：2026-08-13
 
@@ -114,6 +118,21 @@ Codex 不再只接收 object position 或 mesh count，而是接收足以做设�
 6. `final-review`：九 AOV、strict compare、Codex typed review、human review、export/restart hash。
 
 Primary 未通过时禁止 tertiary detail；visible-view 未通过时禁止 PBR 解锁；`QUALITY_TARGET_NOT_MET` 禁止 confirm/export。
+
+### 5.1 Agentic 编排不替代 ForgeCAD 商业生产执行器
+
+ForgeCAD 当前仍是可验证高级灰模/技术管线，而不是商业级资产生产软件。Agentic Runtime 只能观察、规划、提出有界 Repair 和组织证据；商业级缺口在上游资产真值与艺术生产闭环，不会由更多对话轮次或 Critic 自评自动消失。生产执行器必须是 ForgeCAD-only 的内建 typed Worker，并由 Runtime 统一持有候选、CAS、Stage 和 approval：
+
+| 能力 | Agentic 可做的事 | ForgeCAD Worker/Viewer 的责任与门 |
+| --- | --- | --- |
+| AuthoringMesh | 读取语义 Part、稳定 source map 和可审的 edit intent | original/evaluated 拓扑、identity lineage、split/collapse/dissolve readback；对应关系、edge-flow 和 editor gate 未通过不得进入 secondary |
+| Native High / Native Low | 选择有界 detail intent、读取 High/Low 证据 | High detail graph 与 High readback；Low artist-editable quad retopo、High↔Low correspondence；当前 High 结构链不等于 `FPS-HIGH-05`，Low 仍 `DRAFT_UNREVIEWED / structural_only / promotion_eligible=false` |
+| Hero UV / Cage / Bake | 读取 density/stretch/miss 等诊断并提出 bounded repair | UV 绑定 Low 与 tangent；Cage/Bake 绑定独立 High/Low/Cage、逐 Part ray diagnostics；当前 Hero UV durable 仅 structural，artist unwrap 与正式 bake 未通过 |
+| Material Layer Graph | 组织 layer/mask/wear/microdetail 意图 | Worker 生成有 provenance 的 PBR surface；只有 UV+Bake 与多视图/第一人称 readability 通过才可进入 material gate |
+| LOD / Art Director Viewer | 浏览 LOD/FPS/阶段 evidence、返回下一步 allowed action | authored LOD0/1/2、collision/socket 与 FPS presentation 由 typed Worker 生产；Viewer 只读显示 AOV/compare/Part/MaterialZone/阶段，不得写状态或批准 |
+| EngineValidation / HeroArtReview | 发起审阅请求、绑定同一 candidate/export hash | 真实目标引擎 round-trip 与独立艺术家/IP 盲审是外部独立门；两者当前均 `NOT_RUN`，Codex typed review 不能替代 |
+
+因此 Agentic action-run 即使 `prepare/evaluate` 成功，也只能形成 hash-bound staged evidence；不能直接推动 `secondary-form-approved`、`FPS-HIGH-05`、confirm/version/export。Runtime 唯一写者、无任意脚本/DCC 运行依赖和 fail-closed 规则仍由 ADR-0025 约束。
 
 ### 6. Parametric Design Kit
 

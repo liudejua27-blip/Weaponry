@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-get-request.schema.json",
+  "title": "AuthoringMeshGetRequest@1",
+  "description": "Closed read-only lookup for one Runtime-owned durable AuthoringMesh link. The lookup is candidate-bound and cannot request Stage, approval, version or export actions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "candidate_id",
+    "canonical_mesh_id",
+    "canonical_mesh_sha256",
+    "artifact_id",
+    "artifact_sha256",
+    "writer_policy",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringMeshGetRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "canonical_mesh_id": {"$ref": "#/$defs/identifier"},
+    "canonical_mesh_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/identifier"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04Z-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-STATION-ISOLATION",
+  "task_id": "FPS-FORM-04Z",
+  "recorded_at": "2026-08-25",
+  "aggregate_fixture_result": "OUTPUT_CAPTURED_BEFORE_AGGREGATE_TEST_INTERRUPTION",
+  "aggregate_test_exit_code": 130,
+  "focused_mutator_tests": "PASS_2_OF_2",
+  "purpose": "identify which upper-profile station controls the rear-three-quarter owner mask before any further bounded correction",
+  "formal_owner_gate_policy": "all registered views: selected transform identity; owner intrusion equals zero; boundary adjacency pixels at least 32; adjacency milli at least 250",
+  "stop_station_direction_policy": "stop a station direction when any selected transform is non-identity or any registered-view adjacency milli is below 250",
+  "trials": [
+    {
+      "variant": "04Z@profile[0]+0.020",
+      "station_index": 0,
+      "delta_x_m": 0.02,
+      "owner_intrusion_pixels": [302, 481, 587],
+      "owner_boundary_adjacency_milli": [319, 333, 248],
+      "rear_three_quarter_changed_pixels": 1,
+      "rear_three_quarter_changed_boundary_bands": {"r1": 0, "r2": 0, "r4": 0},
+      "rear_three_quarter_station_control_signal": false,
+      "formal_owner_gate_pass": false,
+      "status": "STOP_04Z_STATION_DIRECTION"
+    },
+    {
+      "variant": "04Z@profile[1]+0.020",
+      "station_index": 1,
+      "delta_x_m": 0.02,
+      "owner_intrusion_pixels": [302, 492, 587],
+      "owner_boundary_adjacency_milli": [319, 343, 248],
+      "rear_three_quarter_changed_pixels": 143,
+      "rear_three_quarter_changed_boundary_bands": {"r1": 0, "r2": 0, "r4": 13},
+      "rear_three_quarter_change_classification": "VISIBLE_CHANGE_OUTSIDE_REVIEWED_REGION",
+      "rear_three_quarter_station_control_signal": false,
+      "formal_owner_gate_pass": false,
+      "status": "STOP_04Z_STATION_DIRECTION"
+    }
+  ],
+  "conclusion": {
+    "both_station_directions_stopped": true,
+    "continue_blind_profile_parameter_scan": false,
+    "triangle_attribution": "UNAVAILABLE_CURRENT_RENDER_RASTERHIT",
+    "next_required_evidence": "source-map or triangle-level attribution followed by a redesigned bounded form correction, not another blind scalar scan"
+  },
+  "promotion": {
+    "diagnostic_only": true,
+    "promotable": false,
+    "quality_status": "NOT_PROVEN",
+    "depth_status": "UNKNOWN_OR_OBSERVED_ONLY",
+    "six_view_non_regression": "NOT_RUN",
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "limitations": [
+    "The aggregate ignored fixture was intentionally interrupted after this diagnostic output was emitted; this receipt is not an aggregate test PASS.",
+    "The station trials do not prove commercial form, authoring topology, High, Low, UV, Bake, material, engine or human quality."
+  ]
+}

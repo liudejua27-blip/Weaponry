@@ -1,5 +1,24 @@
 # ForgeCAD 3D 编译器与质量管线
 
+> 2026-08-26 `04AF`：管线已在真实 D1 上执行一次 `rear-stock` source materialize→GLB readback→六视图 RenderSet→CrossView quality decision，并在三视图回退时保留 baseline。`AuthoringMesh@2` 另有持久化 split-edge/restart 基线，但尚未成为该真实武器的 compiler source。下一个 compiler 目标是 Authoring revision→evaluated High 的 stable correspondence，而不是继续对参数灰模做无限搜索。
+
+> 2026-08-26 现行 source：**525 schemas / 112 read + 84 write = 196 tools**。AuthoringMesh V2→Native High evaluator→strict correspondence/bake validation→MaterialLayerGraph plan 的编译 seam 已存在；尚未接成 Runtime-owned durable production chain。未经 real D1/user orientation Gate，不推进 Form/High。
+
+> 商业编译链固定为 approved AuthoringMesh → High → editable Low/correspondence → Hero UV → Cage/Bake → Material → FPS/LOD → canonical GLB/engine derivatives。Manifold/QuadriFlow/xatlas/Embree/meshoptimizer 只提供受限内部算法，不改变 authoring truth。详见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。
+
+2026-08-26 Formal High 编译边界：public prepare 的输入只描述 source Stage head proof、distinct High candidate identity、idempotency 与请求 hash；candidate state、High binding、strict readback、receipt 和 CAS roots 必须由 Runtime/固定 Worker 派生。当前 adapter/IPC compile PASS，但没有合法 positive Stage fixture 和 restart receipt，因此编译面不得标记 Formal High 或 High→Low production complete。
+
+2026-08-26 最新管线增量：Form Stage policy 已在 Store 深读 parent/head、CameraLock、FormQuality@2、FormArt、CAS/lineage；Formal High 已有 Runtime pure factory → Store atomic candidate+High record → restart-readable internal materializer seam。该链尚无完整 positive restart fixture 和独立 MCP public surface，只是 source/compile/focused 结果；真实 D1 没有进入 High/Low/Bake。证据：`docs/evidence/mcp010f/commercial-weapon-form-stage-policy-formal-high-source-gate-20260826.json`。
+
+2026-08-26 Cage/Bake 编译边界：固定 Cage、8-map geometric Bake、8-texel dilation 与 2K Worker launcher 已 source PASS；它们只接受 Runtime 解析后的 typed 输入。High resolver、Formal High factory/Store/internal materializer 已按真实 `Stage source candidate + distinct derived High candidate/High GLB` 字段完成 compile/focused PASS；但完整 source-lineage/CAS positive materialize→drop/reopen 尚未运行，独立 public surface 也未暴露，所以真实 D1 仍以 `FORMAL_HIGH_STAGE_SOURCE_LINEAGE_UNAVAILABLE` fail closed。没有 formal High positive receipt、Low/Hero UV 精确 lineage、双 replay/cohort 和严格输出 readback时，不得启动正式 2K Bake、提交七记录或提升 Stage/质量。
+
+
+> 2026-08-26 current source synchronization: **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 MCP tools**. The candidate-bound current Low exact provenance now feeds the public Hero UV durable compiler path; `hero_uv_durable_get/prepare` is complete through Store→Runtime→MCP, and the real prepare→replay→Runtime drop/reopen→get fixture is **1/1 PASS** with four Hero CAS roots linked/GC. This is structural/source evidence only, not artist-authored unwrap, visual, human, engine, commercial or packaged acceptance; Stage=`camera-calibrated`, visual=`QUALITY_TARGET_NOT_MET`, and no Stage/confirm/version/export transition is allowed. Evidence: `docs/evidence/mcp010f/commercial-weapon-hero-uv-durable-restart-source-gate-20260826.json`.
+
+> 2026-08-25 目标编译链补充：商业武器不能由单个 evaluated triangle mesh 贯穿全部阶段；Compiler 必须保留 original AuthoringMesh、evaluated High、editable Low、topology-correspondent Cage、Hero UV/tangent、Bake maps、Material Layer output、LOD/collision/socket 和 export artifact 的独立 identity/hash/lineage。当前 edge-collapse Low 与 normal-offset Cage 只保留为 provisional diagnostics。详见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+> 2026-08-26 当前增量：High Worker 已有有界面内 chamfer arc；Low 与 Hero UV 已分别接入 Runtime/CAS/Store durable public seam，但仍是 structural/unreviewed。Cage/Bake fixed Worker、exact Low topology/order Cage、8-map output、8-texel dilation 与七记录 atomic Store/MCP seam 已 source PASS；Runtime-owned formal producer 尚未闭合，new prepare 零写失败。任何 compile/source PASS 都不能写成当前 D1 production artifact 或商业 Gate PASS。
+
 版本：2026-08-09
 状态：MVP bounded compiler 已完成；FGC-MCP010A done；FGC-MCP010B V2 structural compiler 与固定同级 Worker 子门已通过（Darwin OS memory hard cap deferred）；FGC-MCP010C fixed renderer/reference compare source Gate PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D 的 profile/loft/revolve/sweep/transform/mirror/array/panel/vent/joint/part-output 已通过 source Gate；FGC-MCP010E 的离线 AssetPack、512px UV atlas、固定 mikktspace、embedded PBR textures 已通过 source Gate（xatlas/Validator/packaged/视觉子门 deferred）
 
@@ -32,7 +51,7 @@ MCP007 先产生真实多 Part mesh/GLB；MCP008 加 bounded UV/PBR 和 beauty/s
 
 ### 2.0.1 MCP010 V2 顺序
 
-MCP010 必须依次完成：B 的封闭 `GeometryProgram@2`/真实 DAG/GLB readback → C 的 perspective/z-buffer renderer、九 AOV 和 reference metrics → D 的高细节 Operator → E 的离线 AssetPack、UV/tangent/PBR/texture。当前 B structural Gate 已通过但 Darwin OS 总内存硬门 deferred；C source Gate 已通过 `script/test_mcp010c.sh`，覆盖固定 camera/z-buffer、九 AOV、local mask/metrics、MCP image block、Codex/human review 和 deterministic raw stdio。首次真实机器人 PNG 也完成了 C 的 compare/review transport，但 primitive blockout 的 likeness threshold 为 `FAIL_QUALITY_TARGET_NOT_MET`；C 仍未完成 Viewer/package/live、人评和材质视觉门。D 的当前 16 个 Operator、Skill 0.2、bounded Manifold Boolean、strict readback/lineage、raw stdio Gate 和同 cohort packaged D raw structural probe 已通过；任意 mesh Boolean 与视觉门仍 NOT_RUN。E source Gate 已通过 `script/test_mcp010e.sh`，覆盖 AssetPack provenance、512px bounded UV atlas、固定 `mikktspace@0.3.0`、embedded PBR textures、strict readback 和九 AOV；同 cohort packaged E structural probe已通过；xatlas、Khronos Validator、Viewer/package/live C/F 与视觉 PBR 仍 NOT_RUN。不能先把缺失的 producer 写成 active。
+MCP010 必须依次完成：B 的封闭 `GeometryProgram@2`/真实 DAG/GLB readback → C 的 perspective/z-buffer renderer、九 AOV 和 reference metrics → D 的高细节 Operator → E 的离线 AssetPack、UV/tangent/PBR/texture。当前 B structural Gate 已通过但 Darwin OS 总内存硬门 deferred；C source Gate 已通过 `script/test_mcp010c.sh`，覆盖固定 camera/z-buffer、九 AOV、local mask/metrics、MCP image block、Codex/human review 和 deterministic raw stdio。首次真实机器人 PNG 也完成了 C 的 compare/review transport，但 primitive blockout 的 likeness threshold 为 `FAIL_QUALITY_TARGET_NOT_MET`；C 仍未完成 Viewer/package/live、人评和材质视觉门。D 的当前 16 个 Operator、Skill 0.2、bounded Manifold Boolean、strict readback/lineage、raw stdio Gate 和同 cohort packaged D raw structural probe 已通过；任意 mesh Boolean 与视觉门仍 NOT_RUN。E source Gate 已通过 `script/test_mcp010e.sh`，覆盖 AssetPack provenance、512px bounded UV atlas、固定 `mikktspace@0.3.0`、embedded PBR textures、strict readback 和九 AOV；同 cohort packaged E structural probe已通过；xatlas、Khronos Validator、Viewer/package/live C/F 与视觉 PBR 仍 NOT_RUN。其后 Hero UV durable source slice 已补齐 Store→Runtime→MCP public `hero_uv_durable_get/prepare`、current Low exact provenance、四 root linked/GC 与真实 replay/drop/reopen/get **1/1 PASS**，但不能先把它写成 artist unwrap、visual、human、engine、commercial 或 packaged producer；不推进 Stage/confirm/version/export。
 
 目标九 pass 固定为 beauty、silhouette、depth、normal、AO、part-ID、material-ID、wireframe、UV-stretch，全部绑定同一 candidate/camera/material/renderer hash。快速 Viewer renderer 可以不同，但不能生成第二套模型、材质或质量真值。
 
@@ -57,6 +76,8 @@ MCP010 必须依次完成：B 的封闭 `GeometryProgram@2`/真实 DAG/GLB readb
 输出：经过验证的 UV、切线、PBR 通道、预览与交付纹理、材质表和 provenance。
 
 P0 材质遵循 Principled 金属/粗糙度工作流：BaseColor、Metallic、Roughness、Normal、AO，按需 Emissive。MVP 使用 bounded procedural values 和 0–1 UV；纹理烘焙、UDIM、Opacity 和完整色彩管理尚未实现，不得把声明式 `TextureSet/BakeRecipe` metadata 当作已生成纹理。
+
+当前 Hero UV 编译结果只可通过 candidate-bound current Low exact provenance 进入 `hero_uv_durable_prepare`；`hero_uv_durable_get` 仅回读 Store/CAS durable lineage。四个 Hero CAS roots 的 linked/GC 与真实 replay/drop/reopen/get **1/1 PASS** 是 structural/source evidence，不是 artist-authored unwrap、visual、human、engine、commercial 或 packaged acceptance，也不推进 Stage/confirm/version/export。
 
 ### 2.4 Render Evidence Compiler
 
@@ -86,6 +107,46 @@ P0 材质遵循 Principled 金属/粗糙度工作流：BaseColor、Metallic、Ro
 
 Codex `VisualReviewReport` 必须引用具体 render/pass/region/claim，使用 bounded rubric 和置信度。它不能修改硬门结果，也不能独自证明质量。
 
+## 2.6 商业生产编译边界（目标/排队）
+
+商业编译器改为六段，不再把 `GeometryProgram → GLB` 当完整生产链：
+
+```text
+DesignCompiler
+  → AuthoringCompiler
+  → HighLowUvBakeCompiler
+  → SurfaceCompiler
+  → PresentationCompiler
+  → DeliveryCompiler / EngineValidation
+```
+
+- `DesignCompiler` 输出 approved Brief/DesignLanguage/ReferenceViewSet/CameraLock；
+- `AuthoringCompiler` 保存 `AuthoringMesh@2 + TopologyMutationJournal + ModifierDetailGraph`，并分别产生 original/evaluated hash；
+- `HighLowUvBakeCompiler` 产生独立 High、editable Low、correspondence、Hero UV、CageField 和 8-map BakeSet；任何自动算法只输出 draft；
+- `SurfaceCompiler` 把 typed MaterialLayerGraph、masks/generators/decals/wear 编译为纹理与材质包；MaterialX 只允许作为受限 interchange/lowering subset；
+- `PresentationCompiler` 产生 hip/ADS/inspect/equip/reload/recoil fixed shots、animation/event/VFX/audio cues；
+- `DeliveryCompiler` 保留 canonical GLB，同时生成 LOD/collision/socket/animation sidecars、KTX2/meshopt derived package，并运行固定 allowlist 的 glTF Transform/Khronos Validator；
+- `EngineValidation` 必须读取 exact export hash，在 clean project/packaged build 中回读，不能由 delivery compiler 自我授予。
+
+每段都必须先验证上游 approved identity，输出新的 CAS object/readback/quality receipt；失败时不部分写入、不推进 Stage。优化前后的 Part、MaterialZone、node hierarchy、animation、socket、bounds、UV/tangent 与 texture slot 必须做 semantic diff，压缩或去重不得改变设计真值。
+
+商业链的每一阶段都必须消费上游 immutable identity，并产生独立 artifact/readback；不能把 evaluated triangle GLB 作为全链路 authoring source：
+
+```text
+AuthoringMesh@1
+  → Native High / HighMeshArtifact@1
+  → Retopology / LowMeshArtifact@1
+  → HeroUvLayout@1
+  → CageArtifact@1 + HighLowBakeReceipt@1
+  → MaterialLayerGraph@1 / HeroMaterialPack@1
+  → HeroLodSet@1 / CollisionSet@1 / SocketSet@1
+  → EngineValidationReceipt@1 + HeroArtReviewReceipt@1
+```
+
+每一箭头都要绑定 `project_id`、`candidate_id`、`parent_artifact_sha256`、`input_sha256`、`output_sha256`、`worker_build_cohort_sha256`、recipe/operator/schema set hash 和 CAS lineage。Runtime 才能把结果接入 candidate/Stage；MCP、Viewer、Worker 均不能直接写 SQLite/CAS。当前 AuthoringMesh 仅 partial structural，Native High 为 source-only，Low 为 `DRAFT_UNREVIEWED`，Hero UV durable 为 structural/source 1/1；Formal High internal materializer 与 Cage/Bake Worker/public persistence seam 只有 source/compile/focused，完整 positive restart/public surface/current-D1 receipt 缺失且质量 failed；Surface/LOD/Engine/Hero Art Review 均 `NOT_RUN/NOT_PROVEN`。
+
+每个 Worker 必须通过 `ForgeCadModule@1` manifest 才能进入编译图。该 manifest 至少带 `schema_refs`、`operator_refs`、有限 `budget`、正/负 `fixture_refs`、LICENSE/NOTICE/SBOM hashes、source/build `provenance`、`signature`、`module_sha256`、`contract_set_sha256` 与 input/output hashes，并明确无 network、dynamic plugin、script、direct DB/CAS write。缺少任一 receipt 时，Compiler 只生成诊断或 `queued` 状态，不生成 production artifact，不推进 Stage、confirm、version 或 export。
+
 ## 3. 从 Blender 借鉴的能力模型
 
 | Blender 优点 | ForgeCAD 采用方式 | 不采用的部分 |
@@ -100,7 +161,7 @@ Codex `VisualReviewReport` 必须引用具体 render/pass/region/claim，使用 
 | Asset Browser | CAS 资产目录、预览、license/provenance | 无许可证的素材拖入 |
 | Outliner/Collections | Assembly/Part 层级、隔离、爆炸图 | legacy ModuleGraph |
 
-Blender 不属于 MVP。未来可作为受签名的 headless worker，用于产品内固定的导入、烘焙或渲染 Recipe；Codex 和 Skill 均不能提交任意 Blender Python。是否分发 Blender、GPL 边界和 worker 隔离须在 `FGC-MCP012` 单独通过许可证审查。
+Blender 永久保持 `reference-only / unavailable-for-product`：不作为 headless worker、fallback、导入器、烘焙器或 renderer 分发，也不进入 Runtime/Worker/Skill/lockfile/CAS 真值。ForgeCAD 只 clean-room 学习其 data-block、BMesh、Depsgraph、Modifier、UV/Bake、AOV 和色彩管理方法，并落实为自有 Rust/typed contract；Codex 和 Skill 不能提交 Blender Python。
 
 参考：[Blender Geometry Nodes modifier](https://docs.blender.org/manual/en/dev/modeling/modifiers/generate/geometry_nodes.html)、[Blender Color Management/OCIO](https://docs.blender.org/manual/en/latest/render/color_management.html)、[Blender GPL 说明](https://developer.blender.org/docs/license)。这些链接用于学习能力模型，不授权复制文档、源码或资产。
 

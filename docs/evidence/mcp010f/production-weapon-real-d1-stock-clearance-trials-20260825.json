@@ -1,0 +1,73 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04L-REAL-D1-REGISTERED-CLEARANCE-TRIAL",
+  "status": "BLOCKED_NO_CLEARANCE_TRIAL_ACCEPTED",
+  "task_id": "FPS-FORM-EVIDENCE-04A",
+  "policy": "registered-camera-direct-part-id-owner-void-zero-intrusion@1",
+  "parameter_id": "stock-open-frame-clearance",
+  "trial_values": [0.3, 0.35, 0.42],
+  "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+  "reference_id": "reference-8fe090608b6f4494a058761390bed1c2",
+  "baseline_candidate_id": "candidate-59173800e9674c03a26b1514192f0d86",
+  "camera_lock_canonical_sha256": "913ba3d0ed4feffe96d7283eea41a6479ce4370217decdd5cc6de52c641ef5c7",
+  "registered_camera_rig_canonical_sha256": "80a5faef6e9567a5fa450a9cb827dab98add6a135a5a7c0af555b87f910840c4",
+  "subject_frame_registration_canonical_sha256": "f90eae64e284d77fb79a2b4a59f2e9a4549b0b8f4c83b8a136812bcd5d41607b",
+  "acceptance": {
+    "required_owner_intrusion_pixels_each_view": 0,
+    "required_owner_boundary_adjacency_milli_each_view": 250,
+    "required_outer_silhouette_non_regressing": true,
+    "required_program_delta": "only rear-stock and rear-stock-lower-beam position_m[1] may change",
+    "required_lineage_unchanged": true
+  },
+  "trials": [
+    {
+      "value": 0.3,
+      "candidate_id": "candidate-7dd77424c6414cde8147f65acfb73916",
+      "artifact_sha256": "1ccabe68f52d5b26e6534b841ecc2b59cf929144a6b1cd298915223140ca3a6c",
+      "owner_intrusion_pixels_left_right_rear3q": [356, 583, 635],
+      "owner_boundary_adjacency_milli_left_right_rear3q": [453, 400, 265],
+      "outer_silhouette_non_regressing": false,
+      "right_silhouette_iou_delta": -0.000344773979,
+      "accepted": false,
+      "status": "BLOCKED"
+    },
+    {
+      "value": 0.35,
+      "candidate_id": "candidate-2cd93829e57842b6aa346d8867f6eb58",
+      "artifact_sha256": "55e8f0a4f8fb5687a04cd7cd1470c30ed9ef518c4faeb924f61c49fe64a5b75e",
+      "owner_intrusion_pixels_left_right_rear3q": [377, 569, 713],
+      "owner_boundary_adjacency_milli_left_right_rear3q": [453, 389, 279],
+      "outer_silhouette_non_regressing": true,
+      "accepted": false,
+      "status": "BLOCKED"
+    },
+    {
+      "value": 0.42,
+      "candidate_id": "candidate-42dd399f15ad42f5a0633ab7b193b3ed",
+      "artifact_sha256": "db9b166e157d966e8177052a1a80bbd79a7f4e91d6ede77a9fbb2300e9719a91",
+      "owner_intrusion_pixels_left_right_rear3q": [374, 503, 837],
+      "owner_boundary_adjacency_milli_left_right_rear3q": [453, 317, 306],
+      "outer_silhouette_non_regressing": true,
+      "accepted": false,
+      "status": "BLOCKED"
+    }
+  ],
+  "all_trials_part_source_bindings_unchanged": true,
+  "all_trials_rear_cap_binding_unchanged": true,
+  "all_trials_depth_and_non_clearance_fields_unchanged": true,
+  "all_trials_reference_camera_registration_worker_lineage_unchanged": true,
+  "all_trials_strict_owner_void_status": "BLOCKED",
+  "diagnostic_only": true,
+  "promotable": false,
+  "quality_status": "NOT_PROVEN",
+  "depth_status": "UNKNOWN",
+  "secondary_form_approved": "NOT_CREATED",
+  "candidate_confirmed": false,
+  "version_created": false,
+  "export_performed": false,
+  "production_stage_advanced": false,
+  "next_action": "keep a new stock-plane-position parameter unavailable until typed contract and registered-camera owner-binding evidence exist",
+  "raw_log_path_redacted": "/private/tmp/forgecad-d1-04l-clearance-20260825-r3.log",
+  "raw_log_sha256": "1b35f96caeb17579dee2d09a387b553c63d2ac88ebcdb18f3a075aa2c953e447",
+  "real_fixture": "PASS_1_OF_1_477.56S_WITH_ALL_04L_TRIALS_BLOCKED"
+}

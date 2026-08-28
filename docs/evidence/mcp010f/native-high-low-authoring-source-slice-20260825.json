@@ -1,0 +1,86 @@
+{
+  "schema_version": "NativeHighLowAuthoringSourceSliceReceipt@1",
+  "task_ids": ["CQ-02-AUTHORING-MESH-TYPED-TOPOLOGY-IDENTITY-LINEAGE", "FPS-HIGH-05", "FPS-LOW-06"],
+  "recorded_on": "2026-08-25",
+  "scope": "fictional-nonfunctional-game-visual-authoring-only@1",
+  "status": "PASS_SOURCE_ISOLATED_HIGH_DETAIL_GRAPH_AND_LOW_FEATURE_PROTECTION",
+  "source_surface": {
+    "schema_count": 490,
+    "read_tools": 106,
+    "write_tools": 78,
+    "total_tools": 184,
+    "operator_entries": 28
+  },
+  "native_high": {
+    "request_contract": "HighMeshWorkerRequest@1",
+    "artifact_contract": "HighMeshArtifact@1",
+    "detail_graph": "DetailGraph@1",
+    "worker_boundary": "STANDALONE_ONE_SHOT_JSON_PROTOTYPE_NOT_RUNTIME_MCP_CAS_GLTF_BUNDLE_OR_PACKAGE_INTEGRATED",
+    "determinism": "PASS_DOUBLE_REPLAY_BYTE_EXACT",
+    "base_preservation": "PASS_SOURCE_BASE_PRESERVED_WITH_ADDITIVE_DETAIL_PRIMITIVES",
+    "support_loop_truth": "ADDITIVE_PATCH_NOT_COMPLETE_TOPOLOGY_LOOP",
+    "crease_truth": "METADATA_ONLY_NOT_SUBDIVISION_OR_NORMAL_EVALUATED",
+    "stable_authoring_identity_adapter": "NOT_IMPLEMENTED",
+    "high_05_gate": "NOT_PASSED",
+    "focused_tests": "PASS_3_OF_3"
+  },
+  "native_low": {
+    "worker": "production_low_retopology",
+    "feature_protection": "PASS_SPLIT_NORMAL_TANGENT_SEAMS_AND_GREATER_THAN_45_DEGREE_HARD_CREASES",
+    "part_material_isolation": "PASS_PRESERVED",
+    "explicit_locked_vertices": "PASS_PRESERVED",
+    "fail_closed_when_only_protected_edges_remain": true,
+    "uv_only_seam": "NOT_PROVEN_WIRE_CONTRACT_CANNOT_EXPRESS_SAFELY",
+    "artist_authored_quad_topology": false,
+    "edge_flow_status": "NOT_PROVEN",
+    "quality_status": "structural_only",
+    "focused_tests": "PASS_8_OF_8"
+  },
+  "modifier_stack": {
+    "base_operator": "forgecad.geometry.authoring-mesh@1",
+    "modifier_operator": "forgecad.geometry.bevel@2",
+    "runtime_lowering": "PASS_READ_ONLY_STABLE_EDGE_SOURCE_LOWERING",
+    "mcp_schema": "PASS_STACK_AND_EVALUATION_EXPOSED_APPLY_V1_REMAINS_CLOSED",
+    "candidate_creation": false,
+    "runtime_focused_tests": "PASS_1_OF_1",
+    "mcp_focused_tests": "PASS_1_OF_1"
+  },
+  "cq_02": {
+    "split_collapse_dissolve_full_chain_restart": "PASS_3_OF_3",
+    "identity_restart_regression": "PASS_1_OF_1",
+    "general_topology_correspondence": "NOT_PROVEN",
+    "evaluated_mesh_retarget": "NOT_PROVEN",
+    "complete_selection_undo_history": "NOT_PROVEN"
+  },
+  "verification": {
+    "contract_checker": "PASS_490_OF_490",
+    "contracts_store_runtime_mcp_joint_compile": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "source_sha256": {
+    "apps/high-worker/Cargo.toml": "bbb8059aed4634f6451d88589adcdd0066d0e17078a10a9b3552e315d5d3b85b",
+    "apps/high-worker/src/lib.rs": "89999eeb7bcc259996a10755a5e1b30ca4a8e67fa98e0bec181f84ca6a3c46fe",
+    "apps/high-worker/src/main.rs": "c4d5cdd52da271d39ce7f8cce77ad07d2ee115af036e6030e494cc14c9411177",
+    "packages/forgecad-contracts/schemas/high-mesh-worker-request.schema.json": "b03d304eef7f436e6fc53bf80eb9d95d55e30b11d2e2b1c84ffd1c6ba50f3b59",
+    "packages/forgecad-contracts/schemas/high-mesh-artifact.schema.json": "27b2b73ff5e6c7858bf092b66398e97ed79669d5f8ac8118776a50f5a2aa9f89",
+    "apps/geometry-worker/src/production_low_retopology.rs": "19307fabbc19a5a0283af487af5f06f0043bf0f8d3065d174bf19e738eae5b30",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs": "b7e56162fdc19ea15ba840353c1eca0cbbbfac979e6c2e1ada94b12b51976e20",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs": "d404fe7a68595a2ee5152f2f60403a63142d3d843c39977478263f08ccb7744e",
+    "scripts/check_forgecad_contracts.py": "b96b2619b430f4d00fee19e828e4f7ba08ba4ea83a382db55194b2f141ce8323"
+  },
+  "product_state": {
+    "runtime_sole_writer": true,
+    "stage": "camera-calibrated",
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "canonical_sha256": "12aba618e6f2ba09533ed3697873e7baa7e43a80e27596d103b4283333a68f14"
+}

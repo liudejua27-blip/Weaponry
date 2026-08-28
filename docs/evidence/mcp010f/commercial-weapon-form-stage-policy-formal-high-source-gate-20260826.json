@@ -1,0 +1,104 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FPS-FORM-STAGE-POLICY-FORMAL-HIGH-05A",
+  "parent_task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-26",
+  "result": "PASS_SOURCE_COMPILE_FOCUSED",
+  "scope": {
+    "production_stage_v3_form_edges": [
+      "camera-calibrated -> blockout-reviewed",
+      "blockout-reviewed -> primary-form-approved",
+      "primary-form-approved -> secondary-form-approved"
+    ],
+    "formal_high": [
+      "Runtime-owned distinct derived candidate pure factory",
+      "Store atomic candidate plus ProductionWeaponHighArtifactRecord commit",
+      "exact replay, conflict, tamper, CAS reachability and restart readback seam",
+      "Runtime internal materializer"
+    ]
+  },
+  "stage_policy": {
+    "parent_head_binding": "PASS_SOURCE",
+    "camera_lock_deep_readback": "PASS_SOURCE",
+    "production_weapon_form_quality_v2_deep_readback": "PASS_SOURCE",
+    "form_art_deep_readback": "PASS_SOURCE",
+    "cas_and_lineage_binding": "PASS_SOURCE",
+    "required_visual_status": "PASS_STAGE_VISUAL_STRUCTURE_ONLY",
+    "required_quality_status": "PASS_FORM_GATE",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN"
+  },
+  "formal_high_status": {
+    "pure_factory": "PASS_FOCUSED",
+    "store_atomic_seam": "PASS_FOCUSED",
+    "store_validated_row_commit_replay_conflict_tamper_reopen": "PASS_1_OF_1",
+    "runtime_internal_materializer": "PASS_COMPILE_FOCUSED",
+    "runtime_materializer_input": "TRANSITION_IDENTITY_PLUS_HIGH_CANDIDATE_AND_REQUEST_HASH_ONLY",
+    "runtime_derived_scope": "SESSION_PROJECT_CANDIDATE_STATE_READBACK_RECEIPT",
+    "monolithic_request_hash_cycle": "REMOVED_FROM_INTERNAL_MATERIALIZER",
+    "full_positive_restart_fixture": "NOT_RUN",
+    "public_prepare_get": "NOT_EXPOSED",
+    "capability_acceptance": "NOT_PROVEN"
+  },
+  "verification": [
+    {
+      "command": "cargo check -p forgecad-store",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo check -p forgecad-runtime",
+      "result": "PASS_WITH_PREEXISTING_DEAD_CODE_WARNINGS"
+    },
+    {
+      "command": "cargo test --quiet -p forgecad-store production_stage_transition_v3 --lib",
+      "result": "PASS_4_OF_4"
+    },
+    {
+      "command": "cargo test --quiet -p forgecad-runtime production_stage_transition_v3 --lib",
+      "result": "PASS_2_OF_2"
+    },
+    {
+      "command": "cargo test --quiet -p forgecad-store production_weapon_formal_high::tests --lib",
+      "result": "PASS_3_OF_3"
+    },
+    {
+      "command": "cargo test --quiet -p forgecad-runtime production_weapon_formal_high_factory::tests --lib",
+      "result": "PASS_3_OF_3"
+    },
+    {
+      "command": "cargo test --quiet -p forgecad-runtime production_weapon_formal_high::tests --lib",
+      "result": "PASS_2_OF_2"
+    }
+  ],
+  "public_surface": {
+    "schema_count": 511,
+    "operator_count": 28,
+    "read_tool_count": 110,
+    "write_tool_count": 82,
+    "total_tool_count": 192,
+    "changed_by_this_slice": false
+  },
+  "real_d1_truth": {
+    "persistent_write_performed": false,
+    "stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "fps_high_05": "NOT_PASSED",
+    "visual": "QUALITY_TARGET_NOT_MET",
+    "human": "NOT_RUN",
+    "engine": "NOT_RUN",
+    "distribution": "NOT_RUN",
+    "commercial": "NOT_PROVEN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "confirm": "NOT_RUN",
+    "version": "NOT_RUN",
+    "export": "NOT_RUN"
+  },
+  "limitations": [
+    "Focused source and compile evidence does not prove a complete positive Form Stage transition fixture.",
+    "The Store positive fixture starts after source-lineage and CAS-content validation; it proves atomic row commit, exact replay, conflict rollback, disk reopen and payload-tamper detection, not the full Runtime producer chain.",
+    "Formal High has an internal materialization seam but no complete positive restart receipt and no independent public typed tool surface.",
+    "The internal materializer no longer accepts caller-supplied session/project scope, candidate-state, formal-readback or receipt output hashes; it derives scope from the exact Stage transition and the future public adapter must preserve this acyclic boundary.",
+    "No visual, human, commercial-engine, distribution, packaged, confirmation, version or export gate is promoted."
+  ]
+}

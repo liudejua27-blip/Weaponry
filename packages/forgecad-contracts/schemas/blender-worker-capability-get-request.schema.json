@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/blender-worker-capability-get-request.schema.json",
+  "title": "BlenderWorkerCapabilityGetRequest@1",
+  "description": "Closed read-only lookup for the fixed Blender headless Worker evaluation capability.",
+  "$comment": "The lookup is key-bound to the single ADR-0028 evaluation capability and accepts no executable, filesystem, network, or caller-selected Worker input.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "capability_id"],
+  "properties": {
+    "schema_version": {"const": "BlenderWorkerCapabilityGetRequest@1"},
+    "capability_id": {"const": "blender-headless-worker-evaluation"}
+  }
+}

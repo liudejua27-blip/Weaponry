@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-evidence-view.schema.json",
+  "title": "ProductionWeaponFormEvidenceView@1",
+  "description": "One Runtime-owned, independently persisted reviewed-view evidence projection. It is bound to one candidate/artifact/reference/view/camera/RenderSet and reports three typed observations without asserting visual quality or advancing ProductionStage@3.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "candidate_id", "candidate_state_sha256", "artifact_id",
+    "artifact_sha256", "view_kind", "view_id", "reference_id", "reference_sha256",
+    "camera_hash", "camera_canonical_sha256", "render_set_object_sha256",
+    "render_set_canonical_sha256", "render_set_view_id", "part_id_evidence",
+    "negative_space_evidence", "line_flow_evidence", "view_observation_status",
+    "quality_status", "receipt_object_sha256", "canonical_sha256", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormEvidenceView@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "view_kind": {"enum": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+    "view_id": {"$ref": "#/$defs/id"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "camera_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set_view_id": {"$ref": "#/$defs/id"},
+    "part_id_evidence": {"$ref": "#/$defs/part_id_evidence"},
+    "negative_space_evidence": {"$ref": "#/$defs/negative_space_evidence"},
+    "line_flow_evidence": {"$ref": "#/$defs/line_flow_evidence"},
+    "view_observation_status": {"enum": ["observed", "inferred", "unknown"]},
+    "quality_status": {"const": "NOT_PROVEN"},
+    "receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "minLength": 1, "maxLength": 128},
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_kind", "observation_status", "quality_status"],
+      "properties": {
+        "evidence_kind": {"enum": ["part-id", "negative-space", "line-flow"]},
+        "observation_status": {"enum": ["observed", "inferred", "unknown"]},
+        "quality_status": {"const": "NOT_PROVEN"}
+      }
+    },
+    "part_id_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observation", "expected_part_ids", "observed_part_ids", "missing_part_ids", "unexpected_part_ids", "coverage_milli"],
+      "properties": {
+        "observation": {"allOf": [{"$ref": "#/$defs/observation"}, {"properties": {"evidence_kind": {"const": "part-id"}}}]},
+        "expected_part_ids": {"type": "array", "minItems": 0, "maxItems": 512, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "observed_part_ids": {"type": "array", "minItems": 0, "maxItems": 512, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "missing_part_ids": {"type": "array", "minItems": 0, "maxItems": 512, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "unexpected_part_ids": {"type": "array", "minItems": 0, "maxItems": 512, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "coverage_milli": {"type": "integer", "minimum": 0, "maximum": 1000}
+      }
+    },
+    "negative_space_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observation", "expected_count", "observed_count", "missing_count", "sealed_count", "coverage_milli"],
+      "properties": {
+        "observation": {"allOf": [{"$ref": "#/$defs/observation"}, {"properties": {"evidence_kind": {"const": "negative-space"}}}]},
+        "expected_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "observed_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "missing_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "sealed_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "coverage_milli": {"type": "integer", "minimum": 0, "maximum": 1000}
+      }
+    },
+    "line_flow_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observation", "expected_count", "observed_count", "coverage_milli", "continuity_milli", "deviation_milli"],
+      "properties": {
+        "observation": {"allOf": [{"$ref": "#/$defs/observation"}, {"properties": {"evidence_kind": {"const": "line-flow"}}}]},
+        "expected_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "observed_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "coverage_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "continuity_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "deviation_milli": {"type": "integer", "minimum": 0, "maximum": 100000}
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "schema_version": "ProductionWeaponFormArtFreshBaselineProducerSourceGateReceipt@1",
+  "task_id": "FPS-FORM-04AL",
+  "recorded_on": "2026-08-27",
+  "status": "PASS_SOURCE_COMPILE_DURABLE_PRODUCER_NOT_RUN_REAL_D1",
+  "scope": "Runtime-owned fresh same-cohort six-view FormArt baseline producer",
+  "contract_surface": {
+    "schema_count": 538,
+    "read_tool_count": 118,
+    "write_tool_count": 88,
+    "total_tool_count": 206,
+    "prepare_tool": "production_weapon_form_art_baseline_prepare",
+    "get_tool": "production_weapon_form_art_baseline_get",
+    "view_order": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "top",
+      "rear-three-quarter"
+    ],
+    "aov_order": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "ao",
+      "part-id",
+      "material-id",
+      "wireframe",
+      "uv-stretch"
+    ]
+  },
+  "source_gate": {
+    "contracts_check": "PASS_538_SCHEMAS",
+    "cargo_check_contracts_store_runtime_mcp": "PASS",
+    "cargo_build_runtime_mcp": "PASS",
+    "mcp_manifest_summary": "PASS_118_READ_88_WRITE_206_TOTAL",
+    "single_transaction_store_commit": true,
+    "idempotent_replay_before_worker": true,
+    "same_worker_cohort_required": true,
+    "fixed_512_nine_aov_required": true,
+    "full_derived_cas_reachability_bound": true,
+    "restart_readback_surface_present": true,
+    "historical_form_art_reused": false,
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "truth_boundaries": {
+    "real_d1_prepare": "NOT_RUN_BLOCKED_USER_ORIENTATION_APPROVAL",
+    "real_d1_get_after_restart": "NOT_RUN",
+    "fresh_baseline_materialized": false,
+    "notch_prepare": "NOT_RUN",
+    "secondary_form_approved": "NOT_CREATED",
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "persistent_user_data_touched": false
+  },
+  "source_hashes": {
+    "contract_rust_sha256": "3547379d4ce4c076fab200207caea2a0d8c51acf1dfca2993200b28af6a3bfda",
+    "baseline_schema_sha256": "f8a09ba683d755a590dad707d15b7638b617777f39586d62e3de861cc11d5203",
+    "contract_manifest_sha256": "3753bc784c28bf40debadfc5d5f6da42000a1152976eee9748b685a34a986fc7",
+    "store_module_sha256": "e42a8158f6dfe497b7c479784abf262dbbcb5fa6a97cd2cbc5c43519812ed368",
+    "store_lib_sha256": "d439f4fed25278a5f2902793170b1e4bc7ac969949c66ad851273a5723e1575c",
+    "runtime_module_sha256": "54ca642a56d61fce6e39189ee7f43d579e9cf6270852e4108b8663e046645be1",
+    "runtime_lib_sha256": "de013ae17effc66a96fdecc595aeff8d6d8a0f566df6393d3fb3c070e1b5352f",
+    "mcp_tools_sha256": "d893601dc74991aa8051828521de94c261f3b8d2c9b1ef1d753b31ea399fea32",
+    "mcp_main_sha256": "c008413ce58ee17f9a330e5dacaa2057d16bd13193994ada189f7d623a9da47f",
+    "tool_summary_sha256": "116d75ba4ae7345a5bd3c88fee07b7fac6a6ff1b45df016a6b83645d936ea3ac"
+  },
+  "canonical_sha256": "3aeef89e471834bb93df1112cccf58e769f5a73a2de5292d1d4c95755064a524"
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": "FpsFoundationTemplate@1",
+  "template_id": "forgecad-fictional-rifle-fps-foundation",
+  "status": "DRAFT_UNREVIEWED",
+  "source_assets": ["pichuliru-weapon-west", "wrad-arms", "lightning-low-pbr"],
+  "intent": "Derive a ForgeCAD-owned fictional weapon rig and first-person presentation skeleton without inheriting source dimensions or functional construction",
+  "weapon_semantics": {
+    "root_candidates": ["Rifle_Assault_West.Rig", "Rifle_Assault_West"],
+    "movable_parts": {
+      "magazine": "Magazine",
+      "trigger": "Trigger",
+      "selector": "Selector",
+      "bolt": "Bolt",
+      "stock": "Stock",
+      "charging_handle": "Charging Handle",
+      "magazine_release": "Magazine Release"
+    },
+    "source_socket_map": {
+      "Attach_Scope": "optic",
+      "Attach_Muzzle": "muzzle",
+      "Attach_Rail.Top": "rail_top",
+      "Attach_Rail.Bottom": "rail_bottom",
+      "Attach_Rail.SideLeft": "rail_left",
+      "Attach_Rail.SideRight": "rail_right"
+    },
+    "forgecad_required_sockets_missing_from_source": ["left_grip", "right_grip", "mag_eject", "shell_eject", "vfx_origin", "audio_origin"]
+  },
+  "armature_semantics": {
+    "root": "root",
+    "left_grip_candidate": "socket.l",
+    "right_grip_candidate": "socket.r",
+    "left_wrist_ik": "wrist_ik.l",
+    "right_wrist_ik": "wrist_ik.r",
+    "left_arm_target": "arm_target.l",
+    "right_arm_target": "arm_target.r",
+    "rest_pose_hash": "TO_BE_DERIVED_BY_TYPED_IMPORTER"
+  },
+  "production_benchmark": {
+    "asset": "lightning-low-pbr",
+    "observed_nodes": ["Root", "Pin", "Pump", "Hammer", "Trigger", "LoadingGate", "Lifter"],
+    "observed_clips": ["Fire", "Pump"],
+    "observed_pbr_images": ["NormalsLow", "BaseColorLow", "MetalnessLow-RoughnessLow"],
+    "observed_triangles": 3046,
+    "reference_only_high_source": true,
+    "use": "readback and quality benchmark only; do not inherit source dimensions or visual identity"
+  },
+  "required_presentation_clips": ["idle", "equip", "fire_recoil", "reload", "inspect", "ads_in", "ads_out", "sprint", "holster"],
+  "source_animation_clips": [],
+  "promotion_eligible": false,
+  "promotion_blockers": [
+    "typed coordinate and unit normalization unavailable",
+    "weapon-to-arm rest-pose binding unavailable",
+    "complete required FPS clips and event markers unavailable",
+    "ForgeCAD-owned editable High-Low-UV-Cage-Bake lineage unavailable",
+    "independent Hero Art Review not run"
+  ]
+}

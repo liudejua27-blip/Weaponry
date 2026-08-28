@@ -780,8 +780,9 @@ pub fn inspect_glb(glb: &[u8]) -> Result<GlbIntegrity, GeometryError> {
                     add3(triangle_normals[0], triangle_normals[1]),
                     triangle_normals[2],
                 ));
+                let normalized_face = scale3(face, 1.0 / face_length);
                 if length3(normal_average) <= f32::EPSILON
-                    || dot3(normalize3(face), normal_average) <= 0.0
+                    || dot3(normalized_face, normal_average) <= 0.0
                 {
                     metrics.winding_error_count += 1;
                 }
@@ -885,7 +886,13 @@ pub fn inspect_glb(glb: &[u8]) -> Result<GlbIntegrity, GeometryError> {
                     }
                 }
                 2 => {
-                    if directions[0] == directions[1] {
+                    // A non-solid review representation may contain separate
+                    // hard-surface shells that touch at the same quantized
+                    // position without declaring a welded solid. Per-triangle
+                    // normal/winding validation above still applies; the
+                    // closed-edge orientation rule is meaningful only when
+                    // the Part explicitly claims solid topology.
+                    if part.solid && directions[0] == directions[1] {
                         metrics.winding_error_count += 1;
                     }
                 }
@@ -2374,6 +2381,7 @@ pub struct TopologyCornerSource {
 
 #[derive(Debug, Clone)]
 pub struct TopologyTriangleSource {
+    pub part_id: String,
     pub corners: [TopologyCornerSource; 3],
     pub source_node_id: String,
     pub material_zone_id: String,
@@ -2383,6 +2391,184 @@ pub struct TopologyTriangleSource {
 #[derive(Debug, Clone)]
 pub struct TopologyPartMesh {
     pub triangles: Vec<TopologyTriangleSource>,
+}
+
+/// Ordered, read-only topology used by the independent geometric bake Worker
+/// operation.  Unlike `TopologyPartMesh`, this view is not capped to one
+/// Runtime projection Part; it preserves the semantic Part on every triangle
+/// so the bake can build a deterministic low/cage correspondence and filter
+/// high-ray queries by Part without consulting Runtime/Store state.
+#[derive(Debug, Clone)]
+pub struct TopologyMesh {
+    pub triangles: Vec<TopologyTriangleSource>,
+}
+
+/// Ordered primitive-level geometry used by the independent High/Low/Cage
+/// diagnostic.  This view is intentionally smaller than the surface/appearance
+/// paths: it retains only decoded positions, indices and semantic lineage.  It
+/// is not an authoring mesh, a persistent element identity projection, or a
+/// surface-bake input.
+#[derive(Debug, Clone)]
+pub struct DiagnosticPrimitive {
+    pub part_id: String,
+    pub source_node_id: String,
+    pub material_zone_id: String,
+    pub solid: bool,
+    pub positions: Vec<[f32; 3]>,
+    pub indices: Vec<u32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DiagnosticMesh {
+    pub primitives: Vec<DiagnosticPrimitive>,
+    pub triangle_count: usize,
+}
+
+/// Decode a bounded, ordered primitive list for the independent High/Low/Cage
+/// diagnostic.  The caller must separately admit the GLB through
+/// `inspect_glb`; this helper still rechecks the payload it consumes so a
+/// malformed accessor cannot become a partial correspondence result.
+pub fn extract_diagnostic_mesh(
+    glb: &[u8],
+    max_triangle_count: usize,
+) -> Result<DiagnosticMesh, GeometryError> {
+    if max_triangle_count == 0 {
+        return Err(GeometryError::Invalid(
+            "high/low/cage diagnostic triangle budget is empty".to_owned(),
+        ));
+    }
+    let max_vertex_count = max_triangle_count.checked_mul(3).ok_or_else(|| {
+        GeometryError::Invalid("high/low/cage diagnostic vertex budget overflows".to_owned())
+    })?;
+    let (root, binary) = parse_glb(glb)?;
+    let meshes = required_array(&root, "meshes")?;
+    let nodes = required_array(&root, "nodes")?;
+    let accessors = required_array(&root, "accessors")?;
+    let views = required_array(&root, "bufferViews")?;
+    let mut primitives = Vec::new();
+    let mut triangle_count = 0usize;
+    let mut lineage_metrics = Metrics::default();
+
+    for (mesh_index, mesh) in meshes.iter().enumerate() {
+        let mesh_object = mesh.as_object().ok_or_else(|| {
+            GeometryError::Invalid("diagnostic GLB mesh is not an object".to_owned())
+        })?;
+        let mesh_lineage = mesh_object.get("extras").and_then(Value::as_object);
+        let node_lineages = matching_node_lineages(nodes, mesh_index);
+        if node_lineages.len() != 1 {
+            return Err(GeometryError::Invalid(
+                "diagnostic GLB mesh must have exactly one lineage node".to_owned(),
+            ));
+        }
+        let primitives_value = mesh_object
+            .get("primitives")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                GeometryError::Invalid("diagnostic GLB primitive list is missing".to_owned())
+            })?;
+        if primitives_value.is_empty() {
+            return Err(GeometryError::Invalid(
+                "diagnostic GLB mesh has no primitives".to_owned(),
+            ));
+        }
+        for primitive in primitives_value {
+            let primitive_object = primitive.as_object().ok_or_else(|| {
+                GeometryError::Invalid("diagnostic GLB primitive is not an object".to_owned())
+            })?;
+            let primitive_lineage = primitive_object.get("extras").and_then(Value::as_object);
+            let lineage = merge_lineage(
+                mesh_lineage,
+                node_lineages.first(),
+                primitive_lineage,
+                &mut lineage_metrics,
+            )
+            .complete()
+            .ok_or_else(|| {
+                GeometryError::Invalid("diagnostic GLB primitive lineage is incomplete".to_owned())
+            })?;
+            let attributes = primitive_object
+                .get("attributes")
+                .and_then(Value::as_object)
+                .ok_or_else(|| {
+                    GeometryError::Invalid(
+                        "diagnostic GLB primitive attributes are missing".to_owned(),
+                    )
+                })?;
+            let position_accessor = required_index(attributes, "POSITION")?;
+            let index_accessor = primitive_object
+                .get("indices")
+                .and_then(Value::as_u64)
+                .and_then(|value| usize::try_from(value).ok())
+                .ok_or_else(|| {
+                    GeometryError::Invalid("diagnostic GLB index accessor is missing".to_owned())
+                })?;
+            let positions = read_vec3(&accessors, &views, binary, position_accessor)?;
+            let indices = read_indices(&accessors, &views, binary, index_accessor)?;
+            if positions.is_empty() || positions.len() > max_vertex_count {
+                return Err(GeometryError::Invalid(
+                    "diagnostic GLB primitive exceeds its bounded vertex budget".to_owned(),
+                ));
+            }
+            if indices.is_empty() || indices.len() % 3 != 0 {
+                return Err(GeometryError::Invalid(
+                    "diagnostic GLB primitive has an invalid triangle payload".to_owned(),
+                ));
+            }
+            let primitive_triangles = indices.len() / 3;
+            triangle_count = triangle_count
+                .checked_add(primitive_triangles)
+                .ok_or_else(|| {
+                    GeometryError::Invalid("diagnostic GLB triangle count overflows".to_owned())
+                })?;
+            if triangle_count > max_triangle_count {
+                return Err(GeometryError::Invalid(
+                    "diagnostic GLB exceeds its bounded triangle budget".to_owned(),
+                ));
+            }
+            if positions.iter().any(|position| !finite3(*position))
+                || indices
+                    .iter()
+                    .any(|index| *index as usize >= positions.len())
+            {
+                return Err(GeometryError::Invalid(
+                    "diagnostic GLB contains a non-finite or out-of-range vertex".to_owned(),
+                ));
+            }
+            for triangle in indices.chunks_exact(3) {
+                let a = positions[triangle[0] as usize];
+                let b = positions[triangle[1] as usize];
+                let c = positions[triangle[2] as usize];
+                let area = length3(cross3(sub3(b, a), sub3(c, a)));
+                if !area.is_finite() || area <= DEGENERATE_AREA_EPSILON {
+                    return Err(GeometryError::Invalid(
+                        "diagnostic GLB contains a degenerate triangle".to_owned(),
+                    ));
+                }
+            }
+            primitives.push(DiagnosticPrimitive {
+                part_id: lineage.part_id,
+                source_node_id: lineage.source_node_id,
+                material_zone_id: lineage.material_zone_id,
+                solid: lineage.solid,
+                positions,
+                indices,
+            });
+        }
+    }
+    if primitives.is_empty() || triangle_count == 0 {
+        return Err(GeometryError::Invalid(
+            "diagnostic GLB contains no analyzable primitives".to_owned(),
+        ));
+    }
+    if lineage_metrics.metadata_mismatch_count != 0 {
+        return Err(GeometryError::Invalid(
+            "diagnostic GLB lineage metadata conflicts".to_owned(),
+        ));
+    }
+    Ok(DiagnosticMesh {
+        primitives,
+        triangle_count,
+    })
 }
 
 /// Decode one bounded Part for the Runtime-owned `TopologySnapshot@1`
@@ -2401,6 +2587,36 @@ pub fn extract_topology_part_mesh(
         ));
     }
 
+    let mesh =
+        extract_topology_mesh_bounded(glb, max_face_count, Some(requested_part_id), "topology")?;
+    Ok(TopologyPartMesh {
+        triangles: mesh.triangles,
+    })
+}
+
+/// Decode all static triangles needed by the Worker-only geometric bake.  The
+/// same strict accessor/lineage/finite/degenerate checks as the Runtime
+/// topology projection are retained, but the explicit budget is independent
+/// of the Runtime's 512-face-per-Part projection cap.
+pub fn extract_topology_mesh(
+    glb: &[u8],
+    max_face_count: usize,
+) -> Result<TopologyMesh, GeometryError> {
+    const MAX_BAKE_FACES: usize = 250_000;
+    if max_face_count == 0 || max_face_count > MAX_BAKE_FACES {
+        return Err(GeometryError::Invalid(
+            "geometric bake topology exceeds the bounded face budget".to_owned(),
+        ));
+    }
+    extract_topology_mesh_bounded(glb, max_face_count, None, "bake")
+}
+
+fn extract_topology_mesh_bounded(
+    glb: &[u8],
+    max_face_count: usize,
+    requested_part_id: Option<&str>,
+    label: &str,
+) -> Result<TopologyMesh, GeometryError> {
     let (root, binary) = parse_glb(glb)?;
     let meshes = required_array(&root, "meshes")?;
     let nodes = required_array(&root, "nodes")?;
@@ -2434,11 +2650,11 @@ pub fn extract_topology_part_mesh(
                 &mut lineage_metrics,
             );
             let Some(lineage) = lineage.complete() else {
-                return Err(GeometryError::Invalid(
-                    "topology GLB lineage is incomplete".to_owned(),
-                ));
+                return Err(GeometryError::Invalid(format!(
+                    "{label} GLB lineage is incomplete"
+                )));
             };
-            if lineage.part_id != requested_part_id {
+            if requested_part_id.is_some_and(|part_id| lineage.part_id != part_id) {
                 continue;
             }
             let attributes = primitive_object
@@ -2495,10 +2711,13 @@ pub fn extract_topology_part_mesh(
             }
             for triangle in indices.chunks_exact(3) {
                 if triangles.len() >= max_face_count {
-                    return Err(GeometryError::Invalid(
+                    return Err(GeometryError::Invalid(if requested_part_id.is_some() {
                         "TOPOLOGY_SNAPSHOT_BUDGET_EXCEEDED: Part face count exceeds max_face_count"
-                            .to_owned(),
-                    ));
+                            .to_owned()
+                    } else {
+                        "GEOMETRIC_BAKE_TOPOLOGY_BUDGET_EXCEEDED: face count exceeds max_face_count"
+                            .to_owned()
+                    }));
                 }
                 let indices = [
                     triangle[0] as usize,
@@ -2536,6 +2755,7 @@ pub fn extract_topology_part_mesh(
                     ));
                 }
                 triangles.push(TopologyTriangleSource {
+                    part_id: lineage.part_id.clone(),
                     corners,
                     source_node_id: lineage.source_node_id.clone(),
                     material_zone_id: lineage.material_zone_id.clone(),
@@ -2545,16 +2765,18 @@ pub fn extract_topology_part_mesh(
         }
     }
     if triangles.is_empty() {
-        return Err(GeometryError::Invalid(
-            "TOPOLOGY_PART_NOT_FOUND: requested Part has no triangles".to_owned(),
-        ));
+        return Err(GeometryError::Invalid(if requested_part_id.is_some() {
+            "TOPOLOGY_PART_NOT_FOUND: requested Part has no triangles".to_owned()
+        } else {
+            "geometric bake topology contains no analyzable triangles".to_owned()
+        }));
     }
     if lineage_metrics.metadata_mismatch_count != 0 {
         return Err(GeometryError::Invalid(
             "topology GLB lineage metadata conflicts".to_owned(),
         ));
     }
-    Ok(TopologyPartMesh { triangles })
+    Ok(TopologyMesh { triangles })
 }
 
 /// Decode the product-owned static mesh needed for bounded surface signals.

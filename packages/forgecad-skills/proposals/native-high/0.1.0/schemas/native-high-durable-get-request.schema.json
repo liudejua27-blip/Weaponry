@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/native-high-durable-get-request.schema.json",
+  "title": "NativeHighDurableGetRequest@1",
+  "description": "Closed read-only lookup for one Runtime-owned source-only Native High durable link. It is hash-bound to project/candidate/base and cannot write, promote, confirm, version or export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "candidate_id", "candidate_state_sha256", "base_version_id",
+    "link_id", "link_object_sha256", "source_authoring_mesh_id", "source_authoring_mesh_sha256",
+    "detail_graph_canonical_sha256", "artifact_id", "artifact_sha256", "glb_sha256", "idempotency_key",
+    "source_only", "writer_policy", "runtime_write_performed", "persistent_user_data_touched", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "NativeHighDurableGetRequest@1"},
+    "operation": {"const": "forgecad.production.native-high-durable-get@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "base_version_id": {"$ref": "#/$defs/nullable_id"},
+    "link_id": {"$ref": "#/$defs/id"},
+    "link_object_sha256": {"$ref": "#/$defs/sha256"},
+    "source_authoring_mesh_id": {"$ref": "#/$defs/id"},
+    "source_authoring_mesh_sha256": {"$ref": "#/$defs/sha256"},
+    "detail_graph_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "glb_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "source_only": {"const": true},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+    "nullable_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

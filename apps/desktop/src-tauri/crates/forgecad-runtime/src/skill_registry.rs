@@ -16,8 +16,12 @@ const ARCHIVE_MAGIC: &[u8; 8] = b"FCBNDL01";
 // Keep the runtime trust parser aligned with build.rs. The archive contains
 // both active first-party Bundle files and the closed contract schema set.
 // Must match the build-time archive ceiling in `build.rs`.
-const MAX_ARCHIVE_FILES: usize = 768;
-const MAX_ARCHIVE_BYTES: usize = 2 * 1024 * 1024;
+const MAX_ARCHIVE_FILES: usize = 896;
+// Match build.rs: 3 MiB is the declarative content budget. The archive
+// envelope has a separate bound for magic/count plus per-file path framing.
+const MAX_ARCHIVE_BYTES: usize = 3 * 1024 * 1024;
+const MAX_ARCHIVE_ENVELOPE_BYTES: usize =
+    12 + MAX_ARCHIVE_BYTES + MAX_ARCHIVE_FILES * (2 + 512 + 4);
 const MAX_ARTIFACT_BYTES: usize = 256 * 1024;
 const FORBIDDEN_BUNDLE_SUFFIXES: &[&str] = &[
     ".py", ".js", ".ts", ".sh", ".wasm", ".dylib", ".so", ".dll", ".exe",
@@ -304,7 +308,9 @@ fn bundle_archive() -> Result<&'static BundleArchive, String> {
 }
 
 fn parse_bundle_archive() -> Result<BundleArchive, String> {
-    if BUNDLE_ARCHIVE.len() > MAX_ARCHIVE_BYTES || !BUNDLE_ARCHIVE.starts_with(ARCHIVE_MAGIC) {
+    if BUNDLE_ARCHIVE.len() > MAX_ARCHIVE_ENVELOPE_BYTES
+        || !BUNDLE_ARCHIVE.starts_with(ARCHIVE_MAGIC)
+    {
         return Err("SKILL_UNTRUSTED: embedded bundle archive header is invalid".to_owned());
     }
     let mut cursor = ARCHIVE_MAGIC.len();

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-quality-v2-view.schema.json",
+  "title": "ProductionWeaponFormQualityView@2",
+  "description": "One passing decision joining a legacy FormQuality@1 view to one FormArt@1 view. It contains only hash-bound decision booleans; Runtime must independently verify observed Part-ID and user-confirmed negative-space/line-flow thresholds before emitting this record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["view_kind", "legacy_form_quality_view_id", "legacy_form_quality_view_canonical_sha256", "form_art_view_id", "form_art_view_canonical_sha256", "form_art_view_receipt_object_sha256", "target_object_sha256", "target_canonical_sha256", "silhouette_pass_object_sha256", "part_id_pass_object_sha256", "depth_pass_object_sha256", "normal_pass_object_sha256", "cross_view_thresholds_passed", "no_regression_passed", "part_id_passed", "negative_space_passed", "line_flow_passed", "view_passed"],
+  "properties": {
+    "view_kind": {"enum": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+    "legacy_form_quality_view_id": {"$ref": "#/$defs/id"},
+    "legacy_form_quality_view_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "form_art_view_id": {"$ref": "#/$defs/id"},
+    "form_art_view_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "form_art_view_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "target_object_sha256": {"$ref": "#/$defs/sha256"},
+    "target_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "silhouette_pass_object_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id_pass_object_sha256": {"$ref": "#/$defs/sha256"},
+    "depth_pass_object_sha256": {"$ref": "#/$defs/sha256"},
+    "normal_pass_object_sha256": {"$ref": "#/$defs/sha256"},
+    "cross_view_thresholds_passed": {"const": true}, "no_regression_passed": {"const": true},
+    "part_id_passed": {"const": true}, "negative_space_passed": {"const": true},
+    "line_flow_passed": {"const": true}, "view_passed": {"const": true}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

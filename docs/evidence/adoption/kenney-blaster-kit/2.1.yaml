@@ -1,0 +1,25 @@
+project: kenney-blaster-kit
+source_url: https://kenney.nl/assets/blaster-kit
+download_url: https://kenney.nl/media/pages/assets/blaster-kit/261d80a716-1753959510/kenney_blaster-kit_2.1.zip
+revision: "2.1"
+retrieved_at: 2026-08-27
+license_spdx: CC0-1.0
+archive_sha256: 91e3093e95427d59625e7e2ce2d0399b861600160fd0b4ada7714796b67cea8c
+license_sha256: bece5f4d99cca9dcf86931221a69909862ff6cc95e1735462ee678516a1063e2
+research_status: accepted-evaluation-asset
+selected_files:
+  - path: assets/kenney/blaster-a.glb
+    sha256: d6d6fe0ec5baf21d7717449220799d45b95d2d663ace7b22612b255dc1a8b308
+  - path: assets/kenney/blaster-r.glb
+    sha256: ab0b5f51ecff405238727626d558414750a9946d5e255cd1dc8bf81eebe1f1e2
+accepted_scope:
+  - silhouette-family-reference
+  - blockout-variation-reference
+denied_capabilities:
+  - runtime_candidate_import
+  - active_skill_registration
+  - hero_source_truth
+  - commercial_quality_claim
+package: packages/forgecad-assets/forgecad-fps-production-foundation/0.1.0-proposal
+runtime_allowlist_changed: false
+fallback_or_removal_plan: Remove the two selected GLBs and this receipt; no Runtime state migration is required.

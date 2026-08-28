@@ -1,0 +1,77 @@
+{
+  "schema_version": "ForgeCADProductionWeaponFormArtHashBoundRasterAttributionSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "captured_at": "2026-08-26",
+  "status": "PASS_SOURCE_HASH_BOUND_REAL_D1_NOT_RUN",
+  "scope": "fictional-nonfunctional-game-weapon-visual-asset-only",
+  "public_surface": {
+    "tool": "production_weapon_form_art_evidence_get",
+    "new_tool_added": false,
+    "optional_request_schema": "ProductionWeaponRasterSourceAttributionDiagnosticGetRequest@1",
+    "optional_result_schema": "ProductionWeaponRasterSourceAttributionDiagnosticGetResult@1",
+    "read_only": true,
+    "runtime_write": false,
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "runtime_binding": {
+    "caller_camera_or_mask_accepted": false,
+    "outer_form_art_receipt_hash_bound": true,
+    "candidate_state_and_artifact_bound": true,
+    "artifact_readback_hash_bound": true,
+    "reference_canvas_design_spec_target_bound": true,
+    "registered_camera_lock_and_rig_bound": true,
+    "form_evidence_view_and_render_set_bound": true,
+    "target_and_projected_mask_hashes_bound": true,
+    "triangle_id_and_source_table_hashes_bound": true,
+    "semantic_part_source_node_lineage_material_zone_bound": true,
+    "mesh_and_primitive_indices_exposed": true,
+    "owner_delta_status": "NOT_APPLICABLE_SINGLE_CANDIDATE",
+    "quality_status": "NOT_PROVEN",
+    "promotable": false
+  },
+  "focused_evidence": {
+    "mcp_compile": "PASS",
+    "contracts": "PASS_515_SCHEMAS",
+    "runtime_request_and_ranking_tests": "PASS_2_OF_2",
+    "mcp_closed_optional_input_test": "PASS_1_OF_1",
+    "render_core_part_id_alignment_test": "PASS_1_OF_1",
+    "render_worker_zero_write_transport_test": "PASS_1_OF_1",
+    "formal_high_or_form_stage_positive_receipt": "NOT_RUN",
+    "real_d1_execution": "NOT_RUN_BLOCKED_NO_DURABLE_FORM_ART_INPUT_IN_DISCOVERED_INSTALLED_RUNTIME_STORES",
+    "human_visual_review": "NOT_RUN",
+    "engine_validation": "NOT_RUN",
+    "commercial_quality": "NOT_PROVEN"
+  },
+  "source_files": [
+    {"path": "apps/render-core/src/lib.rs", "sha256": "6b6d4cd56c14e14d5c0dc1071bea238c2f5bd032877aa61e8589f08299b4891d"},
+    {"path": "apps/render-worker/src/main.rs", "sha256": "6b68d028986d992682ba0eb0e02f73ac8ba13c6a0b0e1b8eefffdd7427dc1cae"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/render_worker.rs", "sha256": "350d9ade61cffca9a195d3f49bacefe7fbda210956e6657d5b418cdc314c8ea2"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_form_art_evidence.rs", "sha256": "a925d75386b16e9aa54cb2ed0b25f0cc10144302cfdf299278fddffdcfb4d186"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools.rs", "sha256": "f88e363fdddc2da53368ee51699e532a46e172b259fe84c4301e73515c808bf7"},
+    {"path": "packages/forgecad-contracts/schemas/production-weapon-form-art-evidence-get-request.schema.json", "sha256": "e2013deb4056f92028199c7307d8490551811c1bc9a81f4b1283b0ebba744bd8"},
+    {"path": "packages/forgecad-contracts/schemas/production-weapon-form-art-evidence-get-result.schema.json", "sha256": "33e30f9c23bd4d781ef219528e0a944f8e7f32bbb86e869e4968cfc8610612b3"}
+  ],
+  "inventory": {
+    "schemas": 515,
+    "operator_entries": 28,
+    "read_tools": 111,
+    "opt_in_write_tools": 83,
+    "total_tools": 194,
+    "schema_content_set_sha256": "1c3cc8967aa6ee1a762f16dc0ec9718eacc5a098c8ed2567c4d665a4f0e1c8d0",
+    "tool_summary_canonical_sha256": "2a1c4af3de6bdae15774be76ad45cd81fcacc05f9075cb4101bdb2a298b9c922",
+    "read_manifest_sha256": "b93fd259861c4cca6e32598473ef27b4443c60a018a101ee180ef784f19ca55f",
+    "write_enabled_manifest_sha256": "f34d115252149f8854cbb4cffc2637cf4eba08490708bdf9085e3b8005970b60"
+  },
+  "authoritative_state": {
+    "production_stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "fps_high_05": "NOT_PASSED",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "human_engine_distribution": "NOT_RUN",
+    "commercial_quality": "NOT_PROVEN"
+  }
+}

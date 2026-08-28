@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-stage-head-v3.schema.json",
+  "title": "ProductionStageHead@3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_id",
+    "project_id",
+    "root_candidate_id",
+    "root_candidate_role",
+    "root_candidate_state_sha256",
+    "source_artifact_id",
+    "root_artifact_sha256",
+    "root_stage",
+    "previous_head_candidate_id",
+    "previous_head_candidate_role",
+    "previous_head_candidate_state_sha256",
+    "previous_head_artifact_id",
+    "previous_head_artifact_sha256",
+    "previous_head_stage",
+    "head_candidate_id",
+    "head_candidate_role",
+    "head_candidate_state_sha256",
+    "output_artifact_id",
+    "head_artifact_sha256",
+    "head_stage",
+    "candidate_binding_status",
+    "reference_id",
+    "reference_sha256",
+    "camera_hash",
+    "camera_lock_id",
+    "camera_lock_canonical_sha256",
+    "camera_rig_object_sha256",
+    "camera_rig_canonical_sha256",
+    "camera_lock_receipt_object_sha256",
+    "camera_lock_source_transition_id",
+    "camera_lock_source_transition_sha256",
+    "camera_lock_source_head_canonical_sha256",
+    "evidence_sha256",
+    "reference_canvas_object_sha256",
+    "quality_report_object_sha256",
+    "comparison_report_object_sha256",
+    "design_spec_object_sha256",
+    "visual_receipt_object_sha256",
+    "human_review_receipt_object_sha256",
+    "engine_validation_receipt_object_sha256",
+    "distribution_receipt_object_sha256",
+    "structural_status",
+    "visual_status",
+    "human_status",
+    "engine_status",
+    "distribution_status",
+    "approval_receipt_id",
+    "approval_session_id",
+    "approval_expires_at",
+    "approval_summary_sha256",
+    "head_transition_id",
+    "head_transition_sha256",
+    "compatibility_projection",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "materialization_status",
+    "canonical_sha256",
+    "payload_json",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionStageHead@3"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "root_candidate_id": {"$ref": "#/$defs/id"},
+    "root_candidate_role": {"$ref": "#/$defs/id"},
+    "root_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_id": {"$ref": "#/$defs/id"},
+    "root_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "root_stage": {"$ref": "#/$defs/stage"},
+    "previous_head_candidate_id": {"$ref": "#/$defs/id"},
+    "previous_head_candidate_role": {"$ref": "#/$defs/id"},
+    "previous_head_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "previous_head_artifact_id": {"$ref": "#/$defs/id"},
+    "previous_head_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "previous_head_stage": {"$ref": "#/$defs/stage"},
+    "head_candidate_id": {"$ref": "#/$defs/id"},
+    "head_candidate_role": {"$ref": "#/$defs/id"},
+    "head_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "output_artifact_id": {"$ref": "#/$defs/id"},
+    "head_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "head_stage": {"$ref": "#/$defs/stage"},
+    "candidate_binding_status": {"$ref": "#/$defs/candidate_binding_status"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "camera_lock_id": {"$ref": "#/$defs/nullable_id"},
+    "camera_lock_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_rig_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_rig_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_lock_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_lock_source_transition_id": {"$ref": "#/$defs/nullable_id"},
+    "camera_lock_source_transition_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_lock_source_head_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_canvas_object_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "comparison_report_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "design_spec_object_sha256": {"$ref": "#/$defs/sha256"},
+    "visual_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "human_review_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "engine_validation_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "distribution_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "structural_status": {"$ref": "#/$defs/structural_status"},
+    "visual_status": {"$ref": "#/$defs/visual_status"},
+    "human_status": {"$ref": "#/$defs/human_status"},
+    "engine_status": {"$ref": "#/$defs/engine_status"},
+    "distribution_status": {"$ref": "#/$defs/distribution_status"},
+    "approval_receipt_id": {"$ref": "#/$defs/id"},
+    "approval_session_id": {"$ref": "#/$defs/id"},
+    "approval_expires_at": {"$ref": "#/$defs/epoch"},
+    "approval_summary_sha256": {"$ref": "#/$defs/sha256"},
+    "head_transition_id": {"$ref": "#/$defs/id"},
+    "head_transition_sha256": {"$ref": "#/$defs/sha256"},
+    "compatibility_projection": {"$ref": "#/$defs/compatibility_projection"},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "materialization_status": {"const": "runtime-owned-durable-production-stage-head-v3"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "payload_json": {"type": "string", "minLength": 2, "maxLength": 262144},
+    "updated_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "previous_head_stage": {"const": "reference-intake"},
+          "head_stage": {"const": "reference-coverage-reviewed"}
+        },
+        "required": ["previous_head_stage", "head_stage"]
+      },
+      "then": {
+        "properties": {
+          "camera_lock_id": {"const": null},
+          "camera_lock_canonical_sha256": {"const": null},
+          "camera_rig_object_sha256": {"const": null},
+          "camera_rig_canonical_sha256": {"const": null},
+          "camera_lock_receipt_object_sha256": {"const": null},
+          "camera_lock_source_transition_id": {"const": null},
+          "camera_lock_source_transition_sha256": {"const": null},
+          "camera_lock_source_head_canonical_sha256": {"const": null}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "previous_head_stage": {"const": "reference-coverage-reviewed"},
+          "head_stage": {"const": "camera-calibrated"}
+        },
+        "required": ["previous_head_stage", "head_stage"]
+      },
+      "then": {
+        "properties": {
+          "camera_lock_id": {"$ref": "#/$defs/id"},
+          "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_rig_object_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_rig_canonical_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_lock_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_lock_source_transition_id": {"$ref": "#/$defs/id"},
+          "camera_lock_source_transition_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_lock_source_head_canonical_sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"previous_head_stage": {"const": "camera-calibrated"}, "head_stage": {"const": "blockout-reviewed"}}, "required": ["previous_head_stage", "head_stage"]},
+      "then": {"properties": {"previous_head_stage": {"const":"camera-calibrated"}, "head_stage": {"const":"blockout-reviewed"}, "candidate_binding_status": {"const": "same-candidate-evidence"}, "camera_lock_id": {"$ref":"#/$defs/id"}, "camera_lock_canonical_sha256":{"$ref":"#/$defs/sha256"}, "camera_rig_object_sha256":{"$ref":"#/$defs/sha256"}, "camera_rig_canonical_sha256":{"$ref":"#/$defs/sha256"}, "camera_lock_receipt_object_sha256":{"$ref":"#/$defs/sha256"}, "camera_lock_source_transition_id":{"$ref":"#/$defs/id"}, "camera_lock_source_transition_sha256":{"$ref":"#/$defs/sha256"}, "camera_lock_source_head_canonical_sha256":{"$ref":"#/$defs/sha256"}, "quality_report_object_sha256": {"$ref": "#/$defs/sha256"}, "visual_receipt_object_sha256": {"$ref": "#/$defs/sha256"}, "structural_status": {"const": "PASS_SOURCE_STRUCTURAL"}, "visual_status": {"const": "PASS_STAGE_VISUAL_STRUCTURE_ONLY"}, "human_status": {"const": "NOT_RUN"}, "engine_status": {"const": "NOT_RUN"}, "distribution_status": {"const": "NOT_RUN"}}, "x-forgecad-receipt-kinds": {"quality_report_object_sha256": "ProductionWeaponFormQuality@2", "visual_receipt_object_sha256": "ProductionWeaponFormArtEvidence@1"}}
+    },
+    {
+      "if": {"properties": {"previous_head_stage": {"const": "blockout-reviewed"}, "head_stage": {"const": "primary-form-approved"}}, "required": ["previous_head_stage", "head_stage"]},
+      "then": {"properties": {"previous_head_stage": {"const":"blockout-reviewed"}, "head_stage": {"const":"primary-form-approved"}, "candidate_binding_status": {"const": "same-candidate-evidence"}, "camera_lock_id": {"$ref":"#/$defs/id"}, "camera_lock_canonical_sha256":{"$ref":"#/$defs/sha256"}, "camera_rig_object_sha256":{"$ref":"#/$defs/sha256"}, "camera_rig_canonical_sha256":{"$ref":"#/$defs/sha256"}, "camera_lock_receipt_object_sha256":{"$ref":"#/$defs/sha256"}, "camera_lock_source_transition_id":{"$ref":"#/$defs/id"}, "camera_lock_source_transition_sha256":{"$ref":"#/$defs/sha256"}, "camera_lock_source_head_canonical_sha256":{"$ref":"#/$defs/sha256"}, "quality_report_object_sha256": {"$ref": "#/$defs/sha256"}, "visual_receipt_object_sha256": {"$ref": "#/$defs/sha256"}, "structural_status": {"const": "PASS_SOURCE_STRUCTURAL"}, "visual_status": {"const": "PASS_STAGE_VISUAL_STRUCTURE_ONLY"}, "human_status": {"const": "NOT_RUN"}, "engine_status": {"const": "NOT_RUN"}, "distribution_status": {"const": "NOT_RUN"}}, "x-forgecad-receipt-kinds": {"quality_report_object_sha256": "ProductionWeaponFormQuality@2", "visual_receipt_object_sha256": "ProductionWeaponFormArtEvidence@1"}}
+    },
+    {
+      "if": {"properties": {"previous_head_stage": {"const": "primary-form-approved"}, "head_stage": {"const": "secondary-form-approved"}}, "required": ["previous_head_stage", "head_stage"]},
+      "then": {"properties": {"previous_head_stage": {"const":"primary-form-approved"}, "head_stage": {"const":"secondary-form-approved"}, "candidate_binding_status": {"const": "same-candidate-evidence"}, "camera_lock_id": {"$ref":"#/$defs/id"}, "camera_lock_canonical_sha256":{"$ref":"#/$defs/sha256"}, "camera_rig_object_sha256":{"$ref":"#/$defs/sha256"}, "camera_rig_canonical_sha256":{"$ref":"#/$defs/sha256"}, "camera_lock_receipt_object_sha256":{"$ref":"#/$defs/sha256"}, "camera_lock_source_transition_id":{"$ref":"#/$defs/id"}, "camera_lock_source_transition_sha256":{"$ref":"#/$defs/sha256"}, "camera_lock_source_head_canonical_sha256":{"$ref":"#/$defs/sha256"}, "quality_report_object_sha256": {"$ref": "#/$defs/sha256"}, "visual_receipt_object_sha256": {"$ref": "#/$defs/sha256"}, "structural_status": {"const": "PASS_SOURCE_STRUCTURAL"}, "visual_status": {"const": "PASS_STAGE_VISUAL_STRUCTURE_ONLY"}, "human_status": {"const": "NOT_RUN"}, "engine_status": {"const": "NOT_RUN"}, "distribution_status": {"const": "NOT_RUN"}}, "x-forgecad-receipt-kinds": {"quality_report_object_sha256": "ProductionWeaponFormQuality@2", "visual_receipt_object_sha256": "ProductionWeaponFormArtEvidence@1"}}
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "nullable_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "epoch": {"type": "string", "pattern": "^[0-9]{1,10}$"},
+    "timestamp": {"type": "string", "minLength": 1, "maxLength": 64},
+    "stage": {
+      "enum": [
+        "reference-intake",
+        "reference-coverage-reviewed",
+        "camera-calibrated",
+        "blockout-reviewed",
+        "primary-form-approved",
+        "secondary-form-approved",
+        "high-poly-approved",
+        "low-poly-approved",
+        "uv-approved",
+        "cage-approved",
+        "bake-approved",
+        "material-approved",
+        "rig-socket-approved",
+        "animation-approved",
+        "vfx-approved",
+        "lod-collision-approved",
+        "hero-art-review-approved",
+        "engine-validated",
+        "export-confirmed"
+      ]
+    },
+    "coarse_stage": {
+      "enum": ["draft", "gray-model", "topology", "material-surface", "animation-vfx", "game-delivery"]
+    },
+    "candidate_binding_status": {
+      "enum": ["same-candidate-evidence", "distinct-candidate-stage-output"]
+    },
+    "structural_status": {"enum": ["NOT_RUN", "BLOCKED", "PASS_SOURCE_STRUCTURAL"]},
+    "visual_status": {"enum": ["NOT_RUN", "BLOCKED", "QUALITY_TARGET_NOT_MET", "PASS_STAGE_VISUAL", "PASS_STAGE_VISUAL_STRUCTURE_ONLY"]},
+    "human_status": {"enum": ["NOT_RUN", "BLOCKED", "REJECTED", "PASS_HUMAN_ART_REVIEW"]},
+    "engine_status": {"enum": ["NOT_RUN", "BLOCKED", "FAILED", "PASS_ENGINE_VALIDATION"]},
+    "distribution_status": {"enum": ["NOT_RUN", "BLOCKED", "FAILED", "PASS_DISTRIBUTION"]},
+    "compatibility_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source_schema_version",
+        "v3_stage",
+        "v3_stage_complete",
+        "v1_projection_stage",
+        "v1_projection_complete",
+        "v2_projection_stage",
+        "v2_projection_complete",
+        "projection_status",
+        "legacy_head_transition_id",
+        "legacy_head_transition_sha256",
+        "projection_policy_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "ProductionStageCompatibilityProjection@3"},
+        "source_schema_version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "v3_stage": {"$ref": "#/$defs/nullable_stage"},
+        "v3_stage_complete": {"type": "boolean"},
+        "v1_projection_stage": {"$ref": "#/$defs/nullable_coarse_stage"},
+        "v1_projection_complete": {"type": "boolean"},
+        "v2_projection_stage": {"$ref": "#/$defs/nullable_coarse_stage"},
+        "v2_projection_complete": {"type": "boolean"},
+        "projection_status": {"enum": ["exact", "lossy", "not-proven"]},
+        "legacy_head_transition_id": {"$ref": "#/$defs/nullable_id"},
+        "legacy_head_transition_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "projection_policy_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "nullable_stage": {"type": ["string", "null"], "enum": [
+      "reference-intake", "reference-coverage-reviewed", "camera-calibrated", "blockout-reviewed",
+      "primary-form-approved", "secondary-form-approved", "high-poly-approved", "low-poly-approved",
+      "uv-approved", "cage-approved", "bake-approved", "material-approved", "rig-socket-approved",
+      "animation-approved", "vfx-approved", "lod-collision-approved", "hero-art-review-approved",
+      "engine-validated", "export-confirmed", null
+    ]},
+    "nullable_coarse_stage": {"type": ["string", "null"], "enum": [
+      "draft", "gray-model", "topology", "material-surface", "animation-vfx", "game-delivery", null
+    ]}
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04H-SUBJECT-FRAME-REGISTRATION-SOURCE",
+  "recorded_at": "2026-08-25",
+  "status": "PASS_SOURCE_READ_ONLY_PROJECTION",
+  "scope": "private typed source projection and exact real-D1 audit only",
+  "source_geometry_program_object_sha256": "8f196f3804747ba15d1f5eecdf48f22c75901562b1c86339b15868b4b54e1fdf",
+  "geometry_program_canonical_sha256": "f2a283f3d27cbf37ac50df9f56137307727920633f4dc8f536c9fe9c9d42988d",
+  "subject_camera_rig_canonical_sha256": "5442ae1209a97b4dc311b118a3c84da61f39a65bb6c432737a2436923986cce2",
+  "registration": {
+    "schema_version": "ProductionWeaponSubjectFrameRegistration@1",
+    "registration_id": "fps-weapon-geometry-to-subject-frame",
+    "canonical_sha256": "19b6cd762b033ad33d4db488a8b515352d6b4cf562a2c7d4ba34916d368267fe",
+    "derivation_policy": "exact-semantic-anchor-axis-registration@1",
+    "subject_coordinate_frame_sha256": "0b9f240bf066de68f405ed53c39b7c580fbc6db2045ad91acf6b5546d6a92d73",
+    "geometry_semantic_axes": {
+      "muzzle": "-X",
+      "stock": "+X",
+      "top": "+Y"
+    },
+    "subject_semantic_axes": {
+      "muzzle": "+X",
+      "stock": "-X",
+      "top": "+Y"
+    },
+    "anchor_evidence": {
+      "stock_node_ids": [
+        "rear-stock",
+        "rear-stock-lower-beam"
+      ],
+      "stock_position_x_m": [
+        2.05,
+        2.02
+      ],
+      "muzzle_node_ids": [
+        "muzzle-shroud",
+        "muzzle-emitter",
+        "muzzle-core"
+      ],
+      "muzzle_position_x_m": [
+        -1.88,
+        -2.28,
+        -2.28
+      ],
+      "side_left_node_id": "side-light-left",
+      "side_left_position_z_m": 0.47,
+      "side_right_node_id": "side-light-right",
+      "side_right_position_z_m": -0.47
+    },
+    "transform": {
+      "direction": "geometry-to-subject",
+      "kind": "yaw-180-y",
+      "rotation_rad": [
+        0.0,
+        3.141592653589793,
+        0.0
+      ],
+      "translation_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "read_only": true,
+    "geometry_program_modified": false,
+    "depth_modified": false
+  },
+  "registered_view_count": 7,
+  "registered_camera_hashes": {
+    "front": "b0e4191be532008cc274c1ae5c11e9d6a5b535a422da09daddbc15fdfc3b59d8",
+    "back": "6899890fbe72bd5b51748350b94592d505618c542f1cff2871fb692ad3604012",
+    "left": "16d757eb24c2f5fa9fd1d892a98dd261e6e4294dc852d756277cf96d277bd827",
+    "right": "e236b17c0830d443ef9fec194e8021a0ae9719841ea65595914cb7a47bca139c",
+    "top": "fb75291aacb8771cf9413c99354e6c36063c01270e00364ca17e17651d7b1417",
+    "bottom": "ad55a5f1d1c91f148694f1fce56679ba7703d55c6acfe12a6329dd050b776227",
+    "rear-three-quarter": "c726cba06bb39a5ca073cd02dd183061ea2edb6ac9e7d8109f318528190b5160"
+  },
+  "exact_available_sink_count_before": 7,
+  "exact_available_sink_count_after": 7,
+  "geometry_program_unchanged": true,
+  "geometry_artifact_unchanged": true,
+  "depth_status": "UNKNOWN",
+  "runtime_started": false,
+  "worker_started": false,
+  "sqlite_write_performed": false,
+  "cas_write_performed": false,
+  "candidate_created": false,
+  "production_stage_advanced": false,
+  "candidate_confirmed": false,
+  "version_created": false,
+  "export_performed": false,
+  "public_contract_status": "NOT_ADDED_SUPPLEMENTAL_SOURCE_ONLY",
+  "real_d1_form_quality_status": "NOT_RUN",
+  "owner_void_acceptance_status": "NOT_RUN",
+  "rear_three_quarter_reference_registration_status": "BLOCKED_SEPARATE_REFERENCE_REGISTRATION",
+  "tests": [
+    {
+      "command": "cargo test -p forgecad-runtime camera_rig::tests --lib --offline",
+      "result": "PASS_7_OF_7"
+    },
+    {
+      "command": "FORGECAD_REAL_WEAPON_GEOMETRY_PROGRAM_PATH=<AUTHORIZED_D1_JSON> cargo test -p forgecad-runtime production_weapon_d1_subject_frame_registration_is_read_only_and_sink_stable --lib --offline -- --ignored --nocapture",
+      "result": "PASS_1_OF_1_0.05S"
+    },
+    {
+      "command": "script/test_mcp010f.sh",
+      "result": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING"
+    },
+    {
+      "command": "release docs/integrity/safety/secrets/license gates plus git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "unscoped_full_runtime_test": {
+    "result": "FAILED_436_PASS_12_FAIL_34_IGNORED",
+    "primary_reason": "eleven tests lacked a source-built geometry worker in the ad-hoc invocation; one pre-existing art-decision fixture rejected its program Part binding",
+    "authoritative_replacement": "script/test_mcp010f.sh completed exit 0 with isolated source-built workers"
+  }
+}

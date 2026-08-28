@@ -1,0 +1,84 @@
+{
+  "schema_version": "ForgeCADFpsPresentationPackageV2CompositeRuntimeGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-27",
+  "status": "PASS_RUNTIME_EDITABLE_COMPOSITE_REPLAY_RESTART_STRUCTURAL_ONLY",
+  "contract_surface": {
+    "fps_package_schema": "FpsPresentationPackage@2",
+    "component_binding_schema": "FpsPresentationPackageV2ComponentBinding@1",
+    "contract_schema_count": 560,
+    "mcp_read_count": 122,
+    "mcp_write_count": 91,
+    "mcp_total_count": 213,
+    "runtime_writer": "forgecad-runtime",
+    "mcp_transport": "thin-stdio-adapter"
+  },
+  "runtime_probe": {
+    "package_id": "fps-package-v2-probe",
+    "package_sha256": "fde0bddb65f7520d3799269882d3145d0caf98206c193fea57794eee84447be7",
+    "package_object_sha256": "e6799c648eff45ebb556db98922a37de202656d195b04316b27666e7456310f9",
+    "source_asset_ids": [
+      "pichuliru-weapon-west",
+      "wrad-arms",
+      "lightning-low-pbr"
+    ],
+    "source_component_roles": [
+      "weapon",
+      "first-person-arms",
+      "animation-source"
+    ],
+    "aggregate_part_count": 3,
+    "aggregate_vertex_count": 11249,
+    "aggregate_face_count": 8590,
+    "source_animation_clip_ids": [
+      "forgecad.foundation.clip.lightning_low_pbr.fire.0",
+      "forgecad.foundation.clip.lightning_low_pbr.pump.1"
+    ],
+    "editable_composite_ready": true,
+    "idempotent_replay": true,
+    "restart_hash_verified": true,
+    "first_response_bytes": 7446,
+    "replay_response_bytes": 7447,
+    "restart_response_bytes": 7402,
+    "max_response_bytes": 1048576,
+    "persistent_user_data_touched": false
+  },
+  "production_entrypoints": {
+    "formal_high": "production_weapon_formal_high_prepare",
+    "low_cage_bake": "production_weapon_high_low_bake_prepare",
+    "hero_uv": "hero_uv_durable_prepare",
+    "fps_delivery": "game_asset_delivery_prepare",
+    "engine_validation": "commercial_engine_import_prepare",
+    "human_hero_review": "human_visual_review_submit"
+  },
+  "production_gates": {
+    "editable_composite": "PASS",
+    "formal_high": "BLOCKED_SECONDARY_FORM_APPROVAL_AND_CANDIDATE_BINDING",
+    "low": "NOT_RUN",
+    "hero_uv": "NOT_RUN",
+    "cage_bake": "NOT_RUN",
+    "fps_validation": "NOT_RUN",
+    "engine_validation": "NOT_RUN",
+    "human_hero_review": "NOT_RUN"
+  },
+  "quality_truth": {
+    "package_status": "EDITABLE_COMPOSITE_BOUND",
+    "quality_status": "structural_only",
+    "review_status": "DRAFT_UNREVIEWED",
+    "candidate_created": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "commercial_fps_quality": "NOT_PROVEN",
+    "engine_roundtrip": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "This receipt proves one Runtime-owned editable composite binding and restart-safe structural readback only.",
+    "It does not prove formal High, artist Low edge flow, Hero UV, Bake fidelity, FPS presentation quality, engine import, human Hero review, confirmation, version or export.",
+    "Formal High remains fail-closed until the composite is bound to a reviewable candidate and secondary-form-approved evidence."
+  ],
+  "canonical_sha256": "e22b755ac5c8c8224f190ab595ddf483047e1d0bfad715d29c25e76273450cd5"
+}

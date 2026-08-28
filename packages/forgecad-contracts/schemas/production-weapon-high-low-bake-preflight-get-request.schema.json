@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-high-low-bake-preflight-get-request.schema.json",
+  "title": "ProductionWeaponHighLowBakePreflightGetRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "preflight_id", "session_id", "project_id", "candidate_id",
+    "expected_head_stage", "expected_head_transition_id",
+    "expected_head_transition_sha256", "expected_head_canonical_sha256", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponHighLowBakePreflightGetRequest@1"},
+    "preflight_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "expected_head_stage": {"enum": ["camera-calibrated", "blockout-reviewed", "primary-form-approved", "secondary-form-approved", "high-poly-approved", "low-poly-approved", "uv-approved", "cage-approved", "bake-approved"]},
+    "expected_head_transition_id": {"$ref": "#/$defs/id"},
+    "expected_head_transition_sha256": {"$ref": "#/$defs/sha256"},
+    "expected_head_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "input_sha256": {
+      "$ref": "#/$defs/sha256",
+      "description": "Canonical SHA-256 of all request fields except input_sha256."
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

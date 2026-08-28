@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-subject-frame-registration.schema.json",
+  "title": "ProductionWeaponSubjectFrameRegistration@1",
+  "description": "A closed, read-only GeometryProgram-to-SubjectCoordinateFrame registration derived from exact production-weapon semantic anchors. It cannot mutate geometry, depth, candidates, versions or exports.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "registration_id",
+    "geometry_program_sha256",
+    "subject_coordinate_frame_sha256",
+    "derivation_policy",
+    "geometry_semantic_axes",
+    "subject_semantic_axes",
+    "anchor_evidence",
+    "transform",
+    "read_only",
+    "geometry_program_modified",
+    "depth_modified",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponSubjectFrameRegistration@1"},
+    "registration_id": {"$ref": "#/$defs/id"},
+    "geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "subject_coordinate_frame_sha256": {"$ref": "#/$defs/sha256"},
+    "derivation_policy": {"const": "exact-semantic-anchor-axis-registration@1"},
+    "geometry_semantic_axes": {
+      "oneOf": [
+        {"$ref": "#/$defs/canonical_semantic_axes"},
+        {"$ref": "#/$defs/yaw_180_semantic_axes"}
+      ]
+    },
+    "subject_semantic_axes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["muzzle", "stock", "top"],
+      "properties": {
+        "muzzle": {"const": "+X"},
+        "stock": {"const": "-X"},
+        "top": {"const": "+Y"}
+      }
+    },
+    "anchor_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stock_node_ids",
+        "stock_position_x_m",
+        "muzzle_node_ids",
+        "muzzle_position_x_m",
+        "side_left_node_id",
+        "side_left_position_z_m",
+        "side_right_node_id",
+        "side_right_position_z_m"
+      ],
+      "properties": {
+        "stock_node_ids": {"const": ["rear-stock", "rear-stock-lower-beam"]},
+        "stock_position_x_m": {
+          "type": "array",
+          "prefixItems": [{"type": "number"}, {"type": "number"}],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "muzzle_node_ids": {"const": ["muzzle-shroud", "muzzle-emitter", "muzzle-core"]},
+        "muzzle_position_x_m": {
+          "type": "array",
+          "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "side_left_node_id": {"const": "side-light-left"},
+        "side_left_position_z_m": {"type": "number"},
+        "side_right_node_id": {"const": "side-light-right"},
+        "side_right_position_z_m": {"type": "number"}
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "kind", "rotation_rad", "translation_m", "scale"],
+      "properties": {
+        "direction": {"const": "geometry-to-subject"},
+        "kind": {"enum": ["identity", "yaw-180-y"]},
+        "rotation_rad": {"$ref": "#/$defs/vec3"},
+        "translation_m": {"const": [0.0, 0.0, 0.0]},
+        "scale": {"const": [1.0, 1.0, 1.0]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "identity"}}, "required": ["kind"]},
+          "then": {"properties": {"rotation_rad": {"const": [0.0, 0.0, 0.0]}}}
+        },
+        {
+          "if": {"properties": {"kind": {"const": "yaw-180-y"}}, "required": ["kind"]},
+          "then": {"properties": {"rotation_rad": {"const": [0.0, 3.141592653589793, 0.0]}}}
+        }
+      ]
+    },
+    "read_only": {"const": true},
+    "geometry_program_modified": {"const": false},
+    "depth_modified": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vec3": {
+      "type": "array",
+      "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "canonical_semantic_axes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["muzzle", "stock", "top"],
+      "properties": {
+        "muzzle": {"const": "+X"},
+        "stock": {"const": "-X"},
+        "top": {"const": "+Y"}
+      }
+    },
+    "yaw_180_semantic_axes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["muzzle", "stock", "top"],
+      "properties": {
+        "muzzle": {"const": "-X"},
+        "stock": {"const": "+X"},
+        "top": {"const": "+Y"}
+      }
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "schema_version": "ForgeCADRealD1AuthoringMeshV2MoveVerticesSixViewReceipt@1",
+  "recorded_on": "2026-08-26",
+  "task_id": "FPS-AUTHORING-MESH-V2-03",
+  "scope": "fictional_nonfunctional_game_weapon_visual_asset",
+  "build_cohort_sha256": "2026082620260826202608262026082620260826202608262026082620260826",
+  "source": {
+    "project_id": "project-318e4de6aa4d4f33b2f740988fed6fa1",
+    "candidate_id": "candidate-8b35615c93e34775a7ca0d5418272adb",
+    "candidate_state_sha256": "47f7d2117a88beabc38d4cb123e694dbc425608a8aa43a5af40d10040c82ea67",
+    "artifact_sha256": "fa5d81fd9d219eaf85f7bb9094adb7d89338b3395f6263443b1159918418368e",
+    "artifact_readback_sha256": "af4ab8c084e07913f68a05e4482ca9992944232b29d7681f65f5cb6b591579ea",
+    "geometry_program_sha256": "d154ae2982de2aac2b09b80741b8dd2eaa26ceee6745642c0b87b8537d01b6d4",
+    "mesh_id": "amv2-mesh-0085fc1412a9ed754c7fed4ff69166af7aa98c8d47b5dddd",
+    "lineage_id": "amv2-lineage-0085fc1412a9ed754c7fed4ff69166af7aa98c8d47b5dddd",
+    "revision_id": "amrev-86cdb5ace0eea5c0811694e08aba1598d977706c9e067811a911ce09",
+    "revision_sha256": "a22bbf0644751b7088fbb16b19273362d03dc16770d081a827ebb5bfe885aec0",
+    "revision_object_sha256": "34711dc335650b7e17051cab6243e09a2f23f5386131436c2068264ff04e7541",
+    "source_node_id": "rear-stock",
+    "part_id": "rear-stock",
+    "source_binding_sha256": "8fac4b0fbd3524bcd335a1a957934844d0e5166f688a75f57c5e5abe14f78fff",
+    "form_art_evidence_id": "fps-form-04a-form-art",
+    "form_art_evidence_object_sha256": "23a235882fae829282f8de414c24c1596a1a63e43caad4a9aeedb21d9e848015"
+  },
+  "edit": {
+    "operation": "move_vertices",
+    "coordinate_space": "source-local",
+    "stable_vertex_count": 4,
+    "art_intent": "inset the receiver-side stock end along local Z to improve top-view taper without changing topology or Part ownership",
+    "delta_m": [0.0, 0.0, 0.1],
+    "opposite_signed_delta_applied_to_positive_z_vertices": true
+  },
+  "durable_child": {
+    "revision_id": "amrev-f02842f638d8cff4c1b5c6852b24cd60a932753db28867642c3a8d7a",
+    "revision_sha256": "8bc953ae84aef62bdbd22128685bedb5bcdb3036692adcbba0d6c400b9a7614e",
+    "revision_object_sha256": "1cfe21451011997ead64d3e126f68b1ebc4b9484f794359d073447ee9ec8eae8",
+    "durable_record_sha256": "11d51945068d5237139d708fc7091b28cb0fc4901474a0cc74877e06af460c33",
+    "runtime_restart_exact_readback": "PASS",
+    "topology_rewritten": false,
+    "stable_ids_preserved": true
+  },
+  "derived_candidate": {
+    "candidate_id": "candidate-17ac1c74167f4fafa27f75d5284b8b94",
+    "candidate_state_sha256": "6a338478d7d8d86799298251167136d64433989ed29b6ce85e3295eb40a7eb96",
+    "geometry_program_sha256": "91656768f90581484a8f2bb934250854968687e48abbe6d23b9dfd830968b602",
+    "artifact_sha256": "c6a8ebb3de84a7cfe5ba9294b27dbb004f0a23aa67e2fed9b793ac80b571bf7e",
+    "artifact_readback_sha256": "c63f9e72129f7ce5b72a06be35d4c8106a716f7daa782b66f18bfad8d657c971",
+    "triangle_count": 1876,
+    "single_source_node_replaced": true,
+    "other_nodes_and_part_outputs_preserved": true,
+    "worker_hash_compile_replay_strict_readback": "PASS"
+  },
+  "six_view": {
+    "bundle_sha256": "71a6b69f3590dd3a2deb1a6829405bd7ac26d8c562b91f5cfabd643617001cf1",
+    "view_order": ["front", "back", "left", "right", "top", "rear-three-quarter"],
+    "baseline_score": 3.095222022337167,
+    "proposal_score": 3.097260047417,
+    "aggregate_improvement_delta": 0.0020380250798330835,
+    "legacy_strict_pareto_status": "REJECTED_ANY_METRIC_REGRESSION",
+    "form_art_secondary_gate": {
+      "policy": "form-art-secondary-pareto-review@1",
+      "policy_sha256": "e63912157f525e1968c347acfbe50a30b291ec1265cbbd4e5738fdff21a3625f",
+      "fixed_raster_size_px": 512,
+      "metric_delta_quantization": "direction-normalized-parts-per-million@1",
+      "max_core_tradeoff_ppm": 1000,
+      "min_core_improvement_ppm": 1000,
+      "min_aggregate_improvement_ppm": 1,
+      "aggregate_improved": true,
+      "aggregate_improvement_ppm": 2038,
+      "semantic_non_regressing": true,
+      "bounded_core_tradeoff": true,
+      "strict_primary_improvement": true,
+      "core_improvement_winners": ["top:silhouette_iou", "top:centroid_error"],
+      "reviewable_tradeoff": true,
+      "proposal_form_art_owner_evidence_ready": false,
+      "passed": false,
+      "status": "BLOCKED_FORMART_OWNER_EVIDENCE"
+    },
+    "notable_deltas": {
+      "top_silhouette_iou": 0.007349311002000036,
+      "top_centroid_error_improvement": 0.005391387226000001,
+      "top_boundary_f1_4px": -0.0001294042629999964,
+      "rear_three_quarter_silhouette_iou": -0.0009522825259999924,
+      "rear_three_quarter_centroid_error_improvement": 0.000611028361999999
+    },
+    "immutable_replay_after_runtime_restart": "PASS"
+  },
+  "decision": {
+    "proposal_status": "REVIEWABLE_TRADEOFF_BLOCKED_FORMART_OWNER_EVIDENCE",
+    "art_direction_recommendation": "CONTINUE_REFINEMENT_BEFORE_APPROVAL",
+    "secondary_form_approved": "NOT_CREATED",
+    "stage": "camera-calibrated",
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "quality_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "truth_boundary": "This receipt proves a real source-bound AuthoringMesh MoveVertices child, one-node GeometryProgram lowering, strict worker readback, immutable six-view replay, and an explicitly bounded Pareto tradeoff diagnostic. Negative metric deltas remain recorded as regressions. The changed candidate has no fresh proposal-side FormArt owner/void/Part-ID receipt, so it is not approval-eligible and does not prove acceptable art direction, secondary-form approval, High/Low/UV/Bake/material/FPS/engine completion, human review, or commercial visual quality."
+}

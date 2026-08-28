@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/native-high-glb-materialize-request.schema.json",
+  "title": "NativeHighGlbMaterializeRequest@1",
+  "description": "Closed source-only Native High artifact to embedded GLB request. The worker receives only a HighMeshArtifact@1 and canonical input binding; Runtime/CAS ownership remains outside this transient transport.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact", "input_canonical_sha256", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "NativeHighGlbMaterializeRequest@1"},
+    "artifact": {"$ref": "https://forgecad.local/contracts/high-mesh-artifact.schema.json"},
+    "input_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

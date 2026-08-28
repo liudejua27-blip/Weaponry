@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fps-presentation-package-v2-candidate-prepare-request.schema.json",
+  "title": "FpsPresentationPackageV2CandidatePrepareRequest@1",
+  "description": "Closed Runtime prepare request for deriving one reviewable weapon candidate from a durable FPS presentation package.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "package_id", "package_sha256", "policy", "idempotency_key",
+    "max_response_bytes", "runtime_write_performed", "writer_policy", "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "FpsPresentationPackageV2CandidatePrepareRequest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "package_id": {"$ref": "#/$defs/id"},
+    "package_sha256": {"$ref": "#/$defs/sha256"},
+    "policy": {"const": "runtime-derived-package-weapon-authoring-mesh-reviewable-candidate@1"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

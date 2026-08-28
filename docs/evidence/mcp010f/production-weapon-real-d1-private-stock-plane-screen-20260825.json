@@ -1,0 +1,62 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04N-REAL-D1-PRIVATE-STOCK-PLANE-SCREEN",
+  "task_id": "FPS-FORM-04N",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 504.80,
+  "fixture_log_filename": "forgecad-d1-04n-stock-plane-screen-r2-20260825.log",
+  "fixture_log_sha256": "0e380b3af8f6da549a129ed5492cd4b0bc56fbc3e8c82bc64b66741cfb0b862f",
+  "parameter_id": "stock-plane-position",
+  "parameter_scope": "private-diagnostic-only",
+  "public_sink_available": false,
+  "baseline": {
+    "owner_intrusion_pixels": [302, 560, 587],
+    "owner_boundary_adjacency_milli": [319, 420, 248]
+  },
+  "trials": [
+    {
+      "delta_x_m": -0.1,
+      "owner_intrusion_pixels": [419, 731, 740],
+      "owner_boundary_adjacency_milli": [372, 466, 282],
+      "selected_discovery_transforms": ["identity", "identity", "identity"],
+      "exact_stock_plane_delta": true,
+      "part_source_bindings_unchanged": true,
+      "rear_cap_binding_unchanged": true,
+      "lineage_unchanged": true,
+      "owner_screen_pass": false,
+      "six_view_non_regression": "NOT_RUN",
+      "status": "BLOCKED_OWNER_SCREEN"
+    },
+    {
+      "delta_x_m": 0.1,
+      "owner_intrusion_pixels": [191, 390, 428],
+      "owner_boundary_adjacency_milli": [267, 358, 213],
+      "selected_discovery_transforms": ["identity", "identity", "vertical-flip"],
+      "exact_stock_plane_delta": true,
+      "part_source_bindings_unchanged": true,
+      "rear_cap_binding_unchanged": true,
+      "lineage_unchanged": true,
+      "owner_screen_pass": false,
+      "six_view_non_regression": "NOT_RUN",
+      "status": "BLOCKED_OWNER_SCREEN"
+    }
+  ],
+  "conclusion": {
+    "negative_delta_worsened_all_intrusions": true,
+    "positive_delta_reduced_intrusion_but_lost_rear3q_identity_and_boundary_gate": true,
+    "continue_single_axis_position_search": false,
+    "promote_to_public_sink": false,
+    "advance_candidate_to_six_view": false
+  },
+  "promotion": {
+    "promotable": false,
+    "quality_status": "NOT_PROVEN",
+    "depth_status": "UNKNOWN",
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  }
+}

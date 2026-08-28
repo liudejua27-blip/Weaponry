@@ -1,5 +1,13 @@
 # Codex 与 ForgeCAD 集成
 
+> 2026-08-26 04AE：当前 **525 schemas / 112 read + 84 write = 196 tools**。MaterialLayerGraph 只新增专用无状态 Worker operation，没有扩大 MCP 写面；CameraLock Prepare 仍只传朝向决策与审批，所有对象/hash 由 Runtime 派生。
+
+> 2026-08-26 商业 Goal：Codex 的成功不是调用更多工具，而是让同一 candidate 依次产出并批准 `HeroSourceAsset@1`、`FpsPresentationPackage@1`、`EngineDeliveryPackage@1`。每轮只修一个有 evidence 的高影响问题；自动 draft 不 promotion，目标引擎和独立人审不能由 Codex 自评替代。
+
+> 2026-08-25 Art Director 编排边界：Codex 可以解释 Brief、比较固定视图、提出单变量 Repair 和整理证据，但不能自我生成 human/engine PASS，也不能把教程研究、漂亮截图或工具调用次数当成商业质量。Codex 必须按 Form→AuthoringMesh→High→Low→UV→Cage/Bake→Material→FPS/Engine/Human 顺序读取 live capability 并在 unavailable/blocked 时停止。详见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+> 2026-08-26 现行 source 口径为 **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 tools**。下文 187/89、54+35 等数字仅为历史 clean-room cohort。Cage/Bake 必须先读 ponytail preflight，再调用 formal preflight_get；producer unavailable 时零写停止。
+
 2026-08-19：Blender clean-room typed slices 已包括 product-owned `authoring-mesh@1`、Modifier Stack/Modifier Evaluation、TopologySnapshot、bounded Subdivision、Bevel/Normal、Mechanical Pose 单 tick/最多 16 tick sequence、Runtime-owned immutable Mechanical Animation Clip、Parametric Group v2、Render Evidence Integrity/Replay、Boolean Operand Lineage、historical 168/79-cohort Subdivision root-lineage preview、artifact-lineage reconstructed projection，以及显式 Runtime-owned immutable CAS sidecar/Link；不运行 Blender/Python、不跳过 geometry prepare/approval。当前 manifest 是 54 read + 35 write = 89 tools、187 schemas、21/21 active operators；root-lineage preview 与 reconstructed projection 保持只读，只有 sidecar/clip prepare 可显式持久 immutable CAS 对象，getter 不懒写。
 
 版本：2026-08-09
@@ -39,7 +47,7 @@ ForgeCAD 单独启动时只显示 Viewer 和连接诊断，不提供“生成”
 
 MCP003 的真实证据在 `docs/evidence/mcp003/`：原始/SDK protocol adapter、resources/read、只读工具和版本不兼容 fail-closed 已通过；认证 Codex CLI 真实回合已完成 `capabilities_get`、`selection_get`，并在 `2026-07-28` 环境下明确拒绝、无工具调用、无静默降级和无副作用；`codex-desktop-handshake.jsonl` 和 `host-handshake.jsonl` 记录 Desktop 实际 `initialize.protocolVersion=2025-06-18` 且 ForgeCAD 返回相同值，Desktop 只读证据证明无 ForgeCAD 项目、Job、模型或版本写入；`launchctl` override 被 Desktop 忽略，因此 Desktop forced mismatch 记录为 `HOST_OVERRIDE_IGNORED / NOT_APPLICABLE`。其中 `host-handshake.jsonl` 的观测器只做透明原样转发和记录，不改写/合成请求，也不作为写入证据。IDE 未运行是已知的非 P0 范围，不是 MCP003/MCP004 阻断。
 
-MCP004 当前在 Runtime/authenticated IPC 提供 typed 事务核心；MCP005–009 新增 reference/geometry/appearance/change/quality/version/export。MCP010B/C/D/E/F 源码继续提供 catalog/hash、Mechanical pose、Mechanical Animation Clip、Boolean/Subdivision lineage、Render evidence、material/render/silhouette/camera/Part/boundary 等默认只读工具，以及显式 opt-in 的 lineage/clip/visual target prepare；Agentic 另提供既有 projection/durable/action tools。因此当前 source manifest 是 54 read + 35 write = 89，合同总数为 187、active operators 为 21/21。除 `capabilities_get`、`runtime_status`、`doctor` 外，MCP session 必须先读 `ponytail-preflight@0.1.0`；该会话 policy 不新增模型或 Provider，也不改变 Runtime 唯一写者模型。固定 renderer、D/E AssetPack 与真实机器人质量边界保持原有描述；这些 source Gate 与 structural sidecar/clip persistence 仍不等于用户图片 likeness、PBR、人评、packaged/live、Repair execution 或 360 PASS。
+MCP004 当前在 Runtime/authenticated IPC 提供 typed 事务核心；MCP005–009 新增 reference/geometry/appearance/change/quality/version/export。MCP010B/C/D/E/F 源码继续提供 catalog/hash、Mechanical pose、Mechanical Animation Clip、Boolean/Subdivision lineage、Render evidence、material/render/silhouette/camera/Part/boundary 等默认只读工具，以及显式 opt-in 的 lineage/clip/visual target prepare；Agentic 另提供既有 projection/durable/action tools。**当前权威 surface 为 515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 tools**；上方 187/89 是历史 cohort，不得作为当前 manifest。除 `capabilities_get`、`runtime_status`、`doctor` 外，MCP session 必须先读 `ponytail-preflight@0.1.0`；该会话 policy 不新增模型或 Provider，也不改变 Runtime 唯一写者模型。固定 renderer、D/E AssetPack 与真实机器人质量边界保持原有描述；这些 source Gate 与 structural sidecar/clip persistence 仍不等于用户图片 likeness、PBR、人评、packaged/live、Repair execution 或 360 PASS。
 
 2026-08-08 宿主验收记录：Computer Use 对 `com.openai.codex` 的只读状态请求被主机安全边界拒绝；Codex in-app Browser 连接成功但没有当前或用户标签页。该自动化 surface 仍单独记录为 BLOCKED，但不覆盖用户提供的 Desktop 握手/只读证据，也不把 IDE 变成 P0 要求。
 
@@ -170,3 +178,11 @@ MVP Gate 先在开发构建和真实 Codex CLI 完成步骤 2–9 的首个硬�
 10. 收集 tool transcript、job events、approval receipt、quality report、render set、GLB/readback、export manifest 和真人评分。
 
 任何本地 fake、fixture、离线 Provider、手工复制图片或开发脚本替代都不能通过这道门。
+
+## 7. 商业模块的 Codex 编排边界（future / queued）
+
+Codex 只能按 live capability 和 typed receipt 编排商业链：`Form/Art Direction → AuthoringMesh@1 → Native High → Retopology/Low → Hero UV → Cage/Bake → Surface → FPS/LOD/Collision/Socket → EngineValidationReceipt@1 → HeroArtReviewReceipt@1 → same export hash confirm/restart/export`。任一前门为 `unavailable`、`queued`、`NOT_RUN`、`NOT_PROVEN` 或 `QUALITY_TARGET_NOT_MET` 时，Codex 必须停止并保留该状态；工具调用次数、Schema 数量、Viewer 截图或 Codex 自评不能补齐后门。
+
+目标 Worker 只通过 `ForgeCadModule@1` manifest 暴露：schema/operator refs、有限 budget、正/负/损坏/超预算/replay fixtures、LICENSE/NOTICE/SBOM、source/build provenance、signature、module/contract/input/output hashes。MCP 只转发 closed typed request；Runtime 是唯一 SQLite/CAS 写者；Viewer 只读。第三方 Manifold、OpenSubdiv、QuadriFlow、xatlas、Embree、MaterialX、OIIO、OCIO、meshoptimizer、glTF Validator 只能作为审计后封装进 ForgeCAD 的签名确定性 Worker，不能直接插件、联网或运行脚本；Blender、Substance、Maya 永不成为依赖。
+
+当前 **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 tools** 仍是 source 口径。Hero UV `get/prepare` 的 Store→Runtime→MCP 与真实 prepare/replay/drop-reopen/get 1/1 仅证明四个 CAS roots 的 structural/source lineage；artist UV、packaged same-cohort、Cage/Bake、Surface、LOD、EngineValidationReceipt@1 和 HeroArtReviewReceipt@1 仍 `NOT_RUN/NOT_PROVEN`，不推进 Stage、confirm、version 或 export。

@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-baseline-preflight-result.schema.json",
+  "title": "ProductionWeaponFormArtBaselinePreflightResult@1",
+  "description": "Read-only lineage and RigV2 six-view preflight for the Runtime-owned fresh baseline producer. A ready result proves only that the durable lineage, registered six-view rig and Runtime cohort are available; it does not start a Worker or write Store/CAS.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "preflight_id", "registration_lineage_id",
+    "registration_lineage_canonical_sha256", "session_id", "project_id", "candidate_id",
+    "candidate_state_sha256", "artifact_id", "artifact_sha256", "lineage_status",
+    "lineage_promotable", "lineage_receipt_object_sha256", "registered_rig_v2_id",
+    "registered_rig_v2_object_sha256", "registered_rig_v2_canonical_sha256", "rig_v2_status",
+    "artifact_binding_status", "expected_view_kinds", "views", "rear_three_quarter_camera_source",
+    "runtime_build_cohort_sha256", "worker_cohort_required", "historical_form_art_reuse",
+    "fresh_render_worker_started", "fresh_baseline_materialized", "ready_for_fresh_baseline",
+    "blocking_reasons", "policy", "writer_policy", "runtime_write",
+    "persistent_user_data_touched", "worker_started", "production_stage_advanced",
+    "candidate_confirmed", "version_created", "export_performed", "restart_hash_verified",
+    "readiness_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtBaselinePreflightResult@1"},
+    "operation": {"const": "forgecad.production.weapon.form-art-baseline-preflight-get@1"},
+    "preflight_id": {"$ref": "#/$defs/id"},
+    "registration_lineage_id": {"$ref": "#/$defs/id"},
+    "registration_lineage_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "lineage_status": {"enum": ["MISSING", "UNAVAILABLE", "INVALID", "PRESENT_BLOCKED", "PRESENT_PROMOTABLE"]},
+    "lineage_promotable": {"type": "boolean"},
+    "lineage_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "registered_rig_v2_id": {"$ref": "#/$defs/nullable_id"},
+    "registered_rig_v2_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "registered_rig_v2_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "rig_v2_status": {"enum": ["NOT_READ", "UNAVAILABLE", "INVALID", "VALID"]},
+    "artifact_binding_status": {"enum": ["UNAVAILABLE", "LINEAGE_INVALID", "LINEAGE_BOUND"]},
+    "expected_view_kinds": {"const": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+    "views": {"type": "array", "minItems": 0, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/view"}},
+    "rear_three_quarter_camera_source": {"enum": ["unavailable", "registered-rig-v2.renderer_views"]},
+    "runtime_build_cohort_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "worker_cohort_required": {"const": true},
+    "historical_form_art_reuse": {"const": false},
+    "fresh_render_worker_started": {"const": false},
+    "fresh_baseline_materialized": {"const": false},
+    "ready_for_fresh_baseline": {"type": "boolean"},
+    "blocking_reasons": {"type": "array", "minItems": 0, "maxItems": 16, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z0-9_]{1,128}$"}},
+    "policy": {"const": "fresh-same-cohort-form-art-baseline-lineage-rig-v2-preflight@1"},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "runtime_write": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "worker_started": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "restart_hash_verified": {"const": false},
+    "readiness_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"ready_for_fresh_baseline": {"const": true}}, "required": ["ready_for_fresh_baseline"]},
+      "then": {
+        "properties": {
+          "lineage_status": {"const": "PRESENT_PROMOTABLE"},
+          "lineage_promotable": {"const": true},
+          "rig_v2_status": {"const": "VALID"},
+          "artifact_binding_status": {"const": "LINEAGE_BOUND"},
+          "rear_three_quarter_camera_source": {"const": "registered-rig-v2.renderer_views"},
+          "runtime_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+          "views": {"minItems": 6, "maxItems": 6},
+          "blocking_reasons": {"maxItems": 0}
+        }
+      },
+      "else": {
+        "properties": {
+          "blocking_reasons": {"minItems": 1}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "nullable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_kind", "camera_source", "registered_rig_v2_id", "registered_camera_hash",
+        "registered_camera_canonical_sha256", "lineage_view_present", "legacy_camera_lock_rig_used",
+        "historical_render_set_reused", "fresh_render_required"
+      ],
+      "properties": {
+        "view_kind": {"enum": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+        "camera_source": {"const": "registered-rig-v2.renderer_views"},
+        "registered_rig_v2_id": {"$ref": "#/$defs/nullable_id"},
+        "registered_camera_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "registered_camera_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "lineage_view_present": {"const": true},
+        "legacy_camera_lock_rig_used": {"const": false},
+        "historical_render_set_reused": {"const": false},
+        "fresh_render_required": {"const": true}
+      }
+    }
+  }
+}

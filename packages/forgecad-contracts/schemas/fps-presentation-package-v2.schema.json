@@ -1,0 +1,25 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/fps-presentation-package-v2.schema.json",
+  "title":"FpsPresentationPackage@2",
+  "description":"Runtime-owned editable structural composite binding weapon, first-person arms, sockets, rig maps and source animation clips. It is not a commercial quality or promotion receipt.",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","package_id","project_id","weapon","first_person_arms","animation_source","coordinate_spec_sha256","weapon_socket_map_object_sha256","weapon_rig_map_object_sha256","arms_rig_map_object_sha256","animation_rig_map_object_sha256","source_package_object_sha256s","aggregate_part_revision_summary_sha256","aggregate_part_count","aggregate_vertex_count","aggregate_face_count","source_animation_clip_ids","required_clip_ids","missing_required_clip_ids","animation_binding_status","socket_binding_status","rig_binding_status","authoring_status","production_pipeline","package_policy","status","quality_status","review_status","promotion_eligible","candidate_created","candidate_confirmed","version_created","export_performed","actual_engine_roundtrip","human_review_performed","canonicalization_policy","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"FpsPresentationPackage@2"},"package_id":{"$ref":"#/$defs/id"},"project_id":{"$ref":"#/$defs/id"},
+    "weapon":{"$ref":"fps-presentation-package-v2-component-binding.schema.json"},"first_person_arms":{"$ref":"fps-presentation-package-v2-component-binding.schema.json"},"animation_source":{"$ref":"fps-presentation-package-v2-component-binding.schema.json"},
+    "coordinate_spec_sha256":{"$ref":"#/$defs/sha"},"weapon_socket_map_object_sha256":{"$ref":"#/$defs/sha"},"weapon_rig_map_object_sha256":{"$ref":"#/$defs/sha"},"arms_rig_map_object_sha256":{"$ref":"#/$defs/sha"},"animation_rig_map_object_sha256":{"$ref":"#/$defs/sha"},
+    "source_package_object_sha256s":{"type":"array","minItems":3,"maxItems":3,"uniqueItems":true,"items":{"$ref":"#/$defs/sha"}},
+    "aggregate_part_revision_summary_sha256":{"$ref":"#/$defs/sha"},"aggregate_part_count":{"type":"integer","minimum":3},"aggregate_vertex_count":{"type":"integer","minimum":1},"aggregate_face_count":{"type":"integer","minimum":1},
+    "source_animation_clip_ids":{"type":"array","minItems":1,"maxItems":16,"uniqueItems":true,"items":{"$ref":"#/$defs/id"}},
+    "required_clip_ids":{"const":["idle","equip","fire_recoil","reload","inspect","ads_in","ads_out","sprint","holster"]},
+    "missing_required_clip_ids":{"type":"array","maxItems":9,"uniqueItems":true,"items":{"type":"string"}},
+    "animation_binding_status":{"const":"SOURCE_CLIPS_BOUND_REQUIRED_CLIPS_INCOMPLETE"},"socket_binding_status":{"const":"WEAPON_SOCKET_MAP_BOUND_ARMS_GRIP_MAPPING_BOUND"},"rig_binding_status":{"const":"MULTI_SOURCE_RIG_MAPS_BOUND_REST_POSE_NOT_VALIDATED"},
+    "authoring_status":{"const":"EDITABLE_COMPOSITE_BOUND"},
+    "production_pipeline":{"type":"object","additionalProperties":false,"required":["formal_high_entrypoint","low_cage_bake_entrypoint","hero_uv_entrypoint","fps_validation_entrypoint","engine_validation_entrypoint","human_hero_review_entrypoint","formal_high_status","low_status","hero_uv_status","cage_bake_status","fps_validation_status","engine_validation_status","human_hero_review_status","blocker"],"properties":{"formal_high_entrypoint":{"const":"production_weapon_formal_high_prepare"},"low_cage_bake_entrypoint":{"const":"production_weapon_high_low_bake_prepare"},"hero_uv_entrypoint":{"const":"hero_uv_durable_prepare"},"fps_validation_entrypoint":{"const":"game_asset_delivery_prepare"},"engine_validation_entrypoint":{"const":"commercial_engine_import_prepare"},"human_hero_review_entrypoint":{"const":"human_visual_review_submit"},"formal_high_status":{"const":"BLOCKED_SECONDARY_FORM_APPROVAL_AND_CANDIDATE_BINDING"},"low_status":{"const":"NOT_RUN"},"hero_uv_status":{"const":"NOT_RUN"},"cage_bake_status":{"const":"NOT_RUN"},"fps_validation_status":{"const":"NOT_RUN"},"engine_validation_status":{"const":"NOT_RUN"},"human_hero_review_status":{"const":"NOT_RUN"},"blocker":{"const":"COMPOSITE_PACKAGE_IS_SOURCE_ONLY_NO_PROMOTABLE_CANDIDATE"}}},
+    "package_policy":{"const":"runtime-owned-editable-weapon-arms-sockets-rig-clips-composite@2"},"status":{"const":"EDITABLE_COMPOSITE_BOUND"},"quality_status":{"const":"structural_only"},"review_status":{"const":"DRAFT_UNREVIEWED"},
+    "promotion_eligible":{"const":false},"candidate_created":{"const":false},"candidate_confirmed":{"const":false},"version_created":{"const":false},"export_performed":{"const":false},"actual_engine_roundtrip":{"const":false},"human_review_performed":{"const":false},
+    "canonicalization_policy":{"const":"canonical-json-sha256-excluding-canonical-sha256@1"},"canonical_sha256":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{"id":{"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},"sha":{"type":"string","pattern":"^[0-9a-f]{64}$"}}
+}

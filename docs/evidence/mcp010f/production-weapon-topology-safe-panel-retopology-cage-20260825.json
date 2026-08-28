@@ -1,0 +1,90 @@
+{
+  "schema_version": "ProductionWeaponTopologySafePanelRetopologyCageEvidence@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_at": "2026-08-25",
+  "scope": "fictional non-functional game-art weapon source topology only",
+  "reference": {
+    "sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "coverage": "single three-quarter reference; HQ_360_PASS remains BLOCKED_REFERENCE_COVERAGE"
+  },
+  "source": {
+    "project_id": "project-180396ef8c874739b85911f84f76385a",
+    "candidate_id": "candidate-b52acf2853df4bc7b92eeaca3097afff",
+    "candidate_state_sha256": "4ad045dcf073b6f8f7447bccbc36fbe85345aa807fe2d0745fef41a1cf7a0dea",
+    "geometry_program_sha256": "15be0b63d52a268d80d826ea7bb7ad06b6040d79c41e28aa783b40e9419e5fc6",
+    "high_artifact_sha256": "6f99087020e7fb2c821ad655f6f01138c585d033f9d168a96e045dea56f0f224",
+    "high_artifact_readback_object_sha256": "9009278d640d5b6ade8add148f4045fc032c068e29e4a11881ba972cad4b5a96",
+    "part_count": 23,
+    "triangle_count": 2280,
+    "visual_compare_status": "REJECT_KEEP_PROVISIONAL_MAIN_LOWER_OR_AB"
+  },
+  "topology_safe_panel": {
+    "implementation": "panel@2 deterministic bounded ring and floor subdivision with exact boundary interpolation",
+    "panel_a_worst_triangle_aspect_before": 84.69,
+    "panel_a_worst_triangle_aspect_after": 15.922887,
+    "panel_b_worst_triangle_aspect_before": 91.36,
+    "panel_b_worst_triangle_aspect_after": 17.023119,
+    "closed_glb": true,
+    "whole_asset_status": "QUALITY_TARGET_NOT_MET",
+    "remaining_worst_parts": [
+      {"part_id": "side-light-right", "worst_triangle_aspect": 90.927},
+      {"part_id": "side-light-left", "worst_triangle_aspect": 90.899},
+      {"part_id": "receiver-upper", "worst_triangle_aspect": 26.667},
+      {"part_id": "bottom-rail", "worst_triangle_aspect": 25.595},
+      {"part_id": "top-rail", "worst_triangle_aspect": 24.485}
+    ]
+  },
+  "durable_source_bundle": {
+    "schema_version": "ProductionWeaponRetopologyCageSourceBundle@1",
+    "bundle_key_sha256": "744d14470af5a6320b26d0dabbea400a126741782ffb724e2db537fad63f58d2",
+    "receipt_object_sha256": "b2e0fbf757876717241a887ae7bd8838515f55c46cedf8ae1b52a2ee1312cd20",
+    "worker_build_cohort_sha256": "5833d23b9cfb0eab49aee01d54bb4a3905fff21f91e53005ffe2e28eb625c9cc",
+    "prepare_runtime_write": true,
+    "idempotent_replay": true,
+    "restart_get_runtime_write": false,
+    "high": {
+      "artifact_sha256": "6f99087020e7fb2c821ad655f6f01138c585d033f9d168a96e045dea56f0f224",
+      "triangle_count": 2280
+    },
+    "low": {
+      "artifact_sha256": "7c79c71bd36df82e887d0ff64b5da99585fa531e866ad41977e6612406bf36ba",
+      "artifact_readback_object_sha256": "42ab2a42109d5fb5a6146ca09dafa9e222d29b975cdc3c8a0bc487e13436408c",
+      "mesh_object_sha256": "4dc8a609ea992f574a801be12cd0a7b78737463da0848c6927e64cee19110b95",
+      "triangle_count": 1000,
+      "closed_manifold": true,
+      "winding_error_count": 0,
+      "tangent_handedness_error_count": 0,
+      "artist_authored_quad_topology": false,
+      "edge_flow_status": "NOT_PROVEN"
+    },
+    "cage": {
+      "artifact_sha256": "522d2a0fa2d59ac1c905af93d9b087a6358ce22b9652c73736816148abca9592",
+      "artifact_readback_object_sha256": "579639a7e74b82ffe79b67a3b90fb584ab2cb8430e2e7e85ac108e5ef1365be4",
+      "offset_field_object_sha256": "fe96bd7e04ab78f3916e764390a7ed9d6b09e483da8dc372b175d71668dee846",
+      "triangle_count": 1000,
+      "offset_m": 0.001,
+      "exact_topology_correspondence": true,
+      "containment_status": "STRUCTURAL_OFFSET_ONLY",
+      "closed_manifold": true,
+      "winding_error_count": 0,
+      "tangent_handedness_error_count": 0
+    }
+  },
+  "validation": {
+    "panel_focused_tests": "5 passed, 0 failed",
+    "low_retopology_focused_tests": "4 passed, 0 failed",
+    "cage_offset_focused_tests": "4 passed, 0 failed",
+    "git_diff_check": "PASS",
+    "quality_status": "structural_only",
+    "visual_quality_status": "NOT_PROVEN",
+    "formal_normal_ao_curvature_bake": "NOT_RUN",
+    "hero_material": "NOT_RUN",
+    "hero_render": "NOT_RUN",
+    "commercial_engine_readback": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  }
+}

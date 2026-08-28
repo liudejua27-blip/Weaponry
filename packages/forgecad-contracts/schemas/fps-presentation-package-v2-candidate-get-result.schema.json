@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fps-presentation-package-v2-candidate-get-result.schema.json",
+  "title": "FpsPresentationPackageV2CandidateGetResult@1",
+  "description": "Read-only restart-verified result for one Runtime-owned FPS package candidate binding.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "binding_object_sha256", "binding", "request_input_sha256", "replayed",
+    "restart_hash_verified", "runtime_write_performed", "persistent_user_data_touched", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "FpsPresentationPackageV2CandidateGetResult@1"},
+    "binding_object_sha256": {"$ref": "#/$defs/sha256"},
+    "binding": {"$ref": "fps-presentation-package-v2-candidate-binding.schema.json"},
+    "request_input_sha256": {"$ref": "#/$defs/sha256"},
+    "replayed": {"const": true},
+    "restart_hash_verified": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

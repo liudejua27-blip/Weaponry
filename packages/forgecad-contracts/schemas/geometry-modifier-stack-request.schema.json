@@ -30,6 +30,7 @@
         {"$ref": "#/$defs/profile_loft_base_node"},
         {"$ref": "#/$defs/longitudinal_section_loft_base_node"},
         {"$ref": "#/$defs/subd_cage_base_node"},
+        {"$ref": "#/$defs/authoring_mesh_base_node"},
         {"$ref": "#/$defs/surface_patch_base_node"},
         {"$ref": "#/$defs/revolve_base_node"},
         {"$ref": "#/$defs/tube_sweep_base_node"},
@@ -51,6 +52,7 @@
           {"$ref": "#/$defs/mirror_modifier"},
           {"$ref": "#/$defs/array_modifier"},
           {"$ref": "#/$defs/bevel_modifier"},
+          {"$ref": "#/$defs/bevel_v2_modifier"},
           {"$ref": "#/$defs/normal_policy_modifier"}
         ]
       }
@@ -101,6 +103,13 @@
       "properties": {
         "operator_id": {"const": "forgecad.geometry.subd-cage@1"},
         "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/subd_cage_parameters"}
+      }
+    },
+    "authoring_mesh_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.authoring-mesh@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/authoring_mesh_parameters"}
       }
     },
     "surface_patch_base_node": {
@@ -219,6 +228,17 @@
         "enabled": {"type": "boolean"},
         "operator_id": {"const": "forgecad.geometry.bevel@1"},
         "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/bevel_parameters"}
+      }
+    },
+    "bevel_v2_modifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modifier_id", "enabled", "operator_id", "parameters"],
+      "properties": {
+        "modifier_id": {"$ref": "#/$defs/identifier"},
+        "enabled": {"type": "boolean"},
+        "operator_id": {"const": "forgecad.geometry.bevel@2"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/bevel_v2_parameters"}
       }
     },
     "normal_policy_modifier": {

@@ -1,0 +1,68 @@
+{
+  "schema_version": "ForgeCADFpsPresentationPackageV2ReviewableCandidateRuntimeGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-27",
+  "status": "PASS_RUNTIME_REVIEWABLE_CANDIDATE_REPLAY_RESTART_STRUCTURAL_ONLY",
+  "contract_surface": {
+    "binding_schema": "FpsPresentationPackageV2CandidateBinding@1",
+    "contract_schema_count": 565,
+    "mcp_read_count": 123,
+    "mcp_write_count": 92,
+    "mcp_total_count": 215,
+    "runtime_writer": "forgecad-runtime",
+    "mcp_transport": "thin-stdio-adapter"
+  },
+  "runtime_probe": {
+    "package_sha256": "ac5ad7077c8f51009e739cd15359cb2c911a18eee59a52ab0485685f2e3d3919",
+    "binding_object_sha256": "defc1a494bc2b1cb24b2c3e5e84a88cdc1fa2c5a19c100abacbdbaf5137bf593",
+    "binding_sha256": "18972afbdbf164cadde81697164ae3d2a0ad487a9499ea6f7b73bd1b84260ea0",
+    "candidate_id": "candidate-df066ae426214357a50d53d93f6be64b",
+    "candidate_state_sha256": "588b5cded253e9f3ad229fb1270ab9367173c708d2d877e7031e822db72917e0",
+    "candidate_artifact_sha256": "bf94459cb96c668bde302434ec26d79740e976787478a77d5c608e0e8eac3145",
+    "geometry_candidate_evidence_sha256": "e9a2fbcdc8c5fbbabab2aa0ad525f165f21a15d3c8576a65305e68a94cbfd8a9",
+    "geometry_program_sha256": "a4decbfc7cb29e1cd3ec9893fd08f8336fb8b9c26245f78be890e55ef5615edf",
+    "source_weapon_vertex_count": 8045,
+    "source_weapon_face_count": 4352,
+    "structural_review_triangle_count": 2916,
+    "candidate_state": "reviewable",
+    "idempotent_replay": true,
+    "restart_hash_verified": true,
+    "worker_probe_mode": "test-geometry-worker-fallback",
+    "persistent_user_data_touched": false
+  },
+  "bounded_runtime_policy": {
+    "public_request_max_bytes": 1048576,
+    "runtime_derived_geometry_program_cas_max_bytes": 67108864,
+    "worker_max_authoring_elements": 65536,
+    "worker_max_authoring_faces": 32768,
+    "worker_outer_triangle_limit": 250000,
+    "purpose": "retain stable imported topology identity while compiling a bounded structural review candidate"
+  },
+  "production_gates": {
+    "form_stage": "candidate-reviewable",
+    "secondary_form_approved": false,
+    "formal_high": "BLOCKED_SECONDARY_FORM_APPROVAL",
+    "quality_status": "structural_only",
+    "visual_validation": "NOT_RUN",
+    "engine_validation": "NOT_RUN",
+    "human_hero_review": "NOT_RUN",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "quality_truth": {
+    "reviewable_candidate_created": true,
+    "weapon_arms_socket_rig_clips_remain_package_bound": true,
+    "arms_merged_into_weapon_mesh": false,
+    "formal_high_started": false,
+    "professional_low_uv_bake_started": false,
+    "commercial_fps_quality": "NOT_PROVEN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "This receipt proves a Runtime-owned structural weapon candidate bound to the existing editable FpsPresentationPackage only.",
+    "The welded review projection is not artist retopology, Hero UV, a formal High mesh, baked PBR, FPS presentation, engine validation or human Hero approval.",
+    "Formal High remains fail-closed until the candidate passes secondary-form approval; confirmation, version and export remain forbidden."
+  ],
+  "canonical_sha256": "27a3cb8da87aeea1488f2c4672aa6d81d1f8111cb8490e5bd7579affbf3fbe54"
+}

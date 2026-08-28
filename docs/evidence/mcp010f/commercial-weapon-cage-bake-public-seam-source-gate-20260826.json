@@ -1,0 +1,110 @@
+{
+  "schema_version": "ForgeCADCommercialWeaponCageBakePublicSeamSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-26",
+  "status": "PASS_SOURCE_COMPILE_WITH_NEW_MATERIALIZATION_BLOCKED",
+  "source_surface": {
+    "schema_count": 511,
+    "operator_entry_count": 28,
+    "read_tool_count": 110,
+    "write_tool_count_when_opted_in": 82,
+    "total_tool_count_when_opted_in": 192,
+    "public_tools": [
+      {"name": "production_weapon_high_low_bake_preflight_get", "mode": "read"},
+      {"name": "production_weapon_high_low_bake_get", "mode": "read"},
+      {"name": "production_weapon_high_low_bake_prepare", "mode": "write_opt_in"}
+    ]
+  },
+  "worker": {
+    "cage_operation": "production_weapon_cage_offset",
+    "bake_operation": "production_weapon_geometric_bake_2k",
+    "cage_exact_low_topology_order": true,
+    "bake_output_semantics": [
+      "tangent-normal",
+      "ambient-occlusion",
+      "curvature",
+      "thickness",
+      "position",
+      "object-id",
+      "material-id",
+      "part-id"
+    ],
+    "dilation_texels": 8,
+    "quality_gate": "NOT_PASSED_NO_FORMAL_CURRENT_CANDIDATE_RECEIPT",
+    "standalone_check": "PASS",
+    "standalone_build": "PASS",
+    "focused_cage_tests": "PASS_2_OF_2",
+    "two_k_bake_long_run": "STOPPED_NOT_COUNTED_AS_PASS"
+  },
+  "store": {
+    "public_atomic_commit": true,
+    "public_restart_get": true,
+    "child_table_count": 7,
+    "exact_replay": true,
+    "conflict_rollback": true,
+    "owned_cas_reachability_and_gc": true,
+    "compile": "PASS"
+  },
+  "runtime_mcp": {
+    "closed_prepare_and_get_schema": true,
+    "authenticated_write_opt_in": true,
+    "ponytail_preflight_required": true,
+    "fixed_two_k_worker_launcher": "PASS_COMPILE_FIXED_BINARY_OPERATION_120S_512MIB_ACCEPTANCE_GATE",
+    "formal_get_store_cas_reverification": true,
+    "exact_existing_receipt_replay": true,
+    "hero_uv_candidate_low_artifact_reverse_lookup": "PASS_FOCUSED_1_OF_1_AMBIGUITY_FAIL_CLOSED",
+    "formal_high_stage_resolver": "PASS_COMPILE_STAGE_SOURCE_NATIVE_HIGH_PLUS_DISTINCT_DERIVED_HIGH_CANDIDATE",
+    "formal_high_stage_resolver_unconditional_blocker_removed": true,
+    "formal_high_contract": "ProductionWeaponHighArtifact@1_EXISTING_NO_DUPLICATE_BINDING_SCHEMA_REQUIRED",
+    "formal_high_positive_receipt": "NOT_RUN_RUNTIME_OWNED_DERIVED_HIGH_CANDIDATE_AND_DURABLE_RESTART_MATERIALIZATION_MISSING",
+    "new_materialization_status": "PRODUCTION_WEAPON_HIGH_LOW_BAKE_PRODUCER_UNAVAILABLE",
+    "new_materialization_blocker_codes": [
+      "FORMAL_HIGH_STAGE_SOURCE_LINEAGE_UNAVAILABLE",
+      "NATIVE_HIGH_DURABLE_UNAVAILABLE_OR_BINDING_MISMATCH",
+      "LOW_QUAD_DURABLE_UNAVAILABLE_OR_BINDING_MISMATCH",
+      "HERO_UV_DURABLE_UNAVAILABLE_OR_BINDING_MISMATCH"
+    ],
+    "new_materialization_runtime_write": false,
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "verification": {
+    "workspace_cargo_check": "PASS_FOR_STORE_RUNTIME_MCP",
+    "store_hero_uv_reverse_lookup_focused_test": "PASS_1_OF_1",
+    "runtime_focused_tests": "PASS_2_OF_2_AFTER_TWO_CANDIDATE_HIGH_RESOLVER",
+    "mcp_focused_tests": "PASS_2_OF_2",
+    "compiled_tool_manifest": "PASS_110_READ_82_WRITE_192_TOTAL"
+  },
+  "current_real_candidate": {
+    "stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "fps_high_05": "NOT_PASSED",
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq360": "BLOCKED_REFERENCE_COVERAGE",
+    "formal_cage_bake_prepare": "ZERO_WRITE_BLOCKED_MISSING_TYPED_PRODUCERS",
+    "formal_positive_receipt": "NOT_RUN_CAGE_BAKE",
+    "commercial_status": "NOT_PROVEN",
+    "restart_readback": "NOT_RUN_NO_POSITIVE_RECEIPT"
+  },
+  "historical_failure_diagnostic": {
+    "coverage": 0.3625035285949707,
+    "ray_miss_count": 45386,
+    "nearest_fallback_count": 107063,
+    "cross_part_count": 3982,
+    "padding_texels": 0,
+    "promotion_eligible": false
+  },
+  "limitations": [
+    "The Store commit seam and Worker producers do not yet constitute a Runtime producer for all seven formal typed records and owned CAS roots.",
+    "AuthoringMeshDurableRecord can preserve source GLB lineage and NativeHighDurableRecord can preserve a High GLB/readback. Runtime now resolves both from the Stage source candidate and independently verifies a distinct derived High candidate whose prepared artifact is the Native High GLB; the missing Runtime-owned derived High candidate/formal record producer remains the first invariant blocker.",
+    "Runtime now resolves Hero UV only through an unambiguous project/candidate/Low-artifact Store index and reports machine-readable High/Low/Hero UV blocker codes instead of accepting caller inline truth.",
+    "A brand-new public prepare therefore fails closed with zero write; only exact durable receipt replay and verified get are live.",
+    "No positive current-real-candidate Cage/Bake restart receipt exists.",
+    "Compilation, focused contract tests and tool count do not prove visual, human, engine, distribution or commercial quality."
+  ]
+}

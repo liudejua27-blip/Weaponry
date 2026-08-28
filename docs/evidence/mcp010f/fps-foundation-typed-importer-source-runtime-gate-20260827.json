@@ -1,0 +1,104 @@
+{
+  "schema_version": "ForgeCadFpsFoundationTypedImporterGateReceipt@1",
+  "task_id": "FPS-FOUNDATION-IMPORT-01",
+  "recorded_on": "2026-08-27",
+  "route_changed": false,
+  "implementation": {
+    "runtime_single_writer": true,
+    "mcp_hash_status_only": true,
+    "accepts_path_url_source_bytes_or_script": false,
+    "executable_asset_ids": [
+      "pichuliru-weapon-west",
+      "wrad-arms",
+      "lightning-low-pbr"
+    ],
+    "reference_only_pack_assets_remain_inactive": true,
+    "contracts": [
+      "WeaponFoundationCoordinateSpec@1",
+      "WeaponFoundationAssetRequest@1",
+      "WeaponFoundationAssetResult@1",
+      "WeaponFoundationImportRecord@1",
+      "ForgeCadFoundationTopology@1",
+      "WeaponFoundationSocketMap@1",
+      "WeaponFoundationRigMap@1",
+      "FpsPresentationPackage@1"
+    ],
+    "coordinate_frame": "weapon-right-handed-x-muzzle-y-up-z-right",
+    "units": "meter",
+    "pichuliru_mapping": {
+      "axis_mapping": ["-Z", "+Y", "+X"],
+      "evidence": "PROVEN"
+    },
+    "wrad_lightning_mapping": {
+      "axis_mapping": ["+Z", "+Y", "-X"],
+      "evidence": "PENDING_SOURCE_VERIFICATION"
+    },
+    "degenerate_face_policy": "drop transformed triangle when area is strictly less than 1e-12 square meters",
+    "canonical_numeric_policy": "clamp absolute values below 1e-15 to zero then reach a bounded canonical JSON fixed point before hashing"
+  },
+  "real_source_readback": [
+    {
+      "asset_id": "pichuliru-weapon-west",
+      "vertex_count": 8045,
+      "sanitized_triangle_count": 4352,
+      "dropped_degenerate_face_count": 1,
+      "socket_count": 6,
+      "bone_count": 19,
+      "animation_clip_count": 0
+    },
+    {
+      "asset_id": "wrad-arms",
+      "vertex_count": 872,
+      "sanitized_triangle_count": 1196,
+      "dropped_degenerate_face_count": 0,
+      "socket_count": 2,
+      "bone_count": 50,
+      "animation_clip_count": 0,
+      "embedded_image_count": 1,
+      "texture_count": 1
+    },
+    {
+      "asset_id": "lightning-low-pbr",
+      "vertex_count": 2332,
+      "sanitized_triangle_count": 3042,
+      "dropped_degenerate_face_count": 4,
+      "socket_count": 0,
+      "bone_count": 7,
+      "animation_clip_count": 2,
+      "embedded_image_count": 3,
+      "texture_count": 3
+    }
+  ],
+  "runtime_probe": {
+    "asset_id": "pichuliru-weapon-west",
+    "first_prepare_replayed": false,
+    "repeat_prepare_replayed": true,
+    "get_restart_hash_verified": true,
+    "result_hash_exact": true,
+    "authoring_mesh_materialization_status": "AUTHORING_MESH_MATERIALIZATION_PENDING",
+    "quality_status": "structural_only"
+  },
+  "gates": {
+    "contract_checker": "PASS_546_SCHEMAS",
+    "contracts_store_runtime_mcp_compile": "PASS_WITH_EXISTING_WARNINGS",
+    "mcp_tool_manifest": "PASS_208_TOTAL_119_READ_89_WRITE",
+    "mcp_tools": [
+      "weapon_foundation_asset_get",
+      "weapon_foundation_asset_prepare"
+    ],
+    "git_diff_check": "PASS"
+  },
+  "final_state": {
+    "task_outcome": "SOURCE_RUNTIME_STRUCTURAL_PASS",
+    "fps_presentation_package_status": "DRAFT_UNREVIEWED",
+    "authoring_mesh_materialization_status": "AUTHORING_MESH_MATERIALIZATION_PENDING",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "engine_roundtrip": "NOT_RUN",
+    "human_hero_art_review": "NOT_RUN",
+    "commercial_quality": "NOT_PROVEN",
+    "promotion_eligible": false
+  },
+  "next_atomic_action": "Materialize compact foundation topology as Part-bounded AuthoringMeshV2 genesis objects and bind the verified weapon, arms and presentation package without exceeding the one-megabyte MCP response boundary."
+}

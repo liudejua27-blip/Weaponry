@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-assembly-parameter-sink-get-request.schema.json",
+  "title": "ProductionWeaponAssemblyParameterSinkGetRequest@1",
+  "description": "Hash-bound read-only lookup for a Runtime-owned assembly parameter sink registry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sink_registry_id",
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "artifact_id",
+    "artifact_sha256",
+    "geometry_program_sha256",
+    "geometry_program_canonical_sha256",
+    "operator_catalog_sha256",
+    "assembly_registry_id",
+    "assembly_registry_canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponAssemblyParameterSinkGetRequest@1"},
+    "sink_registry_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "assembly_registry_id": {"$ref": "#/$defs/id"},
+    "assembly_registry_canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

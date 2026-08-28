@@ -1,0 +1,7 @@
+# Fixed product-owned worker lock for an unregistered Native High source proposal.
+# The executable is deliberately not bundled or exposed by the active registry.
+forgecad.production.high-mesh-prepare@1 = forgecad-high-worker@0.1.0
+forgecad.production.high-mesh-glb-materialize@1 = forgecad-high-worker@0.1.0
+worker_boundary = one-shot-stdio-no-network-no-script-no-runtime-write
+runtime_integration_gate = PASS_SOURCE_DURABLE_RESTART_MCP_ONLY
+runtime_integration_status = source-only-pass

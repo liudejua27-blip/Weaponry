@@ -1,0 +1,40 @@
+project: pichuliru-flat-guns-and-attachments
+source_urls:
+  - https://opengameart.org/content/cc0-flat-guns-west
+  - https://opengameart.org/content/cc0-flat-guns-east
+  - https://opengameart.org/content/cc0-flat-gun-attachments
+revision: official-opengameart-snapshot-2022
+retrieved_at: 2026-08-27
+license_spdx: CC0-1.0
+research_status: accepted-evaluation-asset
+archives:
+  - name: flat_guns_west.zip
+    sha256: 0e83e670f7c85a2c024887662f5f6ab584daceb5c8a38bac5a3f14a0397a1d29
+  - name: flat_guns_east.zip
+    sha256: 3d989ac8e9f0f1f0efe66098fc8f09f31cfadcebb1ed51260201f691946700d4
+  - name: flat_attachments.zip
+    sha256: b8831bd8bb26bae1a84a4df2a8c1c3c0ad770909a5ca058a6c44497c5a62bcc1
+observed_structure:
+  weapon_west: 21-nodes-1-skin-0-animation-clips
+  weapon_east: 15-nodes-1-skin-0-animation-clips
+  movable_nodes: [Magazine, Trigger, Selector, Bolt, Stock, Charging Handle]
+  attachment_nodes: [Attach_Scope, Attach_Muzzle, Attach_Rail.Top, Attach_Rail.Bottom, Attach_Rail.SideLeft, Attach_Rail.SideRight]
+selected_files:
+  - {path: assets/pichuliru/weapon-west.glb, sha256: 0d80dd2118c884172a856455968be14eadc97f041d27d52bfa75fedb708fa486}
+  - {path: assets/pichuliru/weapon-east.glb, sha256: 8b3d3f90afbff9a699c3e2a14574ff0c5a687f1faf6dc4b51ba4a5629ea07783}
+  - {path: assets/pichuliru/optic-holographic.glb, sha256: b94436754da9b7550f85c72adefb857090cb8299b3bc8d99cc339ad47f166987}
+  - {path: assets/pichuliru/optic-scope.glb, sha256: a3c20e2c59273abd280f1a5ddb4f3ec104ca46fac3c06cbd2cf81664ee7cf195}
+  - {path: assets/pichuliru/muzzle-device.glb, sha256: 0b7a598791ae01f212efd1df9817227b6514c52287c870bc72639dfff83897a4}
+  - {path: assets/pichuliru/foregrip.glb, sha256: 0980af948e14a6023c2e0752bbf2cdc4ed3c57a44c21adb484b6b73322f4fbb8}
+accepted_scope:
+  - rigged-weapon-semantic-source
+  - attachment-socket-vocabulary
+  - typed-normalization-fixture
+denied_capabilities:
+  - source_dimensions_as_truth
+  - source_mesh_as_hero_asset
+  - source_blend_as_runtime_truth
+  - confirm_or_export
+package: packages/forgecad-assets/forgecad-fps-production-foundation/0.1.0-proposal
+runtime_allowlist_changed: false
+fallback_or_removal_plan: Remove the selected GLBs, semantic mapping and this receipt; no confirmed candidate or version depends on them.

@@ -1,0 +1,7 @@
+{
+  "schema_version": "SkillMaterialIndex@1",
+  "skill_id": "native-high",
+  "materials": [],
+  "network": false,
+  "note": "Material/UV/tangent production gates are not part of this source-only proposal."
+}

@@ -1,0 +1,115 @@
+{
+  "schema_version": "ProductionWeaponFormQualityV2ReadOnlyDiagnosticReceipt@1",
+  "task_id": "FPS-FORM-EVIDENCE-04A-DIAGNOSTIC",
+  "recorded_at": "2026-08-24",
+  "status": "PASS_READ_ONLY_DIAGNOSTIC_WITH_QUALITY_TARGET_NOT_MET",
+  "source": {
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "geometry_program_source_sha256": "f9b007d5753daf1f96645c8a5a0d4f0f9e105ae41070a91319c4674e025dc505",
+    "operator_catalog_sha256": "860f24812e651cbb7cded0d4058a354aabf231fc0ace73e4a4b06f6408a485d6"
+  },
+  "lineage": {
+    "project_id": "project-b0c85fc476414366bcff3dd7b0aa55e4",
+    "candidate_id": "candidate-c077374ddcbb4fa49bb847a4940136d1",
+    "candidate_state_sha256": "22bb6ca974d83b1196738bbccfe71a1b73746b330feee1ebb3615a79efc40fc5",
+    "artifact_sha256": "44e622a02527d5851d9d9beff597c9b747f9b368ca27b69f0c1e54a6eecd35b7",
+    "cross_view_evidence_object_sha256": "cdf63d783ac3db0f173ef229f74df83d1e2e76d72e51c4ae29cfcb09b9ef66b8",
+    "form_art_canonical_sha256": "880e14ef9ed54a78dd782b4eb66e3f7039b22df63ebb8fa44fa6da48c5ba1a24",
+    "form_art_receipt_object_sha256": "ac530f4756dab10fb47ba2c0f5c45663d23dd0afb04ac6bf78f55d7b998cfc3e",
+    "legacy_form_quality_canonical_sha256": "9c50bd6fab0886aad701239796d23ab8501c52d9a24ed68a75e3565f438dea22",
+    "legacy_form_quality_receipt_object_sha256": "cac92183d020da1a21d0c7cebeb43c0269bf1cc70d4ddb4d7bba5355c7b852ff",
+    "form_quality_v2_preflight_readiness_sha256": "3c75b4aade45dff1c85aaef31975513a0e6a32b37bbdda61597a8cfdf7dc898f"
+  },
+  "cross_view": {
+    "aggregate_status": "QUALITY_TARGET_NOT_MET",
+    "hard_gate_passed": false,
+    "non_regressing": true,
+    "strict_improvement": false,
+    "view_diagnostics": [
+      {
+        "view_kind": "front",
+        "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+        "proposal_metrics": {"silhouette_iou": 0.0, "boundary_f1_4px": 0.0, "bbox_edge_error": 0.470703125, "centroid_error": 0.295513150863, "landmark_coverage": 0.0, "landmark_nme": 1.0, "region_median_iou": 0.0, "critical_region_min_iou": 1.0},
+        "failed_metrics": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou"]
+      },
+      {
+        "view_kind": "back",
+        "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+        "proposal_metrics": {"silhouette_iou": 0.0, "boundary_f1_4px": 0.0, "bbox_edge_error": 0.533203125, "centroid_error": 0.391317982449, "landmark_coverage": 0.0, "landmark_nme": 1.0, "region_median_iou": 0.0, "critical_region_min_iou": 1.0},
+        "failed_metrics": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou"]
+      },
+      {
+        "view_kind": "left",
+        "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+        "proposal_metrics": {"silhouette_iou": 0.051806588735, "boundary_f1_4px": 0.010009532888, "bbox_edge_error": 0.330078125, "centroid_error": 0.100477025624, "landmark_coverage": 0.0, "landmark_nme": 1.0, "region_median_iou": 0.0, "critical_region_min_iou": 1.0},
+        "failed_metrics": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou"]
+      },
+      {
+        "view_kind": "right",
+        "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+        "proposal_metrics": {"silhouette_iou": 0.0, "boundary_f1_4px": 0.00769429956, "bbox_edge_error": 0.328125, "centroid_error": 0.270885894783, "landmark_coverage": 0.0, "landmark_nme": 1.0, "region_median_iou": 0.0, "critical_region_min_iou": 1.0},
+        "failed_metrics": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou"]
+      },
+      {
+        "view_kind": "top",
+        "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+        "proposal_metrics": {"silhouette_iou": 0.014632327814, "boundary_f1_4px": 0.0, "bbox_edge_error": 0.419921875, "centroid_error": 0.173252687801, "landmark_coverage": 0.0, "landmark_nme": 1.0, "region_median_iou": 0.0, "critical_region_min_iou": 1.0},
+        "failed_metrics": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou"]
+      },
+      {
+        "view_kind": "rear-three-quarter",
+        "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+        "proposal_metrics": {"silhouette_iou": 0.0, "boundary_f1_4px": 0.0, "bbox_edge_error": 0.39453125, "centroid_error": 0.438876739255, "landmark_coverage": 0.0, "landmark_nme": 1.0, "region_median_iou": 0.0, "critical_region_min_iou": 1.0},
+        "failed_metrics": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou"]
+      }
+    ]
+  },
+  "form_art_target_observation": {
+    "status": "blocked",
+    "view_diagnostics": [
+      {"view_kind": "front", "negative_space_status": "not-applicable", "negative_space_row_count": 0, "line_flow_status": "unknown", "line_flow_row_count": 2, "reason_code": "LINE_FLOW_NOT_OBSERVED_OR_NOT_APPLICABLE"},
+      {"view_kind": "back", "negative_space_status": "not-applicable", "negative_space_row_count": 0, "line_flow_status": "unknown", "line_flow_row_count": 1, "reason_code": "LINE_FLOW_NOT_OBSERVED_OR_NOT_APPLICABLE"},
+      {"view_kind": "left", "negative_space_status": "unknown", "negative_space_row_count": 0, "line_flow_status": "inferred", "line_flow_row_count": 6, "reason_code": "NEGATIVE_SPACE_NOT_OBSERVED_OR_NOT_APPLICABLE"},
+      {"view_kind": "right", "negative_space_status": "unknown", "negative_space_row_count": 0, "line_flow_status": "unknown", "line_flow_row_count": 6, "reason_code": "NEGATIVE_SPACE_NOT_OBSERVED_OR_NOT_APPLICABLE"},
+      {"view_kind": "top", "negative_space_status": "not-applicable", "negative_space_row_count": 0, "line_flow_status": "inferred", "line_flow_row_count": 4, "reason_code": "LINE_FLOW_NOT_OBSERVED_OR_NOT_APPLICABLE"},
+      {"view_kind": "rear-three-quarter", "negative_space_status": "unknown", "negative_space_row_count": 0, "line_flow_status": "unknown", "line_flow_row_count": 6, "reason_code": "NEGATIVE_SPACE_NOT_OBSERVED_OR_NOT_APPLICABLE"}
+    ]
+  },
+  "preflight": {
+    "ready_for_v2_prepare": false,
+    "blocking_reasons": [
+      "cross_view_evidence:CROSS_VIEW_EVIDENCE_BLOCKED",
+      "form_art_target_observation:FORM_ART_TARGET_OBSERVATION_BLOCKED"
+    ],
+    "current_stage_head": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED"
+  },
+  "execution": {
+    "focused_test": "PASS_1_OF_1_IN_327_28_SECONDS",
+    "render_set_count": 6,
+    "aov_pass_count": 54,
+    "same_candidate_replay_zero_new_objects": true,
+    "form_quality_v2_preflight_zero_write_verified": true,
+    "restart_hash_verified": true,
+    "runtime_write_performed_by_diagnostic": false,
+    "worker_invoked_by_diagnostic": false,
+    "candidate_generated_by_diagnostic": false,
+    "production_stage_advanced_by_diagnostic": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "decision": {
+    "bounded_parameter_search_status": "NOT_RUN",
+    "reason": "All six views remain blocked on user confirmation and fail seven of eight visible-view metric gates. The five D1 sinks do not cover rear stock, trigger, rail or receiver shoulder, so a candidate-writing search cannot clear the current evidence blockers without guessing."
+  },
+  "quality_boundary": {
+    "quality_status": "NOT_PROVEN",
+    "visual_quality_status": "QUALITY_TARGET_NOT_MET",
+    "human_hero_art_review_status": "NOT_RUN",
+    "commercial_engine_status": "NOT_RUN",
+    "high_low_status": "NOT_RUN",
+    "hero_uv_status": "NOT_RUN",
+    "bake_status": "NOT_RUN"
+  }
+}

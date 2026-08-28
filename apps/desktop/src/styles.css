@@ -731,11 +731,39 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .runtime-inspector-selection { margin: 0 0 10px; border-color: #2b4050; border-radius: 7px; background: #101d28; }
 .runtime-inspector-section-card { padding: 10px; border: 1px solid #293b49; border-radius: 7px; background: #0e1a24; }
 .runtime-inspector-section-card h3 { margin: 0 0 8px; color: #d8e5ee; font-size: 11px; }
+.authoring-mesh-diagnostic { display: grid; gap: 8px; margin-top: 8px; }
+.authoring-mesh-diagnostic-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.authoring-mesh-diagnostic-heading h3 { margin-bottom: 2px; }
+.authoring-mesh-diagnostic-subtitle { color: #718898; font-size: 8px; line-height: 1.4; }
+.authoring-mesh-readonly-badge { flex: 0 0 auto; padding: 3px 5px; border: 1px solid #426077; border-radius: 4px; color: #a7d5e8; background: rgba(22, 61, 81, .55); font-size: 7px; line-height: 1.25; }
+.authoring-mesh-diagnostic-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.authoring-mesh-diagnostic-tags span { padding: 3px 5px; border: 1px solid rgba(54, 91, 111, .9); border-radius: 4px; color: #8fb9ca; background: rgba(16, 42, 56, .55); font-size: 7px; }
+.authoring-mesh-diagnostic-empty { display: grid; gap: 3px; color: #879ba8; font-size: 8px; line-height: 1.45; }
+.authoring-mesh-diagnostic-empty strong { color: #d3e0e7; font-size: 9px; }
+.authoring-mesh-diagnostic-empty small, .authoring-mesh-diagnostic-note { color: #647c8b; font-size: 7px; line-height: 1.45; }
+.authoring-mesh-counts, .authoring-mesh-topology { margin: 0; }
+.authoring-mesh-topology { padding-top: 3px; border-top: 1px solid rgba(41, 59, 73, .7); }
 .runtime-check-summary { display: grid; gap: 0; }
 .runtime-check-summary > div { display: grid; min-height: 30px; grid-template-columns: 18px 1fr auto; align-items: center; gap: 7px; border-bottom: 1px solid rgba(41, 59, 73, .7); color: #83b99e; font-size: 9px; }
 .runtime-check-summary > div:last-child { border-bottom: 0; }
 .runtime-check-summary span { color: #9eafbc; }
 .runtime-check-summary strong { color: #cfdae2; font-weight: 550; }
+.art-director-review { margin-top: 9px; }
+.art-director-review-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.art-director-review-heading > div { display: grid; gap: 2px; }
+.art-director-review-heading h3 { margin-bottom: 0; }
+.art-director-review-heading span, .art-director-review > p { color: #6e8292; font-size: 8px; line-height: 1.45; }
+.art-director-review-heading > strong { color: #9fc6df; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+.art-director-review-grid { display: grid; margin-top: 8px; border-top: 1px solid rgba(41, 59, 73, .7); }
+.art-director-review-row { display: grid; min-height: 28px; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 7px; border-bottom: 1px solid rgba(41, 59, 73, .55); font-size: 8px; }
+.art-director-review-row > span { width: 6px; height: 6px; border-radius: 50%; background: #526879; }
+.art-director-review-row label { color: #9aabb8; }
+.art-director-review-row strong { color: #8d9dab; font-weight: 550; text-align: right; }
+.art-director-review-ready > span { background: #4cbd87; }
+.art-director-review-ready strong { color: #84d8ad; }
+.art-director-review-blocked > span { background: #d18b57; }
+.art-director-review-blocked strong { color: #d7a27b; }
+.art-director-review > p { margin: 8px 0 0; }
 .runtime-basic-candidate-status { margin: 10px 0; }
 .runtime-professional-trigger { min-height: 44px; }
 .inspector-note { font-size: 8px; line-height: 1.5; }

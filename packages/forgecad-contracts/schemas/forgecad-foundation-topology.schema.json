@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/forgecad-foundation-topology.schema.json",
+  "title": "ForgeCadFoundationTopology@1",
+  "description": "A compact ForgeCAD-owned topology summary stored by CAS after a typed foundation import. Vertex positions, face indices and other mesh payloads remain opaque CAS data and are never returned inline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "topology_id",
+    "source_asset_id",
+    "source_asset_sha256",
+    "source_format",
+    "coordinate_spec_sha256",
+    "normalization_policy",
+    "degenerate_face_sanitation",
+    "source_node_count",
+    "source_mesh_count",
+    "source_primitive_count",
+    "source_triangle_count",
+    "sanitized_triangle_count",
+    "parts",
+    "topology_cas_sha256",
+    "storage_policy",
+    "authoring_mesh_materialization_status",
+    "topology_status",
+    "quality_status",
+    "promotion_eligible",
+    "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ForgeCadFoundationTopology@1"},
+    "topology_id": {"$ref": "#/$defs/id"},
+    "source_asset_id": {"$ref": "#/$defs/asset_id"},
+    "source_asset_sha256": {"$ref": "#/$defs/sha256"},
+    "source_format": {"enum": ["glb", "gltf"]},
+    "coordinate_spec_sha256": {"$ref": "#/$defs/sha256"},
+    "normalization_policy": {"const": "forgecad-foundation-typed-import-source-to-target-axis-normalization@1"},
+    "degenerate_face_sanitation": {"$ref": "#/$defs/degenerate_face_sanitation"},
+    "source_node_count": {"type": "integer", "minimum": 0, "maximum": 512},
+    "source_mesh_count": {"type": "integer", "minimum": 0, "maximum": 128},
+    "source_primitive_count": {"type": "integer", "minimum": 0, "maximum": 512},
+    "source_triangle_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+    "sanitized_triangle_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+    "parts": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/part_summary"}
+    },
+    "topology_cas_sha256": {"$ref": "#/$defs/sha256"},
+    "storage_policy": {"const": "compact-cas-reference-no-inline-positions-or-faces@1"},
+    "authoring_mesh_materialization_status": {"const": "PENDING"},
+    "topology_status": {"enum": ["COMPACT_CAS_WRITTEN", "PENDING"]},
+    "quality_status": {"const": "structural_only"},
+    "promotion_eligible": {"const": false},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"source_asset_id": {"const": "pichuliru-weapon-west"}}, "required": ["source_asset_id"]},
+      "then": {"properties": {"degenerate_face_sanitation": {"properties": {"source_degenerate_face_count": {"const": 1}, "dropped_face_count": {"const": 1}}}}}
+    },
+    {
+      "if": {"properties": {"source_asset_id": {"const": "lightning-low-pbr"}}, "required": ["source_asset_id"]},
+      "then": {"properties": {"degenerate_face_sanitation": {"properties": {"source_degenerate_face_count": {"const": 4}, "dropped_face_count": {"const": 4}}}}}
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.: -]{0,127}$"
+    },
+    "asset_id": {
+      "type": "string",
+      "enum": [
+        "pichuliru-weapon-west",
+        "lightning-low-pbr",
+        "wrad-arms"
+      ]
+    },
+    "degenerate_face_sanitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy",
+        "test",
+        "area_epsilon_m2",
+        "area_comparison",
+        "ordering",
+        "source_degenerate_face_count",
+        "dropped_face_count",
+        "remaining_degenerate_face_count",
+        "stable_reindexing"
+      ],
+      "properties": {
+        "policy": {"const": "drop-degenerate-faces-deterministic-source-order@1"},
+        "test": {"const": "non-finite-or-area-less-than-threshold-after-source-to-target-transform@1"},
+        "area_epsilon_m2": {"const": 1e-12},
+        "area_comparison": {"const": "strict-less-than"},
+        "ordering": {"const": "source-primitive-index-then-face-index@1"},
+        "source_degenerate_face_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "dropped_face_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "remaining_degenerate_face_count": {"const": 0},
+        "stable_reindexing": {"const": true}
+      }
+    },
+    "part_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "source_node_name",
+        "source_node_index",
+        "semantic_role",
+        "material_zone_id",
+        "source_primitive_count",
+        "source_vertex_count",
+        "source_triangle_count",
+        "sanitized_triangle_count",
+        "source_degenerate_face_count",
+        "sanitized_degenerate_face_count",
+        "part_topology_cas_sha256"
+      ],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/id"},
+        "source_node_name": {"$ref": "#/$defs/source_name"},
+        "source_node_index": {"type": "integer", "minimum": 0, "maximum": 511},
+        "semantic_role": {"enum": ["weapon_root", "body", "barrel", "grip", "magazine", "stock", "trigger", "selector", "bolt", "charging_handle", "magazine_release", "optic", "muzzle_device", "foregrip", "armature", "reference_part", "unknown"]},
+        "material_zone_id": {"$ref": "#/$defs/id"},
+        "source_primitive_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "source_vertex_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "source_triangle_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "sanitized_triangle_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "source_degenerate_face_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "sanitized_degenerate_face_count": {"const": 0},
+        "part_topology_cas_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

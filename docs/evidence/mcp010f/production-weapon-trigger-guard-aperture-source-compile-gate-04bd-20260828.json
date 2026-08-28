@@ -1,0 +1,63 @@
+{
+  "schema_version": "ForgeCADProductionWeaponTriggerGuardApertureSourceCompileGate@1",
+  "task_id": "FPS-FORM-04BD",
+  "recorded_on": "2026-08-28",
+  "status": "PASS_SOURCE_FIXED_XY_APERTURE_WORKER_COMPILE_BLOCKED_COMPOSITE_PROPOSAL_LINEAGE",
+  "route_changed": false,
+  "scope": "Add one product-owned fixed trigger-guard aperture transformation in the reviewed side-view plane, prove that the fixed Geometry Worker compiles it while preserving the D1 semantic assembly, and fail closed before a real proposal when the current single-source proposal lineage cannot compose the prior 04BB rear-stock correction with a second disjoint source-node replacement.",
+  "diagnosis": {
+    "measured_input_failure": "The exact 04BB proposal evidence reports sealed left and right trigger voids with zero observed mask area, IoU and boundary F1.",
+    "previous_operator_mismatch": "OpenFrameNotch constructs its opening in the Y/Z plane and extrudes along X; it cannot create the reviewed X/Y side aperture extruded through Z.",
+    "required_orientation": "X/Y concave side profile with depth only along Z",
+    "lineage_blocker": "ProductionWeaponFormArtMeshProposal@1 binds one baseline source candidate and one source-node replacement. Applying the trigger-guard replacement to the original baseline would discard the accepted 04BB rear-stock correction, while treating the 04BB proposal candidate as the baseline violates the existing fresh-baseline/FormArt source bindings. A second real candidate is therefore not created until a typed composite lineage contract exists."
+  },
+  "source_change": {
+    "profile_id": "trigger-guard-side-aperture-xy@1",
+    "target_part_id": "trigger-guard",
+    "target_node_id": "trigger-guard",
+    "source_operator": "forgecad.geometry.primitive@2",
+    "replacement_operator": "forgecad.geometry.profile-extrude@1",
+    "profile_point_count": 8,
+    "caller_controls": [],
+    "preserved": [
+      "all 23 stable Part outputs",
+      "all non-target source nodes",
+      "trigger-guard node and Part identity",
+      "material bindings",
+      "source position, rotation and Z depth"
+    ],
+    "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_assembly_parameter_mutator.rs",
+    "runtime_source_sha256": "e830f62ad271422a67c826927a2d52096d881c58397ca6ab48cb7f5b44061657"
+  },
+  "verification": {
+    "focused_test": "production_weapon_assembly_parameter_mutator::tests::d1_trigger_guard_aperture_is_one_fixed_xy_profile_and_worker_compiles",
+    "focused_test_result": "PASS_1_OF_1",
+    "geometry_worker_compile": "PASS",
+    "compiled_part_count": 23,
+    "cargo_check": "PASS_FORGECAD_CONTRACTS_RUNTIME_MCP_WITH_EXISTING_WARNINGS",
+    "stage0_truth_checker": "PASS_WITH_RETAINED_QUALITY_TARGET_NOT_MET_AND_BLOCKED_INCOMPLETE_BINDING",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS",
+    "real_04bb_composite_candidate": "BLOCKED_COMPOSITE_PROPOSAL_LINEAGE",
+    "six_view_render_sets": "NOT_RUN_NO_VALID_COMPOSITE_CANDIDATE",
+    "form_quality_v2_prepare": "NOT_RUN",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "final_state": {
+    "production_stage": "camera-calibrated",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "secondary_form_approved": "NOT_CREATED",
+    "high_low_uv_bake": "NOT_RUN",
+    "formal_human_review": "NOT_RUN",
+    "commercial_engine_validation": "NOT_RUN",
+    "commercial_quality": "NOT_PROVEN"
+  },
+  "next_atomic_action": "Implement ProductionWeaponFormArtCompositeMeshProposal@1 so one current proposal candidate can remain bound to the original fresh baseline while accepting a bounded ordered list of disjoint stable source-node replacements. Then apply the fixed trigger-guard aperture on top of the 04BB rear-stock result and run the exact six-view 54-AOV fail-closed comparison."
+}

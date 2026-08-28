@@ -55,6 +55,58 @@ CANDIDATE_ANIMATION_VFX_QUALITY_V2_FRAME_SET_SCHEMA = (
     "CandidateAnimationVfxQualityAttachmentFrameSet@1"
 )
 
+HIGH_LOW_BAKE_POLICIES = {
+    "high": "production-weapon-independent-high-detail-graph@1",
+    "low": "production-weapon-independent-low-retopology@1",
+    "cage": "production-weapon-low-bound-cage-offset-field@1",
+    "correspondence": "production-weapon-high-low-cage-part-face-corner-correspondence@1",
+    "plan": "production-weapon-high-low-cage-ray-diagnostic-plan@1",
+    "diagnostic": "production-weapon-high-low-cage-ray-diagnostic@1",
+    "bake": "production-weapon-high-low-cage-bake-gate@1",
+    "mode": "independent-high-low-cage-ray-bake@1",
+}
+HIGH_LOW_SCHEMA_VERSIONS = {
+    "production-weapon-high-artifact.schema.json": "ProductionWeaponHighArtifact@1",
+    "production-weapon-low-artifact.schema.json": "ProductionWeaponLowArtifact@1",
+    "production-weapon-cage-artifact.schema.json": "ProductionWeaponCageArtifact@1",
+    "production-weapon-high-low-correspondence.schema.json": "ProductionWeaponHighLowCorrespondence@1",
+    "production-weapon-high-low-bake-plan.schema.json": "ProductionWeaponHighLowBakePlan@1",
+    "production-weapon-high-low-diagnostic.schema.json": "ProductionWeaponHighLowDiagnostic@1",
+    "production-weapon-high-low-bake-receipt.schema.json": "ProductionWeaponHighLowBakeReceipt@1",
+    "production-weapon-high-low-bake-prepare-request.schema.json": "ProductionWeaponHighLowBakePrepareRequest@1",
+    "production-weapon-high-low-bake-prepare-result.schema.json": "ProductionWeaponHighLowBakePrepareResult@1",
+    "production-weapon-high-low-bake-get-request.schema.json": "ProductionWeaponHighLowBakeGetRequest@1",
+    "production-weapon-high-low-bake-get-result.schema.json": "ProductionWeaponHighLowBakeGetResult@1",
+}
+
+BLENDER_WORKER_CAPABILITY_SCHEMA_VERSIONS = {
+    "blender-worker-capability.schema.json": "BlenderWorkerCapability@1",
+    "blender-worker-capability-get-request.schema.json": "BlenderWorkerCapabilityGetRequest@1",
+    "blender-worker-capability-get-result.schema.json": "BlenderWorkerCapabilityGetResult@1",
+}
+BLENDER_WORKER_CAPABILITY_ID = "blender-headless-worker-evaluation"
+BLENDER_WORKER_CAPABILITY_SOURCE_REVISION = "72ccdd6e96ca119a1ffa3372559cc5654343b477"
+BLENDER_WORKER_CAPABILITY_GATE_STATUSES = ["not-run", "pending", "passed", "failed", "blocked"]
+BLENDER_WORKER_CAPABILITY_GATE_FIELDS = [
+    "binary_status",
+    "recipe_status",
+    "python_bundle_status",
+    "license_status",
+    "sandbox_status",
+    "determinism_status",
+    "package_gate_status",
+]
+BLENDER_WORKER_CAPABILITY_HASH_FIELDS = [
+    "binary_sha256",
+    "recipe_sha256",
+    "python_bundle_sha256",
+    "license_file_sha256",
+    "license_full_text_sha256",
+    "sandbox_sha256",
+    "determinism_sha256",
+    "package_sha256",
+]
+
 
 def require(condition: bool, message: str) -> None:
     if not condition:
@@ -154,6 +206,665 @@ def check_recessed_channel_kit_enums() -> None:
             set(node["kit_id"].get("enum", [])) == pdk_kits,
             f"{schema_name} kit_id enum must mirror the bounded PDK kit set",
         )
+
+
+def check_production_weapon_high_low_cage_contracts() -> None:
+    """Keep FPS-HIGH-LOW-CAGE-05 independent from SurfaceBake and transient LOD."""
+    expected_files = set(HIGH_LOW_SCHEMA_VERSIONS)
+    actual_files = {path.name for path in SCHEMA_ROOT.glob("*.json")}
+    require(
+        expected_files <= actual_files,
+        "FPS-HIGH-LOW-CAGE-05 schema files are missing",
+    )
+
+    schemas = {name: load_schema(name) for name in expected_files}
+    for name, schema_version in HIGH_LOW_SCHEMA_VERSIONS.items():
+        schema = schemas[name]
+        require(
+            schema.get("title") == schema_version
+            and schema.get("properties", {}).get("schema_version", {}).get("const")
+            == schema_version
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == set(schema.get("properties", {})),
+            f"{schema_version} must be a closed exact-field schema",
+        )
+
+    high = schemas["production-weapon-high-artifact.schema.json"]
+    low = schemas["production-weapon-low-artifact.schema.json"]
+    cage = schemas["production-weapon-cage-artifact.schema.json"]
+    correspondence = schemas["production-weapon-high-low-correspondence.schema.json"]
+    plan = schemas["production-weapon-high-low-bake-plan.schema.json"]
+    diagnostic = schemas["production-weapon-high-low-diagnostic.schema.json"]
+    receipt = schemas["production-weapon-high-low-bake-receipt.schema.json"]
+    prepare_request = schemas["production-weapon-high-low-bake-prepare-request.schema.json"]
+    prepare_result = schemas["production-weapon-high-low-bake-prepare-result.schema.json"]
+    get_request = schemas["production-weapon-high-low-bake-get-request.schema.json"]
+    get_result = schemas["production-weapon-high-low-bake-get-result.schema.json"]
+
+    require_required(
+        high,
+        {
+            "high_artifact_id",
+            "source_candidate_id",
+            "source_artifact_sha256",
+            "high_candidate_id",
+            "high_artifact_sha256",
+            "high_artifact_readback_sha256",
+            "high_geometry_program_sha256",
+            "high_detail_graph_object_sha256",
+            "high_part_inventory_sha256",
+            "high_part_ids",
+            "high_material_zone_ids",
+            "high_policy",
+            "high_artifact_kind",
+            "high_mime",
+            "high_worker_build_cohort_sha256",
+            "high_worker_replay_count",
+            "high_replay_byte_exact",
+            "high_authoring_topology_status",
+            "quality_status",
+            "visual_status",
+            "hard_gate_passed",
+            "candidate_confirmed",
+            "version_created",
+            "export_performed",
+        },
+        "ProductionWeaponHighArtifact@1",
+    )
+    require(
+        high["properties"]["high_policy"].get("const") == HIGH_LOW_BAKE_POLICIES["high"]
+        and high["properties"]["high_artifact_kind"].get("const")
+        == "production-weapon-high-artifact-glb"
+        and high["properties"]["high_mime"].get("const") == "model/gltf-binary"
+        and high["properties"]["high_worker_replay_count"].get("const") == 2
+        and high["properties"]["high_replay_byte_exact"].get("const") is True,
+        "HighArtifact must be an independently replay-verified GLB",
+    )
+
+    require_required(
+        low,
+        {
+            "source_high_candidate_id",
+            "source_high_artifact_sha256",
+            "low_candidate_id",
+            "low_artifact_sha256",
+            "low_artifact_readback_sha256",
+            "low_retopology_policy",
+            "low_triangle_budget_sha256",
+            "low_authoring_topology_status",
+            "low_authoring_topology_object_sha256",
+            "low_uv_binding_sha256",
+            "low_tangent_input_sha256",
+            "low_artifact_kind",
+            "low_mime",
+            "low_worker_build_cohort_sha256",
+            "low_worker_replay_count",
+            "low_replay_byte_exact",
+            "quality_status",
+            "visual_status",
+            "hard_gate_passed",
+        },
+        "ProductionWeaponLowArtifact@1",
+    )
+    require(
+        low["properties"]["low_retopology_policy"].get("const") == HIGH_LOW_BAKE_POLICIES["low"]
+        and low["properties"]["low_authoring_topology_status"].get("const") == "complete"
+        and low["properties"]["low_uv_status"].get("const") == "passed"
+        and low["properties"]["low_tangent_status"].get("const") == "passed"
+        and low["properties"]["low_artifact_kind"].get("const")
+        == "production-weapon-low-artifact-glb"
+        and low["properties"]["low_mime"].get("const") == "model/gltf-binary"
+        and low["properties"]["low_worker_replay_count"].get("const") == 2
+        and low["properties"]["low_replay_byte_exact"].get("const") is True,
+        "LowArtifact must be independent authored retopology with UV/tangent evidence",
+    )
+
+    require_required(
+        cage,
+        {
+            "source_high_artifact_sha256",
+            "source_low_artifact_sha256",
+            "cage_artifact_id",
+            "cage_artifact_sha256",
+            "cage_artifact_readback_sha256",
+            "cage_topology_correspondence_sha256",
+            "cage_offset_field_object_sha256",
+            "cage_offset_field_canonical_sha256",
+            "cage_self_intersection_count",
+            "cage_cross_part_count",
+            "cage_out_of_range_count",
+            "cage_skew_count",
+            "cage_artifact_kind",
+            "cage_mime",
+            "cage_worker_build_cohort_sha256",
+            "cage_worker_replay_count",
+            "cage_replay_byte_exact",
+            "quality_status",
+            "visual_status",
+            "hard_gate_passed",
+        },
+        "ProductionWeaponCageArtifact@1",
+    )
+    require(
+        cage["properties"]["cage_policy"].get("const") == HIGH_LOW_BAKE_POLICIES["cage"]
+        and cage["properties"]["cage_artifact_kind"].get("const")
+        == "production-weapon-cage-artifact-glb"
+        and cage["properties"]["cage_mime"].get("const") == "model/gltf-binary"
+        and cage["properties"]["cage_worker_replay_count"].get("const") == 2
+        and cage["properties"]["cage_replay_byte_exact"].get("const") is True,
+        "CageArtifact must bind an independent mesh, offset field and diagnostics",
+    )
+
+    require_required(
+        correspondence,
+        {
+            "high_artifact_id",
+            "high_artifact_sha256",
+            "low_artifact_id",
+            "low_artifact_sha256",
+            "cage_artifact_id",
+            "cage_artifact_sha256",
+            "part_inventory_sha256",
+            "part_ids",
+            "material_zone_ids",
+            "correspondence_policy",
+            "part_pairs",
+            "mapping_object_sha256",
+            "unmapped_count",
+            "ambiguous_count",
+            "cross_part_count",
+            "cross_material_zone_count",
+            "mapping_status",
+            "quality_status",
+            "visual_status",
+            "production_stage_advanced",
+        },
+        "ProductionWeaponHighLowCorrespondence@1",
+    )
+    require(
+        correspondence["properties"]["correspondence_policy"].get("const")
+        == HIGH_LOW_BAKE_POLICIES["correspondence"]
+        and correspondence["$defs"]["part_pair"].get("additionalProperties") is False
+        and "part_pair" not in correspondence["properties"]
+        and "part_pair" not in correspondence["required"]
+        and correspondence["properties"]["part_pairs"].get("maxItems") == 256,
+        "HighLowCorrespondence must use only the closed bounded part_pairs array",
+    )
+
+    for schema, label in [(plan, "BakePlan"), (diagnostic, "Diagnostic")]:
+        require(
+            schema["properties"]["normal_convention"].get("const") == "OpenGL+Y"
+            and schema["properties"]["surface_bake_reuse_allowed"].get("const") is False
+            and schema["properties"]["bake_mode"].get("const") == HIGH_LOW_BAKE_POLICIES["mode"],
+            f"{label} must explicitly exclude CandidateSurfaceBake@1",
+        )
+    require(
+        plan["properties"]["bake_policy"].get("const") == HIGH_LOW_BAKE_POLICIES["plan"]
+        and plan["properties"]["diagnostic_required"].get("const") is True
+        and plan["properties"]["output_semantics"].get("const")
+        == ["tangent-normal", "ao", "curvature", "thickness", "position", "object-id", "material-id", "part-id"],
+        "HighLowBakePlan must bind ray policies, diagnostics and map semantics",
+    )
+    require(
+        diagnostic["properties"]["diagnostic_policy"].get("const") == HIGH_LOW_BAKE_POLICIES["diagnostic"]
+        and diagnostic["properties"]["diagnostic_status"].get("enum")
+        == ["NOT_RUN", "BLOCKED", "FAILED", "PASS_SOURCE_STRUCTURAL"]
+        and diagnostic["properties"]["high_low_bake_status"].get("$ref")
+        == "#/$defs/bake_status",
+        "HighLowDiagnostic must expose bounded ray diagnostics and bake status",
+    )
+
+    require_required(
+        receipt,
+        {
+            "bake_receipt_id",
+            "gate_scope",
+            "source_stage",
+            "target_stage",
+            "high_artifact_id",
+            "low_artifact_id",
+            "cage_artifact_id",
+            "correspondence_id",
+            "bake_plan_id",
+            "diagnostic_id",
+            "high_status",
+            "low_status",
+            "cage_status",
+            "correspondence_status",
+            "diagnostic_status",
+            "high_low_bake_status",
+            "hard_gate",
+            "hard_gate_passed",
+            "stage_advance_allowed",
+            "production_stage_advanced",
+            "quality_status",
+            "visual_status",
+            "human_status",
+            "engine_status",
+            "distribution_status",
+            "limitations",
+        },
+        "ProductionWeaponHighLowBakeReceipt@1",
+    )
+    require(
+        receipt["properties"]["bake_policy"].get("const") == HIGH_LOW_BAKE_POLICIES["bake"]
+        and receipt["properties"]["stage_advance_allowed"].get("const") is False
+        and receipt["properties"]["production_stage_advanced"].get("const") is False
+        and receipt["properties"]["quality_status"].get("const") == "structural_only"
+        and receipt["$defs"]["hard_gate"].get("additionalProperties") is False,
+        "HighLowBakeReceipt must remain structural-only and non-promoting",
+    )
+    require(
+        len(receipt.get("allOf", [])) == 4,
+        "HighLowBakeReceipt must map each scope to one adjacent ProductionStage@3 edge",
+    )
+
+    require(
+        prepare_request["properties"]["bake_policy"].get("const") == HIGH_LOW_BAKE_POLICIES["bake"]
+        and prepare_request["properties"]["idempotency_key"].get("$ref") == "#/$defs/id"
+        and set(prepare_request["properties"]) == set(prepare_request["required"]),
+        "HighLowBakePrepareRequest must be closed, hash-bound and idempotent",
+    )
+    for result, schema_version, runtime_write in [
+        (prepare_result, "ProductionWeaponHighLowBakePrepareResult@1", None),
+        (get_result, "ProductionWeaponHighLowBakeGetResult@1", False),
+    ]:
+        require(
+            result["properties"]["schema_version"].get("const") == schema_version
+            and result["properties"]["bake_receipt"].get("$ref")
+            == "production-weapon-high-low-bake-receipt.schema.json"
+            and result["properties"]["restart_hash_verified"].get("const") is True
+            and result["properties"]["production_stage_advanced"].get("const") is False
+            and result["properties"]["candidate_confirmed"].get("const") is False
+            and result["properties"]["version_created"].get("const") is False
+            and result["properties"]["export_performed"].get("const") is False,
+            f"{schema_version} must be restart-verified and non-promoting",
+        )
+        if runtime_write is not None:
+            require(
+                result["properties"]["runtime_write"].get("const") is runtime_write,
+                "HighLowBakeGetResult must be read-only",
+            )
+    require(
+        set(get_request["properties"]) == set(get_request["required"])
+        and get_request["properties"]["schema_version"].get("const")
+        == "ProductionWeaponHighLowBakeGetRequest@1",
+        "HighLowBakeGetRequest must be a closed key-bound read request",
+    )
+
+    # Explicitly prevent accidental semantic reuse of old surface/LOD receipts.
+    for schema in schemas.values():
+        require(
+            "surface_bake_receipt_object_sha256" not in schema.get("properties", {})
+            and "game_asset_lod_derive_result" not in schema.get("properties", {}),
+            "High/Low/Cage contracts must not accept CandidateSurfaceBake or transient LOD as source truth",
+        )
+
+
+def check_production_weapon_high_low_bake_preflight_contracts() -> None:
+    request = load_schema("production-weapon-high-low-bake-preflight-get-request.schema.json")
+    result = load_schema("production-weapon-high-low-bake-preflight-get-result.schema.json")
+    for schema, title in (
+        (request, "ProductionWeaponHighLowBakePreflightGetRequest@1"),
+        (result, "ProductionWeaponHighLowBakePreflightGetResult@1"),
+    ):
+        require(
+            schema.get("title") == title
+            and schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == set(schema.get("properties", {})),
+            f"{title} must be closed and exact-field",
+        )
+    require(
+        request["properties"]["schema_version"].get("const")
+        == "ProductionWeaponHighLowBakePreflightGetRequest@1"
+        and "except input_sha256" in request["properties"]["input_sha256"].get("description", ""),
+        "HighLowBake preflight request identity/hash semantics drifted",
+    )
+    expected_checks = {
+        "secondary_form_head", "formal_high_artifact", "authoring_low_topology",
+        "hero_uv_layout", "formal_cage_artifact", "high_low_correspondence",
+        "ray_diagnostic", "formal_bake",
+    }
+    checks = result["properties"]["checks"]
+    require(
+        checks.get("additionalProperties") is False
+        and set(checks.get("required", [])) == expected_checks
+        and set(checks.get("properties", {})) == expected_checks,
+        "HighLowBake preflight checks drifted",
+    )
+    require(
+        checks["properties"]["secondary_form_head"].get("$ref") == "#/$defs/head_check"
+        and all(
+            checks["properties"][name].get("$ref") == "#/$defs/unverified_check"
+            for name in expected_checks - {"secondary_form_head"}
+        )
+        and set(result["$defs"]["head_check"]["properties"]["status"].get("enum", []))
+        == {"passed", "blocked", "missing", "failed"}
+        and set(result["$defs"]["unverified_check"]["properties"]["status"].get("enum", []))
+        == {"blocked", "missing", "failed"},
+        "HighLowBake preflight must not schema-authorize unverified formal checks as passed",
+    )
+    properties = result["properties"]
+    require(
+        properties["quality_status"].get("const") == "structural_only"
+        and properties["visual_quality_status"].get("const") == "NOT_PROVEN"
+        and properties["human_review_status"].get("const") == "NOT_RUN"
+        and properties["commercial_engine_status"].get("const") == "NOT_RUN"
+        and properties["distribution_status"].get("const") == "NOT_RUN"
+        and properties["runtime_write"].get("const") is False
+        and properties["worker_started"].get("const") is False
+        and properties["production_stage_advanced"].get("const") is False
+        and properties["candidate_confirmed"].get("const") is False
+        and properties["version_created"].get("const") is False
+        and properties["export_performed"].get("const") is False
+        and properties["restart_hash_verified"].get("const") is True,
+        "HighLowBake preflight must remain structural-only, read-only and non-promoting",
+    )
+
+
+def check_blender_worker_capability_contracts() -> None:
+    """Keep ADR-0028 capability discovery closed, unavailable until gated, and non-promoting."""
+    expected_files = set(BLENDER_WORKER_CAPABILITY_SCHEMA_VERSIONS)
+    actual_files = {path.name for path in SCHEMA_ROOT.glob("*.json")}
+    require(
+        expected_files <= actual_files,
+        "BlenderWorkerCapability@1 schema files are missing",
+    )
+
+    schemas = {name: load_schema(name) for name in expected_files}
+    for name, schema_version in BLENDER_WORKER_CAPABILITY_SCHEMA_VERSIONS.items():
+        schema = schemas[name]
+        properties = schema.get("properties", {})
+        require(
+            schema.get("title") == schema_version
+            and properties.get("schema_version", {}).get("const") == schema_version
+            and schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == set(properties),
+            f"{schema_version} must be a closed exact-field schema",
+        )
+
+    capability = schemas["blender-worker-capability.schema.json"]
+    request = schemas["blender-worker-capability-get-request.schema.json"]
+    result = schemas["blender-worker-capability-get-result.schema.json"]
+    capability_fields = {
+        "schema_version", "capability_id", "worker_id", "worker_kind", "source_identity",
+        "source_revision", "adoption_status", "capability_status", "binary_status",
+        "binary_sha256", "recipe_id", "recipe_version", "recipe_status", "recipe_sha256",
+        "python_bundle_status", "python_bundle_sha256", "license_name", "license_spdx",
+        "license_status", "license_file_sha256", "license_full_text_sha256", "sandbox_status",
+        "sandbox_sha256", "determinism_status", "determinism_sha256", "package_gate_status",
+        "package_sha256", "read_only", "runtime_write_performed", "worker_invoked",
+        "candidate_generated", "production_stage_advanced", "candidate_confirmed",
+        "version_created", "export_performed", "limitations", "canonical_sha256",
+    }
+    request_fields = {"schema_version", "capability_id"}
+    result_fields = {
+        "schema_version", "capability", "read_only", "runtime_write_performed", "worker_invoked",
+        "candidate_generated", "production_stage_advanced", "candidate_confirmed", "version_created",
+        "export_performed",
+    }
+    require(
+        set(capability.get("properties", {})) == capability_fields
+        and set(request.get("properties", {})) == request_fields
+        and set(result.get("properties", {})) == result_fields,
+        "BlenderWorkerCapability request/result field sets drifted",
+    )
+    require(
+        capability["properties"]["capability_id"].get("const") == BLENDER_WORKER_CAPABILITY_ID
+        and capability["properties"]["worker_id"].get("const") == "blender"
+        and capability["properties"]["worker_kind"].get("const") == "tool/worker"
+        and capability["properties"]["source_identity"].get("const")
+        == "official-reference-only-research"
+        and capability["properties"]["source_revision"].get("const")
+        == BLENDER_WORKER_CAPABILITY_SOURCE_REVISION
+        and capability["properties"]["adoption_status"].get("const")
+        == "approved-for-evaluation"
+        and capability["properties"]["license_name"].get("const")
+        == "GNU General Public License version 2 or later"
+        and capability["properties"]["license_spdx"].get("const") == "GPL-2.0-or-later"
+        and request["properties"]["capability_id"].get("const") == BLENDER_WORKER_CAPABILITY_ID
+        and result["properties"]["capability"].get("$ref")
+        == "https://forgecad.local/contracts/blender-worker-capability.schema.json",
+        "BlenderWorkerCapability identity, adoption and license bindings drifted",
+    )
+
+    capability_properties = capability["properties"]
+    require(
+        capability["$defs"]["gate_status"].get("enum") == BLENDER_WORKER_CAPABILITY_GATE_STATUSES
+        and capability["$defs"]["sha256"].get("pattern") == "^[0-9a-f]{64}$"
+        and capability["$defs"]["nullable_sha256"].get("anyOf")
+        and all(
+            capability_properties[field].get("$ref") == "#/$defs/nullable_sha256"
+            for field in BLENDER_WORKER_CAPABILITY_HASH_FIELDS
+        )
+        and capability_properties["canonical_sha256"].get("$ref") == "#/$defs/sha256"
+        and capability_properties["capability_status"].get("enum") == ["unavailable", "available"],
+        "BlenderWorkerCapability status/hash definitions drifted",
+    )
+    require(
+        capability_properties["read_only"].get("const") is True
+        and all(
+            capability_properties[field].get("const") is False
+            for field in (
+                "runtime_write_performed", "worker_invoked", "candidate_generated",
+                "production_stage_advanced", "candidate_confirmed", "version_created",
+                "export_performed",
+            )
+        )
+        and result["properties"]["read_only"].get("const") is True
+        and all(
+            result["properties"][field].get("const") is False
+            for field in (
+                "runtime_write_performed", "worker_invoked", "candidate_generated",
+                "production_stage_advanced", "candidate_confirmed", "version_created",
+                "export_performed",
+            )
+        ),
+        "BlenderWorkerCapability must remain read-only and non-promoting",
+    )
+
+    all_of = capability.get("allOf", [])
+    available_branch = next(
+        (
+            branch for branch in all_of
+            if branch.get("if", {}).get("properties", {})
+            .get("capability_status", {}).get("const") == "available"
+        ),
+        None,
+    )
+    unavailable_branch = next(
+        (
+            branch for branch in all_of
+            if branch.get("then", {}).get("properties", {})
+            .get("capability_status", {}).get("const") == "unavailable"
+        ),
+        None,
+    )
+    all_pass_branch = next(
+        (
+            branch for branch in all_of
+            if isinstance(branch.get("if", {}).get("allOf"), list)
+            and branch.get("then", {}).get("properties", {})
+            .get("capability_status", {}).get("const") == "available"
+        ),
+        None,
+    )
+    require(
+        available_branch is not None
+        and unavailable_branch is not None
+        and all_pass_branch is not None,
+        "BlenderWorkerCapability must encode both availability directions",
+    )
+    available_properties = available_branch["then"].get("properties", {})
+    require(
+        set(available_properties) >= set(BLENDER_WORKER_CAPABILITY_GATE_FIELDS + BLENDER_WORKER_CAPABILITY_HASH_FIELDS)
+        and all(
+            available_properties[field].get("const") == "passed"
+            for field in BLENDER_WORKER_CAPABILITY_GATE_FIELDS
+        )
+        and all(
+            available_properties[field].get("$ref") == "#/$defs/sha256"
+            for field in BLENDER_WORKER_CAPABILITY_HASH_FIELDS
+        ),
+        "available must require every passed gate and every non-null SHA-256",
+    )
+
+    all_pass_conditions = all_pass_branch["if"].get("allOf", [])
+    for field in BLENDER_WORKER_CAPABILITY_GATE_FIELDS:
+        require(
+            any(
+                condition.get("properties", {}).get(field, {}).get("const") == "passed"
+                for condition in all_pass_conditions
+            ),
+            f"all-passed availability guard must include {field}",
+        )
+    for field in BLENDER_WORKER_CAPABILITY_HASH_FIELDS:
+        require(
+            any(
+                condition.get("properties", {}).get(field, {}).get("$ref") == "#/$defs/sha256"
+                for condition in all_pass_conditions
+            ),
+            f"all-passed availability guard must include {field}",
+        )
+
+    unavailable_conditions = unavailable_branch["if"].get("anyOf", [])
+    not_passed = {"not-run", "pending", "failed", "blocked"}
+    for field in BLENDER_WORKER_CAPABILITY_GATE_FIELDS:
+        require(
+            any(
+                set(condition.get("properties", {}).get(field, {}).get("enum", [])) == not_passed
+                for condition in unavailable_conditions
+            ),
+            f"unavailable guard must cover a non-passed {field}",
+        )
+    for field in BLENDER_WORKER_CAPABILITY_HASH_FIELDS:
+        require(
+            any(
+                condition.get("properties", {}).get(field, {}).get("type") == "null"
+                for condition in unavailable_conditions
+            ),
+            f"unavailable guard must cover a missing {field}",
+        )
+
+    forbidden_property_names = {
+        "path", "file_path", "absolute_path", "url", "uri", "script", "script_path",
+        "python", "javascript", "raw", "raw_bytes", "bytes", "environment", "env",
+        "secret", "network",
+    }
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                names.update(properties)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    for schema, filename in [
+        (capability, "blender-worker-capability.schema.json"),
+        (request, "blender-worker-capability-get-request.schema.json"),
+        (result, "blender-worker-capability-get-result.schema.json"),
+    ]:
+        require(
+            forbidden_property_names.isdisjoint(property_names(schema)),
+            f"{filename} must reject paths, URLs, scripts, raw bytes and environment inputs",
+        )
+
+
+def check_blender_task_contracts() -> None:
+    """Keep the not-yet-enabled Blender Worker transport closed and bounded."""
+    request = load_schema("blender-task-request.schema.json")
+    result = load_schema("blender-task-result.schema.json")
+    error = load_schema("blender-task-error.schema.json")
+    for schema, title in (
+        (request, "BlenderTaskRequest@1"),
+        (result, "BlenderTaskResult@1"),
+        (error, "BlenderTaskError@1"),
+    ):
+        require(
+            schema.get("title") == title
+            and schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and schema.get("x-operation") == "blender.render_fixed@1",
+            f"{title} must remain a closed fixed-operation contract",
+        )
+    request_properties = request["properties"]
+    require(
+        set(request["required"]) == set(request_properties)
+        and request_properties["schema_version"].get("const") == "BlenderTaskRequest@1"
+        and request_properties["recipe_id"].get("const") == "forgecad-blender-render-fixed@1"
+        and request_properties["recipe_version"].get("const") == "1.0.0"
+        and request_properties["network_policy"].get("const") == "disabled"
+        and request_properties["filesystem_policy"].get("const") == "runtime_scratch_only"
+        and request_properties["script_policy"].get("const") == "frozen_bundle_only"
+        and request_properties["output_policy"].get("const") == "runtime_cas_after_readback"
+        and "operation" not in request_properties,
+        "BlenderTaskRequest identity/policies drifted",
+    )
+    budgets = request["$defs"]["budgets"]
+    require(
+        budgets.get("additionalProperties") is False
+        and budgets["properties"]["max_runtime_ms"].get("maximum") == 120000
+        and budgets["properties"]["max_cpu_seconds"].get("maximum") == 120
+        and budgets["properties"]["max_memory_bytes"].get("maximum") == 536870912
+        and budgets["properties"]["max_gpu_bytes"].get("const") == 0
+        and budgets["properties"]["max_stderr_bytes"].get("maximum") == 65536,
+        "BlenderTaskRequest budget ceilings drifted",
+    )
+    input_object = request["$defs"]["input_object"]
+    output = result["$defs"]["output"]
+    checks = result["$defs"]["checks"]
+    require(
+        input_object.get("additionalProperties") is False
+        and output.get("additionalProperties") is False
+        and checks.get("additionalProperties") is False
+        and output["properties"]["cas_owner"].get("const") == "runtime"
+        and output["properties"]["durability"].get("const") == "pending_runtime_adoption",
+        "BlenderTask nested transport objects drifted",
+    )
+    result_properties = result["properties"]
+    require(
+        set(result["required"]) == set(result_properties)
+        and result_properties["runtime_write"].get("const") is False
+        and result_properties["stage_advanced"].get("const") is False
+        and result_properties["candidate_confirmed"].get("const") is False
+        and result_properties["version_created"].get("const") is False
+        and result_properties["export_performed"].get("const") is False,
+        "BlenderTaskResult must remain non-writing and non-promoting",
+    )
+    require(
+        set(error["required"]) == {"code", "message"}
+        and error["properties"]["message"].get("maxLength") == 512
+        and "CAPABILITY_UNAVAILABLE" in error["$defs"]["code"].get("enum", [])
+        and "WORKER_SANDBOX_VIOLATION" in error["$defs"]["code"].get("enum", []),
+        "BlenderTaskError bounds/error family drifted",
+    )
+    forbidden = {
+        "path", "url", "env", "secret", "token", "script", "addon", "blend",
+        "argv", "command", "executable", "module", "import", "subprocess", "host",
+        "socket", "cas", "sqlite",
+    }
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                names.update(properties)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+    for schema in (request, result, error):
+        require(forbidden.isdisjoint(property_names(schema)), "BlenderTask exposes an escape hatch")
 
 
 def check_mcp010b_contracts() -> None:
@@ -771,8 +1482,7 @@ def check_mcp010c_contracts() -> None:
     )
     render_fields = set(render.get("properties", {}))
     require(
-        render_fields == set(render.get("required", []))
-        and "view_id" not in render_fields,
+        render_fields == set(render.get("required", [])) and "view_id" in render_fields,
         "RenderSet@2 schema fields must match the Runtime exact-key validator",
     )
     pass_artifact = render["$defs"]["pass_artifact"]["properties"]
@@ -1228,6 +1938,144 @@ def check_mcp010f_silhouette_contracts() -> None:
         and target["properties"]["contour_points"].get("maxItems") == 512,
         "SilhouetteTarget@1 must use normalized 512x512 contour truth",
     )
+    target_guards = target.get("allOf", [])
+    target_unreviewed_guard = next(
+        (
+            guard
+            for guard in target_guards
+            if guard.get("if", {})
+            .get("properties", {})
+            .get("annotation_status", {})
+            .get("const")
+            == "unreviewed"
+        ),
+        None,
+    )
+    target_confirmed_guard = next(
+        (
+            guard
+            for guard in target_guards
+            if guard.get("if", {})
+            .get("properties", {})
+            .get("annotation_status", {})
+            .get("const")
+            == "user_confirmed"
+        ),
+        None,
+    )
+    target_unreviewed_then = (target_unreviewed_guard or {}).get("then", {})
+    target_unreviewed_part = (
+        target_unreviewed_then.get("properties", {})
+        .get("parts", {})
+        .get("items", {})
+    )
+    target_unreviewed_landmark = (
+        target_unreviewed_then.get("properties", {})
+        .get("landmarks", {})
+        .get("items", {})
+    )
+    require(
+        target_unreviewed_guard is not None
+        and not target_unreviewed_guard.get("if", {}).get("required")
+        and target_unreviewed_part.get("properties", {})
+        .get("visibility", {})
+        .get("const")
+        == "unknown"
+        and target_unreviewed_landmark.get("properties", {})
+        .get("visibility", {})
+        .get("const")
+        == "unknown"
+        and target_confirmed_guard is not None
+        and set(target_confirmed_guard.get("if", {}).get("required", []))
+        == {"annotation_status"}
+        and target_confirmed_guard.get("then", {})
+        .get("properties", {})
+        .get("source", {})
+        .get("const")
+        == "user_refined",
+        "SilhouetteTarget@1 annotation policy must bind source and visibility to review status",
+    )
+
+    def accepts_silhouette_target_annotation_fixture(
+        annotation_status: str | None,
+        source: str,
+        parts: list[dict],
+        landmarks: list[dict],
+    ) -> bool:
+        """Exercise the Runtime-equivalent target review policy."""
+        if annotation_status not in {None, "unreviewed", "user_confirmed"}:
+            return False
+        if source not in {"automatic", "user_refined"}:
+            return False
+        if any(
+            entry.get("visibility") not in {"observed", "inferred", "unknown"}
+            for entry in [*parts, *landmarks]
+        ):
+            return False
+        effective_status = annotation_status or "unreviewed"
+        if effective_status == "unreviewed" and any(
+            entry.get("visibility") != "unknown" for entry in [*parts, *landmarks]
+        ):
+            return False
+        return not (
+            effective_status == "user_confirmed" and source != "user_refined"
+        )
+
+    require(
+        accepts_silhouette_target_annotation_fixture(
+            "unreviewed",
+            "automatic",
+            [{"visibility": "unknown"}],
+            [{"visibility": "unknown"}],
+        ),
+        "SilhouetteTarget@1 unreviewed unknown positive fixture must remain accepted",
+    )
+    require(
+        accepts_silhouette_target_annotation_fixture(
+            None,
+            "automatic",
+            [{"visibility": "unknown"}],
+            [{"visibility": "unknown"}],
+        ),
+        "SilhouetteTarget@1 omitted annotation status must default to unreviewed",
+    )
+    require(
+        not accepts_silhouette_target_annotation_fixture(
+            "unreviewed",
+            "automatic",
+            [{"visibility": "observed"}],
+            [{"visibility": "unknown"}],
+        ),
+        "SilhouetteTarget@1 unreviewed observed-part negative fixture must be rejected",
+    )
+    require(
+        not accepts_silhouette_target_annotation_fixture(
+            "unreviewed",
+            "automatic",
+            [{"visibility": "unknown"}],
+            [{"visibility": "inferred"}],
+        ),
+        "SilhouetteTarget@1 unreviewed inferred-landmark negative fixture must be rejected",
+    )
+    for visibility in ("observed", "inferred", "unknown"):
+        require(
+            accepts_silhouette_target_annotation_fixture(
+                "user_confirmed",
+                "user_refined",
+                [{"visibility": visibility}],
+                [{"visibility": visibility}],
+            ),
+            f"SilhouetteTarget@1 user-confirmed {visibility} positive fixture must remain accepted",
+        )
+    require(
+        not accepts_silhouette_target_annotation_fixture(
+            "user_confirmed",
+            "automatic",
+            [{"visibility": "unknown"}],
+            [{"visibility": "unknown"}],
+        ),
+        "SilhouetteTarget@1 user-confirmed automatic-source negative fixture must be rejected",
+    )
     visual_structure = load_schema("reference-visual-structure.schema.json")
     region = visual_structure["$defs"]["region"]
     require(
@@ -1236,6 +2084,177 @@ def check_mcp010f_silhouette_contracts() -> None:
         and region["properties"]["mask_operation"].get("enum")
         == ["none", "subtract"],
         "ReferenceVisualStructure@1 negative-space operation must be optional, closed and bounded",
+    )
+    visual_structure_guards = visual_structure.get("allOf", [])
+    unreviewed_guard = next(
+        (
+            guard
+            for guard in visual_structure_guards
+            if guard.get("if", {})
+            .get("properties", {})
+            .get("review_status", {})
+            .get("const")
+            == "unreviewed"
+        ),
+        None,
+    )
+    unreviewed_then = (unreviewed_guard or {}).get("then", {})
+    unreviewed_region = (
+        unreviewed_then.get("properties", {})
+        .get("regions", {})
+        .get("items", {})
+    )
+    unreviewed_line_flow = (
+        unreviewed_then.get("properties", {})
+        .get("line_flows", {})
+        .get("items", {})
+    )
+    require(
+        unreviewed_guard is not None
+        and set(unreviewed_guard.get("if", {}).get("required", [])) == {"review_status"}
+        and unreviewed_region.get("properties", {}).get("visibility", {}).get("const")
+        == "unknown"
+        and set(unreviewed_region.get("not", {}).get("required", [])) == {"mask_operation"}
+        and unreviewed_region.get("not", {})
+        .get("properties", {})
+        .get("mask_operation", {})
+        .get("const")
+        == "subtract"
+        and unreviewed_line_flow.get("properties", {})
+        .get("visibility", {})
+        .get("const")
+        == "unknown",
+        "ReferenceVisualStructure@1 unreviewed positive/negative fixtures must force unknown visibility and reject subtract",
+    )
+    subtract_guard = next(
+        (
+            guard
+            for guard in visual_structure_guards
+            if "contains"
+            in guard.get("if", {})
+            .get("properties", {})
+            .get("regions", {})
+        ),
+        None,
+    )
+    subtract_if = (subtract_guard or {}).get("if", {})
+    subtract_contains = (
+        subtract_if.get("properties", {})
+        .get("regions", {})
+        .get("contains", {})
+    )
+    subtract_then = (subtract_guard or {}).get("then", {})
+    subtract_region_if = (
+        subtract_then.get("properties", {})
+        .get("regions", {})
+        .get("items", {})
+        .get("if", {})
+    )
+    subtract_region_then = (
+        subtract_then.get("properties", {})
+        .get("regions", {})
+        .get("items", {})
+        .get("then", {})
+    )
+    subtract_region_properties = subtract_region_then.get("properties", {})
+    require(
+        subtract_guard is not None
+        and set(subtract_contains.get("required", [])) == {"mask_operation"}
+        and subtract_contains.get("properties", {})
+        .get("mask_operation", {})
+        .get("const")
+        == "subtract"
+        and subtract_then.get("properties", {})
+        .get("review_status", {})
+        .get("const")
+        == "user_confirmed"
+        and set(subtract_region_if.get("required", [])) == {"mask_operation"}
+        and subtract_region_properties.get("visual_role", {}).get("const") == "open-frame"
+        and subtract_region_properties.get("visibility", {}).get("const") == "observed"
+        and subtract_region_properties.get("boundary_relationship", {}).get("const")
+        == "enclosed",
+        "ReferenceVisualStructure@1 subtract positive/negative fixtures must require user-confirmed observed enclosed open-frame regions",
+    )
+
+    def accepts_visual_structure_policy_fixture(
+        review_status: str,
+        regions: list[dict],
+        line_flows: list[dict],
+    ) -> bool:
+        """Exercise the review/negative-space policy without a third-party validator."""
+        if review_status == "unreviewed":
+            if any(
+                region.get("visibility") != "unknown"
+                or region.get("mask_operation") == "subtract"
+                for region in regions
+            ):
+                return False
+            if any(line_flow.get("visibility") != "unknown" for line_flow in line_flows):
+                return False
+        for region in regions:
+            if region.get("mask_operation") == "subtract" and (
+                review_status != "user_confirmed"
+                or region.get("visual_role") != "open-frame"
+                or region.get("visibility") != "observed"
+                or region.get("boundary_relationship") != "enclosed"
+            ):
+                return False
+        return True
+
+    require(
+        accepts_visual_structure_policy_fixture(
+            "unreviewed",
+            [{"visibility": "unknown", "mask_operation": "none"}],
+            [{"visibility": "unknown"}],
+        ),
+        "ReferenceVisualStructure@1 unreviewed positive fixture must remain accepted",
+    )
+    require(
+        not accepts_visual_structure_policy_fixture(
+            "unreviewed",
+            [{"visibility": "observed", "mask_operation": "none"}],
+            [],
+        ),
+        "ReferenceVisualStructure@1 unreviewed observed-region negative fixture must be rejected",
+    )
+    require(
+        not accepts_visual_structure_policy_fixture(
+            "unreviewed",
+            [{
+                "visibility": "unknown",
+                "mask_operation": "subtract",
+                "visual_role": "open-frame",
+                "boundary_relationship": "enclosed",
+            }],
+            [],
+        ),
+        "ReferenceVisualStructure@1 unreviewed subtract negative fixture must be rejected",
+    )
+    require(
+        accepts_visual_structure_policy_fixture(
+            "user_confirmed",
+            [{
+                "visibility": "observed",
+                "mask_operation": "subtract",
+                "visual_role": "open-frame",
+                "boundary_relationship": "enclosed",
+            }],
+            [],
+        ),
+        "ReferenceVisualStructure@1 user-confirmed subtract positive fixture must remain accepted",
+    )
+    require(
+        not accepts_visual_structure_policy_fixture(
+            "user_confirmed",
+            [{
+                "visibility": "inferred",
+                "mask_operation": "subtract",
+                "visual_role": "open-frame",
+                "boundary_relationship": "enclosed",
+            }],
+            [],
+        ),
+        "ReferenceVisualStructure@1 inferred subtract negative fixture must be rejected",
     )
     reference_views = load_schema("reference-view-set-v2.schema.json")
     require(
@@ -1350,6 +2369,7 @@ def check_modifier_stack_contracts() -> None:
             "#/$defs/mirror_modifier",
             "#/$defs/array_modifier",
             "#/$defs/bevel_modifier",
+            "#/$defs/bevel_v2_modifier",
             "#/$defs/normal_policy_modifier",
         ],
         "GeometryModifierStackRequest@1 must remain closed, bounded and unary-only",
@@ -1362,6 +2382,7 @@ def check_modifier_stack_contracts() -> None:
             "#/$defs/profile_loft_base_node",
             "#/$defs/longitudinal_section_loft_base_node",
             "#/$defs/subd_cage_base_node",
+            "#/$defs/authoring_mesh_base_node",
             "#/$defs/surface_patch_base_node",
             "#/$defs/revolve_base_node",
             "#/$defs/tube_sweep_base_node",
@@ -1380,6 +2401,7 @@ def check_modifier_stack_contracts() -> None:
                 "profile_loft_base_node",
                 "longitudinal_section_loft_base_node",
                 "subd_cage_base_node",
+                "authoring_mesh_base_node",
                 "surface_patch_base_node",
                 "revolve_base_node",
                 "tube_sweep_base_node",
@@ -1395,6 +2417,10 @@ def check_modifier_stack_contracts() -> None:
         == "forgecad.geometry.primitive@2"
         and request["$defs"]["primitive_base_node"]["properties"]["parameters"].get("$ref")
         == "#/$defs/primitive_base_parameters"
+        and request["$defs"]["authoring_mesh_base_node"]["properties"]["operator_id"].get("const")
+        == "forgecad.geometry.authoring-mesh@1"
+        and request["$defs"]["authoring_mesh_base_node"]["properties"]["parameters"].get("$ref")
+        == "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/authoring_mesh_parameters"
         and [
             item.get("$ref")
             for item in request["$defs"]["primitive_base_parameters"].get("oneOf", [])
@@ -1433,6 +2459,8 @@ def check_modifier_stack_contracts() -> None:
         == "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/array_parameters"
         and request["$defs"]["bevel_modifier"]["properties"]["parameters"].get("$ref")
         == "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/bevel_parameters"
+        and request["$defs"]["bevel_v2_modifier"]["properties"]["parameters"].get("$ref")
+        == "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/bevel_v2_parameters"
         and request["$defs"]["normal_policy_modifier"]["properties"]["parameters"].get("$ref")
         == "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/normal_policy_parameters",
         "GeometryModifierStackRequest@1 must bind base and modifier parameters to GeometryProgram@2",
@@ -1451,6 +2479,7 @@ def check_modifier_stack_contracts() -> None:
             "forgecad.geometry.mirror@1",
             "forgecad.geometry.array@1",
             "forgecad.geometry.bevel@1",
+            "forgecad.geometry.bevel@2",
             "forgecad.geometry.normal-policy@1",
         }
         and {
@@ -2007,10 +3036,17 @@ def check_authoring_topology_contracts() -> None:
         == {"schema_version", "topology_request", "base_topology_sha256", "edit", "edit_policy_sha256", "input_sha256"}
         and preview_request["properties"]["topology_request"].get("$ref")
         == "https://forgecad.local/contracts/authoring-topology-request.schema.json"
-        and operations == {"translate_vertices", "single_face_extrude"}
+        and operations
+        == {
+            "translate_vertices",
+            "single_face_extrude",
+            "split_edge",
+            "collapse_edge",
+            "dissolve_edge",
+        }
         and preview_request["properties"]["edit_policy_sha256"].get("const")
-        == "1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae",
-        "AuthoringMeshEditPreviewRequest@1 must expose exactly two closed edit branches",
+        == "fc76c6dffef2a41c05ff0a65ff160c8fce5eb37d312a3ef7f78043ef92539144",
+        "AuthoringMeshEditPreviewRequest@1 must expose exactly five closed edit branches",
     )
     forbidden = {"script", "python", "path", "url", "env", "secret", "network", "plugin"}
     for branch in edit_branches:
@@ -2027,7 +3063,13 @@ def check_authoring_topology_contracts() -> None:
         and preview_properties.get("schema_version", {}).get("const")
         == "AuthoringMeshEditPreview@1"
         and set(preview_properties.get("operation", {}).get("enum", []))
-        == {"translate_vertices", "single_face_extrude"}
+        == {
+            "translate_vertices",
+            "single_face_extrude",
+            "split_edge",
+            "collapse_edge",
+            "dissolve_edge",
+        }
         and preview_properties.get("geometry_materialization", {}).get("const")
         == "transient-worker-glb-not-persisted"
         and preview_properties.get("runtime_write_performed", {}).get("const") is False
@@ -2040,6 +3082,533 @@ def check_authoring_topology_contracts() -> None:
         == 67108864,
         "AuthoringMeshEditPreview@1 must remain transient, bounded and structural-only",
     )
+    proof = preview["$defs"].get("typed_operation_proof", {})
+    correspondence = preview["$defs"].get("correspondence", {})
+    require(
+        proof.get("additionalProperties") is False
+        and proof.get("properties", {}).get("schema_version", {}).get("const")
+        == "TopologyOperationProof@1"
+        and proof.get("properties", {}).get("identity_namespace_status", {}).get("const")
+        == "source-element-only-not-materialized-to-identity-lineage@1"
+        and correspondence.get("additionalProperties") is False
+        and correspondence.get("properties", {}).get("identity_namespace_status", {}).get("const")
+        == "source-element-only-not-materialized-to-identity-lineage@1"
+        and "topology_edit" not in preview_properties,
+        "typed topology proof must remain source-element-only and must not claim materialized IdentityLineage",
+    )
+
+
+def check_authoring_mesh_contracts() -> None:
+    """Keep the first canonical Runtime-derived half-edge projection closed and bounded."""
+    policy_sha256 = "aa72cadabba90ddb43dd0014cfa434ab9b13f4e072b09258072f37334c72e709"
+
+    request = load_schema("authoring-mesh-request.schema.json")
+    request_fields = {
+        "schema_version",
+        "project_id",
+        "candidate_id",
+        "artifact_id",
+        "artifact_readback_sha256",
+        "program_sha256",
+        "operator_catalog_sha256",
+        "readback_config_sha256",
+        "authoring_node_id",
+        "part_id",
+        "authoring_mesh_policy_sha256",
+        "max_response_bytes",
+    }
+    require(
+        request.get("additionalProperties") is False
+        and set(request.get("required", [])) == request_fields
+        and set(request.get("properties", {})) == request_fields
+        and request["properties"]["schema_version"].get("const")
+        == "AuthoringMeshRequest@1"
+        and request["properties"]["artifact_id"].get("$ref") == "#/$defs/sha256"
+        and request["properties"]["artifact_readback_sha256"].get("$ref")
+        == "#/$defs/sha256"
+        and request["properties"]["program_sha256"].get("$ref")
+        == "#/$defs/sha256"
+        and request["properties"]["operator_catalog_sha256"].get("$ref")
+        == "#/$defs/sha256"
+        and request["properties"]["readback_config_sha256"].get("$ref")
+        == "#/$defs/sha256"
+        and request["properties"]["authoring_mesh_policy_sha256"].get("const")
+        == policy_sha256
+        and request["properties"]["max_response_bytes"].get("const") == 1048576,
+        "AuthoringMeshRequest@1 must be closed, candidate/program/artifact/readback-bound and response-bounded",
+    )
+
+    mesh = load_schema("authoring-mesh.schema.json")
+    mesh_properties = mesh.get("properties", {})
+    mesh_fields = {
+        "schema_version",
+        "mesh_id",
+        "mesh_sha256",
+        "scope",
+        "representation",
+        "projection_kind",
+        "lineage",
+        "mesh_identity_derivation",
+        "mesh_identity_sha256",
+        "identity_policy",
+        "original_identity",
+        "evaluated_identity",
+        "cross_version_stable",
+        "counts",
+        "vertices",
+        "edges",
+        "half_edges",
+        "corners",
+        "faces",
+        "loops",
+        "rings",
+        "topology_policy",
+        "topology",
+        "authoring_mesh_policy_sha256",
+        "max_response_bytes",
+        "runtime_write_performed",
+        "persistent_user_data_touched",
+        "quality_status",
+        "canonical_sha256",
+    }
+    require(
+        mesh.get("additionalProperties") is False
+        and set(mesh.get("required", [])) == mesh_fields
+        and set(mesh_properties) == mesh_fields
+        and mesh_properties["schema_version"].get("const") == "AuthoringMesh@1"
+        and mesh_properties["representation"].get("const") == "half-edge-authoring@1"
+        and mesh_properties["projection_kind"].get("const")
+        == "runtime-derived-read-only-projection@1"
+        and mesh_properties["mesh_identity_derivation"].get("const")
+        == "runtime-derived-from-candidate-program-artifact-readback@1"
+        and mesh_properties["mesh_identity_sha256"].get("$ref") == "#/$defs/sha256"
+        and mesh_properties["identity_policy"].get("const")
+        == "runtime-derived-original-evaluated-non-bijective@1"
+        and mesh_properties["cross_version_stable"].get("const") is False
+        and mesh_properties["topology_policy"].get("const")
+        == "bounded-half-edge-manifold-with-boundary@1"
+        and mesh_properties["authoring_mesh_policy_sha256"].get("const")
+        == policy_sha256
+        and mesh_properties["max_response_bytes"].get("const") == 1048576
+        and mesh_properties["runtime_write_performed"].get("const") is False
+        and mesh_properties["persistent_user_data_touched"].get("const") is False
+        and mesh_properties["quality_status"].get("const") == "structural_only"
+        and mesh_properties["lineage"].get("$ref") == "#/$defs/lineage"
+        and mesh_properties["original_identity"].get("$ref")
+        == "#/$defs/original_identity"
+        and mesh_properties["evaluated_identity"].get("$ref")
+        == "#/$defs/evaluated_identity",
+        "AuthoringMesh@1 must separate original/evaluated identity and remain structural-only",
+    )
+
+    array_refs_and_bounds = {
+        "vertices": ("#/$defs/vertex", 1, 8192),
+        "edges": ("#/$defs/edge", 1, 16384),
+        "half_edges": ("#/$defs/half_edge", 1, 32768),
+        "corners": ("#/$defs/corner", 1, 32768),
+        "faces": ("#/$defs/face", 1, 8192),
+        "loops": ("#/$defs/loop", 1, 32768),
+        "rings": ("#/$defs/ring", 0, 8192),
+    }
+    for field, (item_ref, min_items, max_items) in array_refs_and_bounds.items():
+        array = mesh_properties[field]
+        require(
+            array.get("type") == "array"
+            and array.get("minItems") == min_items
+            and array.get("maxItems") == max_items
+            and array.get("items", {}).get("$ref") == item_ref,
+            f"AuthoringMesh@1 {field} array must remain typed and bounded",
+        )
+
+    required_element_defs = {
+        "lineage",
+        "original_identity",
+        "evaluated_identity",
+        "counts",
+        "topology",
+        "element_lineage",
+        "vertex",
+        "edge",
+        "half_edge",
+        "corner",
+        "face",
+        "loop",
+        "ring",
+    }
+    for definition_name in required_element_defs:
+        definition = mesh["$defs"].get(definition_name)
+        require(
+            isinstance(definition, dict)
+            and definition.get("type") == "object"
+            and definition.get("additionalProperties") is False
+            and set(definition.get("required", []))
+            == set(definition.get("properties", {})),
+            f"AuthoringMesh@1 {definition_name} definition must be closed and exact-field",
+        )
+
+    lineage = mesh["$defs"]["lineage"]
+    lineage_fields = {
+        "project_id",
+        "candidate_id",
+        "artifact_id",
+        "artifact_readback_sha256",
+        "program_sha256",
+        "operator_catalog_sha256",
+        "readback_config_sha256",
+        "authoring_node_id",
+        "part_id",
+        "lineage_status",
+        "lineage_sha256",
+    }
+    require(
+        set(lineage.get("required", [])) == lineage_fields
+        and set(lineage.get("properties", {})) == lineage_fields
+        and lineage["properties"]["lineage_status"].get("const")
+        == "candidate-program-artifact-readback-bound@1"
+        and lineage["properties"]["lineage_sha256"].get("$ref") == "#/$defs/sha256",
+        "AuthoringMesh@1 lineage must bind candidate/program/artifact/readback exactly",
+    )
+
+    original_identity = mesh["$defs"]["original_identity"]
+    evaluated_identity = mesh["$defs"]["evaluated_identity"]
+    require(
+        original_identity["properties"]["identity_kind"].get("const")
+        == "runtime-derived-original-authoring@1"
+        and original_identity["properties"]["namespace"].get("const") == "original"
+        and original_identity["properties"]["element_id_policy"].get("const")
+        == "stable-within-authoring-mesh-lineage@1"
+        and evaluated_identity["properties"]["identity_kind"].get("const")
+        == "runtime-derived-evaluated-artifact-readback@1"
+        and evaluated_identity["properties"]["namespace"].get("const") == "evaluated"
+        and evaluated_identity["properties"]["element_id_policy"].get("const")
+        == "artifact-local-no-authoring-bijection@1"
+        and evaluated_identity["properties"]["correspondence_policy"].get("const")
+        == "non-bijective-derived-only@1",
+        "AuthoringMesh@1 original/evaluated identity must not claim a one-to-one mapping",
+    )
+
+    element_lineage = mesh["$defs"]["element_lineage"]
+    require(
+        set(element_lineage.get("required", []))
+        == {
+            "original_element_ids",
+            "evaluated_element_ids",
+            "correspondence_kind",
+            "correspondence_sha256",
+        }
+        and set(element_lineage["properties"]["correspondence_kind"].get("enum", []))
+        == {"not_materialized", "one_to_many", "many_to_one", "many_to_many", "unknown"}
+        and "one_to_one" not in element_lineage["properties"]["correspondence_kind"].get("enum", [])
+        and element_lineage["properties"]["evaluated_element_ids"].get("maxItems") == 64,
+        "AuthoringMesh@1 evaluated correspondence must be bounded and explicitly non-bijective",
+    )
+
+    topology = mesh["$defs"]["topology"]
+    require(
+        topology["properties"]["non_manifold_edge_count"].get("const") == 0
+        and topology["properties"]["orientation_conflict_count"].get("const") == 0
+        and set(topology["properties"]["status"].get("enum", []))
+        == {"closed_manifold", "manifold_with_boundary"}
+        and topology["properties"]["validation_status"].get("const") == "passed"
+        and topology["properties"]["rejection_policy"].get("const")
+        == "fail-closed-on-non-manifold@1"
+        and topology["properties"]["face_cycle_policy"].get("const")
+        == "next-prev-complete-mutual@1"
+        and topology["properties"]["twin_policy"].get("const")
+        == "boundary-only-null-symmetric@1",
+        "AuthoringMesh@1 topology must fail closed for non-manifold and require complete cycles",
+    )
+
+    half_edge = mesh["$defs"]["half_edge"]
+    half_edge_boundary_case = next(
+        (
+            branch
+            for branch in half_edge.get("allOf", [])
+            if branch.get("if", {}).get("properties", {}).get("boundary", {}).get("const")
+            is True
+        ),
+        {},
+    )
+    half_edge_interior_case = next(
+        (
+            branch
+            for branch in half_edge.get("allOf", [])
+            if branch.get("if", {}).get("properties", {}).get("boundary", {}).get("const")
+            is False
+        ),
+        {},
+    )
+    require(
+        {
+            "twin_id",
+            "next_id",
+            "prev_id",
+            "boundary",
+        }.issubset(half_edge["properties"])
+        and half_edge["properties"]["twin_id"].get("$ref")
+        == "#/$defs/nullable_identifier"
+        and half_edge["properties"]["next_id"].get("$ref")
+        == "#/$defs/identifier"
+        and half_edge["properties"]["prev_id"].get("$ref")
+        == "#/$defs/identifier"
+        and half_edge["properties"]["boundary"].get("type") == "boolean"
+        and len(half_edge.get("allOf", [])) == 2
+        and half_edge_boundary_case.get("if", {}).get("required") == ["boundary"]
+        and half_edge_boundary_case.get("then", {}).get("properties", {}).get("twin_id", {}).get("type")
+        == "null"
+        and half_edge_interior_case.get("if", {}).get("required") == ["boundary"]
+        and half_edge_interior_case.get("then", {}).get("properties", {}).get("twin_id", {}).get("$ref")
+        == "#/$defs/identifier"
+        and half_edge["properties"]["face_id"].get("$ref") == "#/$defs/identifier"
+        and half_edge["properties"]["corner_id"].get("$ref") == "#/$defs/identifier",
+        "AuthoringMesh@1 half-edge must require next/prev and allow nullable twin only on boundary",
+    )
+
+    edge = mesh["$defs"]["edge"]
+    require(
+        edge["properties"]["hard_edge"].get("type") == "boolean"
+        and edge["properties"]["crease"].get("minimum") == 0
+        and edge["properties"]["crease"].get("maximum") == 2
+        and edge["properties"]["uv_seam"].get("type") == "boolean",
+        "AuthoringMesh@1 edge must carry bounded hard_edge, crease and uv_seam attributes",
+    )
+
+    for definition_name in ["vertex", "edge", "half_edge", "corner", "face", "loop", "ring"]:
+        properties = mesh["$defs"][definition_name]["properties"]
+        require(
+            "original_identity" not in properties
+            and "evaluated_identity" not in properties
+            and properties["lineage"].get("$ref") == "#/$defs/element_lineage",
+            f"AuthoringMesh@1 {definition_name} must expose non-bijective element lineage only",
+        )
+
+
+def check_durable_authoring_mesh_contracts() -> None:
+    """Keep the durable canonical AuthoringMesh family closed and honest.
+
+    ``AuthoringMesh@1`` is a Runtime-derived read-only projection.  This
+    separate family is the next-stage durable shape: Runtime owns its CAS /
+    SQLite materialization, the source is bound to one candidate/program /
+    evaluated-artifact/readback lineage, and evaluated IDs never become an
+    asserted one-to-one or cross-revision identity.
+    """
+    expected = {
+        "authoring-mesh-canonical.schema.json": "AuthoringMeshCanonical@1",
+        "authoring-mesh-artifact.schema.json": "AuthoringMeshArtifact@1",
+        "authoring-mesh-link.schema.json": "AuthoringMeshLink@1",
+        "authoring-mesh-prepare-request.schema.json": "AuthoringMeshPrepareRequest@1",
+        "authoring-mesh-prepare-result.schema.json": "AuthoringMeshPrepareResult@1",
+        "authoring-mesh-get-request.schema.json": "AuthoringMeshGetRequest@1",
+        "authoring-mesh-get-result.schema.json": "AuthoringMeshGetResult@1",
+    }
+    actual = {path.name for path in SCHEMA_ROOT.glob("authoring-mesh-*.schema.json")}
+    require(set(expected) <= actual, "durable AuthoringMesh schema family is incomplete")
+
+    schemas = {name: load_schema(name) for name in expected}
+    for filename, schema_version in expected.items():
+        schema = schemas[filename]
+        properties = schema.get("properties", {})
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and schema.get("title") == schema_version
+            and properties.get("schema_version", {}).get("const") == schema_version
+            and set(schema.get("required", [])) == set(properties),
+            f"{schema_version} must be a closed exact-field object",
+        )
+        for definition_name, definition in schema.get("$defs", {}).items():
+            if definition.get("type") == "object":
+                definition_properties = definition.get("properties", {})
+                require(
+                    definition.get("additionalProperties") is False
+                    and set(definition.get("required", [])) == set(definition_properties),
+                    f"{schema_version} {definition_name} must be closed and exact-field",
+                )
+
+    canonical = schemas["authoring-mesh-canonical.schema.json"]
+    canonical_properties = canonical["properties"]
+    lineage_fields = {
+        "project_id",
+        "candidate_id",
+        "candidate_state_sha256",
+        "source_program_object_sha256",
+        "source_program_sha256",
+        "source_artifact_object_sha256",
+        "source_artifact_sha256",
+        "source_artifact_readback_object_sha256",
+        "source_artifact_readback_sha256",
+        "source_lineage_sha256",
+    }
+    require(
+        lineage_fields <= set(canonical_properties)
+        and canonical_properties["representation"].get("const")
+        == "runtime-owned-original-half-edge@1"
+        and canonical_properties["storage_policy"].get("const")
+        == "runtime-owned-sqlite-cas-canonical-authoring-mesh@1"
+        and canonical_properties["writer_policy"].get("const")
+        == "forgecad-runtime-only-state-writer@1"
+        and canonical_properties["runtime_write_performed"].get("const") is True
+        and canonical_properties["persistent_user_data_touched"].get("const") is True,
+        "AuthoringMeshCanonical@1 must be Runtime-owned and candidate/program/artifact/readback bound",
+    )
+    require(
+        canonical_properties["cross_version_stable"].get("const") is False
+        and canonical["$defs"]["cross_version_stability"]["properties"]["status"].get("const")
+        == "not-proven@1"
+        and canonical["$defs"]["original_identity"]["properties"]["element_id_policy"].get("const")
+        == "lineage-scoped-opaque-not-cross-version-stable@1"
+        and canonical["$defs"]["evaluated_identity"]["properties"]["correspondence_policy"].get("const")
+        == "non-bijective-derived-only@1"
+        and canonical["$defs"]["evaluated_identity"]["properties"]["cross_version_stable"].get("const")
+        is False,
+        "AuthoringMeshCanonical@1 must not invent cross-version or evaluated identity stability",
+    )
+    correspondence_kinds = set(
+        canonical["$defs"]["element_lineage"]["properties"]["correspondence_kind"].get("enum", [])
+    )
+    require(
+        "one_to_one" not in correspondence_kinds
+        and correspondence_kinds
+        == {"not_materialized", "one_to_many", "many_to_one", "many_to_many", "unknown"},
+        "AuthoringMeshCanonical@1 evaluated lineage must be explicitly non-bijective",
+    )
+    require(
+        all(
+            canonical_properties[field].get("const") is False
+            for field in ("stage_advanced", "candidate_confirmed", "version_created", "export_performed")
+        )
+        and canonical_properties["quality_status"].get("const") == "structural_only",
+        "AuthoringMeshCanonical@1 must not advance Stage, confirm, version or export",
+    )
+    for definition_name in (
+        "vertex",
+        "edge",
+        "half_edge",
+        "corner",
+        "face",
+        "loop",
+        "ring",
+    ):
+        definition = canonical["$defs"][definition_name]
+        require(
+            definition["properties"].get("lineage", {}).get("$ref")
+            == "#/$defs/element_lineage",
+            f"AuthoringMeshCanonical@1 {definition_name} must retain non-bijective element lineage",
+        )
+    half_edge = canonical["$defs"]["half_edge"]
+    require(
+        half_edge["properties"]["twin_id"].get("$ref")
+        == "#/$defs/nullable_identifier"
+        and len(half_edge.get("allOf", [])) == 2,
+        "AuthoringMeshCanonical@1 half-edge must keep boundary-only nullable twins",
+    )
+    topology = canonical["$defs"]["topology"]
+    require(
+        topology["properties"]["non_manifold_edge_count"].get("const") == 0
+        and topology["properties"]["orientation_conflict_count"].get("const") == 0
+        and topology["properties"]["validation_status"].get("const") == "passed"
+        and topology["properties"]["rejection_policy"].get("const")
+        == "fail-closed-on-non-manifold@1",
+        "AuthoringMeshCanonical@1 must fail closed on non-manifold or orientation conflicts",
+    )
+
+    artifact = schemas["authoring-mesh-artifact.schema.json"]["properties"]
+    require(
+        {
+            "candidate_id",
+            "candidate_state_sha256",
+            "source_program_object_sha256",
+            "source_program_sha256",
+            "evaluated_artifact_object_sha256",
+            "evaluated_artifact_sha256",
+            "evaluated_artifact_readback_object_sha256",
+            "evaluated_artifact_readback_sha256",
+        } <= set(artifact)
+        and artifact["correspondence_policy"].get("const")
+        == "non-bijective-derived-only@1"
+        and artifact["writer_policy"].get("const")
+        == "forgecad-runtime-only-state-writer@1"
+        and artifact["stage_advanced"].get("const") is False
+        and artifact["candidate_confirmed"].get("const") is False
+        and artifact["version_created"].get("const") is False
+        and artifact["export_performed"].get("const") is False,
+        "AuthoringMeshArtifact@1 must remain evaluated-sidecar-only and non-promoting",
+    )
+
+    link = schemas["authoring-mesh-link.schema.json"]["properties"]
+    require(
+        link["link_policy"].get("const")
+        == "canonical-original-plus-evaluated-sidecar-exact-lineage@1"
+        and link["materialization_status"].get("const")
+        == "runtime-owned-durable-authoring-mesh-link@1"
+        and link["runtime_write_performed"].get("const") is True
+        and link["stage_advanced"].get("const") is False
+        and link["candidate_confirmed"].get("const") is False
+        and link["version_created"].get("const") is False
+        and link["export_performed"].get("const") is False,
+        "AuthoringMeshLink@1 must be Runtime-owned and non-promoting",
+    )
+
+    prepare_request = schemas["authoring-mesh-prepare-request.schema.json"]["properties"]
+    get_request = schemas["authoring-mesh-get-request.schema.json"]["properties"]
+    require(
+        prepare_request["runtime_write_performed"].get("const") is False
+        and prepare_request["writer_policy"].get("const")
+        == "forgecad-runtime-only-state-writer@1"
+        and prepare_request["max_response_bytes"].get("const") == 1048576
+        and prepare_request["source_lineage_sha256"].get("$ref") == "#/$defs/sha256"
+        and get_request["input_sha256"].get("$ref") == "#/$defs/sha256"
+        and get_request["writer_policy"].get("const")
+        == "forgecad-runtime-only-state-writer@1"
+        and get_request["runtime_write_performed"].get("const") is False
+        and get_request["persistent_user_data_touched"].get("const") is False
+        and "canonical_mesh" not in prepare_request
+        and "evaluated_identity" not in prepare_request,
+        "AuthoringMesh prepare/get requests must be closed, bounded and free of caller-supplied mesh truth",
+    )
+
+    result_limits = [
+        "RUNTIME_SOLE_WRITER",
+        "NO_STAGE_ADVANCEMENT",
+        "NO_CANDIDATE_CONFIRM",
+        "NO_VERSION_CREATED",
+        "NO_EXPORT",
+        "EVALUATED_IDENTITY_NON_BIJECTIVE",
+        "CROSS_VERSION_STABILITY_NOT_PROVEN",
+        "STRUCTURAL_ONLY_NOT_COMMERCIAL_QUALITY",
+    ]
+    for filename, schema_version, write_performed, touched in (
+        (
+            "authoring-mesh-prepare-result.schema.json",
+            "AuthoringMeshPrepareResult@1",
+            True,
+            True,
+        ),
+        (
+            "authoring-mesh-get-result.schema.json",
+            "AuthoringMeshGetResult@1",
+            False,
+            False,
+        ),
+    ):
+        properties = schemas[filename]["properties"]
+        require(
+            properties["canonical_mesh"].get("$ref")
+            == "https://forgecad.local/contracts/authoring-mesh-canonical.schema.json"
+            and properties["artifact"].get("$ref")
+            == "https://forgecad.local/contracts/authoring-mesh-artifact.schema.json"
+            and properties["durable_link"].get("$ref")
+            == "https://forgecad.local/contracts/authoring-mesh-link.schema.json"
+            and properties["runtime_write_performed"].get("const") is write_performed
+            and properties["persistent_user_data_touched"].get("const") is touched
+            and properties["stage_advanced"].get("const") is False
+            and properties["candidate_confirmed"].get("const") is False
+            and properties["version_created"].get("const") is False
+            and properties["export_performed"].get("const") is False
+            and properties["quality_status"].get("const") == "structural_only"
+            and properties["limitations"].get("const") == result_limits,
+            f"{schema_version} must expose durable readback while locking all promotion actions",
+        )
 
 
 def check_subdivision_evaluation_contracts() -> None:
@@ -7081,6 +8650,3454 @@ def check_production_stage_v2_contracts() -> None:
     )
 
 
+def check_production_stage_v3_contracts() -> None:
+    """Keep ProductionStage@3 fine-grained, closed and V1/V2-independent."""
+    stages = [
+        "reference-intake",
+        "reference-coverage-reviewed",
+        "camera-calibrated",
+        "blockout-reviewed",
+        "primary-form-approved",
+        "secondary-form-approved",
+        "high-poly-approved",
+        "low-poly-approved",
+        "uv-approved",
+        "cage-approved",
+        "bake-approved",
+        "material-approved",
+        "rig-socket-approved",
+        "animation-approved",
+        "vfx-approved",
+        "lod-collision-approved",
+        "hero-art-review-approved",
+        "engine-validated",
+        "export-confirmed",
+    ]
+    coarse_stages = [
+        "draft",
+        "gray-model",
+        "topology",
+        "material-surface",
+        "animation-vfx",
+        "game-delivery",
+    ]
+    status_enums = {
+        "structural_status": ["NOT_RUN", "BLOCKED", "PASS_SOURCE_STRUCTURAL"],
+        "visual_status": ["NOT_RUN", "BLOCKED", "QUALITY_TARGET_NOT_MET", "PASS_STAGE_VISUAL", "PASS_STAGE_VISUAL_STRUCTURE_ONLY"],
+        "human_status": ["NOT_RUN", "BLOCKED", "REJECTED", "PASS_HUMAN_ART_REVIEW"],
+        "engine_status": ["NOT_RUN", "BLOCKED", "FAILED", "PASS_ENGINE_VALIDATION"],
+        "distribution_status": ["NOT_RUN", "BLOCKED", "FAILED", "PASS_DISTRIBUTION"],
+    }
+    camera_binding_fields = {
+        "camera_lock_id", "camera_lock_canonical_sha256", "camera_rig_object_sha256",
+        "camera_rig_canonical_sha256", "camera_lock_receipt_object_sha256",
+        "camera_lock_source_transition_id", "camera_lock_source_transition_sha256",
+        "camera_lock_source_head_canonical_sha256",
+    }
+    transition_fields = {
+        "schema_version", "transition_id", "session_id", "project_id",
+        "root_candidate_id", "root_candidate_role", "root_candidate_state_sha256",
+        "source_artifact_id", "root_artifact_sha256", "previous_head_candidate_id",
+        "previous_head_candidate_role", "previous_head_candidate_state_sha256",
+        "previous_head_artifact_id", "previous_head_artifact_sha256", "previous_head_stage",
+        "head_candidate_id", "head_candidate_role", "head_candidate_state_sha256",
+        "output_artifact_id", "head_artifact_sha256", "from_stage", "to_stage",
+        "candidate_binding_status", "reference_id", "reference_sha256", "camera_hash",
+        *camera_binding_fields,
+        "evidence_sha256", "reference_canvas_object_sha256", "quality_report_object_sha256",
+        "comparison_report_object_sha256", "design_spec_object_sha256",
+        "visual_receipt_object_sha256", "human_review_receipt_object_sha256",
+        "engine_validation_receipt_object_sha256", "distribution_receipt_object_sha256",
+        "structural_status", "visual_status", "human_status", "engine_status",
+        "distribution_status", "approval_receipt_id", "approval_session_id",
+        "approval_expires_at", "approval_summary_sha256", "request_key_sha256",
+        "parent_transition_id", "parent_transition_sha256",
+        "parent_transition_schema_version", "gate_status", "status", "input_sha256",
+        "receipt_object_sha256", "canonical_sha256", "created_at",
+    }
+    head_fields = {
+        "schema_version", "session_id", "project_id", "root_candidate_id",
+        "root_candidate_role", "root_candidate_state_sha256", "source_artifact_id",
+        "root_artifact_sha256", "root_stage", "previous_head_candidate_id",
+        "previous_head_candidate_role", "previous_head_candidate_state_sha256",
+        "previous_head_artifact_id", "previous_head_artifact_sha256", "previous_head_stage",
+        "head_candidate_id", "head_candidate_role", "head_candidate_state_sha256",
+        "output_artifact_id", "head_artifact_sha256", "head_stage",
+        "candidate_binding_status", "reference_id", "reference_sha256", "camera_hash",
+        *camera_binding_fields,
+        "evidence_sha256", "reference_canvas_object_sha256", "quality_report_object_sha256",
+        "comparison_report_object_sha256", "design_spec_object_sha256",
+        "visual_receipt_object_sha256", "human_review_receipt_object_sha256",
+        "engine_validation_receipt_object_sha256", "distribution_receipt_object_sha256",
+        "structural_status", "visual_status", "human_status", "engine_status",
+        "distribution_status", "approval_receipt_id", "approval_session_id",
+        "approval_expires_at", "approval_summary_sha256", "head_transition_id",
+        "head_transition_sha256", "compatibility_projection", "candidate_confirmed",
+        "version_created", "export_performed", "materialization_status", "canonical_sha256",
+        "payload_json", "updated_at",
+    }
+    projection_fields = {
+        "schema_version", "source_schema_version", "v3_stage", "v3_stage_complete",
+        "v1_projection_stage", "v1_projection_complete", "v2_projection_stage",
+        "v2_projection_complete", "projection_status", "legacy_head_transition_id",
+        "legacy_head_transition_sha256", "projection_policy_sha256",
+    }
+
+    def require_closed(schema: dict, fields: set[str], label: str) -> dict:
+        properties = schema.get("properties", {})
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    transition = load_schema("production-stage-transition-v3.schema.json")
+    head = load_schema("production-stage-head-v3.schema.json")
+    camera_lock = load_schema("production-camera-lock.schema.json")
+    prepare = load_schema("production-stage-transition-v3-prepare-request.schema.json")
+    prepare_result = load_schema("production-stage-transition-v3-prepare-result.schema.json")
+    get_request = load_schema("production-stage-transition-v3-get-request.schema.json")
+    get_result = load_schema("production-stage-transition-v3-get-result.schema.json")
+
+    transition_properties = require_closed(
+        transition, transition_fields, "ProductionStageTransition@3"
+    )
+    head_properties = require_closed(head, head_fields, "ProductionStageHead@3")
+    prepare_fields = transition_fields - {
+        "approval_summary_sha256", "request_key_sha256", "gate_status", "status",
+        "receipt_object_sha256", "canonical_sha256", "created_at",
+    }
+    prepare_fields |= {"approved", "approval_summary", "idempotency_key"}
+    prepare_properties = require_closed(
+        prepare, prepare_fields, "ProductionStageTransitionPrepareRequest@3"
+    )
+    get_request_properties = require_closed(
+        get_request,
+        {"schema_version", "transition_id", "session_id", "project_id", "root_candidate_id", "head_candidate_id"},
+        "ProductionStageTransitionGetRequest@3",
+    )
+    result_fields = {
+        "schema_version", "transition", "production_stage_head", "compatibility_projection",
+        "replayed", "runtime_write", "production_stage_advanced", "candidate_confirmed",
+        "version_created", "export_performed",
+    }
+    prepare_result_properties = require_closed(
+        prepare_result, result_fields, "ProductionStageTransitionPrepareResult@3"
+    )
+    get_result_properties = require_closed(
+        get_result, result_fields, "ProductionStageTransitionGetResult@3"
+    )
+
+    for label, schema, properties in [
+        ("ProductionStageTransition@3", transition, transition_properties),
+        ("ProductionStageHead@3", head, head_properties),
+        ("ProductionStageTransitionPrepareRequest@3", prepare, prepare_properties),
+    ]:
+        require(
+            schema.get("$defs", {}).get("stage", {}).get("enum") == stages,
+            f"{label} must expose the exact 19-stage closed enum",
+        )
+        require(
+            schema.get("$defs", {}).get("id", {}).get("pattern")
+            == r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+            f"{label} opaque ids must reject spaces and slashes",
+        )
+        require(
+            properties.get("approval_expires_at", {}).get("$ref") == "#/$defs/epoch",
+            f"{label} approval expiry must use bounded decimal epoch seconds",
+        )
+        for field, values in status_enums.items():
+            require(
+                properties.get(field, {}).get("$ref") == f"#/$defs/{field}",
+                f"{label} {field} must use the closed V3 status enum",
+            )
+
+    require(
+        stages[0] == "reference-intake"
+        and stages[1] == "reference-coverage-reviewed"
+        and transition_properties["from_stage"].get("$ref") == "#/$defs/stage"
+        and transition_properties["to_stage"].get("$ref") == "#/$defs/stage",
+        "ProductionStage@3 first executable edge must be reference-intake to reference-coverage-reviewed",
+    )
+    for label, schema in [
+        ("ProductionStageTransition@3", transition),
+        ("ProductionStageTransitionPrepareRequest@3", prepare),
+    ]:
+        first_edge_guard = any(
+            rule.get("if", {}).get("properties", {}).get("from_stage", {}).get("const")
+            == "reference-intake"
+            and rule.get("then", {}).get("properties", {}).get("to_stage", {}).get("const")
+            == "reference-coverage-reviewed"
+            for rule in schema.get("allOf", [])
+        )
+        require(first_edge_guard, f"{label} must guard the first public V3 edge")
+
+    camera_sha_fields = {
+        "camera_lock_canonical_sha256", "camera_rig_object_sha256",
+        "camera_rig_canonical_sha256", "camera_lock_receipt_object_sha256",
+        "camera_lock_source_transition_sha256",
+        "camera_lock_source_head_canonical_sha256",
+    }
+    camera_id_fields = {"camera_lock_id", "camera_lock_source_transition_id"}
+    for label, properties in [
+        ("ProductionStageTransition@3", transition_properties),
+        ("ProductionStageHead@3", head_properties),
+        ("ProductionStageTransitionPrepareRequest@3", prepare_properties),
+    ]:
+        for field in camera_id_fields:
+            require(
+                properties[field].get("$ref") == "#/$defs/nullable_id",
+                f"{label} {field} must be nullable on the additive V3 contract",
+            )
+        for field in camera_sha_fields:
+            require(
+                properties[field].get("$ref") == "#/$defs/nullable_sha256",
+                f"{label} {field} must be nullable on the additive V3 contract",
+            )
+
+    def camera_edge_guard(schema: dict, label: str, *, head: bool = False) -> None:
+        guards = schema.get("allOf", [])
+        expected_refs = {
+            **{field: "#/$defs/nullable_id" for field in camera_id_fields},
+            **{field: "#/$defs/nullable_sha256" for field in camera_sha_fields},
+        }
+        if head:
+            edge_guard = any(
+                rule.get("if", {}).get("properties", {}).get("previous_head_stage", {}).get("const")
+                == "reference-coverage-reviewed"
+                and rule.get("if", {}).get("properties", {}).get("head_stage", {}).get("const")
+                == "camera-calibrated"
+                and all(
+                    rule.get("then", {}).get("properties", {}).get(field, {}).get("$ref")
+                    == expected_refs[field].replace("nullable_", "")
+                    for field in camera_binding_fields
+                )
+                for rule in guards
+            )
+        else:
+            edge_guard = any(
+                rule.get("if", {}).get("properties", {}).get("from_stage", {}).get("const")
+                == "reference-coverage-reviewed"
+                and rule.get("then", {}).get("properties", {}).get("to_stage", {}).get("const")
+                == "camera-calibrated"
+                and all(
+                    rule.get("then", {}).get("properties", {}).get(field, {}).get("$ref")
+                    == expected_refs[field].replace("nullable_", "")
+                    for field in camera_binding_fields
+                )
+                for rule in guards
+            )
+        require(edge_guard, f"{label} must guard the camera-calibrated edge with a non-null camera lock")
+
+    camera_edge_guard(transition, "ProductionStageTransition@3")
+    camera_edge_guard(prepare, "ProductionStageTransitionPrepareRequest@3")
+    camera_edge_guard(head, "ProductionStageHead@3", head=True)
+
+    form_edges = [
+        ("camera-calibrated", "blockout-reviewed"),
+        ("blockout-reviewed", "primary-form-approved"),
+        ("primary-form-approved", "secondary-form-approved"),
+    ]
+
+    def form_edge_guard(schema: dict, label: str, *, head: bool = False, prepare_request: bool = False) -> None:
+        for source_stage, target_stage in form_edges:
+            if head:
+                matching = [
+                    rule for rule in schema.get("allOf", [])
+                    if rule.get("if", {}).get("properties", {}).get("previous_head_stage", {}).get("const") == source_stage
+                    and rule.get("if", {}).get("properties", {}).get("head_stage", {}).get("const") == target_stage
+                ]
+            else:
+                matching = [
+                    rule for rule in schema.get("allOf", [])
+                    if rule.get("if", {}).get("properties", {}).get("from_stage", {}).get("const") == source_stage
+                ]
+            require(len(matching) == 1, f"{label} must define exactly one {source_stage}->{target_stage} FormQuality@2 guard")
+            rule = matching[0]
+            then = rule.get("then", {})
+            properties = then.get("properties", {})
+            require(
+                (target_stage if head else properties.get("to_stage", {}).get("const")) == target_stage
+                and (source_stage if head else properties.get("previous_head_stage", {}).get("const")) == source_stage
+                and properties.get("candidate_binding_status", {}).get("const") == "same-candidate-evidence"
+                and all(
+                    properties.get(field, {}).get("$ref")
+                    == ("#/$defs/id" if field in {"camera_lock_id", "camera_lock_source_transition_id"} else "#/$defs/sha256")
+                    for field in camera_binding_fields
+                )
+                and properties.get("quality_report_object_sha256", {}).get("$ref") == "#/$defs/sha256"
+                and properties.get("visual_receipt_object_sha256", {}).get("$ref") == "#/$defs/sha256"
+                and properties.get("structural_status", {}).get("const") == "PASS_SOURCE_STRUCTURAL"
+                and properties.get("visual_status", {}).get("const") == "PASS_STAGE_VISUAL_STRUCTURE_ONLY"
+                and properties.get("human_status", {}).get("const") == "NOT_RUN"
+                and properties.get("engine_status", {}).get("const") == "NOT_RUN"
+                and properties.get("distribution_status", {}).get("const") == "NOT_RUN",
+                f"{label} {source_stage}->{target_stage} must require same-candidate structure-only form evidence",
+            )
+            receipt_kinds = then.get("x-forgecad-receipt-kinds", {})
+            require(
+                receipt_kinds == {
+                    "quality_report_object_sha256": "ProductionWeaponFormQuality@2",
+                    "visual_receipt_object_sha256": "ProductionWeaponFormArtEvidence@1",
+                },
+                f"{label} {source_stage}->{target_stage} receipt kinds drifted",
+            )
+            if not head and not prepare_request:
+                require(
+                    properties.get("gate_status", {}).get("const") == "pass"
+                    and properties.get("status", {}).get("const") == "passed",
+                    f"{label} {source_stage}->{target_stage} durable transition must be passed",
+                )
+
+    form_edge_guard(transition, "ProductionStageTransition@3")
+    form_edge_guard(prepare, "ProductionStageTransitionPrepareRequest@3", prepare_request=True)
+    form_edge_guard(head, "ProductionStageHead@3", head=True)
+
+    def first_camera_null_guard(schema: dict, label: str, *, head: bool = False) -> None:
+        def all_null(rule: dict) -> bool:
+            properties = rule.get("then", {}).get("properties", {})
+            return all(
+                field in properties and properties[field].get("const", object()) is None
+                for field in camera_binding_fields
+            )
+
+        if head:
+            found = any(
+                rule.get("if", {}).get("properties", {}).get("previous_head_stage", {}).get("const")
+                == "reference-intake"
+                and rule.get("if", {}).get("properties", {}).get("head_stage", {}).get("const")
+                == "reference-coverage-reviewed"
+                and all_null(rule)
+                for rule in schema.get("allOf", [])
+            )
+        else:
+            found = any(
+                rule.get("if", {}).get("properties", {}).get("from_stage", {}).get("const")
+                == "reference-intake"
+                and all_null(rule)
+                for rule in schema.get("allOf", [])
+            )
+        require(found, f"{label} first edge must force every camera-lock binding field to null")
+
+    first_camera_null_guard(transition, "ProductionStageTransition@3")
+    first_camera_null_guard(prepare, "ProductionStageTransitionPrepareRequest@3")
+    first_camera_null_guard(head, "ProductionStageHead@3", head=True)
+    require(
+        camera_lock.get("properties", {}).get("schema_version", {}).get("const")
+        == "ProductionCameraLock@1"
+        and camera_lock.get("properties", {}).get("calibration_policy", {}).get("const")
+        == "fps-weapon-reviewed-six-reference-seven-camera-lock@1"
+        and camera_lock.get("properties", {}).get("camera_rig_object_sha256", {}).get("$ref")
+        == "#/$defs/sha256"
+        and camera_lock.get("properties", {}).get("receipt_object_sha256", {}).get("$ref")
+        == "#/$defs/sha256",
+        "ProductionStage@3 camera edge must consume the frozen ProductionCameraLock@1 policy",
+    )
+    require(
+        prepare_properties["approved"].get("const") is True
+        and "approval_summary" in prepare_properties
+        and "approval_summary_sha256" not in prepare_properties
+        and not ({"gate_status", "status", "canonical_sha256", "receipt_object_sha256", "created_at"} & set(prepare_properties)),
+        "ProductionStageTransitionPrepareRequest@3 must keep approval/raw request fields transient",
+    )
+    for field in [
+        "quality_report_object_sha256",
+        "comparison_report_object_sha256",
+        "visual_receipt_object_sha256",
+        "human_review_receipt_object_sha256",
+        "engine_validation_receipt_object_sha256",
+        "distribution_receipt_object_sha256",
+    ]:
+        for label, properties in [
+            ("ProductionStageTransition@3", transition_properties),
+            ("ProductionStageHead@3", head_properties),
+            ("ProductionStageTransitionPrepareRequest@3", prepare_properties),
+        ]:
+            require(
+                properties[field].get("$ref") == "#/$defs/nullable_sha256",
+                f"{label} future evidence {field} must be nullable",
+            )
+    for field in ["parent_transition_id", "parent_transition_sha256", "parent_transition_schema_version"]:
+        require(
+            transition_properties[field].get("$ref", "").startswith("#/$defs/nullable_"),
+            f"ProductionStageTransition@3 {field} must remain nullable for the first edge",
+        )
+    require(
+        transition_properties["candidate_binding_status"].get("$ref")
+        == "#/$defs/candidate_binding_status",
+        "ProductionStageTransition@3 must expose explicit same/distinct candidate binding",
+    )
+
+    projection = head.get("$defs", {}).get("compatibility_projection", {})
+    projection_properties = require_closed(projection, projection_fields, "ProductionStageCompatibilityProjection@3")
+    require(
+        projection_properties["schema_version"].get("const")
+        == "ProductionStageCompatibilityProjection@3"
+        and projection_properties["v1_projection_stage"].get("$ref")
+        == "#/$defs/nullable_coarse_stage"
+        and projection_properties["v2_projection_stage"].get("$ref")
+        == "#/$defs/nullable_coarse_stage"
+        and projection_properties["projection_status"].get("enum")
+        == ["exact", "lossy", "not-proven"],
+        "ProductionStageCompatibilityProjection@3 must remain a read-only lossy V1/V2 projection",
+    )
+    require(
+        head_properties["compatibility_projection"].get("$ref")
+        == "#/$defs/compatibility_projection",
+        "ProductionStageHead@3 must carry the nested compatibility projection",
+    )
+    for schema, properties, runtime_write in [
+        (prepare_result, prepare_result_properties, True),
+        (get_result, get_result_properties, False),
+    ]:
+        label = schema.get("title", "ProductionStage@3 result")
+        require(
+            properties["transition"].get("$ref")
+            == "https://forgecad.local/contracts/production-stage-transition-v3.schema.json"
+            and properties["production_stage_head"].get("$ref")
+            == "https://forgecad.local/contracts/production-stage-head-v3.schema.json"
+            and properties["compatibility_projection"].get("$ref")
+            == "https://forgecad.local/contracts/production-stage-head-v3.schema.json#/$defs/compatibility_projection"
+            and properties["runtime_write"].get("const") is runtime_write
+            and properties["candidate_confirmed"].get("const") is False
+            and properties["version_created"].get("const") is False
+            and properties["export_performed"].get("const") is False,
+            f"{label} must preserve V3 nested head/projection and side-effect false flags",
+        )
+    require(
+        get_request_properties["schema_version"].get("const")
+        == "ProductionStageTransitionGetRequest@3",
+        "ProductionStageTransitionGetRequest@3 schema version drifted",
+    )
+
+    # Compatibility regression guards: the additive V3 contract must not
+    # widen or rewrite the frozen V1/V2 stage meanings.
+    v1 = load_schema("production-stage-transition.schema.json")
+    v2 = load_schema("production-stage-transition-v2.schema.json")
+    require(
+        v1.get("$defs", {}).get("stage", {}).get("enum")
+        == coarse_stages
+        and v2.get("properties", {}).get("from_stage", {}).get("const") == "topology"
+        and v2.get("properties", {}).get("to_stage", {}).get("const") == "material-surface",
+        "ProductionStage@3 must remain additive and leave V1/V2 stage meanings frozen",
+    )
+
+
+def check_production_camera_lock_contracts() -> None:
+    """Keep the camera lock independent, closed and non-promoting."""
+    reference_view_kinds = [
+        "front",
+        "back",
+        "left",
+        "right",
+        "top",
+        "rear-three-quarter",
+    ]
+    camera_view_kinds = [
+        "front",
+        "back",
+        "left",
+        "right",
+        "top",
+        "bottom",
+        "rear-three-quarter",
+    ]
+    record_fields = {
+        "schema_version", "camera_lock_id", "session_id", "project_id",
+        "source_transition_id", "source_transition_sha256",
+        "source_head_canonical_sha256", "candidate_id", "candidate_state_sha256",
+        "artifact_id", "artifact_sha256", "reference_id", "reference_sha256",
+        "reference_canvas_object_sha256", "reference_canvas_canonical_sha256",
+        "design_spec_object_sha256", "design_spec_canonical_sha256",
+        "camera_rig_object_sha256", "camera_rig_canonical_sha256",
+        "required_reference_view_kinds", "required_camera_view_kinds",
+        "primary_view_kind", "calibration_policy", "review_status",
+        "calibration_status", "structural_status", "visual_status", "human_status",
+        "engine_status", "distribution_status", "approval_receipt_id",
+        "approval_session_id", "approval_expires_at", "approval_summary_sha256",
+        "input_sha256", "request_key_sha256", "receipt_object_sha256",
+        "canonical_sha256", "created_at",
+    }
+    prepare_fields = {
+        "schema_version", "camera_lock_id", "session_id", "project_id",
+        "source_transition_id", "source_transition_sha256",
+        "source_head_canonical_sha256", "candidate_id", "candidate_state_sha256",
+        "artifact_id", "artifact_sha256", "reference_id", "reference_sha256",
+        "required_reference_view_kinds", "required_camera_view_kinds",
+        "primary_view_kind", "calibration_policy", "input_sha256", "approved", "camera_rig",
+        "approval_receipt_id", "approval_session_id", "approval_expires_at",
+        "approval_summary", "idempotency_key",
+    }
+    get_request_fields = {
+        "schema_version", "camera_lock_id", "session_id", "project_id", "candidate_id",
+    }
+    result_fields = {
+        "schema_version", "camera_lock", "replayed", "runtime_write",
+        "production_stage_advanced", "candidate_confirmed", "version_created",
+        "export_performed", "restart_hash_verified",
+    }
+
+    def require_closed(schema: dict, fields: set[str], label: str) -> dict:
+        properties = schema.get("properties", {})
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    record = load_schema("production-camera-lock.schema.json")
+    prepare = load_schema("production-camera-lock-prepare-request.schema.json")
+    prepare_result = load_schema("production-camera-lock-prepare-result.schema.json")
+    get_request = load_schema("production-camera-lock-get-request.schema.json")
+    get_result = load_schema("production-camera-lock-get-result.schema.json")
+
+    record_properties = require_closed(record, record_fields, "ProductionCameraLock@1")
+    prepare_properties = require_closed(
+        prepare, prepare_fields, "ProductionCameraLockPrepareRequest@1"
+    )
+    get_request_properties = require_closed(
+        get_request, get_request_fields, "ProductionCameraLockGetRequest@1"
+    )
+    prepare_result_properties = require_closed(
+        prepare_result, result_fields, "ProductionCameraLockPrepareResult@1"
+    )
+    get_result_properties = require_closed(
+        get_result, result_fields, "ProductionCameraLockGetResult@1"
+    )
+
+    require(
+        record_properties["schema_version"].get("const") == "ProductionCameraLock@1",
+        "ProductionCameraLock@1 schema version drifted",
+    )
+    require(
+        prepare_properties["schema_version"].get("const")
+        == "ProductionCameraLockPrepareRequest@1",
+        "ProductionCameraLockPrepareRequest@1 schema version drifted",
+    )
+    require(
+        get_request_properties["schema_version"].get("const")
+        == "ProductionCameraLockGetRequest@1",
+        "ProductionCameraLockGetRequest@1 schema version drifted",
+    )
+    require(
+        record_properties["required_reference_view_kinds"].get("const")
+        == reference_view_kinds
+        and record_properties["required_camera_view_kinds"].get("const")
+        == camera_view_kinds
+        and record_properties["primary_view_kind"].get("const") == "left"
+        and prepare_properties["required_reference_view_kinds"].get("const")
+        == reference_view_kinds
+        and prepare_properties["required_camera_view_kinds"].get("const")
+        == camera_view_kinds
+        and prepare_properties["primary_view_kind"].get("const") == "left",
+        "ProductionCameraLock@1 must freeze the six reviewed references and seven camera views",
+    )
+    require(
+        record_properties["calibration_policy"].get("const")
+        == "fps-weapon-reviewed-six-reference-seven-camera-lock@1"
+        and record_properties["review_status"].get("const")
+        == "user-approved-reference-coverage"
+        and record_properties["calibration_status"].get("const") == "passed"
+        and record_properties["structural_status"].get("const") == "PASS_SOURCE_STRUCTURAL"
+        and record_properties["visual_status"].get("const") == "QUALITY_TARGET_NOT_MET"
+        and record_properties["human_status"].get("const") == "NOT_RUN"
+        and record_properties["engine_status"].get("const") == "NOT_RUN"
+        and record_properties["distribution_status"].get("const") == "NOT_RUN",
+        "ProductionCameraLock@1 status and calibration policy drifted",
+    )
+    require(
+        prepare_properties["calibration_policy"].get("const")
+        == "fps-weapon-reviewed-six-reference-seven-camera-lock@1"
+        and prepare_properties["camera_rig"].get("$ref")
+        == "https://forgecad.local/contracts/camera-rig-calibration.schema.json"
+        and prepare_properties["approved"].get("const") is True
+        and prepare_properties["approval_receipt_id"].get("$ref") == "#/$defs/id"
+        and prepare_properties["approval_session_id"].get("$ref") == "#/$defs/id"
+        and prepare_properties["approval_expires_at"].get("$ref") == "#/$defs/epoch"
+        and prepare_properties["approval_summary"].get("type") == "string"
+        and prepare_properties["idempotency_key"].get("$ref") == "#/$defs/id",
+        "ProductionCameraLockPrepareRequest@1 must carry a complete CameraRigCalibration@1 and current approval binding",
+    )
+
+    derived_prepare_fields = record_fields - prepare_fields
+    require(
+        derived_prepare_fields
+        == {
+            "reference_canvas_object_sha256", "reference_canvas_canonical_sha256",
+            "design_spec_object_sha256", "design_spec_canonical_sha256",
+            "camera_rig_object_sha256", "camera_rig_canonical_sha256",
+            "review_status", "calibration_status", "structural_status", "visual_status",
+            "human_status", "engine_status", "distribution_status",
+            "approval_summary_sha256", "request_key_sha256", "receipt_object_sha256",
+            "canonical_sha256", "created_at",
+        },
+        "ProductionCameraLockPrepareRequest@1 must reject Runtime-derived object/canonical/receipt-object/status fields while carrying current approval binding",
+    )
+
+    for schema, label in [
+        (record, "ProductionCameraLock@1"),
+        (prepare, "ProductionCameraLockPrepareRequest@1"),
+    ]:
+        description = schema.get("description", "").lower()
+        require(
+            "hq360" in description
+            and "six orthographic" in description
+            and "bottom" in description,
+            f"{label} must distinguish reviewed references, camera helper views and HQ360",
+        )
+
+    for filename, schema_version, runtime_write in [
+        (
+            "production-camera-lock-prepare-result.schema.json",
+            "ProductionCameraLockPrepareResult@1",
+            True,
+        ),
+        (
+            "production-camera-lock-get-result.schema.json",
+            "ProductionCameraLockGetResult@1",
+            False,
+        ),
+    ]:
+        result = load_schema(filename)
+        properties = require_closed(result, result_fields, schema_version)
+        require(
+            properties["schema_version"].get("const") == schema_version
+            and properties["camera_lock"].get("$ref")
+            == "https://forgecad.local/contracts/production-camera-lock.schema.json"
+            and properties["runtime_write"].get("const") is runtime_write
+            and properties["production_stage_advanced"].get("const") is False
+            and properties["candidate_confirmed"].get("const") is False
+            and properties["version_created"].get("const") is False
+            and properties["export_performed"].get("const") is False
+            and properties["restart_hash_verified"].get("const") is True,
+            f"{schema_version} must remain restart-verified and non-promoting",
+        )
+
+    forbidden_property_names = {
+        "path", "file_path", "absolute_path", "url", "uri", "script", "script_path",
+        "python", "javascript", "raw", "raw_bytes", "bytes", "environment", "env",
+        "secret", "network",
+    }
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                names.update(properties)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    for filename in [
+        "production-camera-lock.schema.json",
+        "production-camera-lock-prepare-request.schema.json",
+        "production-camera-lock-prepare-result.schema.json",
+        "production-camera-lock-get-request.schema.json",
+        "production-camera-lock-get-result.schema.json",
+    ]:
+        require(
+            forbidden_property_names.isdisjoint(property_names(load_schema(filename))),
+            f"{filename} must reject paths, URLs, scripts, raw bytes and environment inputs",
+        )
+
+
+def check_production_weapon_form_quality_contracts() -> None:
+    """Keep the additive FPS form-quality receipt bundle-bound and non-promoting."""
+    reviewed_reference_view_kinds = [
+        "front", "back", "left", "right", "top", "rear-three-quarter",
+    ]
+    fixed_camera_view_kinds = [
+        "front", "back", "left", "right", "top", "bottom", "rear-three-quarter",
+    ]
+    form_stage_edges = {
+        "blockout": ("camera-calibrated", "blockout-reviewed"),
+        "primary": ("blockout-reviewed", "primary-form-approved"),
+        "secondary": ("primary-form-approved", "secondary-form-approved"),
+    }
+    record_fields = {
+        "schema_version", "form_quality_id", "session_id", "project_id", "form_stage",
+        "source_stage", "target_stage", "camera_calibrated_head_transition_id",
+        "camera_calibrated_head_transition_sha256", "camera_calibrated_head_canonical_sha256",
+        "camera_calibrated_head_candidate_id", "camera_calibrated_head_candidate_state_sha256",
+        "camera_calibrated_head_artifact_id", "camera_calibrated_head_artifact_sha256",
+        "camera_calibrated_head_stage", "candidate_id", "candidate_state_sha256", "artifact_id",
+        "artifact_sha256", "reference_id", "reference_sha256", "reference_canvas_object_sha256",
+        "reference_canvas_canonical_sha256", "design_spec_object_sha256", "design_spec_canonical_sha256",
+        "camera_lock_id", "camera_lock_canonical_sha256", "camera_rig_object_sha256",
+        "camera_rig_canonical_sha256", "camera_lock_receipt_object_sha256",
+        "camera_lock_source_transition_id", "camera_lock_source_transition_sha256",
+        "camera_lock_source_head_canonical_sha256", "reviewed_reference_view_kinds",
+        "fixed_camera_view_kinds", "cross_view_evidence_object_sha256",
+        "cross_view_evidence_canonical_sha256", "cross_view_evidence_view_kinds",
+        "form_evidence_object_sha256", "form_evidence_canonical_sha256",
+        "form_view_evaluations", "previous_form_quality_id",
+        "previous_form_quality_report_object_sha256", "previous_form_quality_canonical_sha256",
+        "form_quality_policy", "form_quality_policy_sha256", "threshold_policy",
+        "threshold_policy_sha256", "layer_status", "hard_gate", "hard_gate_passed",
+        "form_gate", "form_gate_passed", "validator_status", "structural_status",
+        "visual_status", "human_status", "engine_status", "distribution_status",
+        "quality_status", "runtime_write_performed", "production_stage_advanced",
+        "candidate_confirmed", "version_created", "export_performed", "request_sha256",
+        "input_sha256", "receipt_object_sha256", "canonical_sha256", "created_at",
+    }
+    prepare_fields = {
+        "schema_version", "form_quality_id", "session_id", "project_id", "form_stage",
+        "source_stage", "target_stage", "camera_calibrated_head_transition_id",
+        "camera_calibrated_head_transition_sha256", "camera_calibrated_head_canonical_sha256",
+        "camera_calibrated_head_candidate_id", "camera_calibrated_head_candidate_state_sha256",
+        "camera_calibrated_head_artifact_id", "camera_calibrated_head_artifact_sha256",
+        "camera_calibrated_head_stage", "candidate_id", "candidate_state_sha256", "artifact_id",
+        "artifact_sha256", "reference_id", "reference_sha256", "reference_canvas_object_sha256",
+        "reference_canvas_canonical_sha256", "design_spec_object_sha256", "design_spec_canonical_sha256",
+        "camera_lock_id", "camera_lock_canonical_sha256", "camera_rig_object_sha256",
+        "camera_rig_canonical_sha256", "camera_lock_receipt_object_sha256",
+        "camera_lock_source_transition_id", "camera_lock_source_transition_sha256",
+        "camera_lock_source_head_canonical_sha256", "reviewed_reference_view_kinds",
+        "fixed_camera_view_kinds", "cross_view_evidence_object_sha256",
+        "cross_view_evidence_canonical_sha256", "cross_view_evidence_view_kinds",
+        "form_evidence_object_sha256", "form_evidence_canonical_sha256",
+        "form_view_evaluations", "previous_form_quality_id",
+        "previous_form_quality_report_object_sha256", "previous_form_quality_canonical_sha256",
+        "form_quality_policy", "form_quality_policy_sha256", "threshold_policy",
+        "threshold_policy_sha256", "input_sha256", "idempotency_key",
+    }
+    get_request_fields = {
+        "schema_version", "form_quality_id", "session_id", "project_id", "candidate_id",
+        "form_stage",
+    }
+    result_fields = {
+        "schema_version", "form_quality", "replayed", "runtime_write",
+        "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed",
+    }
+
+    def require_closed(schema: dict, fields: set[str], label: str) -> dict:
+        properties = schema.get("properties", {})
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    record = load_schema("production-weapon-form-quality.schema.json")
+    prepare = load_schema("production-weapon-form-quality-prepare-request.schema.json")
+    prepare_result = load_schema("production-weapon-form-quality-prepare-result.schema.json")
+    get_request = load_schema("production-weapon-form-quality-get-request.schema.json")
+    get_result = load_schema("production-weapon-form-quality-get-result.schema.json")
+
+    record_properties = require_closed(record, record_fields, "ProductionWeaponFormQuality@1")
+    prepare_properties = require_closed(
+        prepare, prepare_fields, "ProductionWeaponFormQualityPrepareRequest@1"
+    )
+    get_request_properties = require_closed(
+        get_request, get_request_fields, "ProductionWeaponFormQualityGetRequest@1"
+    )
+    prepare_result_properties = require_closed(
+        prepare_result, result_fields, "ProductionWeaponFormQualityPrepareResult@1"
+    )
+    get_result_properties = require_closed(
+        get_result, result_fields, "ProductionWeaponFormQualityGetResult@1"
+    )
+
+    require(
+        record.get("$defs", {}).get("stage", {}).get("enum") == [
+            "reference-intake", "reference-coverage-reviewed", "camera-calibrated",
+            "blockout-reviewed", "primary-form-approved", "secondary-form-approved",
+            "high-poly-approved", "low-poly-approved", "uv-approved", "cage-approved",
+            "bake-approved", "material-approved", "rig-socket-approved", "animation-approved",
+            "vfx-approved", "lod-collision-approved", "hero-art-review-approved",
+            "engine-validated", "export-confirmed",
+        ],
+        "ProductionWeaponFormQuality@1 must retain the exact ProductionStage@3 stage vocabulary",
+    )
+    require(
+        record_properties["schema_version"].get("const") == "ProductionWeaponFormQuality@1"
+        and prepare_properties["schema_version"].get("const")
+        == "ProductionWeaponFormQualityPrepareRequest@1"
+        and get_request_properties["schema_version"].get("const")
+        == "ProductionWeaponFormQualityGetRequest@1",
+        "ProductionWeaponFormQuality schema versions drifted",
+    )
+    require(
+        record_properties["reviewed_reference_view_kinds"].get("const")
+        == reviewed_reference_view_kinds
+        and record_properties["fixed_camera_view_kinds"].get("const")
+        == fixed_camera_view_kinds
+        and record_properties["cross_view_evidence_view_kinds"].get("const")
+        == reviewed_reference_view_kinds
+        and prepare_properties["reviewed_reference_view_kinds"].get("const")
+        == reviewed_reference_view_kinds
+        and prepare_properties["fixed_camera_view_kinds"].get("const")
+        == fixed_camera_view_kinds
+        and prepare_properties["cross_view_evidence_view_kinds"].get("const")
+        == reviewed_reference_view_kinds,
+        "ProductionWeaponFormQuality@1 must freeze six reviewed references and seven fixed cameras",
+    )
+    require(
+        record_properties["camera_calibrated_head_stage"].get("const") == "camera-calibrated"
+        and prepare_properties["camera_calibrated_head_stage"].get("const") == "camera-calibrated"
+        and all(
+            field in record_properties
+            for field in (
+                "camera_calibrated_head_transition_id", "camera_calibrated_head_transition_sha256",
+                "camera_calibrated_head_canonical_sha256", "camera_calibrated_head_candidate_id",
+                "camera_calibrated_head_candidate_state_sha256", "camera_calibrated_head_artifact_id",
+                "camera_calibrated_head_artifact_sha256",
+            )
+        ),
+        "ProductionWeaponFormQuality@1 must bind the current camera-calibrated Stage@3 head",
+    )
+    for properties, label in [
+        (record_properties, "ProductionWeaponFormQuality@1"),
+        (prepare_properties, "ProductionWeaponFormQualityPrepareRequest@1"),
+    ]:
+        require(
+            properties["reference_canvas_object_sha256"].get("$ref") == "#/$defs/sha256"
+            and properties["reference_canvas_canonical_sha256"].get("$ref") == "#/$defs/sha256"
+            and properties["design_spec_object_sha256"].get("$ref") == "#/$defs/sha256"
+            and properties["design_spec_canonical_sha256"].get("$ref") == "#/$defs/sha256"
+            and properties["cross_view_evidence_object_sha256"].get("$ref") == "#/$defs/sha256"
+            and properties["cross_view_evidence_canonical_sha256"].get("$ref") == "#/$defs/sha256",
+            f"{label} must bind ReferenceCanvas, DesignSpec and CrossViewEvidenceBundle exact hashes",
+        )
+        require(
+            properties["form_evidence_object_sha256"].get("$ref") == "#/$defs/sha256"
+            and properties["form_evidence_canonical_sha256"].get("$ref") == "#/$defs/sha256",
+            f"{label} must bind the independent ProductionWeaponFormEvidence parent by object and canonical hash",
+        )
+        require(
+            "reference_view_set_object_sha256" not in properties
+            and "reference_view_set_canonical_sha256" not in properties
+            and "visual_evidence_views_sha256" not in properties,
+            f"{label} must not invent a durable ReferenceViewSet or duplicate visual-evidence parent hash",
+        )
+        require(
+            properties["form_quality_policy"].get("const")
+            == "production-weapon-form-quality-six-view-no-regression@1"
+            and properties["threshold_policy"].get("const")
+            == "production-weapon-form-view-thresholds@1",
+            f"{label} form/threshold policy drifted",
+        )
+
+    require(
+        record_properties["form_view_evaluations"].get("prefixItems")
+        and len(record_properties["form_view_evaluations"]["prefixItems"]) == 6
+        and record_properties["form_view_evaluations"].get("items") is False
+        and prepare_properties["form_view_evaluations"].get("prefixItems")
+        and len(prepare_properties["form_view_evaluations"]["prefixItems"]) == 6
+        and prepare_properties["form_view_evaluations"].get("items") is False,
+        "ProductionWeaponFormQuality@1 must persist exactly six ordered form-view child projections",
+    )
+    form_view = record.get("$defs", {}).get("form_view", {})
+    require(
+        set(form_view.get("required", []))
+        == {"view_kind", "view_id", "part_id_evidence", "negative_space_evidence", "line_flow_evidence", "no_regression"}
+        and set(form_view.get("properties", {})) == set(form_view.get("required", [])),
+        "ProductionWeaponFormQuality@1 form-view children must retain only bundle FK plus stage-specific art evidence",
+    )
+    require(
+        not {
+            "reference_id", "reference_sha256", "camera_hash", "render_set_object_sha256",
+            "comparison_report_object_sha256", "quality_report_object_sha256", "metrics", "thresholds",
+        }.intersection(form_view.get("properties", {})),
+        "ProductionWeaponFormQuality@1 must not duplicate CrossViewEvidenceBundle image/metric truth",
+    )
+    evidence_binding = record.get("$defs", {}).get("evidence_binding", {})
+    require(
+        evidence_binding.get("properties", {}).get("source_kind", {}).get("enum")
+        == ["cross-view-evidence-bundle", "design-spec", "not-proven"]
+        and any(
+            branch.get("if", {}).get("properties", {}).get("source_kind", {}).get("const")
+            == "not-proven"
+            and branch.get("then", {}).get("properties", {}).get("status", {}).get("const")
+            == "NOT_PROVEN"
+            for branch in evidence_binding.get("allOf", [])
+        ),
+        "Part-ID/negative-space/line-flow prepare evidence must bind CrossView/DesignSpec or remain NOT_PROVEN",
+    )
+    for evidence_name, required_fields in [
+        (
+            "part_id_evidence",
+            {"source", "expected_part_ids", "observed_part_ids", "missing_part_ids", "unexpected_part_ids", "coverage_milli"},
+        ),
+        (
+            "negative_space_evidence",
+            {"source", "expected_count", "observed_count", "missing_count", "sealed_count", "coverage_milli"},
+        ),
+        (
+            "line_flow_evidence",
+            {"source", "expected_count", "observed_count", "coverage_milli", "continuity_milli", "deviation_milli"},
+        ),
+    ]:
+        evidence = record.get("$defs", {}).get(evidence_name, {})
+        require(
+            set(evidence.get("required", [])) == required_fields
+            and evidence.get("properties", {}).get("source", {}).get("$ref")
+            == "#/$defs/evidence_binding",
+            f"{evidence_name} must be a closed stage-specific receipt binding",
+        )
+
+    for properties, label in [
+        (record_properties, "ProductionWeaponFormQuality@1"),
+        (prepare_properties, "ProductionWeaponFormQualityPrepareRequest@1"),
+    ]:
+        guards = record.get("allOf", []) if properties is record_properties else prepare.get("allOf", [])
+        for form_stage, (source_stage, target_stage) in form_stage_edges.items():
+            matching = [
+                guard for guard in guards
+                if guard.get("if", {}).get("properties", {}).get("form_stage", {}).get("const")
+                == form_stage
+            ]
+            require(len(matching) == 1, f"{label} must define one frozen {form_stage} edge guard")
+            then_properties = matching[0].get("then", {}).get("properties", {})
+            require(
+                then_properties.get("source_stage", {}).get("const") == source_stage
+                and then_properties.get("target_stage", {}).get("const") == target_stage,
+                f"{label} {form_stage} edge must map {source_stage} to {target_stage}",
+            )
+    require(
+        "blockout_gate_status" not in record_properties
+        and "primary_gate_status" not in record_properties
+        and "secondary_gate_status" not in record_properties,
+        "ProductionWeaponFormQuality@1 must not compress three independent form records into one multi-layer status row",
+    )
+
+    hard_gate = record.get("$defs", {}).get("hard_gate", {})
+    form_gate = record.get("$defs", {}).get("form_gate", {})
+    require(
+        set(hard_gate.get("required", []))
+        == {
+            "stage_head_binding", "camera_lock_binding", "same_candidate_artifact",
+            "reviewed_reference_views", "fixed_camera_views", "cross_view_evidence_binding",
+            "form_view_evaluations", "part_id_evidence", "negative_space_evidence",
+            "line_flow_evidence", "threshold_policy_binding",
+        }
+        and set(form_gate.get("required", []))
+        == {"layer_status", "all_view_thresholds", "all_view_no_regression", "previous_form_quality_binding"},
+        "ProductionWeaponFormQuality@1 hard/form gates must cover binding, thresholds and no-regression",
+    )
+    require(
+        record_properties["quality_status"].get("const") == "structural_only"
+        and record_properties["runtime_write_performed"].get("const") is True
+        and record_properties["production_stage_advanced"].get("const") is False
+        and record_properties["candidate_confirmed"].get("const") is False
+        and record_properties["version_created"].get("const") is False
+        and record_properties["export_performed"].get("const") is False,
+        "ProductionWeaponFormQuality@1 must preserve the structural-only, non-promoting boundary",
+    )
+    require(
+        set(record_fields - prepare_fields)
+        == {
+            "layer_status", "hard_gate", "hard_gate_passed", "form_gate", "form_gate_passed", "validator_status",
+            "structural_status", "visual_status", "human_status", "engine_status",
+            "distribution_status", "quality_status", "runtime_write_performed",
+            "production_stage_advanced", "candidate_confirmed", "version_created",
+            "export_performed", "request_sha256", "receipt_object_sha256", "canonical_sha256",
+            "created_at",
+        },
+        "ProductionWeaponFormQualityPrepareRequest@1 must reject Runtime-derived status/gate/receipt fields",
+    )
+
+    cross_view = load_schema("cross-view-evidence-bundle.schema.json")
+    require(
+        cross_view.get("properties", {}).get("schema_version", {}).get("const")
+        == "CrossViewEvidenceBundle@1"
+        and {"candidate_id", "artifact_sha256", "view_evaluations", "non_regressing"}.issubset(
+            set(cross_view.get("required", []))
+        ),
+        "ProductionWeaponFormQuality@1 must bind the existing CrossViewEvidenceBundle@1 parent rather than copy its metrics",
+    )
+    for schema, schema_version, runtime_write in [
+        (prepare_result, "ProductionWeaponFormQualityPrepareResult@1", True),
+        (get_result, "ProductionWeaponFormQualityGetResult@1", False),
+    ]:
+        properties = prepare_result_properties if schema is prepare_result else get_result_properties
+        require(
+            properties["schema_version"].get("const") == schema_version
+            and properties["form_quality"].get("$ref")
+            == "https://forgecad.local/contracts/production-weapon-form-quality.schema.json"
+            and properties["runtime_write"].get("const") is runtime_write
+            and properties["production_stage_advanced"].get("const") is False
+            and properties["candidate_confirmed"].get("const") is False
+            and properties["version_created"].get("const") is False
+            and properties["export_performed"].get("const") is False,
+            f"{schema_version} must preserve the non-promoting result boundary",
+        )
+    require(
+        get_request_properties["schema_version"].get("const")
+        == "ProductionWeaponFormQualityGetRequest@1",
+        "ProductionWeaponFormQualityGetRequest@1 schema version drifted",
+    )
+
+    forbidden_property_names = {
+        "path", "file_path", "absolute_path", "url", "uri", "script", "script_path",
+        "python", "javascript", "raw", "raw_bytes", "bytes", "environment", "env",
+        "secret", "network",
+    }
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                names.update(properties)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    for schema, filename in [
+        (record, "production-weapon-form-quality.schema.json"),
+        (prepare, "production-weapon-form-quality-prepare-request.schema.json"),
+        (prepare_result, "production-weapon-form-quality-prepare-result.schema.json"),
+        (get_request, "production-weapon-form-quality-get-request.schema.json"),
+        (get_result, "production-weapon-form-quality-get-result.schema.json"),
+    ]:
+        require(
+            forbidden_property_names.isdisjoint(property_names(schema)),
+            f"{filename} must reject paths, URLs, scripts, raw bytes and environment inputs",
+        )
+
+
+def check_production_weapon_form_quality_v2_contracts() -> None:
+    """Keep passing FormQuality@2 additive, six-view and source-bound."""
+    view_kinds = ["front", "back", "left", "right", "top", "rear-three-quarter"]
+    camera_kinds = ["front", "back", "left", "right", "top", "bottom", "rear-three-quarter"]
+    edges = {
+        "blockout": ("camera-calibrated", "blockout-reviewed"),
+        "primary": ("blockout-reviewed", "primary-form-approved"),
+        "secondary": ("primary-form-approved", "secondary-form-approved"),
+    }
+    decision_fields = {
+        "view_kind", "legacy_form_quality_view_id", "legacy_form_quality_view_canonical_sha256",
+        "form_art_view_id", "form_art_view_canonical_sha256", "form_art_view_receipt_object_sha256",
+        "target_object_sha256", "target_canonical_sha256", "silhouette_pass_object_sha256",
+        "part_id_pass_object_sha256", "depth_pass_object_sha256", "normal_pass_object_sha256",
+        "cross_view_thresholds_passed", "no_regression_passed", "part_id_passed",
+        "negative_space_passed", "line_flow_passed", "view_passed",
+    }
+    aggregate_fields = {
+        "view_count", "all_cross_view_thresholds_passed", "all_no_regression_passed",
+        "all_part_id_passed", "all_negative_space_passed", "all_line_flow_passed", "all_view_passed",
+    }
+    record_fields = {
+        "schema_version", "form_quality_id", "session_id", "project_id", "form_stage", "source_stage", "target_stage",
+        "current_source_head_transition_id", "current_source_head_transition_sha256", "current_source_head_canonical_sha256",
+        "current_source_head_stage", "current_source_head_candidate_id", "current_source_head_candidate_state_sha256",
+        "current_source_head_artifact_id", "current_source_head_artifact_sha256", "candidate_id", "candidate_state_sha256",
+        "artifact_id", "artifact_sha256", "reference_id", "reference_sha256", "reference_canvas_object_sha256",
+        "reference_canvas_canonical_sha256", "design_spec_object_sha256", "design_spec_canonical_sha256", "camera_hash",
+        "camera_lock_id", "camera_lock_canonical_sha256", "camera_rig_object_sha256", "camera_rig_canonical_sha256",
+        "camera_lock_receipt_object_sha256", "camera_lock_source_transition_id", "camera_lock_source_transition_sha256",
+        "camera_lock_source_head_canonical_sha256", "reviewed_reference_view_kinds", "fixed_camera_view_kinds",
+        "legacy_form_quality_object_sha256", "legacy_form_quality_canonical_sha256", "form_art_evidence_object_sha256",
+        "form_art_evidence_canonical_sha256", "view_decisions", "aggregate", "previous_form_quality_id",
+        "previous_form_quality_report_object_sha256", "previous_form_quality_canonical_sha256", "form_quality_policy",
+        "form_quality_policy_sha256", "threshold_policy", "threshold_policy_sha256", "hard_gate_passed",
+        "form_gate_passed", "validator_status", "structural_status", "visual_status", "human_status", "engine_status",
+        "distribution_status", "quality_status", "runtime_write_performed", "production_stage_advanced",
+        "candidate_confirmed", "version_created", "export_performed", "request_sha256", "input_sha256",
+        "receipt_object_sha256", "canonical_sha256", "created_at",
+    }
+    prepare_fields = {
+        "schema_version", "form_quality_id", "session_id", "project_id", "form_stage", "source_stage", "target_stage",
+        "legacy_form_quality_object_sha256", "legacy_form_quality_canonical_sha256", "form_art_evidence_object_sha256",
+        "form_art_evidence_canonical_sha256", "current_source_head_transition_id", "current_source_head_transition_sha256",
+        "current_source_head_canonical_sha256", "previous_form_quality_id", "previous_form_quality_report_object_sha256",
+        "previous_form_quality_canonical_sha256", "form_quality_policy", "form_quality_policy_sha256", "threshold_policy",
+        "threshold_policy_sha256", "input_sha256", "idempotency_key",
+    }
+    result_fields = {
+        "schema_version", "form_quality", "replayed", "runtime_write", "production_stage_advanced",
+        "candidate_confirmed", "version_created", "export_performed",
+    }
+    get_request_fields = {"schema_version", "form_quality_id", "session_id", "project_id", "candidate_id", "form_stage"}
+    get_result_fields = result_fields | {"restart_hash_verified"}
+    scope_fields = {
+        "source_candidate_id", "source_candidate_state_sha256", "source_artifact_id", "source_artifact_sha256",
+        "source_fresh_baseline_id", "source_fresh_baseline_canonical_sha256", "source_fresh_baseline_receipt_object_sha256",
+        "source_registration_lineage_id", "source_registration_lineage_canonical_sha256", "source_registration_lineage_receipt_object_sha256",
+        "source_registered_rig_v2_id", "source_registered_rig_v2_object_sha256", "source_registered_rig_v2_canonical_sha256",
+        "source_runtime_build_cohort_sha256", "proposal_candidate_id", "proposal_candidate_state_sha256", "proposal_artifact_id",
+        "proposal_artifact_sha256", "proposal_artifact_readback_sha256", "proposal_worker_build_cohort_sha256",
+        "cross_view_evidence_bundle_sha256", "proposal_form_art_evidence_id", "proposal_form_art_evidence_object_sha256",
+        "proposal_form_art_evidence_canonical_sha256", "proposal_part_id_evidence_sha256",
+        "proposal_negative_space_evidence_sha256", "proposal_line_flow_evidence_sha256", "evidence_source_kind",
+    }
+    fresh_scope_fields = scope_fields - {"evidence_source_kind"}
+
+    def require_closed(schema: dict, fields: set[str], label: str, optional_fields: set[str] | None = None) -> dict:
+        properties = schema.get("properties", {})
+        optional_fields = optional_fields or set()
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == fields - optional_fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    record = load_schema("production-weapon-form-quality-v2.schema.json")
+    view = load_schema("production-weapon-form-quality-v2-view.schema.json")
+    prepare = load_schema("production-weapon-form-quality-v2-prepare-request.schema.json")
+    prepare_result = load_schema("production-weapon-form-quality-v2-prepare-result.schema.json")
+    get_request = load_schema("production-weapon-form-quality-v2-get-request.schema.json")
+    get_result = load_schema("production-weapon-form-quality-v2-get-result.schema.json")
+    record_properties = require_closed(record, record_fields | scope_fields, "ProductionWeaponFormQuality@2", scope_fields - {"evidence_source_kind"})
+    view_properties = require_closed(view, decision_fields, "ProductionWeaponFormQualityView@2")
+    prepare_properties = require_closed(prepare, prepare_fields | scope_fields, "ProductionWeaponFormQualityPrepareRequest@2", scope_fields - {"evidence_source_kind"})
+    prepare_result_properties = require_closed(prepare_result, result_fields, "ProductionWeaponFormQualityPrepareResult@2")
+    get_request_properties = require_closed(get_request, get_request_fields | scope_fields, "ProductionWeaponFormQualityGetRequest@2", scope_fields - {"evidence_source_kind"})
+    get_result_properties = require_closed(get_result, get_result_fields, "ProductionWeaponFormQualityGetResult@2")
+
+    require(
+        record_properties["schema_version"].get("const") == "ProductionWeaponFormQuality@2"
+        and view_properties["view_kind"].get("enum") == view_kinds
+        and prepare_properties["schema_version"].get("const") == "ProductionWeaponFormQualityPrepareRequest@2"
+        and prepare_result_properties["schema_version"].get("const") == "ProductionWeaponFormQualityPrepareResult@2"
+        and get_request_properties["schema_version"].get("const") == "ProductionWeaponFormQualityGetRequest@2"
+        and get_result_properties["schema_version"].get("const") == "ProductionWeaponFormQualityGetResult@2",
+        "ProductionWeaponFormQuality@2 schema versions drifted",
+    )
+    require(
+        record_properties["reviewed_reference_view_kinds"].get("const") == view_kinds
+        and record_properties["fixed_camera_view_kinds"].get("const") == camera_kinds
+        and record_properties["view_decisions"].get("minItems") == 6
+        and record_properties["view_decisions"].get("maxItems") == 6
+        and record_properties["view_decisions"].get("items") is False
+        and len(record_properties["view_decisions"].get("prefixItems", [])) == 6
+        and all(item.get("$ref") == "https://forgecad.local/contracts/production-weapon-form-quality-v2-view.schema.json" for item in record_properties["view_decisions"]["prefixItems"]),
+        "ProductionWeaponFormQuality@2 must persist exactly six ordered view decisions",
+    )
+    decision_sha_fields = {
+        "legacy_form_quality_view_canonical_sha256", "form_art_view_canonical_sha256", "form_art_view_receipt_object_sha256",
+        "target_object_sha256", "target_canonical_sha256", "silhouette_pass_object_sha256", "part_id_pass_object_sha256",
+        "depth_pass_object_sha256", "normal_pass_object_sha256",
+    }
+    for field in decision_sha_fields:
+        require(view_properties[field].get("$ref") == "#/$defs/sha256", f"FormQuality@2 view {field} must be hash-bound")
+    for field in ["cross_view_thresholds_passed", "no_regression_passed", "part_id_passed", "negative_space_passed", "line_flow_passed", "view_passed"]:
+        require(view_properties[field].get("const") is True, f"FormQuality@2 view {field} must be true in a passing receipt")
+    aggregate = record.get("$defs", {}).get("aggregate", {})
+    require(
+        set(aggregate.get("required", [])) == aggregate_fields
+        and set(aggregate.get("properties", {})) == aggregate_fields
+        and aggregate["properties"]["view_count"].get("const") == 6
+        and all(aggregate["properties"][field].get("const") is True for field in aggregate_fields - {"view_count"}),
+        "FormQuality@2 aggregate must be six-view all-pass",
+    )
+    record_sha_fields = {
+        "current_source_head_transition_sha256", "current_source_head_canonical_sha256", "current_source_head_candidate_state_sha256",
+        "current_source_head_artifact_sha256", "candidate_state_sha256", "artifact_sha256", "reference_sha256",
+        "reference_canvas_object_sha256", "reference_canvas_canonical_sha256", "design_spec_object_sha256",
+        "design_spec_canonical_sha256", "camera_hash", "camera_lock_canonical_sha256", "camera_rig_object_sha256",
+        "camera_rig_canonical_sha256", "camera_lock_receipt_object_sha256", "camera_lock_source_transition_sha256",
+        "camera_lock_source_head_canonical_sha256", "legacy_form_quality_object_sha256", "legacy_form_quality_canonical_sha256",
+        "form_art_evidence_object_sha256", "form_art_evidence_canonical_sha256", "form_quality_policy_sha256",
+        "threshold_policy_sha256", "request_sha256", "input_sha256", "receipt_object_sha256", "canonical_sha256",
+    }
+    for field in record_sha_fields:
+        require(record_properties[field].get("$ref") == "#/$defs/sha256", f"FormQuality@2 {field} must be a SHA-256 binding")
+    require(
+        record_properties["evidence_source_kind"].get("enum") == ["legacy-source", "fresh-baseline-proposal"],
+        "FormQuality@2 evidence_source_kind must expose the legacy/fresh closed union",
+    )
+    for properties, label in [
+        (record_properties, "record"), (prepare_properties, "prepare"), (get_request_properties, "get"),
+    ]:
+        for field in scope_fields - {"evidence_source_kind"}:
+            expected = "#/$defs/nullable_id" if field.endswith("_id") else "#/$defs/nullable_sha256"
+            require(properties[field].get("$ref") == expected, f"FormQuality@2 {label} {field} must be nullable hash/id bound")
+        require(properties["evidence_source_kind"].get("enum") == ["legacy-source", "fresh-baseline-proposal"], f"FormQuality@2 {label} source union drifted")
+    for schema, label in [(record, "record"), (prepare, "prepare"), (get_request, "get")]:
+        fresh_rules = [
+            rule for rule in schema.get("allOf", [])
+            if rule.get("if", {}).get("properties", {}).get("evidence_source_kind", {}).get("const") == "fresh-baseline-proposal"
+        ]
+        legacy_rules = [
+            rule for rule in schema.get("allOf", [])
+            if rule.get("if", {}).get("properties", {}).get("evidence_source_kind", {}).get("const") == "legacy-source"
+        ]
+        require(len(fresh_rules) == 1 and len(legacy_rules) == 1, f"FormQuality@2 {label} must define both source union branches")
+        require(set(fresh_rules[0].get("then", {}).get("required", [])) == fresh_scope_fields, f"FormQuality@2 {label} fresh branch must bind both candidate scopes")
+        legacy_properties = legacy_rules[0].get("then", {}).get("properties", {})
+        for field in ["proposal_form_art_evidence_id", "proposal_form_art_evidence_object_sha256", "proposal_form_art_evidence_canonical_sha256"]:
+            require(legacy_properties.get(field, {}).get("const") is None, f"FormQuality@2 {label} legacy branch must null {field}")
+    require(
+        record_properties["form_quality_policy"].get("const") == "production-weapon-form-quality-six-view-art-evidence-gate@2"
+        and record_properties["threshold_policy"].get("const") == "production-weapon-form-view-thresholds@1"
+        and record_properties["hard_gate_passed"].get("const") is True
+        and record_properties["form_gate_passed"].get("const") is True
+        and record_properties["validator_status"].get("const") == "passed"
+        and record_properties["structural_status"].get("const") == "PASS_SOURCE_STRUCTURAL"
+        and record_properties["visual_status"].get("const") == "PASS_STAGE_VISUAL_STRUCTURE_ONLY"
+        and record_properties["human_status"].get("const") == "NOT_RUN"
+        and record_properties["engine_status"].get("const") == "NOT_RUN"
+        and record_properties["distribution_status"].get("const") == "NOT_RUN"
+        and record_properties["quality_status"].get("const") == "PASS_FORM_GATE"
+        and record_properties["runtime_write_performed"].get("const") is True
+        and all(record_properties[field].get("const") is False for field in ("production_stage_advanced", "candidate_confirmed", "version_created", "export_performed")),
+        "FormQuality@2 must be a passing but non-promoting structure-only receipt",
+    )
+    for stage, (source, target) in edges.items():
+        matching = [rule for rule in record.get("allOf", []) if rule.get("if", {}).get("properties", {}).get("form_stage", {}).get("const") == stage]
+        require(len(matching) == 1, f"FormQuality@2 must define one {stage} edge guard")
+        props = matching[0].get("then", {}).get("properties", {})
+        require(props.get("source_stage", {}).get("const") == source and props.get("target_stage", {}).get("const") == target, f"FormQuality@2 {stage} edge drifted")
+    prepare_previous = {
+        "previous_form_quality_id": "#/$defs/nullable_id",
+        "previous_form_quality_report_object_sha256": "#/$defs/nullable_sha256",
+        "previous_form_quality_canonical_sha256": "#/$defs/nullable_sha256",
+    }
+    for field, ref in prepare_previous.items():
+        require(prepare_properties[field].get("$ref") == ref, f"FormQuality@2 prepare {field} must be nullable")
+    require(
+        prepare_properties["legacy_form_quality_object_sha256"].get("$ref") == "#/$defs/sha256"
+        and prepare_properties["form_art_evidence_object_sha256"].get("$ref") == "#/$defs/sha256"
+        and prepare_properties["current_source_head_transition_id"].get("$ref") == "#/$defs/id"
+        and prepare_properties["current_source_head_transition_sha256"].get("$ref") == "#/$defs/sha256"
+        and prepare_properties["current_source_head_canonical_sha256"].get("$ref") == "#/$defs/sha256"
+        and prepare_properties["form_quality_policy"].get("const") == "production-weapon-form-quality-six-view-art-evidence-gate@2"
+        and prepare_properties["threshold_policy"].get("const") == "production-weapon-form-view-thresholds@1",
+        "FormQuality@2 prepare must bind legacy quality, FormArt and current source head only",
+    )
+    for stage, (source, target) in edges.items():
+        matching = [rule for rule in prepare.get("allOf", []) if rule.get("if", {}).get("properties", {}).get("form_stage", {}).get("const") == stage]
+        require(len(matching) == 1, f"FormQuality@2 prepare must define one {stage} edge guard")
+        props = matching[0].get("then", {}).get("properties", {})
+        require(props.get("source_stage", {}).get("const") == source and props.get("target_stage", {}).get("const") == target, f"FormQuality@2 prepare {stage} edge drifted")
+        for field in prepare_previous:
+            expected = "#/$defs/nullable_" + ("id" if field.endswith("_id") else "sha256")
+            if stage == "blockout":
+                require(props.get(field, {}).get("const") is None, f"FormQuality@2 blockout previous {field} must be null")
+            else:
+                require(props.get(field, {}).get("$ref") == expected.replace("nullable_", ""), f"FormQuality@2 {stage} previous {field} must be non-null")
+    for schema, properties, schema_version, runtime_write in [
+        (prepare_result, prepare_result_properties, "ProductionWeaponFormQualityPrepareResult@2", True),
+        (get_result, get_result_properties, "ProductionWeaponFormQualityGetResult@2", False),
+    ]:
+        require(
+            properties["schema_version"].get("const") == schema_version
+            and properties["form_quality"].get("$ref") == "https://forgecad.local/contracts/production-weapon-form-quality-v2.schema.json"
+            and properties["runtime_write"].get("const") is runtime_write
+            and properties["production_stage_advanced"].get("const") is False
+            and properties["candidate_confirmed"].get("const") is False
+            and properties["version_created"].get("const") is False
+            and properties["export_performed"].get("const") is False,
+            f"{schema_version} result boundary drifted",
+        )
+    require(
+        get_result_properties["restart_hash_verified"].get("const") is True,
+        "FormQuality@2 get must be restart-hash verified",
+    )
+    forbidden_property_names = {"path", "file_path", "absolute_path", "url", "uri", "script", "script_path", "python", "javascript", "raw", "raw_bytes", "bytes", "environment", "env", "secret", "network", "geometry_program", "operator_id"}
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            if isinstance(node.get("properties"), dict):
+                names.update(node["properties"])
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    for schema, filename in [
+        (record, "production-weapon-form-quality-v2.schema.json"), (view, "production-weapon-form-quality-v2-view.schema.json"),
+        (prepare, "production-weapon-form-quality-v2-prepare-request.schema.json"), (prepare_result, "production-weapon-form-quality-v2-prepare-result.schema.json"),
+        (get_request, "production-weapon-form-quality-v2-get-request.schema.json"), (get_result, "production-weapon-form-quality-v2-get-result.schema.json"),
+    ]:
+        require(forbidden_property_names.isdisjoint(property_names(schema)), f"{filename} must reject paths, scripts, raw bytes and environment inputs")
+    require(load_schema("production-weapon-form-quality.schema.json")["properties"]["schema_version"].get("const") == "ProductionWeaponFormQuality@1", "FormQuality@1 must remain unchanged and additive")
+
+
+def check_production_weapon_form_quality_v2_preflight_contracts() -> None:
+    """Keep the FormQuality@2 preflight projection closed, read-only and hash-bound."""
+    request_base_fields = {
+        "schema_version", "preflight_id", "session_id", "project_id", "candidate_id", "form_stage",
+        "legacy_form_quality_object_sha256", "legacy_form_quality_canonical_sha256",
+        "form_art_evidence_object_sha256", "form_art_evidence_canonical_sha256",
+        "current_source_head_transition_id", "current_source_head_transition_sha256",
+        "current_source_head_canonical_sha256", "input_sha256",
+    }
+    result_base_fields = {
+        "schema_version", "preflight_id", "session_id", "project_id", "candidate_id", "form_stage",
+        "checks", "ready_for_v2_prepare", "blocking_reasons", "quality_status", "visual_quality_status",
+        "human_review_status", "commercial_engine_status", "runtime_write", "worker_started",
+        "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed",
+        "restart_hash_verified", "readiness_sha256",
+    }
+    check_fields = {"status", "reason_code", "object_sha256", "canonical_sha256"}
+    check_names = [
+        "legacy_form_quality", "form_art_evidence", "form_art_target_observation",
+        "cross_view_evidence", "camera_lock_stage", "reference_authoring", "candidate_artifact",
+    ]
+    fresh_check_names = check_names + ["fresh_baseline_registration", "proposal_candidate_evidence"]
+    scope_fields = {
+        "source_candidate_id", "source_candidate_state_sha256", "source_artifact_id", "source_artifact_sha256",
+        "source_fresh_baseline_id", "source_fresh_baseline_canonical_sha256", "source_fresh_baseline_receipt_object_sha256",
+        "source_registration_lineage_id", "source_registration_lineage_canonical_sha256", "source_registration_lineage_receipt_object_sha256",
+        "source_registered_rig_v2_id", "source_registered_rig_v2_object_sha256", "source_registered_rig_v2_canonical_sha256",
+        "source_runtime_build_cohort_sha256", "proposal_candidate_id", "proposal_candidate_state_sha256", "proposal_artifact_id",
+        "proposal_artifact_sha256", "proposal_artifact_readback_sha256", "proposal_worker_build_cohort_sha256",
+        "cross_view_evidence_bundle_sha256", "proposal_form_art_evidence_id", "proposal_form_art_evidence_object_sha256",
+        "proposal_form_art_evidence_canonical_sha256", "proposal_part_id_evidence_sha256",
+        "proposal_negative_space_evidence_sha256", "proposal_line_flow_evidence_sha256", "evidence_source_kind",
+    }
+    request_fields = request_base_fields | scope_fields
+    result_fields = result_base_fields | scope_fields
+    form_stages = ["blockout", "primary", "secondary"]
+    request_id_fields = {"preflight_id", "session_id", "project_id", "candidate_id", "current_source_head_transition_id"}
+    request_hash_fields = request_base_fields - {"schema_version", "form_stage"} - request_id_fields
+    reason_codes = [
+        "READY",
+        "CAMERA_LOCK_OR_STAGE_BLOCKED", "CANDIDATE_MISSING", "CANDIDATE_READ_FAILED",
+        "CROSS_VIEW_EVIDENCE_BLOCKED",
+        "FORM_ART_EVIDENCE_BINDING_MISMATCH", "FORM_ART_EVIDENCE_MALFORMED",
+        "FORM_ART_EVIDENCE_MISSING", "FORM_ART_EVIDENCE_REQUIRED",
+        "FORM_ART_EVIDENCE_SCHEMA_MISMATCH", "FORM_ART_EVIDENCE_SCOPE_RETARGET",
+        "FORM_ART_EVIDENCE_STORE_MISMATCH", "FORM_ART_EVIDENCE_STORE_ROW_MISSING",
+        "FORM_ART_EVIDENCE_STORE_UNAVAILABLE", "FORM_ART_EVIDENCE_UNREADABLE",
+        "FORM_ART_EVIDENCE_VIEW_ORDER_MISMATCH", "FORM_ART_TARGET_OBSERVATION_BLOCKED",
+        "FORM_ART_VIEW_RECEIPT_BINDING_MISMATCH", "FORM_ART_VIEW_RECEIPT_MALFORMED",
+        "FORM_ART_VIEW_RECEIPT_MISSING", "FORM_ART_VIEW_RECEIPT_SCHEMA_MISMATCH",
+        "FORM_ART_VIEW_RECEIPT_SELF_REFERENCE", "LEGACY_AND_FORM_ART_REQUIRED",
+        "LEGACY_FORM_QUALITY_CANONICAL_MISMATCH", "LEGACY_FORM_QUALITY_MALFORMED",
+        "LEGACY_FORM_QUALITY_MISSING", "LEGACY_FORM_QUALITY_REQUIRED",
+        "LEGACY_FORM_QUALITY_SCHEMA_MISMATCH", "LEGACY_FORM_QUALITY_SCOPE_RETARGET",
+        "LEGACY_FORM_QUALITY_STORE_MISMATCH", "LEGACY_FORM_QUALITY_STORE_ROW_MISSING",
+        "LEGACY_FORM_QUALITY_STORE_UNAVAILABLE", "LEGACY_FORM_QUALITY_UNREADABLE",
+        "REFERENCE_CANVAS_OR_DESIGN_SPEC_BLOCKED",
+    ]
+
+    def require_closed(schema: dict, fields: set[str], label: str, optional_fields: set[str] | None = None) -> dict:
+        properties = schema.get("properties", {})
+        optional_fields = optional_fields or set()
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == fields - optional_fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    request = load_schema("production-weapon-form-quality-v2-preflight-get-request.schema.json")
+    result = load_schema("production-weapon-form-quality-v2-preflight-get-result.schema.json")
+    request_properties = require_closed(
+        request, request_fields, "ProductionWeaponFormQualityV2PreflightGetRequest@1", scope_fields - {"evidence_source_kind"}
+    )
+    result_properties = require_closed(
+        result, result_fields, "ProductionWeaponFormQualityV2PreflightGetResult@1", scope_fields - {"evidence_source_kind"}
+    )
+    require(
+        request_properties["schema_version"].get("const")
+        == "ProductionWeaponFormQualityV2PreflightGetRequest@1"
+        and result_properties["schema_version"].get("const")
+        == "ProductionWeaponFormQualityV2PreflightGetResult@1"
+        and request_properties["form_stage"].get("enum") == form_stages
+        and result_properties["form_stage"].get("enum") == form_stages,
+        "FormQuality@2 preflight schema versions or stages drifted",
+    )
+    require(
+        all(request_properties[field].get("$ref") == "#/$defs/id" for field in request_id_fields)
+        and all(request_properties[field].get("$ref") == "#/$defs/sha256" for field in request_hash_fields)
+        and all(result_properties[field].get("$ref") == "#/$defs/id" for field in (
+            "preflight_id", "session_id", "project_id", "candidate_id"
+        ))
+        and result_properties["readiness_sha256"].get("$ref") == "#/$defs/sha256",
+        "FormQuality@2 preflight IDs and hashes must use the closed local definitions",
+    )
+    for properties, label in [(request_properties, "request"), (result_properties, "result")]:
+        require(
+            properties["evidence_source_kind"].get("enum") == ["legacy-source", "fresh-baseline-proposal"],
+            f"FormQuality@2 preflight {label} source union drifted",
+        )
+        for field in scope_fields - {"evidence_source_kind"}:
+            expected = "#/$defs/nullable_id" if field.endswith("_id") else "#/$defs/nullable_sha256"
+            require(
+                properties[field].get("$ref") == expected,
+                f"FormQuality@2 preflight {label} {field} must be nullable hash/id bound",
+            )
+
+    checks = result_properties["checks"]
+    check_alternatives = checks.get("oneOf", [])
+    require(len(check_alternatives) == 2, "FormQuality@2 preflight checks must expose legacy/fresh map union")
+    for alternative, names in zip(check_alternatives, [check_names, fresh_check_names]):
+        require(
+            alternative.get("type") == "object"
+            and alternative.get("additionalProperties") is False
+            and alternative.get("minProperties") == len(names)
+            and alternative.get("maxProperties") == len(names)
+            and set(alternative.get("required", [])) == set(names)
+            and list(alternative.get("properties", {})) == names
+            and all(alternative["properties"][name].get("$ref") == "#/$defs/check" for name in names),
+            "FormQuality@2 preflight check union branch is not closed",
+        )
+    check = result.get("$defs", {}).get("check", {})
+    check_properties = require_closed(check, check_fields, "ProductionWeaponFormQualityV2PreflightCheck@1")
+    require(
+        check_properties["status"].get("enum") == ["ready", "blocked", "invalid"]
+        and check_properties["reason_code"].get("enum") == reason_codes
+        and check_properties["object_sha256"].get("$ref") == "#/$defs/nullable_sha256"
+        and check_properties["canonical_sha256"].get("$ref") == "#/$defs/nullable_sha256",
+        "FormQuality@2 preflight check status, reason and hash fields drifted",
+    )
+    require(
+        result_properties["blocking_reasons"].get("$ref") is None
+        and result_properties["blocking_reasons"].get("minItems") == 0
+        and result_properties["blocking_reasons"].get("maxItems") == len(fresh_check_names)
+        and result_properties["blocking_reasons"].get("uniqueItems") is True
+        and result_properties["blocking_reasons"].get("items", {}).get("$ref")
+        == "#/$defs/blocking_reason",
+        "FormQuality@2 preflight blockers must be a bounded unique reason projection",
+    )
+    require(
+        result.get("$defs", {}).get("blocking_reason", {}).get("pattern")
+        == "^(legacy_form_quality|form_art_evidence|form_art_target_observation|cross_view_evidence|camera_lock_stage|reference_authoring|candidate_artifact|fresh_baseline_registration|proposal_candidate_evidence):[A-Z][A-Z0-9_]*$",
+        "FormQuality@2 preflight blockers must remain check-name qualified",
+    )
+    require(
+        result_properties["ready_for_v2_prepare"].get("type") == "boolean"
+        and result_properties["quality_status"].get("const") == "NOT_PROVEN"
+        and result_properties["visual_quality_status"].get("const") == "NOT_PROVEN"
+        and result_properties["human_review_status"].get("const") == "NOT_RUN"
+        and result_properties["commercial_engine_status"].get("const") == "NOT_RUN"
+        and result_properties["restart_hash_verified"].get("const") is True
+        and all(result_properties[field].get("const") is False for field in (
+            "runtime_write", "worker_started", "production_stage_advanced",
+            "candidate_confirmed", "version_created", "export_performed",
+        )),
+        "FormQuality@2 preflight must be NOT_PROVEN, restart-verified and non-promoting",
+    )
+    require(
+        request.get("$defs", {}).get("id", {}).get("pattern")
+        == "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        and request.get("$defs", {}).get("sha256", {}).get("pattern") == "^[0-9a-f]{64}$"
+        and result.get("$defs", {}).get("id", {}).get("pattern")
+        == "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        and result.get("$defs", {}).get("sha256", {}).get("pattern") == "^[0-9a-f]{64}$",
+        "FormQuality@2 preflight ID and SHA-256 patterns must remain strict",
+    )
+    forbidden_property_names = {
+        "path", "file_path", "absolute_path", "url", "uri", "script", "script_path",
+        "python", "javascript", "raw", "raw_bytes", "bytes", "environment", "env",
+        "secret", "network",
+    }
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                names.update(properties)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    for schema, filename in [
+        (request, "production-weapon-form-quality-v2-preflight-get-request.schema.json"),
+        (result, "production-weapon-form-quality-v2-preflight-get-result.schema.json"),
+    ]:
+        require(
+            forbidden_property_names.isdisjoint(property_names(schema)),
+            f"{filename} must reject paths, URLs, scripts, raw bytes and environment inputs",
+        )
+
+
+def check_production_weapon_form_evidence_contracts() -> None:
+    """Keep six-view typed form evidence independently bound and non-promoting."""
+    view_kinds = ["front", "back", "left", "right", "top", "rear-three-quarter"]
+    parent_fields = {
+        "schema_version", "form_evidence_id", "session_id", "project_id", "candidate_id",
+        "candidate_state_sha256", "artifact_id", "artifact_sha256",
+        "reference_canvas_object_sha256", "reference_canvas_canonical_sha256",
+        "design_spec_object_sha256", "design_spec_canonical_sha256", "camera_lock_id",
+        "camera_lock_canonical_sha256", "camera_rig_object_sha256", "camera_rig_canonical_sha256",
+        "camera_lock_receipt_object_sha256", "camera_lock_source_transition_id",
+        "camera_lock_source_transition_sha256", "camera_lock_source_head_canonical_sha256",
+        "view_kinds", "views", "evidence_policy", "evidence_policy_sha256", "quality_status",
+        "runtime_write_performed", "production_stage_advanced", "candidate_confirmed",
+        "version_created", "export_performed", "request_sha256", "input_sha256",
+        "receipt_object_sha256", "canonical_sha256", "created_at",
+    }
+    prepare_fields = {
+        "schema_version", "form_evidence_id", "session_id", "project_id", "candidate_id",
+        "candidate_state_sha256", "artifact_id", "artifact_sha256",
+        "reference_canvas_object_sha256", "reference_canvas_canonical_sha256",
+        "design_spec_object_sha256", "design_spec_canonical_sha256", "camera_lock_id",
+        "camera_lock_canonical_sha256", "camera_rig_object_sha256", "camera_rig_canonical_sha256",
+        "camera_lock_receipt_object_sha256", "camera_lock_source_transition_id",
+        "camera_lock_source_transition_sha256", "camera_lock_source_head_canonical_sha256",
+        "view_kinds", "views", "evidence_policy", "evidence_policy_sha256", "input_sha256",
+        "idempotency_key",
+    }
+    view_fields = {
+        "schema_version", "project_id", "candidate_id", "candidate_state_sha256", "artifact_id",
+        "artifact_sha256", "view_kind", "view_id", "reference_id", "reference_sha256",
+        "camera_hash", "camera_canonical_sha256", "render_set_object_sha256",
+        "render_set_canonical_sha256", "render_set_view_id", "part_id_evidence",
+        "negative_space_evidence", "line_flow_evidence", "view_observation_status",
+        "quality_status", "receipt_object_sha256", "canonical_sha256", "created_at",
+    }
+    view_input_fields = {
+        "view_kind", "view_id", "reference_id", "reference_sha256", "camera_hash",
+        "camera_canonical_sha256", "render_set_object_sha256", "render_set_canonical_sha256",
+        "render_set_view_id",
+    }
+    result_fields = {
+        "schema_version", "form_evidence", "replayed", "runtime_write",
+        "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed",
+    }
+    get_result_fields = result_fields | {"restart_hash_verified"}
+
+    def require_closed(schema: dict, fields: set[str], label: str) -> dict:
+        properties = schema.get("properties", {})
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    parent = load_schema("production-weapon-form-evidence.schema.json")
+    view = load_schema("production-weapon-form-evidence-view.schema.json")
+    prepare = load_schema("production-weapon-form-evidence-prepare-request.schema.json")
+    prepare_result = load_schema("production-weapon-form-evidence-prepare-result.schema.json")
+    get_request = load_schema("production-weapon-form-evidence-get-request.schema.json")
+    get_result = load_schema("production-weapon-form-evidence-get-result.schema.json")
+
+    parent_properties = require_closed(parent, parent_fields, "ProductionWeaponFormEvidence@1")
+    view_properties = require_closed(view, view_fields, "ProductionWeaponFormEvidenceView@1")
+    prepare_properties = require_closed(
+        prepare, prepare_fields, "ProductionWeaponFormEvidencePrepareRequest@1"
+    )
+    prepare_result_properties = require_closed(
+        prepare_result, result_fields, "ProductionWeaponFormEvidencePrepareResult@1"
+    )
+    get_request_properties = require_closed(
+        get_request,
+        {"schema_version", "form_evidence_id", "session_id", "project_id", "candidate_id"},
+        "ProductionWeaponFormEvidenceGetRequest@1",
+    )
+    get_result_properties = require_closed(
+        get_result, get_result_fields, "ProductionWeaponFormEvidenceGetResult@1"
+    )
+
+    require(
+        parent_properties["schema_version"].get("const") == "ProductionWeaponFormEvidence@1"
+        and view_properties["schema_version"].get("const") == "ProductionWeaponFormEvidenceView@1"
+        and prepare_properties["schema_version"].get("const")
+        == "ProductionWeaponFormEvidencePrepareRequest@1"
+        and prepare_result_properties["schema_version"].get("const")
+        == "ProductionWeaponFormEvidencePrepareResult@1"
+        and get_request_properties["schema_version"].get("const")
+        == "ProductionWeaponFormEvidenceGetRequest@1"
+        and get_result_properties["schema_version"].get("const")
+        == "ProductionWeaponFormEvidenceGetResult@1",
+        "ProductionWeaponFormEvidence schema versions drifted",
+    )
+    for properties, label in [
+        (parent_properties, "ProductionWeaponFormEvidence@1"),
+        (prepare_properties, "ProductionWeaponFormEvidencePrepareRequest@1"),
+    ]:
+        for field in (
+            "candidate_state_sha256", "artifact_sha256", "reference_canvas_object_sha256",
+            "reference_canvas_canonical_sha256", "design_spec_object_sha256",
+            "design_spec_canonical_sha256", "camera_lock_canonical_sha256",
+            "camera_rig_object_sha256", "camera_rig_canonical_sha256",
+            "camera_lock_receipt_object_sha256", "camera_lock_source_transition_sha256",
+            "camera_lock_source_head_canonical_sha256", "evidence_policy_sha256",
+        ):
+            require(
+                properties[field].get("$ref") == "#/$defs/sha256",
+                f"{label} {field} must be a SHA-256 binding",
+            )
+        require(
+            properties["evidence_policy"].get("const")
+            == "production-weapon-form-evidence-six-view-typed-observation@1",
+            f"{label} evidence policy drifted",
+        )
+        require(
+            properties["view_kinds"].get("const") == view_kinds,
+            f"{label} must freeze exactly six reviewed view kinds",
+        )
+    require(
+        parent_properties["views"].get("prefixItems")
+        and len(parent_properties["views"]["prefixItems"]) == 6
+        and parent_properties["views"].get("items") is False
+        and parent_properties["views"].get("minItems") == 6
+        and parent_properties["views"].get("maxItems") == 6
+        and parent_properties["views"].get("uniqueItems") is True
+        and all(
+            item.get("$ref")
+            == "https://forgecad.local/contracts/production-weapon-form-evidence-view.schema.json"
+            for item in parent_properties["views"]["prefixItems"]
+        ),
+        "ProductionWeaponFormEvidence@1 must persist exactly six ordered view children",
+    )
+    require(
+        prepare_properties["views"].get("prefixItems")
+        and len(prepare_properties["views"]["prefixItems"]) == 6
+        and prepare_properties["views"].get("items") is False
+        and prepare_properties["views"].get("minItems") == 6
+        and prepare_properties["views"].get("maxItems") == 6
+        and prepare_properties["views"].get("uniqueItems") is True
+        and [item.get("$ref") for item in prepare_properties["views"]["prefixItems"]]
+        == [
+            "#/$defs/view_input_front", "#/$defs/view_input_back", "#/$defs/view_input_left",
+            "#/$defs/view_input_right", "#/$defs/view_input_top",
+            "#/$defs/view_input_rear_three_quarter",
+        ],
+        "ProductionWeaponFormEvidencePrepareRequest@1 must bind exactly six ordered view inputs",
+    )
+    for properties, label in [(view_properties, "ProductionWeaponFormEvidenceView@1")]:
+        for field in (
+            "candidate_state_sha256", "artifact_sha256", "reference_sha256", "camera_hash",
+            "camera_canonical_sha256", "render_set_object_sha256",
+            "render_set_canonical_sha256", "receipt_object_sha256", "canonical_sha256",
+        ):
+            require(
+                properties[field].get("$ref") == "#/$defs/sha256",
+                f"{label} {field} must be a SHA-256 binding",
+            )
+        require(
+            properties["view_kind"].get("enum") == view_kinds
+            and properties["view_observation_status"].get("enum")
+            == ["observed", "inferred", "unknown"]
+            and properties["quality_status"].get("const") == "NOT_PROVEN",
+            f"{label} must preserve observed/inferred/unknown and NOT_PROVEN boundaries",
+        )
+    view_input = prepare.get("$defs", {}).get("view_input", {})
+    require(
+        set(view_input.get("required", [])) == view_input_fields
+        and set(view_input.get("properties", {})) == view_input_fields
+        and view_input.get("properties", {}).get("view_kind", {}).get("enum") == view_kinds,
+        "ProductionWeaponFormEvidencePrepareRequest@1 view inputs must be closed and hash-bound",
+    )
+    for evidence_name, fields, kind in [
+        (
+            "part_id_evidence",
+            {"observation", "expected_part_ids", "observed_part_ids", "missing_part_ids", "unexpected_part_ids", "coverage_milli"},
+            "part-id",
+        ),
+        (
+            "negative_space_evidence",
+            {"observation", "expected_count", "observed_count", "missing_count", "sealed_count", "coverage_milli"},
+            "negative-space",
+        ),
+        (
+            "line_flow_evidence",
+            {"observation", "expected_count", "observed_count", "coverage_milli", "continuity_milli", "deviation_milli"},
+            "line-flow",
+        ),
+    ]:
+        evidence = view.get("$defs", {}).get(evidence_name, {})
+        require(
+            set(evidence.get("required", [])) == fields
+            and evidence.get("properties", {}).get("observation", {}).get("allOf")
+            and evidence["properties"]["observation"]["allOf"][1]
+            .get("properties", {}).get("evidence_kind", {}).get("const") == kind,
+            f"{evidence_name} must be a typed {kind} observation",
+        )
+        observation = view.get("$defs", {}).get("observation", {})
+        require(
+            observation.get("properties", {}).get("observation_status", {}).get("enum")
+            == ["observed", "inferred", "unknown"]
+            and observation.get("properties", {}).get("quality_status", {}).get("const")
+            == "NOT_PROVEN",
+            "typed form evidence must never claim quality PASS",
+        )
+    require(
+        parent_properties["quality_status"].get("const") == "NOT_PROVEN"
+        and parent_properties["runtime_write_performed"].get("const") is True
+        and parent_properties["production_stage_advanced"].get("const") is False
+        and parent_properties["candidate_confirmed"].get("const") is False
+        and parent_properties["version_created"].get("const") is False
+        and parent_properties["export_performed"].get("const") is False,
+        "ProductionWeaponFormEvidence@1 must remain evidence-only and non-promoting",
+    )
+    require(
+        prepare_result_properties["form_evidence"].get("$ref")
+        == "https://forgecad.local/contracts/production-weapon-form-evidence.schema.json"
+        and prepare_result_properties["runtime_write"].get("const") is True
+        and all(
+            prepare_result_properties[field].get("const") is False
+            for field in ("production_stage_advanced", "candidate_confirmed", "version_created", "export_performed")
+        ),
+        "ProductionWeaponFormEvidencePrepareResult@1 must be a non-promoting write result",
+    )
+    require(
+        get_result_properties["form_evidence"].get("$ref")
+        == "https://forgecad.local/contracts/production-weapon-form-evidence.schema.json"
+        and get_result_properties["runtime_write"].get("const") is False
+        and get_result_properties["restart_hash_verified"].get("const") is True
+        and all(
+            get_result_properties[field].get("const") is False
+            for field in ("production_stage_advanced", "candidate_confirmed", "version_created", "export_performed")
+        ),
+        "ProductionWeaponFormEvidenceGetResult@1 must be read-only and restart verified",
+    )
+    forbidden_property_names = {
+        "path", "file_path", "absolute_path", "url", "uri", "script", "script_path",
+        "python", "javascript", "raw", "raw_bytes", "bytes", "environment", "env",
+        "secret", "network", "geometry_program", "operator_id",
+    }
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                names.update(properties)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    for schema, filename in [
+        (parent, "production-weapon-form-evidence.schema.json"),
+        (view, "production-weapon-form-evidence-view.schema.json"),
+        (prepare, "production-weapon-form-evidence-prepare-request.schema.json"),
+        (prepare_result, "production-weapon-form-evidence-prepare-result.schema.json"),
+        (get_request, "production-weapon-form-evidence-get-request.schema.json"),
+        (get_result, "production-weapon-form-evidence-get-result.schema.json"),
+    ]:
+        require(
+            forbidden_property_names.isdisjoint(property_names(schema)),
+            f"{filename} must reject geometry, paths, URLs, scripts, raw bytes and environment inputs",
+        )
+
+
+def check_production_weapon_form_art_evidence_contracts() -> None:
+    """Keep additive six-view art evidence closed, bounded and non-promoting."""
+    view_kinds = ["front", "back", "left", "right", "top", "rear-three-quarter"]
+    parent_fields = {
+        "schema_version", "art_evidence_id", "session_id", "project_id", "candidate_id",
+        "candidate_state_sha256", "artifact_id", "artifact_sha256",
+        "reference_canvas_object_sha256", "reference_canvas_canonical_sha256",
+        "design_spec_object_sha256", "design_spec_canonical_sha256", "camera_lock_id",
+        "camera_lock_canonical_sha256", "camera_rig_object_sha256", "camera_rig_canonical_sha256",
+        "camera_lock_receipt_object_sha256", "camera_lock_source_transition_id",
+        "camera_lock_source_transition_sha256", "camera_lock_source_head_canonical_sha256",
+        "form_evidence_object_sha256", "form_evidence_canonical_sha256", "view_kinds", "views",
+        "part_id_aggregate", "art_evidence_policy", "art_evidence_policy_sha256", "quality_status",
+        "runtime_write_performed", "production_stage_advanced", "candidate_confirmed",
+        "version_created", "export_performed", "request_sha256", "input_sha256",
+        "receipt_object_sha256", "canonical_sha256", "created_at",
+    }
+    view_fields = {
+        "schema_version", "project_id", "candidate_id", "candidate_state_sha256", "artifact_id",
+        "artifact_sha256", "view_kind", "view_id", "reference_id", "reference_sha256",
+        "camera_hash", "camera_canonical_sha256", "form_evidence_view_receipt_object_sha256",
+        "form_evidence_view_receipt_canonical_sha256", "target_object_sha256", "target_canonical_sha256",
+        "visual_structure_canonical_sha256", "visual_structure_review_status",
+        "silhouette_pass_object_sha256", "part_id_pass_object_sha256", "depth_pass_object_sha256",
+        "normal_pass_object_sha256", "part_id_status", "part_id_expected_count",
+        "part_id_observed_count", "part_id_missing_count", "part_id_unexpected_count",
+        "part_id_coverage_milli", "negative_space_status", "negative_space_rows",
+        "line_flow_status", "line_flow_rows", "view_observation_status", "quality_status",
+        "receipt_object_sha256", "canonical_sha256", "created_at",
+    }
+    prepare_fields = {
+        "schema_version", "art_evidence_id", "session_id", "project_id", "candidate_id",
+        "form_evidence_object_sha256", "form_evidence_canonical_sha256", "art_evidence_policy",
+        "art_evidence_policy_sha256", "input_sha256", "idempotency_key",
+    }
+    result_fields = {
+        "schema_version", "art_evidence", "replayed", "runtime_write",
+        "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed",
+    }
+    get_request_required_fields = {"schema_version", "art_evidence_id", "session_id", "project_id", "candidate_id"}
+    get_request_fields = get_request_required_fields | {"raster_source_attribution_diagnostic"}
+    get_result_required_fields = result_fields | {"restart_hash_verified"}
+    get_result_fields = get_result_required_fields | {"raster_source_attribution_diagnostic"}
+
+    def require_closed(schema: dict, fields: set[str], label: str) -> dict:
+        properties = schema.get("properties", {})
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    parent = load_schema("production-weapon-form-art-evidence.schema.json")
+    view = load_schema("production-weapon-form-art-evidence-view.schema.json")
+    prepare = load_schema("production-weapon-form-art-evidence-prepare-request.schema.json")
+    prepare_result = load_schema("production-weapon-form-art-evidence-prepare-result.schema.json")
+    get_request = load_schema("production-weapon-form-art-evidence-get-request.schema.json")
+    get_result = load_schema("production-weapon-form-art-evidence-get-result.schema.json")
+    parent_properties = require_closed(parent, parent_fields, "ProductionWeaponFormArtEvidence@1")
+    view_properties = require_closed(view, view_fields, "ProductionWeaponFormArtEvidenceView@1")
+    prepare_properties = require_closed(
+        prepare, prepare_fields, "ProductionWeaponFormArtEvidencePrepareRequest@1"
+    )
+    prepare_result_properties = require_closed(
+        prepare_result, result_fields, "ProductionWeaponFormArtEvidencePrepareResult@1"
+    )
+    get_request_properties = get_request.get("properties", {})
+    require(
+        get_request.get("type") == "object"
+        and get_request.get("additionalProperties") is False
+        and set(get_request.get("required", [])) == get_request_required_fields
+        and set(get_request_properties) == get_request_fields,
+        "ProductionWeaponFormArtEvidenceGetRequest@1 must be closed with its exact optional diagnostic field",
+    )
+    get_result_properties = get_result.get("properties", {})
+    require(
+        get_result.get("type") == "object"
+        and get_result.get("additionalProperties") is False
+        and set(get_result.get("required", [])) == get_result_required_fields
+        and set(get_result_properties) == get_result_fields,
+        "ProductionWeaponFormArtEvidenceGetResult@1 must be closed with its exact optional diagnostic field",
+    )
+    raster_request_ref = get_request_properties["raster_source_attribution_diagnostic"].get("$ref")
+    raster_result_ref = get_result_properties["raster_source_attribution_diagnostic"].get("$ref")
+    require(
+        raster_request_ref == "#/$defs/rasterAttributionRequest"
+        and raster_result_ref == "#/$defs/rasterAttributionResult"
+        and get_request.get("$defs", {}).get("rasterAttributionRequest", {}).get("additionalProperties") is False
+        and get_result.get("$defs", {}).get("rasterAttributionResult", {}).get("additionalProperties") is False
+        and get_result.get("$defs", {}).get("diagnostic", {}).get("additionalProperties") is False
+        and get_result.get("$defs", {}).get("sourceRow", {}).get("additionalProperties") is False,
+        "ProductionWeaponFormArtEvidence raster attribution request/result must remain closed",
+    )
+
+    versions = {
+        "schema_version": "ProductionWeaponFormArtEvidence@1",
+        "view": "ProductionWeaponFormArtEvidenceView@1",
+        "prepare": "ProductionWeaponFormArtEvidencePrepareRequest@1",
+        "prepare_result": "ProductionWeaponFormArtEvidencePrepareResult@1",
+        "get": "ProductionWeaponFormArtEvidenceGetRequest@1",
+        "get_result": "ProductionWeaponFormArtEvidenceGetResult@1",
+    }
+    require(
+        parent_properties["schema_version"].get("const") == versions["schema_version"]
+        and view_properties["schema_version"].get("const") == versions["view"]
+        and prepare_properties["schema_version"].get("const") == versions["prepare"]
+        and prepare_result_properties["schema_version"].get("const") == versions["prepare_result"]
+        and get_request_properties["schema_version"].get("const") == versions["get"]
+        and get_result_properties["schema_version"].get("const") == versions["get_result"],
+        "ProductionWeaponFormArtEvidence schema versions drifted",
+    )
+    require(
+        parent_properties["view_kinds"].get("const") == view_kinds
+        and view_properties["view_kind"].get("enum") == view_kinds,
+        "ProductionWeaponFormArtEvidence must freeze exactly six view kinds",
+    )
+    view_refs = parent_properties["views"]
+    require(
+        view_refs.get("minItems") == 6
+        and view_refs.get("maxItems") == 6
+        and view_refs.get("uniqueItems") is True
+        and view_refs.get("items") is False
+        and len(view_refs.get("prefixItems", [])) == 6
+        and all(
+            item.get("$ref")
+            == "https://forgecad.local/contracts/production-weapon-form-art-evidence-view.schema.json"
+            for item in view_refs["prefixItems"]
+        ),
+        "ProductionWeaponFormArtEvidence must persist exactly six ordered view children",
+    )
+
+    parent_sha_fields = {
+        "candidate_state_sha256", "artifact_sha256", "reference_canvas_object_sha256",
+        "reference_canvas_canonical_sha256", "design_spec_object_sha256", "design_spec_canonical_sha256",
+        "camera_lock_canonical_sha256", "camera_rig_object_sha256", "camera_rig_canonical_sha256",
+        "camera_lock_receipt_object_sha256", "camera_lock_source_transition_sha256",
+        "camera_lock_source_head_canonical_sha256", "form_evidence_object_sha256",
+        "form_evidence_canonical_sha256", "art_evidence_policy_sha256", "request_sha256",
+        "input_sha256", "receipt_object_sha256", "canonical_sha256",
+    }
+    for field in parent_sha_fields:
+        require(
+            parent_properties[field].get("$ref") == "#/$defs/sha256",
+            f"ProductionWeaponFormArtEvidence@1 {field} must be a SHA-256 binding",
+        )
+    for field in ("art_evidence_policy", "quality_status"):
+        expected = (
+            "production-weapon-form-art-evidence-six-view-typed-observation@1"
+            if field == "art_evidence_policy" else "NOT_PROVEN"
+        )
+        require(
+            parent_properties[field].get("const") == expected,
+            f"ProductionWeaponFormArtEvidence@1 {field} is not frozen",
+        )
+    require(
+        parent_properties["runtime_write_performed"].get("const") is True
+        and all(parent_properties[field].get("const") is False for field in (
+            "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed"
+        )),
+        "ProductionWeaponFormArtEvidence@1 must remain non-promoting",
+    )
+
+    view_sha_fields = {
+        "candidate_state_sha256", "artifact_sha256", "reference_sha256", "camera_hash",
+        "camera_canonical_sha256", "form_evidence_view_receipt_object_sha256",
+        "form_evidence_view_receipt_canonical_sha256", "target_object_sha256", "target_canonical_sha256",
+        "visual_structure_canonical_sha256", "silhouette_pass_object_sha256", "part_id_pass_object_sha256",
+        "depth_pass_object_sha256", "normal_pass_object_sha256", "receipt_object_sha256", "canonical_sha256",
+    }
+    for field in view_sha_fields:
+        require(
+            view_properties[field].get("$ref") == "#/$defs/sha256",
+            f"ProductionWeaponFormArtEvidenceView@1 {field} must be a SHA-256 binding",
+        )
+    require(
+        view_properties["quality_status"].get("const") == "NOT_PROVEN"
+        and view_properties["visual_structure_review_status"].get("enum")
+        == ["user_confirmed", "inferred", "unknown"]
+        and view_properties["negative_space_status"].get("enum")
+        == ["observed", "inferred", "unknown", "not-applicable"]
+        and view_properties["line_flow_status"].get("enum")
+        == ["observed", "inferred", "unknown", "not-applicable"],
+        "ProductionWeaponFormArtEvidenceView@1 must preserve observation truth states",
+    )
+
+    part_aggregate = parent.get("$defs", {}).get("part_id_aggregate", {})
+    require(
+        set(part_aggregate.get("required", []))
+        == {"status", "expected_count", "observed_count", "missing_count", "unexpected_count", "coverage_milli"}
+        and set(part_aggregate.get("properties", {}))
+        == {"status", "expected_count", "observed_count", "missing_count", "unexpected_count", "coverage_milli"}
+        and part_aggregate["properties"]["status"].get("enum") == ["observed", "inferred", "unknown"]
+        and part_aggregate["properties"]["coverage_milli"].get("maximum") == 1000,
+        "ProductionWeaponFormArtEvidence part-id aggregate must be bounded and typed",
+    )
+    row_specs = [
+        (
+            "negative_space_row",
+            {"structure_id", "expected_region_canonical_sha256", "iou_milli", "boundary_f1_milli", "area_ratio_milli", "centroid_error_milli", "sealed", "missing", "status"},
+            {"status": ["observed", "inferred", "unknown"]},
+        ),
+        (
+            "line_flow_row",
+            {"line_flow_id", "expected_line_canonical_sha256", "coverage_milli", "continuity_milli", "symmetric_chamfer_milli", "max_deviation_milli", "direction_order_milli", "duplicate_crossing_count", "status"},
+            {"status": ["observed", "inferred", "unknown"]},
+        ),
+    ]
+    for definition, fields, enum_fields in row_specs:
+        row = view.get("$defs", {}).get(definition, {})
+        row_properties = row.get("properties", {})
+        require(
+            row.get("type") == "object"
+            and row.get("additionalProperties") is False
+            and set(row.get("required", [])) == fields
+            and set(row_properties) == fields,
+            f"{definition} must be closed with its exact field set",
+        )
+        for field, enum in enum_fields.items():
+            require(row_properties[field].get("enum") == enum, f"{definition} {field} status drifted")
+    require(
+        view.get("allOf")
+        and any(
+            guard.get("if", {}).get("properties", {}).get("negative_space_status", {}).get("const")
+            == "not-applicable"
+            and guard.get("then", {}).get("properties", {}).get("negative_space_rows", {}).get("maxItems") == 0
+            and guard.get("then", {}).get("properties", {}).get("visual_structure_review_status", {}).get("const")
+            == "user_confirmed"
+            for guard in view["allOf"]
+        )
+        and any(
+            guard.get("if", {}).get("properties", {}).get("line_flow_status", {}).get("const")
+            == "not-applicable"
+            and guard.get("then", {}).get("properties", {}).get("line_flow_rows", {}).get("maxItems") == 0
+            and guard.get("then", {}).get("properties", {}).get("visual_structure_review_status", {}).get("const")
+            == "user_confirmed"
+            for guard in view["allOf"]
+        ),
+        "not-applicable negative-space/line-flow requires user-confirmed structure and zero rows",
+    )
+    thresholds = {
+        "negative_space": {"iou_milli_min": 850, "boundary_f1_milli_min": 800, "area_ratio_milli_min": 850, "area_ratio_milli_max": 1150, "centroid_error_milli_max": 3000},
+        "line_flow": {"coverage_milli_min": 900, "continuity_milli_min": 900, "symmetric_chamfer_milli_max": 3000, "max_deviation_milli_max": 5000, "direction_order_milli_min": 950, "duplicate_crossing_count_max": 0},
+    }
+    require(
+        parent.get("x-forgecad-thresholds") == thresholds,
+        "ProductionWeaponFormArtEvidence thresholds must be frozen in the contract",
+    )
+
+    require(
+        prepare_properties["art_evidence_policy"].get("const")
+        == "production-weapon-form-art-evidence-six-view-typed-observation@1"
+        and prepare_properties["form_evidence_object_sha256"].get("$ref") == "#/$defs/sha256"
+        and prepare_properties["form_evidence_canonical_sha256"].get("$ref") == "#/$defs/sha256"
+        and prepare_properties["art_evidence_policy_sha256"].get("$ref") == "#/$defs/sha256"
+        and prepare_properties["input_sha256"].get("$ref") == "#/$defs/sha256",
+        "ProductionWeaponFormArtEvidencePrepareRequest@1 must bind only existing FormEvidence and policy hashes",
+    )
+    require(
+        prepare_result_properties["art_evidence"].get("$ref")
+        == "https://forgecad.local/contracts/production-weapon-form-art-evidence.schema.json"
+        and prepare_result_properties["runtime_write"].get("const") is True
+        and all(prepare_result_properties[field].get("const") is False for field in (
+            "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed"
+        )),
+        "ProductionWeaponFormArtEvidencePrepareResult@1 must be a non-promoting write result",
+    )
+    require(
+        get_result_properties["art_evidence"].get("$ref")
+        == "https://forgecad.local/contracts/production-weapon-form-art-evidence.schema.json"
+        and get_result_properties["runtime_write"].get("const") is False
+        and get_result_properties["restart_hash_verified"].get("const") is True
+        and all(get_result_properties[field].get("const") is False for field in (
+            "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed"
+        )),
+        "ProductionWeaponFormArtEvidenceGetResult@1 must be read-only and restart verified",
+    )
+
+    forbidden_property_names = {
+        "path", "file_path", "absolute_path", "url", "uri", "script", "script_path",
+        "python", "javascript", "raw", "raw_bytes", "bytes", "environment", "env",
+        "secret", "network", "geometry_program", "operator_id",
+    }
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                names.update(properties)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    for schema, filename in [
+        (parent, "production-weapon-form-art-evidence.schema.json"),
+        (view, "production-weapon-form-art-evidence-view.schema.json"),
+        (prepare, "production-weapon-form-art-evidence-prepare-request.schema.json"),
+        (prepare_result, "production-weapon-form-art-evidence-prepare-result.schema.json"),
+        (get_request, "production-weapon-form-art-evidence-get-request.schema.json"),
+        (get_result, "production-weapon-form-art-evidence-get-result.schema.json"),
+    ]:
+        require(
+            forbidden_property_names.isdisjoint(property_names(schema)),
+            f"{filename} must reject geometry, paths, URLs, scripts, raw bytes and environment inputs",
+        )
+
+
+def check_production_weapon_owner_reviewed_void_calibration_contracts() -> None:
+    """Keep owner-to-reviewed-void calibration Runtime-derived and read-only."""
+    projection = load_schema(
+        "production-weapon-owner-reviewed-void-calibration-projection.schema.json"
+    )
+    request = load_schema(
+        "production-weapon-owner-reviewed-void-calibration-projection-get-request.schema.json"
+    )
+    result = load_schema(
+        "production-weapon-owner-reviewed-void-calibration-projection-get-result.schema.json"
+    )
+
+    projection_fields = {
+        "schema_version", "projection_id", "operation", "session_id", "project_id", "candidate_id",
+        "candidate_state_sha256", "artifact_id", "artifact_sha256", "artifact_readback_sha256",
+        "form_art_evidence_id", "form_art_evidence_object_sha256", "form_art_evidence_canonical_sha256",
+        "fresh_baseline_id", "fresh_baseline_canonical_sha256", "fresh_baseline_receipt_object_sha256",
+        "registration_lineage_id", "registration_lineage_canonical_sha256",
+        "registration_lineage_receipt_object_sha256", "registered_rig_v2_id",
+        "registered_rig_v2_object_sha256", "registered_rig_v2_canonical_sha256",
+        "runtime_build_cohort_sha256", "owner_part_id", "view_kinds", "views", "calibration_policy",
+        "calibration_policy_sha256", "transform_policy", "reviewed_void_policy", "depth_policy",
+        "depth_policy_sha256", "threshold_policy", "threshold_policy_sha256", "calibration_status",
+        "blocker_codes", "strict_owner_void_all_views_passed", "strict_depth_all_views_passed",
+        "identity_transform_all_views_unique", "all_views_passed", "eligible", "promotable",
+        "quality_status", "depth_status", "runtime_write_performed", "persistent_user_data_touched",
+        "worker_started", "production_stage_advanced", "candidate_confirmed", "version_created",
+        "export_performed", "request_sha256", "input_sha256", "canonicalization_policy",
+        "canonical_sha256", "created_at",
+    }
+    view_fields = {
+        "schema_version", "project_id", "candidate_id", "candidate_state_sha256", "artifact_id",
+        "artifact_sha256", "artifact_readback_sha256", "view_kind", "view_id", "reviewed_structure_id",
+        "reference_id", "reference_sha256", "camera_hash", "camera_canonical_sha256",
+        "camera_object_sha256", "render_set_object_sha256", "render_set_canonical_sha256",
+        "render_set_view_id", "form_art_view_receipt_object_sha256",
+        "form_art_view_receipt_canonical_sha256", "baseline_view_receipt_object_sha256",
+        "target_object_sha256", "target_canonical_sha256", "visual_structure_canonical_sha256",
+        "silhouette_pass_object_sha256", "part_id_pass_object_sha256", "depth_pass_object_sha256",
+        "owner_part_id", "derived_owner_region_sha256", "derived_reviewed_void_region_sha256",
+        "derived_void_boundary_sha256", "registered_camera_lineage_verified", "derived_transform_kind",
+        "identity_transform_unique", "eligible_transform_count", "transform_rank_tie",
+        "expected_void_pixel_count", "owner_region_pixel_count", "owner_expected_void_overlap_pixel_count",
+        "owner_expected_void_overlap_milli", "boundary_pixel_count", "owner_boundary_adjacency_pixel_count",
+        "owner_boundary_adjacency_milli", "depth_valid_pixel_count", "depth_owner_sample_count",
+        "depth_boundary_sample_count", "depth_invalid_sample_count", "depth_ordering_milli",
+        "depth_status", "owner_void_status", "strict_owner_void_passed", "strict_depth_passed",
+        "view_status", "view_passed", "blocker_codes", "quality_status", "canonical_sha256", "created_at",
+    }
+    request_fields = {
+        "schema_version", "operation", "projection_id", "session_id", "project_id", "candidate_id",
+        "candidate_state_sha256", "artifact_id", "artifact_sha256", "artifact_readback_sha256",
+        "form_art_evidence_id", "form_art_evidence_object_sha256", "form_art_evidence_canonical_sha256",
+        "fresh_baseline_id", "fresh_baseline_canonical_sha256", "fresh_baseline_receipt_object_sha256",
+        "registration_lineage_id", "registration_lineage_canonical_sha256",
+        "registration_lineage_receipt_object_sha256", "registered_rig_v2_id",
+        "registered_rig_v2_object_sha256", "registered_rig_v2_canonical_sha256", "max_response_bytes",
+        "writer_policy", "runtime_write_performed", "persistent_user_data_touched", "input_sha256",
+    }
+    result_fields = {
+        "schema_version", "operation", "projection_id", "projection", "request_sha256",
+        "request_input_sha256", "replayed", "restart_hash_verified", "writer_policy", "runtime_write",
+        "persistent_user_data_touched", "worker_started", "production_stage_advanced", "candidate_confirmed",
+        "version_created", "export_performed", "quality_status", "depth_status",
+        "canonicalization_policy", "canonical_sha256",
+    }
+
+    def closed(schema: dict, fields: set[str], label: str) -> dict:
+        properties = schema.get("properties", {})
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    projection_properties = closed(
+        projection, projection_fields, "ProductionWeaponOwnerReviewedVoidCalibrationProjection@1"
+    )
+    request_properties = closed(
+        request, request_fields, "ProductionWeaponOwnerReviewedVoidCalibrationProjectionGetRequest@1"
+    )
+    result_properties = closed(
+        result, result_fields, "ProductionWeaponOwnerReviewedVoidCalibrationProjectionGetResult@1"
+    )
+    require(
+        projection.get("$id")
+        == "https://forgecad.local/contracts/production-weapon-owner-reviewed-void-calibration-projection.schema.json"
+        and projection.get("title")
+        == "ProductionWeaponOwnerReviewedVoidCalibrationProjection@1"
+        and projection_properties["schema_version"].get("const")
+        == "ProductionWeaponOwnerReviewedVoidCalibrationProjection@1"
+        and request_properties["schema_version"].get("const")
+        == "ProductionWeaponOwnerReviewedVoidCalibrationProjectionGetRequest@1"
+        and result_properties["schema_version"].get("const")
+        == "ProductionWeaponOwnerReviewedVoidCalibrationProjectionGetResult@1"
+        and projection_properties["operation"].get("const")
+        == "forgecad.production.weapon.owner-reviewed-void-calibration-projection-get@1"
+        and request_properties["operation"].get("const") == projection_properties["operation"].get("const")
+        and result_properties["operation"].get("const") == projection_properties["operation"].get("const"),
+        "owner-reviewed-void calibration contract identity drifted",
+    )
+    view_array = projection_properties["views"]
+    require(
+        projection_properties["view_kinds"].get("const") == ["left", "right", "rear-three-quarter"]
+        and view_array.get("minItems") == 3
+        and view_array.get("maxItems") == 3
+        and view_array.get("uniqueItems") is True
+        and view_array.get("items") is False
+        and view_array.get("prefixItems")
+        == [{"$ref": "#/$defs/view_left"}, {"$ref": "#/$defs/view_right"}, {"$ref": "#/$defs/view_rear_three_quarter"}],
+        "owner-reviewed-void calibration must freeze the ordered three-view set",
+    )
+    view = projection["$defs"]["view"]
+    require(
+        view.get("type") == "object"
+        and view.get("additionalProperties") is False
+        and set(view.get("required", [])) == view_fields
+        and set(view.get("properties", {})) == view_fields
+        and projection_properties["owner_part_id"].get("const") == "rear-stock"
+        and view["properties"]["owner_part_id"].get("const") == "rear-stock"
+        and projection_properties["calibration_policy"].get("const")
+        == "runtime-derived-registered-camera-owner-to-reviewed-void-calibration@1"
+        and projection_properties["transform_policy"].get("const")
+        == "runtime-derived-closed-part-id-review-region-transform@1"
+        and projection_properties["reviewed_void_policy"].get("const")
+        == "reviewed-subtract-contour-intersection-with-candidate-silhouette@1"
+        and projection_properties["depth_policy"].get("const")
+        == "registered-camera-owner-void-depth-evidence@1"
+        and projection_properties["threshold_policy"].get("const")
+        == "owner-reviewed-void-zero-intrusion-adjacency-thresholds@1",
+        "owner-reviewed-void calibration view or policy identity drifted",
+    )
+    for properties, label in [(projection_properties, "owner-reviewed-void projection"), (request_properties, "owner-reviewed-void request")]:
+        for field in (
+            "candidate_state_sha256", "artifact_sha256", "artifact_readback_sha256",
+            "form_art_evidence_object_sha256", "form_art_evidence_canonical_sha256",
+            "fresh_baseline_canonical_sha256", "fresh_baseline_receipt_object_sha256",
+            "registration_lineage_canonical_sha256", "registration_lineage_receipt_object_sha256",
+            "registered_rig_v2_object_sha256", "registered_rig_v2_canonical_sha256",
+        ):
+            require(properties[field].get("$ref") == "#/$defs/sha256", f"{label} {field} must be SHA-256 bound")
+    for field in {
+        "candidate_state_sha256", "artifact_sha256", "artifact_readback_sha256", "reference_sha256",
+        "camera_hash", "camera_canonical_sha256", "camera_object_sha256", "render_set_object_sha256",
+        "render_set_canonical_sha256", "form_art_view_receipt_object_sha256",
+        "form_art_view_receipt_canonical_sha256", "baseline_view_receipt_object_sha256",
+        "target_object_sha256", "target_canonical_sha256", "visual_structure_canonical_sha256",
+        "silhouette_pass_object_sha256", "part_id_pass_object_sha256", "depth_pass_object_sha256",
+        "derived_owner_region_sha256", "derived_reviewed_void_region_sha256", "derived_void_boundary_sha256",
+        "canonical_sha256",
+    }:
+        require(view["properties"][field].get("$ref") == "#/$defs/sha256", f"owner-reviewed-void view {field} must be SHA-256 bound")
+    require(
+        projection_properties["promotable"].get("const") is False
+        and projection_properties["quality_status"].get("const") == "NOT_PROVEN"
+        and all(projection_properties[field].get("const") is False for field in (
+            "runtime_write_performed", "persistent_user_data_touched", "worker_started",
+            "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed",
+        ))
+        and request_properties["max_response_bytes"].get("const") == 1_048_576
+        and request_properties["writer_policy"].get("const") == "forgecad-runtime-only-state-writer@1"
+        and request_properties["runtime_write_performed"].get("const") is False
+        and request_properties["persistent_user_data_touched"].get("const") is False
+        and result_properties["projection"].get("$ref")
+        == "https://forgecad.local/contracts/production-weapon-owner-reviewed-void-calibration-projection.schema.json"
+        and result_properties["restart_hash_verified"].get("const") is False
+        and result_properties["runtime_write"].get("const") is False
+        and result_properties["persistent_user_data_touched"].get("const") is False
+        and result_properties["worker_started"].get("const") is False
+        and result_properties["production_stage_advanced"].get("const") is False
+        and result_properties["candidate_confirmed"].get("const") is False
+        and result_properties["version_created"].get("const") is False
+        and result_properties["export_performed"].get("const") is False
+        and result_properties["quality_status"].get("const") == "NOT_PROVEN",
+        "owner-reviewed-void request/result must preserve the read-only boundary",
+    )
+    forbidden = {
+        "path", "file_path", "absolute_path", "url", "uri", "script", "script_path", "python",
+        "javascript", "raw", "raw_bytes", "bytes", "environment", "env", "secret", "network",
+        "mask", "masks", "vertex", "vertices", "vertex_id", "triangle", "triangle_id", "transform",
+        "camera_matrix", "pixel", "image",
+    }
+    require(
+        not forbidden.intersection(request_properties),
+        "owner-reviewed-void request must not accept raw masks, vertices, pixels or transforms",
+    )
+
+
+def check_production_weapon_form_art_mesh_proposal_edit_contracts() -> None:
+    """Keep the FormArt mesh proposal edit union closed and Runtime-owned."""
+    filename = "production-weapon-form-art-mesh-proposal-edit.schema.json"
+    schema = load_schema(filename)
+    require(
+        schema.get("$id") == f"https://forgecad.local/contracts/{filename}"
+        and schema.get("title") == "ProductionWeaponFormArtMeshProposalEdit@5"
+        and schema.get("oneOf") == [
+            {"$ref": "#/$defs/move_vertices"},
+            {"$ref": "#/$defs/open_frame_notch"},
+            {"$ref": "#/$defs/rear_stock_void_rail_bow"},
+            {"$ref": "#/$defs/rear_stock_void_boundary_bridge"},
+        ],
+        "ProductionWeaponFormArtMeshProposalEdit@5 must expose exactly the four typed edit variants",
+    )
+    expected_fields = {
+        "schema_version",
+        "operation",
+        "source_node_id",
+        "part_id",
+        "coordinate_space",
+        "selection_policy",
+        "canonical_sha256",
+    }
+    move = schema["$defs"]["move_vertices"]
+    notch = schema["$defs"]["open_frame_notch"]
+    rail_bow = schema["$defs"]["rear_stock_void_rail_bow"]
+    boundary_bridge = schema["$defs"]["rear_stock_void_boundary_bridge"]
+    require(
+        move.get("additionalProperties") is False
+        and set(move.get("required", []))
+        == expected_fields | {"vertex_moves"}
+        and set(move.get("properties", {}))
+        == expected_fields | {"vertex_moves"}
+        and move["properties"]["schema_version"].get("const")
+        == "AuthoringMeshMoveVertices@1"
+        and move["properties"]["operation"].get("const") == "move_vertices"
+        and move["properties"]["selection_policy"].get("const")
+        == "explicit-stable-vertex-ids@1"
+        and move["properties"]["vertex_moves"].get("minItems") == 1
+        and move["properties"]["vertex_moves"].get("maxItems") == 32,
+        "MoveVertices proposal edit contract drifted",
+    )
+    require(
+        notch.get("additionalProperties") is False
+        and set(notch.get("required", []))
+        == expected_fields | {"opening_width_milli", "opening_height_milli"}
+        and set(notch.get("properties", {}))
+        == expected_fields | {"opening_width_milli", "opening_height_milli"}
+        and notch["properties"]["schema_version"].get("const")
+        == "AuthoringMeshOpenFrameNotch@1"
+        and notch["properties"]["operation"].get("const") == "open_frame_notch"
+        and notch["properties"]["coordinate_space"].get("const") == "source-local"
+        and notch["properties"]["selection_policy"].get("const")
+        == "runtime-derived-box-open-frame@1"
+        and notch["properties"]["opening_width_milli"].get("minimum") == 1
+        and notch["properties"]["opening_width_milli"].get("maximum") == 999
+        and notch["properties"]["opening_height_milli"].get("minimum") == 1
+        and notch["properties"]["opening_height_milli"].get("maximum") == 999,
+        "OpenFrameNotch proposal edit contract drifted",
+    )
+    require(
+        rail_bow.get("additionalProperties") is False
+        and set(rail_bow.get("required", [])) == expected_fields
+        and set(rail_bow.get("properties", {})) == expected_fields
+        and rail_bow["properties"]["schema_version"].get("const")
+        == "AuthoringMeshRearStockVoidRailBow@1"
+        and rail_bow["properties"]["operation"].get("const") == "rear_stock_void_rail_bow"
+        and rail_bow["properties"]["coordinate_space"].get("const") == "source-local"
+        and rail_bow["properties"]["selection_policy"].get("const")
+        == "runtime-derived-rear-stock-void-rail-bow@1"
+        and not any(
+            forbidden in field.lower()
+            for field in rail_bow["properties"]
+            for forbidden in ("centroid", "normal", "vertex", "point", "mesh", "path", "script")
+        ),
+        "RearStockVoidRailBow proposal edit contract must remain closed and semantic-only",
+    )
+    require(
+        boundary_bridge.get("additionalProperties") is False
+        and set(boundary_bridge.get("required", [])) == expected_fields | {"profile_id"}
+        and set(boundary_bridge.get("properties", {})) == expected_fields | {"profile_id"}
+        and boundary_bridge["properties"]["schema_version"].get("const")
+        == "AuthoringMeshRearStockVoidBoundaryBridge@1"
+        and boundary_bridge["properties"]["operation"].get("const")
+        == "rear_stock_void_boundary_bridge"
+        and boundary_bridge["properties"]["source_node_id"].get("const") == "rear-stock"
+        and boundary_bridge["properties"]["part_id"].get("const") == "rear-stock"
+        and boundary_bridge["properties"]["coordinate_space"].get("const") == "source-local"
+        and boundary_bridge["properties"]["selection_policy"].get("const")
+        == "runtime-derived-rear-stock-void-boundary-bridge@1"
+        and boundary_bridge["properties"]["profile_id"].get("const")
+        == "registered-void-boundary-depth-wedge-5@1"
+        and not any(
+            forbidden in field.lower()
+            for field in boundary_bridge["properties"]
+            for forbidden in ("centroid", "normal", "vertex", "point", "mesh", "path", "script", "camera", "mask", "transform", "scalar")
+        ),
+        "RearStockVoidBoundaryBridge proposal edit contract must remain closed and semantic-only",
+    )
+    for variant in (move, notch, rail_bow):
+        for field in ("source_node_id", "part_id"):
+            require(
+                variant["properties"][field].get("$ref") == "#/$defs/identifier",
+                f"{filename} {field} must remain an opaque Runtime-bound identifier",
+            )
+        require(
+            variant["properties"]["canonical_sha256"].get("$ref") == "#/$defs/sha256",
+            f"{filename} canonical_sha256 must remain hash-bound",
+        )
+    require(
+        boundary_bridge["properties"]["canonical_sha256"].get("$ref") == "#/$defs/sha256",
+        f"{filename} canonical_sha256 must remain hash-bound",
+    )
+    move_vertex = schema["$defs"]["move_vertex"]
+    require(
+        move_vertex.get("additionalProperties") is False
+        and set(move_vertex.get("required", []))
+        == {"vertex_id", "before_position_m", "after_position_m"}
+        and set(move_vertex.get("properties", {}))
+        == {"vertex_id", "before_position_m", "after_position_m"}
+        and move["properties"]["vertex_moves"].get("items")
+        == {"$ref": "#/$defs/move_vertex"},
+        "MoveVertices proposal vertex payload must remain closed and bounded",
+    )
+
+
+def check_production_weapon_form_art_proposal_evidence_contracts() -> None:
+    """Keep proposal-side FormArt evidence closed, hash-bound and non-promoting."""
+    filename = "production-weapon-form-art-proposal-evidence.schema.json"
+    schema = load_schema(filename)
+    view_kinds = ["front", "back", "left", "right", "top", "rear-three-quarter"]
+    owner_view_kinds = ["left", "right", "rear-three-quarter"]
+    root_fields = {
+        "schema_version", "policy", "policy_sha256", "policy_definition", "project_id", "session_id",
+        "source_candidate_id", "source_candidate_state_sha256", "source_artifact_sha256",
+        "source_artifact_readback_sha256", "source_form_art_evidence_id",
+        "source_form_art_evidence_object_sha256", "source_form_art_evidence_canonical_sha256",
+        "source_form_art_role", "source_camera_evidence_kind", "source_fresh_baseline_id",
+        "source_fresh_baseline_canonical_sha256", "source_fresh_baseline_receipt_object_sha256",
+        "source_registration_lineage_id", "source_registration_lineage_canonical_sha256",
+        "source_registered_rig_v2_id",
+        "proposal_candidate_id", "proposal_candidate_state_sha256", "proposal_artifact_sha256",
+        "proposal_artifact_readback_sha256", "worker_build_cohort_sha256",
+        "cross_view_evidence_bundle_sha256", "proposal_part_id_vocabulary_sha256", "owner_part_id",
+        "reference_canvas_object_sha256", "reference_canvas_canonical_sha256", "design_spec_object_sha256",
+        "design_spec_canonical_sha256", "camera_lock_id", "camera_lock_canonical_sha256",
+        "camera_rig_object_sha256", "camera_rig_canonical_sha256", "camera_lock_receipt_object_sha256",
+        "camera_lock_source_transition_id", "camera_lock_source_transition_sha256",
+        "camera_lock_source_head_canonical_sha256", "views", "part_id_all_views_observed",
+        "negative_space_all_views_resolved", "line_flow_all_views_resolved",
+        "strict_owner_void_all_views_passed", "proposal_form_art_evidence_ready", "status",
+        "candidate_confirm_allowed", "secondary_form_approved", "production_stage_advanced",
+        "quality_status", "canonical_sha256",
+    }
+    view_fields = {
+        "view_kind", "view_id", "reference_id", "reference_sha256", "view_spec_canonical_sha256", "crop",
+        "rotation_degrees", "camera_hash", "camera_canonical_sha256", "camera_source",
+        "camera_object_sha256",
+        "render_set_object_sha256", "render_set_canonical_sha256", "silhouette_pass_object_sha256",
+        "part_id_pass_object_sha256", "depth_pass_object_sha256", "normal_pass_object_sha256",
+        "target_object_sha256", "target_canonical_sha256", "visual_structure_canonical_sha256",
+        "visual_structure_review_status", "source_form_evidence_view_receipt_object_sha256",
+        "source_form_evidence_view_receipt_canonical_sha256",
+        "source_fresh_baseline_view_receipt_object_sha256", "proposal_candidate_id",
+        "proposal_candidate_state_sha256", "proposal_artifact_sha256", "owner_evidence", "part_id_status",
+        "part_id_expected_count", "part_id_observed_count", "part_id_missing_count",
+        "part_id_unexpected_count", "part_id_coverage_milli", "expected_visible_part_ids",
+        "observed_part_ids", "missing_part_ids", "unexpected_part_ids", "negative_space_status",
+        "negative_space_rows", "line_flow_status", "line_flow_rows", "view_observation_status",
+        "quality_status",
+    }
+    policy_fields = {
+        "policy", "owner_part_id", "required_view_kinds", "owner_view_kinds",
+        "registered_camera_transform", "fixed_raster_size_px", "min_expected_void_pixels",
+        "min_expected_boundary_pixels", "min_owner_region_pixels", "min_boundary_adjacency_pixels",
+        "min_boundary_adjacency_milli", "max_owner_expected_void_overlap_pixels",
+        "max_owner_expected_void_overlap_milli", "negative_space_thresholds",
+        "line_flow_thresholds",
+    }
+    owner_pass_fields = {
+        "structure_id", "owner_part_id", "policy", "expected_region_canonical_sha256",
+        "expected_void_pixel_count", "expected_boundary_pixel_count", "owner_region_pixel_count",
+        "owner_boundary_adjacency_pixel_count", "owner_boundary_adjacency_milli",
+        "owner_expected_void_overlap_pixel_count", "owner_expected_void_overlap_milli",
+        "registered_camera_lineage_verified", "strict_owner_void_passed", "status", "quality_status",
+        "depth_status",
+    }
+    owner_blocked_fields = {
+        "structure_id", "owner_part_id", "policy", "expected_region_canonical_sha256",
+        "expected_void_pixel_count", "expected_boundary_pixel_count", "owner_region_pixel_count",
+        "expected_void_bbox_px", "owner_bbox_px", "owner_minus_expected_void_bbox_edge_delta_px",
+        "owner_minus_expected_void_centroid_delta_milli_px",
+        "owner_boundary_adjacency_pixel_count", "owner_boundary_adjacency_milli",
+        "owner_expected_void_overlap_pixel_count", "owner_expected_void_overlap_milli",
+        "identity_passes_thresholds", "ranked_transform", "ranked_transform_unique",
+        "eligible_transform_count", "registered_camera_lineage_verified", "strict_owner_void_passed",
+        "blocker_code", "diagnostic_error", "status", "quality_status", "depth_status",
+    }
+    negative_fields = {
+        "structure_id", "expected_region_canonical_sha256", "iou_milli", "boundary_f1_milli",
+        "area_ratio_milli", "centroid_error_milli", "sealed", "missing", "status",
+    }
+    line_fields = {
+        "line_flow_id", "expected_line_canonical_sha256", "coverage_milli", "continuity_milli",
+        "symmetric_chamfer_milli", "max_deviation_milli", "direction_order_milli",
+        "duplicate_crossing_count", "status",
+    }
+
+    def closed(node: dict, fields: set[str], label: str) -> dict:
+        properties = node.get("properties", {})
+        require(
+            node.get("type") == "object"
+            and node.get("additionalProperties") is False
+            and set(node.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    properties = closed(schema, root_fields, "ProductionWeaponFormArtProposalEvidence@1")
+    require(
+        schema.get("$id") == f"https://forgecad.local/contracts/{filename}"
+        and schema.get("title") == "ProductionWeaponFormArtProposalEvidence@1"
+        and properties["schema_version"].get("const") == "ProductionWeaponFormArtProposalEvidence@1"
+        and properties["policy"].get("const")
+        == "proposal-candidate-six-view-form-art-part-owner-negative-line@1"
+        and properties["owner_part_id"].get("const") == "rear-stock"
+        and properties["quality_status"].get("const") == "QUALITY_TARGET_NOT_MET"
+        and properties["candidate_confirm_allowed"].get("const") is False
+        and properties["secondary_form_approved"].get("const") == "NOT_CREATED"
+        and properties["production_stage_advanced"].get("const") is False,
+        "ProductionWeaponFormArtProposalEvidence@1 identity and non-promoting fields drifted",
+    )
+    for field in {
+        "policy_sha256", "source_candidate_state_sha256", "source_artifact_sha256",
+        "source_artifact_readback_sha256", "source_form_art_evidence_object_sha256",
+        "source_form_art_evidence_canonical_sha256", "proposal_candidate_state_sha256",
+        "proposal_artifact_sha256", "proposal_artifact_readback_sha256", "worker_build_cohort_sha256",
+        "cross_view_evidence_bundle_sha256", "proposal_part_id_vocabulary_sha256",
+        "reference_canvas_object_sha256", "reference_canvas_canonical_sha256", "design_spec_object_sha256",
+        "design_spec_canonical_sha256", "camera_lock_canonical_sha256", "camera_rig_object_sha256",
+        "camera_rig_canonical_sha256", "camera_lock_receipt_object_sha256",
+        "camera_lock_source_transition_sha256", "camera_lock_source_head_canonical_sha256", "canonical_sha256",
+    }:
+        require(properties[field].get("$ref") == "#/$defs/sha256", f"{filename} {field} must be SHA-256 bound")
+
+    view_array = properties["views"]
+    require(
+        view_array.get("minItems") == 6
+        and view_array.get("maxItems") == 6
+        and view_array.get("uniqueItems") is True
+        and view_array.get("items") is False
+        and len(view_array.get("prefixItems", [])) == 6
+        and all(item.get("$ref") == "#/$defs/view" for item in view_array["prefixItems"]),
+        "ProductionWeaponFormArtProposalEvidence@1 must persist exactly six closed view rows",
+    )
+    require(
+        {
+            guard.get("contains", {}).get("properties", {}).get("view_kind", {}).get("const")
+            for guard in view_array.get("allOf", [])
+        }
+        == set(view_kinds),
+        "ProductionWeaponFormArtProposalEvidence@1 must cover every fixed view kind",
+    )
+
+    policy = closed(schema["$defs"]["policy_definition"], policy_fields, "proposal policy definition")
+    require(
+        policy["policy"].get("const") == properties["policy"].get("const")
+        and policy["owner_part_id"].get("const") == "rear-stock"
+        and policy["required_view_kinds"].get("const") == view_kinds
+        and policy["owner_view_kinds"].get("const") == owner_view_kinds
+        and policy["registered_camera_transform"].get("const") == "identity"
+        and policy["fixed_raster_size_px"].get("const") == 512
+        and policy["min_expected_void_pixels"].get("const") == 256
+        and policy["min_expected_boundary_pixels"].get("const") == 64
+        and policy["min_owner_region_pixels"].get("const") == 128
+        and policy["min_boundary_adjacency_pixels"].get("const") == 32
+        and policy["min_boundary_adjacency_milli"].get("const") == 250
+        and policy["max_owner_expected_void_overlap_pixels"].get("const") == 0
+        and policy["max_owner_expected_void_overlap_milli"].get("const") == 0
+        and policy["negative_space_thresholds"].get("const") == {
+            "iou_milli_min": 850,
+            "boundary_f1_milli_min": 800,
+            "area_ratio_milli_min": 850,
+            "area_ratio_milli_max": 1150,
+            "centroid_error_milli_max": 3000,
+        }
+        and policy["line_flow_thresholds"].get("const") == {
+            "coverage_milli_min": 900,
+            "continuity_milli_min": 900,
+            "symmetric_chamfer_milli_max": 3000,
+            "max_deviation_milli_max": 5000,
+            "direction_order_milli_min": 950,
+            "duplicate_crossing_count_max": 0,
+        },
+        "proposal owner policy thresholds or view coverage drifted",
+    )
+
+    view = closed(schema["$defs"]["view"], view_fields, "proposal FormArt view")
+    require(
+        view["view_kind"].get("$ref") == "#/$defs/view_kind"
+        and view["visual_structure_review_status"].get("const") == "user_confirmed"
+        and view["quality_status"].get("const") == "NOT_PROVEN",
+        "proposal view observation status drifted",
+    )
+    for field in {
+        "reference_sha256", "view_spec_canonical_sha256", "camera_hash", "camera_canonical_sha256",
+        "camera_object_sha256", "render_set_object_sha256", "render_set_canonical_sha256",
+        "silhouette_pass_object_sha256", "part_id_pass_object_sha256", "depth_pass_object_sha256",
+        "normal_pass_object_sha256", "target_object_sha256", "target_canonical_sha256",
+        "visual_structure_canonical_sha256", "source_form_evidence_view_receipt_object_sha256",
+        "source_form_evidence_view_receipt_canonical_sha256", "proposal_candidate_state_sha256",
+        "proposal_artifact_sha256",
+    }:
+        require(view[field].get("$ref") == "#/$defs/sha256", f"proposal view {field} must be SHA-256 bound")
+    require(
+        {
+            branch.get("$ref")
+            for branch in view["owner_evidence"]["oneOf"]
+            if isinstance(branch, dict) and branch.get("$ref")
+        }
+        == {"#/$defs/owner_pass", "#/$defs/owner_blocked"}
+        and any(branch.get("type") == "null" for branch in view["owner_evidence"]["oneOf"]),
+        "proposal view owner evidence must allow null/pass/blocked branches only",
+    )
+    for definition, fields in [
+        ("negative_space_row", negative_fields),
+        ("line_flow_row", line_fields),
+        ("owner_pass", owner_pass_fields),
+        ("owner_blocked", owner_blocked_fields),
+    ]:
+        closed(schema["$defs"][definition], fields, f"proposal {definition}")
+    owner_pass = schema["$defs"]["owner_pass"]["properties"]
+    owner_blocked = schema["$defs"]["owner_blocked"]["properties"]
+    require(
+        owner_pass["policy"].get("const") == "registered-camera-direct-part-id-owner-void-zero-intrusion@1"
+        and owner_pass["expected_void_pixel_count"].get("minimum") == 256
+        and owner_pass["expected_boundary_pixel_count"].get("minimum") == 64
+        and owner_pass["owner_region_pixel_count"].get("minimum") == 128
+        and owner_pass["owner_boundary_adjacency_pixel_count"].get("minimum") == 32
+        and owner_pass["owner_boundary_adjacency_milli"].get("minimum") == 250
+        and owner_pass["owner_expected_void_overlap_pixel_count"].get("const") == 0
+        and owner_pass["owner_expected_void_overlap_milli"].get("const") == 0
+        and owner_pass["status"].get("const") == "READY_PROPOSAL_OWNER_VOID_BINDING"
+        and owner_blocked["policy"].get("const") == "registered-camera-direct-part-id-owner-void-zero-intrusion@1"
+        and owner_blocked["expected_void_pixel_count"].get("minimum") == 1
+        and owner_blocked["expected_boundary_pixel_count"].get("minimum") == 1
+        and owner_blocked["expected_void_bbox_px"].get("minItems") == 4
+        and owner_blocked["owner_bbox_px"].get("maxItems") == 4
+        and owner_blocked["owner_minus_expected_void_centroid_delta_milli_px"].get("minItems") == 2
+        and owner_blocked["owner_region_pixel_count"].get("minimum") == 0
+        and owner_blocked["owner_expected_void_overlap_pixel_count"].get("minimum") == 0
+        and owner_blocked["eligible_transform_count"].get("maximum") == 4
+        and owner_blocked["strict_owner_void_passed"].get("const") is False
+        and owner_blocked["blocker_code"].get("const") == "STRICT_REGISTERED_CAMERA_OWNER_VOID_NOT_ELIGIBLE"
+        and owner_blocked["status"].get("const") == "BLOCKED_PROPOSAL_OWNER_VOID_BINDING",
+        "proposal owner pass/blocker thresholds or statuses drifted",
+    )
+    negative = schema["$defs"]["negative_space_row"]["properties"]
+    line = schema["$defs"]["line_flow_row"]["properties"]
+    require(
+        negative["iou_milli"].get("maximum") == 1000
+        and negative["boundary_f1_milli"].get("maximum") == 1000
+        and negative["area_ratio_milli"].get("maximum") == 10000
+        and negative["centroid_error_milli"].get("maximum") == 100000
+        and line["coverage_milli"].get("maximum") == 1000
+        and line["continuity_milli"].get("maximum") == 1000
+        and line["symmetric_chamfer_milli"].get("maximum") == 100000
+        and line["max_deviation_milli"].get("maximum") == 100000
+        and line["direction_order_milli"].get("maximum") == 1000
+        and line["duplicate_crossing_count"].get("maximum") == 512,
+        "proposal negative-space/line-flow metrics must remain bounded",
+    )
+    require(
+        schema.get("x-forgecad-thresholds", {}).get("owner_void", {}).get("fixed_raster_size_px") == 512
+        and schema["x-forgecad-thresholds"]["owner_void"]["min_boundary_adjacency_milli"] == 250
+        and schema["x-forgecad-thresholds"]["negative_space"]["iou_milli_min"] == 850
+        and schema["x-forgecad-thresholds"]["line_flow"]["duplicate_crossing_count_max"] == 0,
+        "proposal FormArt thresholds are not frozen",
+    )
+    forbidden_property_names = {
+        "path", "file_path", "absolute_path", "url", "uri", "script", "script_path", "python",
+        "javascript", "raw", "raw_bytes", "bytes", "environment", "env", "secret", "network",
+        "geometry_program", "operator_id",
+    }
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                names.update(properties)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    require(
+        forbidden_property_names.isdisjoint(property_names(schema)),
+        f"{filename} must reject paths, URLs, scripts, raw bytes and environment inputs",
+    )
+
+
+def check_production_weapon_art_decision_contracts() -> None:
+    """Freeze the first read-only assembly/art decision projection."""
+    registry = load_schema("production-weapon-assembly-decision-registry.schema.json")
+    request = load_schema("production-weapon-art-decision-proposal-get-request.schema.json")
+    result = load_schema("production-weapon-art-decision-proposal-get-result.schema.json")
+
+    def require_closed(schema: dict, fields: set[str], label: str) -> dict:
+        properties = schema.get("properties", {})
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and set(schema.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    group_ids = [
+        "receiver-envelope", "muzzle-axis", "stock-open-frame", "trigger-void", "rail-spine"
+    ]
+    view_kinds = ["front", "back", "left", "right", "top", "rear-three-quarter"]
+    operator_ids = {
+        "forgecad.geometry.primitive@2", "forgecad.geometry.profile-extrude@1",
+        "forgecad.geometry.profile-loft@1", "forgecad.geometry.profile-loft@2",
+        "forgecad.geometry.multi-loop-profile-loft@1",
+        "forgecad.geometry.longitudinal-section-loft@1", "forgecad.geometry.subd-cage@1",
+        "forgecad.geometry.subd-cage@2", "forgecad.geometry.authoring-mesh@1",
+        "forgecad.geometry.surface-patch@1", "forgecad.geometry.surface-shell@1",
+        "forgecad.geometry.revolve@1", "forgecad.geometry.tube-sweep@1",
+        "forgecad.geometry.transform@2", "forgecad.geometry.mirror@1",
+        "forgecad.geometry.array@1", "forgecad.geometry.bevel@1",
+        "forgecad.geometry.bevel@2", "forgecad.geometry.normal-policy@1",
+        "forgecad.geometry.panel@1", "forgecad.geometry.panel@2",
+        "forgecad.geometry.vent-array@1", "forgecad.geometry.vent-array@2",
+        "forgecad.geometry.recessed-channel@1", "forgecad.geometry.energy-core@1",
+        "forgecad.geometry.joint-stack@1", "forgecad.geometry.part-output@1",
+        "forgecad.geometry.boolean@1",
+    }
+
+    registry_fields = {
+        "schema_version", "registry_id", "profile_id", "operator_catalog_sha256",
+        "registry_policy", "groups", "canonical_sha256",
+    }
+    registry_properties = require_closed(
+        registry, registry_fields, "ProductionWeaponAssemblyDecisionRegistry@1"
+    )
+    require(
+        registry_properties["schema_version"].get("const")
+        == "ProductionWeaponAssemblyDecisionRegistry@1"
+        and registry_properties["profile_id"].get("const") == "fps-weapon-form-assembly@1"
+        and registry_properties["registry_policy"].get("const")
+        == "fps-weapon-closed-assembly-form-decision-registry@1"
+        and registry_properties["operator_catalog_sha256"].get("$ref") == "#/$defs/sha256"
+        and registry_properties["canonical_sha256"].get("$ref") == "#/$defs/sha256",
+        "ProductionWeaponAssemblyDecisionRegistry@1 bindings drifted",
+    )
+    group_fields = {
+        "group_id", "intent_kind", "part_ids", "source_node_ids", "parameter_ids",
+        "allowed_operator_ids", "coupling_mode", "invariants", "affected_view_kinds",
+        "priority",
+    }
+    group = registry.get("$defs", {}).get("group", {})
+    group_properties = require_closed(
+        group, group_fields, "ProductionWeaponAssemblyDecisionRegistryGroup@1"
+    )
+    require(
+        group_properties["group_id"].get("enum") == group_ids
+        and group_properties["intent_kind"].get("enum") == group_ids
+        and group_properties["coupling_mode"].get("enum") == ["independent", "linked", "mirror"]
+        and group_properties["affected_view_kinds"].get("const") == view_kinds
+        and set(group_properties["allowed_operator_ids"].get("items", {}).get("enum", []))
+        == operator_ids,
+        "ProductionWeaponAssemblyDecisionRegistryGroup@1 vocabulary drifted",
+    )
+    groups = registry_properties["groups"]
+    require(
+        groups.get("minItems") == 5
+        and groups.get("maxItems") == 5
+        and groups.get("uniqueItems") is True
+        and groups.get("items") is False
+        and len(groups.get("prefixItems", [])) == 5
+        and all(item.get("$ref") == "#/$defs/group" for item in groups["prefixItems"])
+        and {
+            item.get("contains", {}).get("properties", {}).get("group_id", {}).get("const")
+            for item in groups.get("allOf", [])
+        } == set(group_ids),
+        "ProductionWeaponAssemblyDecisionRegistry@1 must freeze exactly five groups",
+    )
+    # These are the only coupled semantic groups admitted by the slice.  The
+    # part sets intentionally do not claim coverage of every structural Part.
+    expected_parts = {
+        "receiver-envelope": {"receiver-main", "receiver-upper", "receiver-lower"},
+        "muzzle-axis": {"muzzle-shroud", "muzzle-emitter", "muzzle-core", "energy-ring", "energy-core", "core-housing"},
+        "stock-open-frame": {"rear-stock", "rear-cap", "underbrace"},
+        "trigger-void": {"trigger-guard", "grip", "magazine"},
+        "rail-spine": {"top-fin", "top-rail", "bottom-rail"},
+    }
+    require(
+        set(expected_parts) == set(group_ids)
+        and not any(expected_parts[first].intersection(expected_parts[second]) for first in group_ids for second in group_ids if first < second),
+        "assembly registry five groups must have closed, non-overlapping Part sets",
+    )
+
+    request_fields = {
+        "schema_version", "session_id", "project_id", "candidate_id", "candidate_state_sha256",
+        "artifact_id", "artifact_sha256", "geometry_program_sha256",
+        "geometry_program_canonical_sha256", "operator_catalog_sha256",
+        "reference_canvas_canonical_sha256",
+        "design_spec_canonical_sha256", "camera_lock_id", "camera_lock_canonical_sha256",
+        "form_evidence_id", "form_evidence_object_sha256", "form_evidence_canonical_sha256",
+        "form_art_evidence_id", "form_art_evidence_object_sha256",
+        "form_art_evidence_canonical_sha256", "first_person_profile_id",
+        "first_person_profile_sha256",
+    }
+    request_properties = require_closed(
+        request, request_fields, "ProductionWeaponArtDecisionProposalGetRequest@1"
+    )
+    require(
+        request_properties["schema_version"].get("const")
+        == "ProductionWeaponArtDecisionProposalGetRequest@1",
+        "ProductionWeaponArtDecisionProposalGetRequest@1 schema version drifted",
+    )
+    request_id_fields = {
+        "session_id", "project_id", "candidate_id", "artifact_id",
+        "camera_lock_id", "form_evidence_id", "form_art_evidence_id",
+    }
+    request_sha_fields = request_fields - {"schema_version", "first_person_profile_id", "first_person_profile_sha256"} - request_id_fields
+    require(
+        all(request_properties[field].get("$ref") == "#/$defs/id" for field in request_id_fields)
+        and all(request_properties[field].get("$ref") == "#/$defs/sha256" for field in request_sha_fields)
+        and request_properties["first_person_profile_id"].get("$ref") == "#/$defs/nullable_id"
+        and request_properties["first_person_profile_sha256"].get("$ref") == "#/$defs/nullable_sha256",
+        "ProductionWeaponArtDecisionProposalGetRequest@1 must accept only id/hash/null first-person bindings",
+    )
+    forbidden_request_names = {
+        "path", "file_path", "absolute_path", "url", "uri", "script", "prompt", "raw",
+        "raw_bytes", "bytes", "secret", "token", "status", "gate", "metric", "operator_id",
+    }
+    require(
+        not forbidden_request_names.intersection(request_properties),
+        "ProductionWeaponArtDecisionProposalGetRequest@1 exposes forbidden decision inputs",
+    )
+
+    result_fields = {
+        "schema_version", "proposal_projection_id", "session_id", "project_id", "candidate_id",
+        "candidate_state_sha256", "artifact_id", "artifact_sha256", "geometry_program_sha256",
+        "geometry_program_canonical_sha256", "operator_catalog_sha256", "assembly_registry_id",
+        "assembly_registry_canonical_sha256", "reference_canvas_canonical_sha256",
+        "design_spec_canonical_sha256", "camera_lock_id", "camera_lock_canonical_sha256",
+        "form_evidence_id", "form_evidence_object_sha256", "form_evidence_canonical_sha256",
+        "form_art_evidence_id", "form_art_evidence_object_sha256",
+        "form_art_evidence_canonical_sha256", "first_person_profile_id",
+        "first_person_profile_sha256", "view_bindings", "assembly_group_decisions",
+        "objective_policy", "gate_results", "blockers", "proposal_status", "read_only",
+        "runtime_write_performed", "worker_invoked", "candidate_generated",
+        "production_stage_advanced", "candidate_confirmed", "version_created",
+        "export_performed", "replayed", "restart_hash_verified", "canonical_sha256",
+    }
+    result_properties = require_closed(
+        result, result_fields, "ProductionWeaponArtDecisionProposalGetResult@1"
+    )
+    require(
+        result_properties["schema_version"].get("const")
+        == "ProductionWeaponArtDecisionProposalGetResult@1"
+        and result_properties["objective_policy"].get("const")
+        == "assembly-form-search-negative-space-line-flow-first-person@1"
+        and result_properties["read_only"].get("const") is True
+        and result_properties["restart_hash_verified"].get("const") is True
+        and all(result_properties[field].get("const") is False for field in (
+            "runtime_write_performed", "worker_invoked", "candidate_generated",
+            "production_stage_advanced", "candidate_confirmed", "version_created",
+            "export_performed",
+        )),
+        "ProductionWeaponArtDecisionProposalGetResult@1 must be strictly read-only",
+    )
+    result_id_fields = {
+        "proposal_projection_id", "session_id", "project_id", "candidate_id", "artifact_id",
+        "assembly_registry_id", "camera_lock_id", "form_evidence_id", "form_art_evidence_id",
+    }
+    result_sha_fields = {
+        "candidate_state_sha256", "artifact_sha256", "geometry_program_sha256",
+        "geometry_program_canonical_sha256", "operator_catalog_sha256",
+        "assembly_registry_canonical_sha256", "reference_canvas_canonical_sha256",
+        "design_spec_canonical_sha256", "camera_lock_canonical_sha256",
+        "form_evidence_object_sha256", "form_evidence_canonical_sha256",
+        "form_art_evidence_object_sha256", "form_art_evidence_canonical_sha256",
+        "canonical_sha256",
+    }
+    require(
+        all(result_properties[field].get("$ref") == "#/$defs/id" for field in result_id_fields)
+        and all(result_properties[field].get("$ref") == "#/$defs/sha256" for field in result_sha_fields)
+        and result_properties["first_person_profile_id"].get("$ref") == "#/$defs/nullable_id"
+        and result_properties["first_person_profile_sha256"].get("$ref") == "#/$defs/nullable_sha256",
+        "ProductionWeaponArtDecisionProposalGetResult@1 bindings must remain id/hash/null",
+    )
+
+    view_fields = {
+        "view_kind", "view_id", "reference_id", "reference_sha256", "camera_hash",
+        "camera_canonical_sha256", "render_set_object_sha256", "render_set_canonical_sha256",
+        "form_evidence_view_receipt_object_sha256", "form_evidence_view_receipt_canonical_sha256",
+        "form_art_evidence_view_receipt_object_sha256", "form_art_evidence_view_receipt_canonical_sha256",
+        "target_sha256", "visual_structure_canonical_sha256", "part_id_status",
+        "negative_space_status", "line_flow_status", "view_observation_status",
+    }
+    view = result.get("$defs", {}).get("view_binding", {})
+    view_properties = require_closed(view, view_fields, "ProductionWeaponArtDecisionProposalViewBinding@1")
+    require(
+        result_properties["view_bindings"].get("minItems") == 6
+        and result_properties["view_bindings"].get("maxItems") == 6
+        and result_properties["view_bindings"].get("items") is False
+        and len(result_properties["view_bindings"].get("prefixItems", [])) == 6
+        and view_properties["view_kind"].get("$ref") == "#/$defs/view_kind"
+        and view_properties["part_id_status"].get("$ref") == "#/$defs/observation_status"
+        and {
+            item.get("contains", {}).get("properties", {}).get("view_kind", {}).get("const")
+            for item in result_properties["view_bindings"].get("allOf", [])
+        } == set(view_kinds),
+        "result must freeze six ordered view bindings",
+    )
+    group_decision_fields = {
+        "group_id", "status", "part_ids", "source_node_ids", "parameter_ids",
+        "allowed_operator_ids", "coupling_mode", "invariants", "affected_view_kinds",
+        "blocker_codes",
+    }
+    group_decision = result.get("$defs", {}).get("assembly_group_decision", {})
+    group_decision_properties = require_closed(
+        group_decision, group_decision_fields, "ProductionWeaponArtDecisionProposalAssemblyGroupDecision@1"
+    )
+    require(
+        result_properties["assembly_group_decisions"].get("minItems") == 5
+        and result_properties["assembly_group_decisions"].get("maxItems") == 5
+        and result_properties["assembly_group_decisions"].get("items") is False
+        and len(result_properties["assembly_group_decisions"].get("prefixItems", [])) == 5
+        and group_decision_properties["group_id"].get("enum") == group_ids
+        and {
+            item.get("contains", {}).get("properties", {}).get("group_id", {}).get("const")
+            for item in result_properties["assembly_group_decisions"].get("allOf", [])
+        } == set(group_ids),
+        "result must freeze five assembly group decisions",
+    )
+    gate_fields = {"gate_id", "status", "evidence_sha256", "blocker_codes"}
+    gate = result.get("$defs", {}).get("gate_result", {})
+    gate_properties = require_closed(gate, gate_fields, "ProductionWeaponArtDecisionProposalGateResult@1")
+    gate_ids = [
+        "lineage", "reference-annotation", "camera", "assembly-registry", "parameter-sink",
+        "negative-space", "line-flow", "first-person-readability", "candidate-search-critic",
+        "surface-scope",
+    ]
+    require(
+        result_properties["gate_results"].get("minItems") == 10
+        and result_properties["gate_results"].get("maxItems") == 10
+        and result_properties["gate_results"].get("items") is False
+        and len(result_properties["gate_results"].get("prefixItems", [])) == 10
+        and gate_properties["gate_id"].get("enum") == gate_ids
+        and gate_properties["status"].get("enum") == ["PASS", "BLOCKED", "NOT_RUN", "LOCKED"]
+        and gate_properties["evidence_sha256"].get("$ref") == "#/$defs/nullable_sha256"
+        and {
+            item.get("contains", {}).get("properties", {}).get("gate_id", {}).get("const")
+            for item in result_properties["gate_results"].get("allOf", [])
+        } == set(gate_ids),
+        "result must freeze ten gate decisions",
+    )
+    blocker_fields = {"blocker_code", "scope", "group_id", "view_kind", "evidence_sha256"}
+    blocker = result.get("$defs", {}).get("blocker", {})
+    blocker_properties = require_closed(blocker, blocker_fields, "ProductionWeaponArtDecisionProposalBlocker@1")
+    blocker_codes = {
+        "BLOCKED_LINEAGE", "BLOCKED_REFERENCE_ANNOTATION", "BLOCKED_CAMERA",
+        "BLOCKED_NEGATIVE_SPACE", "BLOCKED_LINE_FLOW", "BLOCKED_FIRST_PERSON_PROFILE",
+        "BLOCKED_ASSEMBLY_REGISTRY", "BLOCKED_PARAMETER_SINK", "NO_STRICT_MULTI_VIEW_IMPROVEMENT",
+    }
+    require(
+        blocker_properties["blocker_code"].get("$ref") == "#/$defs/blocker_code"
+        and blocker_properties["scope"].get("enum") == ["global", "assembly", "view"]
+        and blocker_properties["group_id"].get("$ref") == "#/$defs/nullable_id"
+        and blocker_properties["evidence_sha256"].get("$ref") == "#/$defs/nullable_sha256"
+        and result_properties["blockers"].get("maxItems") == 64,
+        "result blockers must be typed, bounded and hash/id-only",
+    )
+    require(
+        result_properties["proposal_status"].get("enum") == [
+            "READY_ASSEMBLY_FORM_SEARCH", "BLOCKED_LINEAGE", "BLOCKED_REFERENCE_ANNOTATION",
+            "BLOCKED_CAMERA", "BLOCKED_NEGATIVE_SPACE", "BLOCKED_LINE_FLOW",
+            "BLOCKED_FIRST_PERSON_PROFILE", "BLOCKED_ASSEMBLY_REGISTRY",
+            "BLOCKED_PARAMETER_SINK", "NO_STRICT_MULTI_VIEW_IMPROVEMENT",
+        ],
+        "proposal status vocabulary drifted",
+    )
+
+    # The current real six-view fixture has durable six-view lineage, while
+    # negative-space/line-flow remain unknown or inferred, first-person is
+    # absent, and no assembly parameter sink is proven.  Keep that result
+    # representable without allowing a misleading READY/PASS claim.
+    fixture_blockers = [
+        {"blocker_code": "BLOCKED_NEGATIVE_SPACE", "scope": "view", "group_id": None, "view_kind": "left", "evidence_sha256": None},
+        {"blocker_code": "BLOCKED_LINE_FLOW", "scope": "view", "group_id": None, "view_kind": "left", "evidence_sha256": None},
+        {"blocker_code": "BLOCKED_FIRST_PERSON_PROFILE", "scope": "global", "group_id": None, "view_kind": None, "evidence_sha256": None},
+        {"blocker_code": "BLOCKED_PARAMETER_SINK", "scope": "assembly", "group_id": "receiver-envelope", "view_kind": None, "evidence_sha256": None},
+    ]
+    require(
+        all(item["blocker_code"] in blocker_codes for item in fixture_blockers)
+        and fixture_blockers[0]["view_kind"] in view_kinds
+        and fixture_blockers[3]["group_id"] in group_ids
+        and all(item["evidence_sha256"] is None for item in fixture_blockers),
+        "real six-view fixture blocker projection must remain representable",
+    )
+    fixture_flags = {
+        "read_only": True,
+        "runtime_write_performed": False,
+        "worker_invoked": False,
+        "candidate_generated": False,
+        "production_stage_advanced": False,
+        "candidate_confirmed": False,
+        "version_created": False,
+        "export_performed": False,
+        "restart_hash_verified": True,
+    }
+    require(
+        fixture_flags["read_only"] is True
+        and all(not fixture_flags[field] for field in (
+            "runtime_write_performed", "worker_invoked", "candidate_generated",
+            "production_stage_advanced", "candidate_confirmed", "version_created",
+            "export_performed",
+        ))
+        and fixture_flags["restart_hash_verified"] is True,
+        "real six-view fixture blocker result must remain strictly read-only",
+    )
+
+
+def check_production_weapon_assembly_parameter_sink_contracts_legacy() -> None:
+    """Superseded six-row draft retained only for diff context."""
+    schema = load_schema("production-weapon-assembly-parameter-sink-registry.schema.json")
+
+    def require_closed(node: dict, fields: set[str], label: str) -> dict:
+        properties = node.get("properties", {})
+        require(
+            node.get("type") == "object"
+            and node.get("additionalProperties") is False
+            and set(node.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    supported_groups = ["receiver-envelope", "muzzle-axis"]
+    supported_parameters = [
+        "receiver-envelope-width",
+        "receiver-envelope-height",
+        "receiver-envelope-shoulder",
+        "muzzle-axis-shroud-envelope",
+        "muzzle-axis-emitter-envelope",
+        "muzzle-axis-core-aperture",
+    ]
+    unavailable_parameters = [
+        "stock-open-frame-clearance",
+        "stock-open-frame-angle",
+        "trigger-void-clearance",
+        "trigger-void-centroid",
+        "rail-spine-continuity",
+        "rail-spine-offset",
+    ]
+    all_parameters = supported_parameters + unavailable_parameters
+    mutators = [
+        "forgecad.assembly.mutator.receiver-envelope@1",
+        "forgecad.assembly.mutator.muzzle-axis@1",
+    ]
+    effects = ["silhouette", "negative-space", "line-flow", "first-person-readability"]
+    views = ["front", "back", "left", "right", "top", "rear-three-quarter"]
+    operator_ids = {
+        "forgecad.geometry.primitive@2", "forgecad.geometry.profile-extrude@1",
+        "forgecad.geometry.profile-loft@1", "forgecad.geometry.profile-loft@2",
+        "forgecad.geometry.multi-loop-profile-loft@1",
+        "forgecad.geometry.longitudinal-section-loft@1", "forgecad.geometry.subd-cage@1",
+        "forgecad.geometry.subd-cage@2", "forgecad.geometry.authoring-mesh@1",
+        "forgecad.geometry.surface-patch@1", "forgecad.geometry.surface-shell@1",
+        "forgecad.geometry.revolve@1", "forgecad.geometry.tube-sweep@1",
+        "forgecad.geometry.transform@2", "forgecad.geometry.mirror@1",
+        "forgecad.geometry.array@1", "forgecad.geometry.bevel@1",
+        "forgecad.geometry.bevel@2", "forgecad.geometry.normal-policy@1",
+        "forgecad.geometry.panel@1", "forgecad.geometry.panel@2",
+        "forgecad.geometry.vent-array@1", "forgecad.geometry.vent-array@2",
+        "forgecad.geometry.recessed-channel@1", "forgecad.geometry.energy-core@1",
+        "forgecad.geometry.joint-stack@1", "forgecad.geometry.part-output@1",
+        "forgecad.geometry.boolean@1",
+    }
+
+    registry_fields = {
+        "schema_version", "sink_registry_id", "profile_id", "sink_policy",
+        "session_id", "project_id", "candidate_id", "candidate_state_sha256",
+        "artifact_id", "artifact_sha256", "geometry_program_sha256",
+        "geometry_program_canonical_sha256", "operator_catalog_sha256",
+        "assembly_registry_id", "assembly_registry_canonical_sha256",
+        "supported_group_ids", "sinks", "unavailable_parameter_ids", "status",
+        "read_only", "runtime_write_performed", "worker_invoked", "candidate_generated",
+        "production_stage_advanced", "candidate_confirmed", "version_created",
+        "export_performed", "canonical_sha256",
+    }
+    properties = require_closed(
+        schema, registry_fields, "ProductionWeaponAssemblyParameterSinkRegistry@1"
+    )
+    require(
+        properties["schema_version"].get("const")
+        == "ProductionWeaponAssemblyParameterSinkRegistry@1"
+        and properties["profile_id"].get("const") == "fps-weapon-form-assembly@1"
+        and properties["sink_policy"].get("const")
+        == "fps-weapon-product-owned-aggregate-parameter-sink-registry@1"
+        and properties["supported_group_ids"].get("const") == supported_groups
+        and properties["status"].get("enum") == ["PARTIAL_TYPED_SINKS", "READY"]
+        and properties["read_only"].get("const") is True
+        and all(properties[field].get("const") is False for field in (
+            "runtime_write_performed", "worker_invoked", "candidate_generated",
+            "production_stage_advanced", "candidate_confirmed", "version_created",
+            "export_performed",
+        )),
+        "ProductionWeaponAssemblyParameterSinkRegistry@1 must be a non-promoting read-only projection",
+    )
+    require(
+        properties["sinks"].get("minItems") == 0
+        and properties["sinks"].get("maxItems") == 6
+        and properties["sinks"].get("uniqueItems") is True
+        and properties["sinks"].get("items", {}).get("$ref") == "#/$defs/sink"
+        and properties["unavailable_parameter_ids"].get("minItems") == 6
+        and properties["unavailable_parameter_ids"].get("maxItems") == 12
+        and properties["unavailable_parameter_ids"].get("uniqueItems") is True
+        and properties["unavailable_parameter_ids"].get("items", {}).get("$ref")
+        == "#/$defs/parameter_id",
+        "sink coverage must be bounded and keep unavailable parameter IDs explicit",
+    )
+    unavailable_contains = {
+        item.get("contains", {}).get("const")
+        for item in properties["unavailable_parameter_ids"].get("allOf", [])
+    }
+    require(
+        unavailable_contains == set(unavailable_parameters),
+        "unavailable_parameter_ids must always name the unimplemented stock/trigger/rail slice",
+    )
+    status_guards = schema.get("allOf", [])
+    require(
+        any(
+            guard.get("if", {}).get("properties", {}).get("status", {}).get("const")
+            == "PARTIAL_TYPED_SINKS"
+            and guard.get("then", {}).get("properties", {}).get("sinks", {}).get("maxItems") == 5
+            for guard in status_guards
+        )
+        and any(
+            guard.get("if", {}).get("properties", {}).get("status", {}).get("const") == "READY"
+            and guard.get("then", {}).get("properties", {}).get("sinks", {}).get("minItems") == 6
+            and guard.get("then", {}).get("properties", {}).get("sinks", {}).get("maxItems") == 6
+            for guard in status_guards
+        ),
+        "status must distinguish partial coverage from the six-sink READY slice",
+    )
+
+    sink_fields = {
+        "parameter_id", "group_id", "mutator_id", "semantic", "target_part_ids",
+        "source_node_ids", "operator_ids", "bounds", "current", "unit", "step",
+        "evidence_requirements", "view_effects", "application_status",
+    }
+    sink_properties = require_closed(
+        schema.get("$defs", {}).get("sink", {}),
+        sink_fields,
+        "ProductionWeaponAssemblyParameterSink@1",
+    )
+    require(
+        sink_properties["parameter_id"].get("$ref") == "#/$defs/supported_parameter_id"
+        and sink_properties["group_id"].get("$ref") == "#/$defs/group_id"
+        and sink_properties["mutator_id"].get("$ref") == "#/$defs/mutator_id"
+        and sink_properties["semantic"].get("$ref") == "#/$defs/semantic"
+        and sink_properties["target_part_ids"].get("$ref") == "#/$defs/id_list"
+        and sink_properties["source_node_ids"].get("$ref") == "#/$defs/id_list"
+        and sink_properties["operator_ids"].get("items", {}).get("$ref") == "#/$defs/operator_id"
+        and sink_properties["bounds"].get("$ref") == "#/$defs/bounds"
+        and sink_properties["unit"].get("enum") == ["meter", "ratio"]
+        and sink_properties["step"].get("exclusiveMinimum") == 0
+        and sink_properties["application_status"].get("const") == "AVAILABLE",
+        "sink targets must be typed mutator bindings, not paths or descriptors",
+    )
+    require(
+        schema["$defs"]["supported_parameter_id"].get("enum") == supported_parameters
+        and schema["$defs"]["semantic"].get("enum") == supported_parameters
+        and schema["$defs"]["group_id"].get("enum") == supported_groups
+        and schema["$defs"]["mutator_id"].get("enum") == mutators
+        and schema["$defs"]["parameter_id"].get("enum") == all_parameters,
+        "sink semantic and mutator vocabularies must be the closed first slice",
+    )
+    bounds = schema["$defs"]["bounds"]
+    require(
+        set(bounds.get("required", [])) == {"min", "max"}
+        and set(bounds.get("properties", {})) == {"min", "max"}
+        and bounds.get("additionalProperties") is False,
+        "sink bounds must be a closed min/max pair",
+    )
+    view_effect = schema["$defs"]["view_effect"]
+    require(
+        set(view_effect.get("required", [])) == {"view_kind", "effect"}
+        and set(view_effect.get("properties", {})) == {"view_kind", "effect"}
+        and view_effect.get("additionalProperties") is False
+        and view_effect["properties"]["view_kind"].get("$ref") == "#/$defs/view_kind"
+        and view_effect["properties"]["effect"].get("enum") == effects,
+        "sink view effects must be closed and product-owned",
+    )
+    evidence = sink_properties["evidence_requirements"]
+    require(
+        evidence.get("minItems") == 1
+        and evidence.get("maxItems") == 6
+        and evidence.get("uniqueItems") is True
+        and evidence.get("items", {}).get("enum") == [
+            "assembly-registry", "geometry-program", "operator-catalog",
+            "artifact-readback", "candidate-state", "view-evidence",
+        ],
+        "sink evidence requirements must use the closed hash-bound evidence vocabulary",
+    )
+    forbidden_names = {
+        "json_pointer", "json_path", "path", "file_path", "absolute_path", "script",
+        "script_path", "expression", "parameter_key", "component", "python",
+        "javascript", "raw", "raw_bytes", "bytes", "url", "uri", "environment", "env",
+    }
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties_node = node.get("properties")
+            if isinstance(properties_node, dict):
+                names.update(properties_node)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    require(
+        not forbidden_names.intersection(property_names(schema)),
+        "sink registry must reject arbitrary JSON paths, scripts, expressions and raw inputs",
+    )
+
+
+def check_production_weapon_assembly_parameter_sink_contracts() -> None:
+    """Freeze the exact twelve-row typed sink projection and its readback pair."""
+    registry = load_schema("production-weapon-assembly-parameter-sink-registry.schema.json")
+    get_request = load_schema("production-weapon-assembly-parameter-sink-get-request.schema.json")
+    get_result = load_schema("production-weapon-assembly-parameter-sink-get-result.schema.json")
+
+    def require_closed(node: dict, fields: set[str], label: str) -> dict:
+        properties = node.get("properties", {})
+        require(
+            node.get("type") == "object"
+            and node.get("additionalProperties") is False
+            and set(node.get("required", [])) == fields
+            and set(properties) == fields,
+            f"{label} must be closed with its exact field set",
+        )
+        return properties
+
+    supported_groups = ["receiver-envelope", "muzzle-axis", "stock-open-frame"]
+    available_parameters = [
+        "receiver-envelope-width", "receiver-envelope-height", "receiver-envelope-shoulder",
+        "muzzle-axis-shroud-envelope", "muzzle-axis-emitter-envelope", "muzzle-axis-core-aperture",
+        "stock-open-frame-clearance", "stock-open-frame-angle",
+    ]
+    unavailable_parameters = [
+        "trigger-void-clearance", "trigger-void-centroid",
+        "rail-spine-continuity", "rail-spine-offset",
+    ]
+    parameter_ids = available_parameters + unavailable_parameters
+    mutator_ids = [
+        "forgecad.assembly.mutator.receiver-envelope@1",
+        "forgecad.assembly.mutator.muzzle-axis@1",
+        "forgecad.assembly.mutator.stock-open-frame@1",
+    ]
+    operator_ids = {
+        "forgecad.geometry.primitive@2", "forgecad.geometry.profile-extrude@1",
+        "forgecad.geometry.profile-loft@1", "forgecad.geometry.profile-loft@2",
+        "forgecad.geometry.multi-loop-profile-loft@1",
+        "forgecad.geometry.longitudinal-section-loft@1", "forgecad.geometry.subd-cage@1",
+        "forgecad.geometry.subd-cage@2", "forgecad.geometry.authoring-mesh@1",
+        "forgecad.geometry.surface-patch@1", "forgecad.geometry.surface-shell@1",
+        "forgecad.geometry.revolve@1", "forgecad.geometry.tube-sweep@1",
+        "forgecad.geometry.transform@2", "forgecad.geometry.mirror@1",
+        "forgecad.geometry.array@1", "forgecad.geometry.bevel@1",
+        "forgecad.geometry.bevel@2", "forgecad.geometry.normal-policy@1",
+        "forgecad.geometry.panel@1", "forgecad.geometry.panel@2",
+        "forgecad.geometry.vent-array@1", "forgecad.geometry.vent-array@2",
+        "forgecad.geometry.recessed-channel@1", "forgecad.geometry.energy-core@1",
+        "forgecad.geometry.joint-stack@1", "forgecad.geometry.part-output@1",
+        "forgecad.geometry.boolean@1",
+    }
+
+    registry_fields = {
+        "schema_version", "sink_registry_id", "profile_id", "sink_policy",
+        "session_id", "project_id", "candidate_id", "candidate_state_sha256",
+        "artifact_id", "artifact_sha256", "geometry_program_sha256",
+        "geometry_program_canonical_sha256", "operator_catalog_sha256",
+        "assembly_registry_id", "assembly_registry_canonical_sha256",
+        "supported_group_ids", "sinks", "unavailable_parameter_ids", "status",
+        "read_only", "runtime_write_performed", "worker_invoked", "candidate_generated",
+        "production_stage_advanced", "candidate_confirmed", "version_created",
+        "export_performed", "canonical_sha256",
+    }
+    registry_properties = require_closed(
+        registry, registry_fields, "ProductionWeaponAssemblyParameterSinkRegistry@1"
+    )
+    require(
+        registry_properties["schema_version"].get("const")
+        == "ProductionWeaponAssemblyParameterSinkRegistry@1"
+        and registry_properties["profile_id"].get("const") == "fps-weapon-form-assembly@1"
+        and registry_properties["sink_policy"].get("const")
+        == "fps-weapon-product-owned-aggregate-parameter-sink-registry@1"
+        and registry_properties["supported_group_ids"].get("const") == supported_groups
+        and registry_properties["status"].get("enum") == ["PARTIAL_TYPED_SINKS", "READY"]
+        and registry_properties["sinks"].get("minItems") == 0
+        and registry_properties["sinks"].get("maxItems") == 8
+        and registry_properties["sinks"].get("uniqueItems") is True
+        and registry_properties["unavailable_parameter_ids"].get("minItems") == 4
+        and registry_properties["unavailable_parameter_ids"].get("maxItems") == 12
+        and registry_properties["unavailable_parameter_ids"].get("uniqueItems") is True
+        and registry_properties["read_only"].get("const") is True
+        and all(registry_properties[field].get("const") is False for field in (
+            "runtime_write_performed", "worker_invoked", "candidate_generated",
+            "production_stage_advanced", "candidate_confirmed", "version_created",
+            "export_performed",
+        )),
+        "ProductionWeaponAssemblyParameterSinkRegistry@1 must be bounded, partial and non-promoting",
+    )
+    unavailable_contains = {
+        item.get("contains", {}).get("const")
+        for item in registry_properties["unavailable_parameter_ids"].get("allOf", [])
+    }
+    require(
+        unavailable_contains == set(unavailable_parameters)
+        and registry["$defs"]["parameter_id"].get("enum") == parameter_ids
+        and registry["$defs"]["supported_parameter_id"].get("enum") == available_parameters
+        and registry["$defs"]["group_id"].get("enum") == supported_groups
+        and registry["$defs"]["mutator_id"].get("enum") == mutator_ids,
+        "Registry parameter, group, mutator and unavailable vocabularies must be closed",
+    )
+    status_guards = registry.get("allOf", [])
+    ready_guards = [
+        guard for guard in status_guards
+        if guard.get("if", {}).get("properties", {}).get("status", {}).get("const") == "READY"
+    ]
+    require(
+        any(
+            guard.get("if", {}).get("properties", {}).get("status", {}).get("const")
+            == "PARTIAL_TYPED_SINKS"
+            and guard.get("then", {}).get("properties", {}).get("sinks", {}).get("maxItems") == 7
+            and guard.get("then", {}).get("properties", {}).get("unavailable_parameter_ids", {}).get("minItems") == 5
+            and guard.get("then", {}).get("properties", {}).get("unavailable_parameter_ids", {}).get("maxItems") == 12
+            for guard in status_guards
+        )
+        and len(ready_guards) == 1
+        and ready_guards[0].get("then", {}).get("properties", {}).get("sinks", {}).get("minItems") == 8
+        and ready_guards[0].get("then", {}).get("properties", {}).get("sinks", {}).get("maxItems") == 8
+        and ready_guards[0].get("then", {}).get("properties", {}).get("unavailable_parameter_ids", {}).get("const") == unavailable_parameters,
+        "PARTIAL and READY must describe available-only sinks and explicit unavailable coverage",
+    )
+    ready_sink_contains = [
+        item.get("contains", {}).get("properties", {}).get("parameter_id", {}).get("const")
+        for item in ready_guards[0].get("then", {}).get("properties", {}).get("sinks", {}).get("allOf", [])
+    ]
+    require(
+        len(ready_sink_contains) == len(available_parameters)
+        and len(set(ready_sink_contains)) == len(available_parameters)
+        and set(ready_sink_contains) == set(available_parameters),
+        "READY must contain each supported parameter ID exactly once",
+    )
+
+    sink_fields = {
+        "parameter_id", "group_id", "mutator_id", "current", "min", "max", "step",
+        "unit", "application_status", "blocker_codes", "target_part_ids",
+        "source_node_ids", "operator_ids", "evidence_requirements",
+    }
+    sink_properties = require_closed(
+        registry.get("$defs", {}).get("sink", {}),
+        sink_fields,
+        "ProductionWeaponAssemblyParameterSink@1",
+    )
+    require(
+        sink_properties["parameter_id"].get("$ref") == "#/$defs/supported_parameter_id"
+        and sink_properties["group_id"].get("$ref") == "#/$defs/group_id"
+        and sink_properties["mutator_id"].get("$ref") == "#/$defs/mutator_id"
+        and sink_properties["current"].get("type") == "number"
+        and sink_properties["min"].get("type") == "number"
+        and sink_properties["max"].get("type") == "number"
+        and sink_properties["step"].get("type") == "number"
+        and sink_properties["step"].get("exclusiveMinimum") == 0
+        and sink_properties["unit"].get("enum") == ["meter", "radian", "ratio"]
+        and sink_properties["application_status"].get("const") == "AVAILABLE"
+        and sink_properties["blocker_codes"].get("items", {}).get("$ref")
+        == "#/$defs/blocker_code"
+        and sink_properties["target_part_ids"].get("$ref") == "#/$defs/id_list"
+        and sink_properties["source_node_ids"].get("$ref") == "#/$defs/id_list"
+        and sink_properties["operator_ids"].get("items", {}).get("$ref")
+        == "#/$defs/operator_id"
+        and sink_properties["evidence_requirements"].get("items", {}).get("$ref")
+        == "#/$defs/evidence_requirement",
+        "Sink rows must expose only typed mutator bindings and bounded evidence fields",
+    )
+    require(
+        registry["$defs"]["operator_id"].get("enum")
+        and set(registry["$defs"]["operator_id"].get("enum", [])) == operator_ids
+        and registry["$defs"]["blocker_code"].get("const") == "BLOCKED_PARAMETER_SINK"
+        and registry["$defs"]["evidence_requirement"].get("enum") == [
+            "assembly-registry", "geometry-program", "operator-catalog",
+            "artifact-readback", "candidate-state",
+        ],
+        "Sink operator, blocker and evidence vocabularies must remain product-owned",
+    )
+    require(
+        sink_properties["application_status"].get("const") == "AVAILABLE"
+        and sink_properties["blocker_codes"].get("maxItems") == 0,
+        "Sink rows must be real AVAILABLE mutator bindings; unavailable IDs stay outside sinks",
+    )
+
+    request_fields = {
+        "schema_version", "sink_registry_id", "session_id", "project_id", "candidate_id",
+        "candidate_state_sha256", "artifact_id", "artifact_sha256", "geometry_program_sha256",
+        "geometry_program_canonical_sha256", "operator_catalog_sha256", "assembly_registry_id",
+        "assembly_registry_canonical_sha256",
+    }
+    request_properties = require_closed(
+        get_request, request_fields, "ProductionWeaponAssemblyParameterSinkGetRequest@1"
+    )
+    request_id_fields = {"sink_registry_id", "session_id", "project_id", "candidate_id", "artifact_id", "assembly_registry_id"}
+    request_sha_fields = request_fields - {"schema_version"} - request_id_fields
+    require(
+        request_properties["schema_version"].get("const")
+        == "ProductionWeaponAssemblyParameterSinkGetRequest@1"
+        and all(request_properties[field].get("$ref") == "#/$defs/id" for field in request_id_fields)
+        and all(request_properties[field].get("$ref") == "#/$defs/sha256" for field in request_sha_fields),
+        "Sink GetRequest must be exact id/hash-only lineage",
+    )
+
+    result_fields = {
+        "schema_version", "registry", "registry_canonical_sha256", "recomputed",
+        "restart_hash_verified", "read_only", "structural_status", "quality_status",
+        "visual_quality_status", "human_review_status", "commercial_engine_status",
+        "runtime_write_performed", "worker_invoked", "candidate_generated",
+        "production_stage_advanced", "candidate_confirmed", "version_created",
+        "export_performed",
+    }
+    result_properties = require_closed(
+        get_result, result_fields, "ProductionWeaponAssemblyParameterSinkGetResult@1"
+    )
+    require(
+        result_properties["schema_version"].get("const")
+        == "ProductionWeaponAssemblyParameterSinkGetResult@1"
+        and result_properties["registry"].get("$ref")
+        == "https://forgecad.local/contracts/production-weapon-assembly-parameter-sink-registry.schema.json"
+        and result_properties["registry_canonical_sha256"].get("$ref") == "#/$defs/sha256"
+        and result_properties["recomputed"].get("const") is True
+        and result_properties["restart_hash_verified"].get("const") is True
+        and result_properties["read_only"].get("const") is True
+        and result_properties["structural_status"].get("const") == "structural_only"
+        and result_properties["quality_status"].get("const") == "structural_only"
+        and result_properties["visual_quality_status"].get("const") == "NOT_PROVEN"
+        and result_properties["human_review_status"].get("const") == "NOT_RUN"
+        and result_properties["commercial_engine_status"].get("const") == "NOT_RUN"
+        and all(result_properties[field].get("const") is False for field in (
+            "runtime_write_performed", "worker_invoked", "candidate_generated",
+            "production_stage_advanced", "candidate_confirmed", "version_created",
+            "export_performed",
+        )),
+        "Sink GetResult must remain structural-only, recomputed and non-promoting",
+    )
+
+    forbidden_names = {
+        "json_pointer", "json_path", "path", "file_path", "absolute_path", "script",
+        "script_path", "expression", "parameter_key", "component", "python",
+        "javascript", "raw", "raw_bytes", "bytes", "url", "uri", "environment", "env",
+    }
+
+    def property_names(node: object) -> set[str]:
+        names: set[str] = set()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                names.update(properties)
+            for value in node.values():
+                names.update(property_names(value))
+        elif isinstance(node, list):
+            for value in node:
+                names.update(property_names(value))
+        return names
+
+    for document, filename in [
+        (registry, "production-weapon-assembly-parameter-sink-registry.schema.json"),
+        (get_request, "production-weapon-assembly-parameter-sink-get-request.schema.json"),
+        (get_result, "production-weapon-assembly-parameter-sink-get-result.schema.json"),
+    ]:
+        require(
+            not forbidden_names.intersection(property_names(document)),
+            f"{filename} must reject arbitrary paths, scripts, expressions and raw inputs",
+        )
+
+
 def check_candidate_topology_quality_contracts() -> None:
     """Keep the candidate-wide objective topology gate closed and non-artistic."""
     record_fields = {
@@ -8701,6 +13718,210 @@ def check_game_weapon_animated_glb_socket_transform_projection_contracts() -> No
         )
 
 
+def check_registered_camera_rig_contracts() -> None:
+    registration = load_schema("production-weapon-subject-frame-registration.schema.json")
+    registration_fields = {
+        "schema_version", "registration_id", "geometry_program_sha256",
+        "subject_coordinate_frame_sha256", "derivation_policy", "geometry_semantic_axes",
+        "subject_semantic_axes", "anchor_evidence", "transform", "read_only",
+        "geometry_program_modified", "depth_modified", "canonical_sha256",
+    }
+    registration_properties = registration.get("properties", {})
+    require(
+        registration.get("additionalProperties") is False
+        and set(registration.get("required", [])) == registration_fields
+        and set(registration_properties) == registration_fields
+        and registration_properties["schema_version"].get("const")
+        == "ProductionWeaponSubjectFrameRegistration@1"
+        and registration_properties["derivation_policy"].get("const")
+        == "exact-semantic-anchor-axis-registration@1"
+        and registration_properties["read_only"].get("const") is True
+        and registration_properties["geometry_program_modified"].get("const") is False
+        and registration_properties["depth_modified"].get("const") is False,
+        "subject-frame registration must remain closed, exact, read-only and non-mutating",
+    )
+    anchor = registration_properties["anchor_evidence"]
+    anchor_fields = {
+        "stock_node_ids", "stock_position_x_m", "muzzle_node_ids",
+        "muzzle_position_x_m", "side_left_node_id", "side_left_position_z_m",
+        "side_right_node_id", "side_right_position_z_m",
+    }
+    require(
+        anchor.get("additionalProperties") is False
+        and set(anchor.get("required", [])) == anchor_fields
+        and set(anchor.get("properties", {})) == anchor_fields
+        and anchor["properties"]["stock_node_ids"].get("const")
+        == ["rear-stock", "rear-stock-lower-beam"]
+        and anchor["properties"]["muzzle_node_ids"].get("const")
+        == ["muzzle-shroud", "muzzle-emitter", "muzzle-core"]
+        and anchor["properties"]["side_left_node_id"].get("const") == "side-light-left"
+        and anchor["properties"]["side_right_node_id"].get("const") == "side-light-right",
+        "subject-frame registration anchors must be exact semantic Part sources",
+    )
+    transform = registration_properties["transform"]
+    require(
+        transform.get("additionalProperties") is False
+        and transform["properties"]["direction"].get("const") == "geometry-to-subject"
+        and transform["properties"]["kind"].get("enum") == ["identity", "yaw-180-y"]
+        and transform["properties"]["translation_m"].get("const") == [0.0, 0.0, 0.0]
+        and transform["properties"]["scale"].get("const") == [1.0, 1.0, 1.0],
+        "subject-frame transform must remain a closed rigid identity/yaw-180 projection",
+    )
+    transform_guards = transform.get("allOf", [])
+    require(
+        any(
+            guard.get("if", {}).get("properties", {}).get("kind", {}).get("const") == "identity"
+            and guard.get("then", {}).get("properties", {}).get("rotation_rad", {}).get("const")
+            == [0.0, 0.0, 0.0]
+            for guard in transform_guards
+        )
+        and any(
+            guard.get("if", {}).get("properties", {}).get("kind", {}).get("const") == "yaw-180-y"
+            and guard.get("then", {}).get("properties", {}).get("rotation_rad", {}).get("const")
+            == [0.0, 3.141592653589793, 0.0]
+            for guard in transform_guards
+        ),
+        "registration kind must select the exact closed rotation",
+    )
+
+    rig = load_schema("registered-camera-rig-calibration.schema.json")
+    rig_fields = {
+        "schema_version", "registered_rig_id", "project_id", "candidate_id",
+        "candidate_state_sha256", "artifact_id", "artifact_sha256",
+        "geometry_program_object_sha256", "geometry_program_sha256",
+        "operator_catalog_sha256", "subject_camera_rig", "subject_camera_rig_object_sha256",
+        "subject_camera_rig_canonical_sha256", "subject_frame_registration",
+        "subject_frame_registration_canonical_sha256", "renderer_views", "read_only",
+        "runtime_write", "depth_status", "quality_status", "production_stage_advanced",
+        "candidate_confirmed", "version_created", "export_performed", "canonical_sha256",
+    }
+    rig_properties = rig.get("properties", {})
+    require(
+        rig.get("additionalProperties") is False
+        and set(rig.get("required", [])) == rig_fields
+        and set(rig_properties) == rig_fields
+        and rig_properties["schema_version"].get("const")
+        == "RegisteredCameraRigCalibration@1"
+        and rig_properties["subject_camera_rig"].get("$ref")
+        == "https://forgecad.local/contracts/camera-rig-calibration.schema.json"
+        and rig_properties["subject_frame_registration"].get("$ref")
+        == "https://forgecad.local/contracts/production-weapon-subject-frame-registration.schema.json"
+        and rig_properties["read_only"].get("const") is True
+        and rig_properties["runtime_write"].get("const") is False
+        and rig_properties["depth_status"].get("const") == "UNKNOWN"
+        and rig_properties["quality_status"].get("const") == "NOT_EVALUATED",
+        "registered camera rig must preserve subject truth, exact registration and non-promoting status",
+    )
+    require(
+        all(
+            rig_properties[field].get("const") is False
+            for field in (
+                "production_stage_advanced", "candidate_confirmed", "version_created",
+                "export_performed",
+            )
+        ),
+        "registered camera rig must not promote, confirm, version or export",
+    )
+    renderer_views = rig_properties["renderer_views"]
+    registered_view = rig.get("$defs", {}).get("registered_view", {})
+    registered_view_fields = {
+        "view_id", "kind", "subject_camera_hash", "registered_camera",
+        "registered_camera_hash", "registration_canonical_sha256", "weight", "primary",
+    }
+    require(
+        renderer_views.get("minItems") == 6
+        and renderer_views.get("maxItems") == 8
+        and registered_view.get("additionalProperties") is False
+        and set(registered_view.get("required", [])) == registered_view_fields
+        and set(registered_view.get("properties", {})) == registered_view_fields
+        and registered_view["properties"]["registered_camera"].get("$ref")
+        == "https://forgecad.local/contracts/camera-calibration-v2.schema.json",
+        "registered renderer views must bind every materialized camera to subject and registration hashes",
+    )
+
+
+def check_native_high_source_contracts() -> None:
+    request = load_schema("high-mesh-worker-request.schema.json")
+    artifact = load_schema("high-mesh-artifact.schema.json")
+
+    request_fields = {
+        "schema_version", "operation", "source_authoring_mesh",
+        "source_authoring_mesh_sha256", "detail_graph",
+        "detail_graph_canonical_sha256", "budgets", "canonical_sha256",
+    }
+    request_properties = request.get("properties", {})
+    require(
+        request.get("additionalProperties") is False
+        and set(request.get("required", [])) == request_fields
+        and set(request_properties) == request_fields
+        and request_properties["schema_version"].get("const") == "HighMeshWorkerRequest@1"
+        and request_properties["operation"].get("const")
+        == "forgecad.production.high-mesh-prepare@1",
+        "Native High request must remain closed and operation-bound",
+    )
+    definitions = request.get("$defs", {})
+    authoring_mesh = definitions.get("authoring_mesh", {})
+    detail_graph = definitions.get("detail_graph", {})
+    detail_node = definitions.get("detail_node", {})
+    require(
+        authoring_mesh.get("additionalProperties") is False
+        and authoring_mesh.get("properties", {}).get("schema_version", {}).get("const")
+        == "AuthoringMeshSource@1"
+        and authoring_mesh.get("properties", {}).get("parts", {}).get("maxItems") == 128
+        and detail_graph.get("additionalProperties") is False
+        and detail_graph.get("properties", {}).get("schema_version", {}).get("const")
+        == "DetailGraph@1"
+        and detail_graph.get("properties", {}).get("nodes", {}).get("minItems") == 1
+        and detail_graph.get("properties", {}).get("nodes", {}).get("maxItems") == 256
+        and detail_node.get("additionalProperties") is False
+        and detail_node.get("properties", {}).get("kind", {}).get("enum")
+        == ["support_loop", "crease", "floating_detail"],
+        "Native High source projection must keep bounded closed mesh and DetailGraph shapes",
+    )
+
+    artifact_fields = {
+        "schema_version", "operation", "policy", "artifact_id", "artifact_sha256",
+        "source_authoring_mesh_sha256", "detail_graph_canonical_sha256",
+        "request_sha256", "input_sha256", "high_worker_algorithm_sha256",
+        "high_worker_build_cohort_sha256", "replay_count", "replay_byte_exact",
+        "base_parts", "detail_primitives", "detail_lineage", "part_ids",
+        "material_zone_ids", "triangle_count", "base_triangle_count",
+        "detail_triangle_count", "non_destructive", "high_topology_status",
+        "high_authoring_topology_status", "uv_status", "tangent_status",
+        "structural_status", "visual_status", "human_status", "engine_status",
+        "distribution_status", "quality_status", "hard_gate_passed",
+        "runtime_write_performed", "production_stage_advanced", "candidate_confirmed",
+        "version_created", "export_performed", "canonical_sha256",
+    }
+    artifact_properties = artifact.get("properties", {})
+    require(
+        artifact.get("additionalProperties") is False
+        and set(artifact.get("required", [])) == artifact_fields
+        and set(artifact_properties) == artifact_fields
+        and artifact_properties["schema_version"].get("const") == "HighMeshArtifact@1"
+        and artifact_properties["replay_count"].get("const") == 2
+        and artifact_properties["replay_byte_exact"].get("const") is True
+        and artifact_properties["non_destructive"].get("const") is True
+        and artifact_properties["structural_status"].get("const")
+        == "PASS_SOURCE_STRUCTURAL"
+        and artifact_properties["quality_status"].get("const") == "structural_only",
+        "Native High artifact must remain deterministic, base-preserving and structural-only",
+    )
+    for field in ("visual_status", "human_status", "engine_status", "distribution_status"):
+        require(
+            artifact_properties[field].get("const") == "NOT_RUN",
+            f"Native High artifact must not promote {field}",
+        )
+    for field in (
+        "hard_gate_passed", "runtime_write_performed", "production_stage_advanced",
+        "candidate_confirmed", "version_created", "export_performed",
+    ):
+        require(
+            artifact_properties[field].get("const") is False,
+            f"Native High artifact must keep {field}=false",
+        )
+
+
 def main() -> int:
     required = [
         CONTRACT_ROOT / "manifest.json",
@@ -8751,6 +13972,8 @@ def main() -> int:
     check_parametric_group_contracts()
     check_topology_snapshot_contracts()
     check_authoring_topology_contracts()
+    check_authoring_mesh_contracts()
+    check_durable_authoring_mesh_contracts()
     check_subdivision_evaluation_contracts()
     check_subdivision_crease_contracts()
     check_render_profile_contracts()
@@ -8772,6 +13995,24 @@ def main() -> int:
     check_subdivision_artifact_lineage_sidecar_contracts()
     check_production_stage_transition_contracts()
     check_production_stage_v2_contracts()
+    check_production_stage_v3_contracts()
+    check_production_camera_lock_contracts()
+    check_registered_camera_rig_contracts()
+    check_production_weapon_form_quality_contracts()
+    check_production_weapon_form_quality_v2_contracts()
+    check_production_weapon_form_quality_v2_preflight_contracts()
+    check_production_weapon_form_evidence_contracts()
+    check_production_weapon_form_art_evidence_contracts()
+    check_production_weapon_owner_reviewed_void_calibration_contracts()
+    check_production_weapon_form_art_mesh_proposal_edit_contracts()
+    check_production_weapon_form_art_proposal_evidence_contracts()
+    check_production_weapon_art_decision_contracts()
+    check_production_weapon_assembly_parameter_sink_contracts()
+    check_production_weapon_high_low_cage_contracts()
+    check_production_weapon_high_low_bake_preflight_contracts()
+    check_blender_worker_capability_contracts()
+    check_blender_task_contracts()
+    check_native_high_source_contracts()
     check_candidate_topology_quality_contracts()
     check_candidate_material_surface_quality_contracts()
     check_candidate_animation_vfx_quality_contracts()

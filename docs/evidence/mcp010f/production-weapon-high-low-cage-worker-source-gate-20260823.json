@@ -1,0 +1,87 @@
+{
+  "schema_version": "ForgeCADProductionWeaponHighLowCageWorkerSourceGate@1",
+  "task_id": "FPS-HIGH-LOW-CAGE-05",
+  "recorded_at": "2026-08-23",
+  "status": "PASS_SOURCE_PARTIAL",
+  "contracts": {
+    "schema_count": 444,
+    "contract_status": "PASS",
+    "public_artifact_records": [
+      "ProductionWeaponHighArtifact@1",
+      "ProductionWeaponLowArtifact@1",
+      "ProductionWeaponCageArtifact@1",
+      "ProductionWeaponHighLowCorrespondence@1",
+      "ProductionWeaponHighLowBakePlan@1",
+      "ProductionWeaponHighLowDiagnostic@1",
+      "ProductionWeaponHighLowBakeReceipt@1"
+    ]
+  },
+  "worker": {
+    "producer_operation": "production_weapon_high_low_cage_artifact_producer",
+    "producer_entry": "--isolated-once-high-low-cage-producer",
+    "diagnostic_operation": "production_weapon_high_low_cage_diagnostic",
+    "diagnostic_entry": "--isolated-once-high-low-cage",
+    "producer_semantics": "independent-typed-programs-only@1",
+    "worker_replay_count": 2,
+    "replay_byte_exact": true,
+    "generated_glb_count": 3,
+    "formal_bake_performed": false,
+    "png_emitted": false,
+    "surface_bake_reuse_allowed": false,
+    "runtime_write_performed": false,
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "budgets": {
+    "max_high_triangles": 8000,
+    "max_low_triangles": 1024,
+    "max_cage_triangles": 1024,
+    "max_ray_samples": 2048,
+    "max_glb_bytes_each": 8388608,
+    "max_total_glb_bytes": 25165824,
+    "max_geometry_program_bytes_each": 1048576,
+    "max_ray_distance_m": 10.0
+  },
+  "source_hashes": {
+    "worker_module_sha256": "88a52bd884ed938a92c61cd8e415c79e2b3fbc0155086a048f35fda0d49a4a9b",
+    "integrity_source_sha256": "b1555c883f4b300e77c23834b1ad5723010a247ca9639e1514716bf847bd51c4",
+    "worker_lib_sha256": "188fa818a9bf1f03813fb4250329548714a7d37af30da9c869ba74ff9ee536c7",
+    "worker_main_sha256": "2197c9c33cb8e16a5593601ca1155717825f0f59f2c53129f0c0d5a6d0a63ecb",
+    "worker_protocol_sha256": "ff1f3a8dd3711dedac36346fd7c9138b3c2213d06b44fe48bf84db2ff4531c70"
+  },
+  "verification": {
+    "geometry_worker_cargo_check": "PASS",
+    "geometry_worker_high_low_cage_focused": "7_PASS_0_FAIL",
+    "worker_protocol_full": "4_PASS_0_FAIL",
+    "contracts_checker": "444_SCHEMAS_PASS",
+    "stage0_truth_checker": "PASS",
+    "rustfmt_check": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "truth_boundaries": {
+    "artifact_producer_source": "PASS",
+    "diagnostic_worker_source": "PASS",
+    "automatic_high_to_low_retopology": "NOT_IMPLEMENTED",
+    "automatic_low_to_cage_offset_field": "NOT_IMPLEMENTED",
+    "uv_tangent_production_binding": "NOT_IMPLEMENTED",
+    "store_durable_link": "NOT_RUN",
+    "runtime_producer": "NOT_RUN",
+    "mcp_surface": "NOT_RUN",
+    "positive_restart_fixture": "NOT_RUN",
+    "formal_high_to_low_bake": "NOT_RUN",
+    "visual_quality": "NOT_PROVEN",
+    "human_review": "NOT_RUN",
+    "engine_validation": "NOT_RUN",
+    "distribution": "NOT_RUN"
+  },
+  "limitations": [
+    "The producer compiles three caller-supplied closed GeometryProgram@2 values; it does not copy or relabel an existing GLB.",
+    "The current source slice does not derive Low retopology from High.",
+    "The current source slice does not derive a topology-correspondent Cage offset field from Low.",
+    "The diagnostic is structural and hash-bound; it emits no texture, normal map, PNG, SurfaceBake, Hero Asset or commercial-quality proof.",
+    "No public Runtime or MCP tool is exposed until dedicated artifacts and the secondary-form-approved source head can be persisted honestly."
+  ],
+  "canonical_sha256": "bb0f32ada21a698f79efc5b9d58c3c14a2bd203bb94dc53b7c8b20441d6480ef"
+}

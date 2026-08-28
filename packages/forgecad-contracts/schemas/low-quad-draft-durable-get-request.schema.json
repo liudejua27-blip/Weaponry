@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/low-quad-draft-durable-get-request.schema.json",
+  "title":"LowQuadDraftDurableGetRequest@1",
+  "description":"Closed read-only restart-safe lookup for one Runtime-owned explicit Low quad draft.",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","operation","project_id","candidate_id","candidate_state_sha256","base_version_id","link_id","link_object_sha256","source_high_artifact_id","source_high_artifact_sha256","worker_result_object_sha256","worker_result_sha256","artifact_object_sha256","artifact_sha256","readback_object_sha256","readback_sha256","idempotency_key","source_only","writer_policy","runtime_write_performed","persistent_user_data_touched","input_sha256"],
+  "properties":{
+    "schema_version":{"const":"LowQuadDraftDurableGetRequest@1"},"operation":{"const":"forgecad.production.low-quad-draft-durable-get@1"},
+    "project_id":{"$ref":"#/$defs/id"},"candidate_id":{"$ref":"#/$defs/id"},"candidate_state_sha256":{"$ref":"#/$defs/sha256"},"base_version_id":{"$ref":"#/$defs/nullable_id"},"link_id":{"$ref":"#/$defs/id"},"link_object_sha256":{"$ref":"#/$defs/sha256"},"source_high_artifact_id":{"$ref":"#/$defs/id"},"source_high_artifact_sha256":{"$ref":"#/$defs/sha256"},"worker_result_object_sha256":{"$ref":"#/$defs/sha256"},"worker_result_sha256":{"$ref":"#/$defs/sha256"},"artifact_object_sha256":{"$ref":"#/$defs/sha256"},"artifact_sha256":{"$ref":"#/$defs/sha256"},"readback_object_sha256":{"$ref":"#/$defs/sha256"},"readback_sha256":{"$ref":"#/$defs/sha256"},"idempotency_key":{"$ref":"#/$defs/id"},"source_only":{"const":true},"writer_policy":{"const":"forgecad-runtime-only-state-writer@1"},"runtime_write_performed":{"const":false},"persistent_user_data_touched":{"const":false},"input_sha256":{"$ref":"#/$defs/sha256"}
+  },
+  "$defs":{"id":{"type":"string","pattern":"^[A-Za-z0-9_.:-]{1,128}$"},"nullable_id":{"type":["string","null"],"pattern":"^[A-Za-z0-9_.:-]{1,128}$"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}
+}

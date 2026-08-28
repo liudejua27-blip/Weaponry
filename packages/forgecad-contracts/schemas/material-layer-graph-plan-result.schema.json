@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/material-layer-graph-plan-result.schema.json",
+  "title": "MaterialLayerGraphPlanResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "graph_id",
+    "graph_canonical_sha256",
+    "ordered_nodes",
+    "output_nodes",
+    "budget",
+    "execution_status",
+    "promotion_eligible",
+    "runtime_write_performed",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "MaterialLayerGraphPlanResult@1" },
+    "graph_id": { "$ref": "#/$defs/id" },
+    "graph_canonical_sha256": { "$ref": "#/$defs/sha256" },
+    "ordered_nodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id", "kind", "input_node_ids", "canonical_sha256"],
+        "properties": {
+          "node_id": { "$ref": "#/$defs/id" },
+          "kind": { "enum": ["Source", "Constant", "Anchor", "Generator", "Mask", "Filter", "Transform", "Blend", "NormalCombine", "RoughnessRemap", "Decal", "Trim", "ChannelPack", "Output"] },
+          "input_node_ids": { "type": "array", "maxItems": 4, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+          "canonical_sha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "output_nodes": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 12,
+      "propertyNames": { "enum": ["base_color", "normal", "metallic_roughness", "ao", "emissive", "clearcoat", "clearcoat_roughness", "object_id", "material_id", "part_id"] },
+      "additionalProperties": { "$ref": "#/$defs/id" }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_resolution", "max_output_bytes", "max_runtime_ms"],
+      "properties": {
+        "max_resolution": { "enum": [2048, 4096] },
+        "max_output_bytes": { "type": "integer", "minimum": 1, "maximum": 536870912 },
+        "max_runtime_ms": { "type": "integer", "minimum": 1, "maximum": 120000 }
+      }
+    },
+    "execution_status": { "const": "VALIDATED_PLAN_NOT_EVALUATED" },
+    "promotion_eligible": { "const": false },
+    "runtime_write_performed": { "const": false },
+    "canonical_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

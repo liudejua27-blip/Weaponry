@@ -1,0 +1,51 @@
+{
+  "schema_version": "ForgeCADFixedWorkerLock@1",
+  "status": "source-prototype-locked-with-glb-sibling",
+  "registered": false,
+  "worker_id": "forgecad-high-worker",
+  "worker_version": "0.1.0",
+  "operation": "forgecad.production.high-mesh-prepare@1",
+  "request_schema": "HighMeshWorkerRequest@1",
+  "artifact_schema": "HighMeshArtifact@1",
+  "detail_graph_schema": "DetailGraph@1",
+  "glb_operation": "forgecad.production.high-mesh-glb-materialize@1",
+  "glb_entry": "--isolated-once-native-high-glb",
+  "glb_request_schema": "NativeHighGlbMaterializeRequest@1",
+  "glb_result_schema": "NativeHighGlbMaterializeResult@1",
+  "algorithm": "forgecad-native-high-mesh@1|base-preserve|support-loop-arc@2|crease-metadata|detached-floater-box|no-rng-no-time-no-network",
+  "algorithm_sha256": "bf442f2d4e1a6a9a6effbfc41ed80897dd3c90f32eda20b7b585cf46e2a329ce",
+  "build_cohort_sha256": "1c0609751dacc0cf89260475ba48e693667525f8f36bd2a6d611eeb19f3d6963",
+  "source_files": [
+    {"path": "apps/high-worker/Cargo.toml", "sha256": "03faf2864c4c97331f66b9a4174c3e526dd126be3b37442ffbbad17c52597a29"},
+    {"path": "apps/high-worker/Cargo.lock", "sha256": "401a2eb74fdf94407539e4f8bdd3f818030cee5529ca580d03965755ded402b1"},
+    {"path": "apps/high-worker/src/lib.rs", "sha256": "d5a88cc24a9024b3035317591c7e25151c397af89924672dc1e7e6b8624d1f11"},
+    {"path": "apps/high-worker/src/glb.rs", "sha256": "c8f206b592017a94d0fc4bc96bf6a462e49d0685ee44a16351845d9dd07a760e"},
+    {"path": "apps/high-worker/src/main.rs", "sha256": "764710bad654a1f19885125a5d38347aee596164b014dede2dddd29d49d312be"},
+    {"path": "apps/high-worker/tests/support/mod.rs", "sha256": "f2d2915e7441166655c8f8e5ea4a35d30e3ea604683df4a7784faab6a710d1e9"},
+    {"path": "apps/high-worker/tests/transport.rs", "sha256": "bcd506df64bf77d7de11bdde0c36e8a2f5db31b7a59445a2dc49b46573eb9386"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs", "sha256": "5d4f973c6a6e78f8af8fe5559a740e06c53fa56fa97ae09843e4ef55c7a3bce9"}
+  ],
+  "durable_glb_contracts": [
+    {"path": "schemas/native-high-durable-get-request.schema.json", "schema_version": "NativeHighDurableGetRequest@1"},
+    {"path": "schemas/native-high-durable-get-result.schema.json", "schema_version": "NativeHighDurableGetResult@1"},
+    {"path": "schemas/native-high-durable-link.schema.json", "schema_version": "NativeHighDurableLink@1"},
+    {"path": "schemas/native-high-durable-prepare-request.schema.json", "schema_version": "NativeHighDurablePrepareRequest@1"},
+    {"path": "schemas/native-high-durable-prepare-result.schema.json", "schema_version": "NativeHighDurablePrepareResult@1"},
+    {"path": "schemas/native-high-glb-materialize-request.schema.json", "schema_version": "NativeHighGlbMaterializeRequest@1"},
+    {"path": "schemas/native-high-glb-materialize-result.schema.json", "schema_version": "NativeHighGlbMaterializeResult@1"}
+  ],
+  "process_policy": {
+    "transport": "stdin-stdout-json-one-shot",
+    "network": false,
+    "filesystem": false,
+    "scripts": false,
+    "runtime_sqlite_write": false,
+    "runtime_cas_write": false,
+    "candidate_write": false,
+    "stage_advance": false
+  },
+  "determinism_benchmark": "benchmarks/determinism-receipt.json",
+  "runtime_integration_gate": "PASS_SOURCE_DURABLE_RESTART_MCP_ONLY",
+  "runtime_integration_status": "source-only-pass",
+  "package_status": "pending"
+}

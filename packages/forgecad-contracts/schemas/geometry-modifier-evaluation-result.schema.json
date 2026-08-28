@@ -93,6 +93,7 @@
         "forgecad.geometry.mirror@1",
         "forgecad.geometry.array@1",
         "forgecad.geometry.bevel@1",
+        "forgecad.geometry.bevel@2",
         "forgecad.geometry.normal-policy@1"
       ]
     },

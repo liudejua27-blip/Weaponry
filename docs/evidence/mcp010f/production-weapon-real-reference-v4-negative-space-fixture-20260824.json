@@ -1,0 +1,54 @@
+{
+  "schema_version": "ForgeCADProductionWeaponNegativeSpaceV4FixtureReceipt@1",
+  "task_id": "FPS-FORM-EVIDENCE-04A-V4-NEGATIVE-SPACE",
+  "recorded_at": "2026-08-24",
+  "status": "PASS_REAL_AUTHORIZED_REFERENCE_NEGATIVE_SPACE_PARTIAL_NO_QUALITY_PROMOTION",
+  "source": {
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "width_px": 1491,
+    "height_px": 1055,
+    "proposal_file_sha256": "78bbd80429e7eb9bb16a579d315abc7b370ad5ca7fb819851e73ea2b6721e195",
+    "proposal_canonical_sha256": "864bf2134538b85e7e69aaa72980ae2ded2b8286c9f3b5c5576edf9e061abec2",
+    "overlay_sha256": "e162c2a09f5c9d4db2423fd0aa5bd1630e93f52ad3552740e856d2dc1dd737aa",
+    "matrix_sha256": "c63b2e21adb83594708eabd4c7dad5eb05e47056aec00490d562a1fe85315ddc"
+  },
+  "fixture": {
+    "test": "agentic_session::tests::production_weapon_real_reference_v4_negative_space_is_hash_bound_and_restart_safe",
+    "result": "PASS_1_OF_1",
+    "crop_count": 7,
+    "identity_view_count": 6,
+    "confirmed_negative_space_ids": [
+      "left.trigger-void",
+      "left.open-stock-void",
+      "right.open-stock-void",
+      "right.trigger-void",
+      "rear3q.trigger-void"
+    ],
+    "rejected_negative_space_ids": [
+      "rear3q.open-stock-void"
+    ],
+    "rejection_reason": "OUTSIDE_USER_CONFIRMED_OUTER_CONTOUR",
+    "temporary_cas_object_delta": 33,
+    "restart_hash_verified": true,
+    "worker_started": false,
+    "persistent_user_data_touched": false
+  },
+  "quality_boundary": {
+    "two_dimensional_negative_space_truth": "PARTIAL_5_VALID_1_REJECTED",
+    "depth_status": "UNKNOWN",
+    "candidate_match_status": "NOT_RUN",
+    "line_flow_status": "NOT_PROVEN",
+    "first_person_status": "NOT_RUN",
+    "cross_view_quality_status": "QUALITY_TARGET_NOT_MET",
+    "form_quality_v2_status": "BLOCKED",
+    "secondary_form_approved": "NOT_CREATED",
+    "visual_quality_status": "NOT_PROVEN",
+    "human_review_status": "NOT_RUN",
+    "high_low_hero_uv_bake_status": "LOCKED"
+  },
+  "limitations": [
+    "The fixture validates only user-authorized reference intake, bounded two-dimensional negative-space rows, fail-closed contradictory-row rejection, and restart-safe target readback in an ephemeral Runtime.",
+    "The rejected rear-three-quarter open-stock row was not clipped, mirrored, guessed, or promoted.",
+    "No Geometry Worker or Render Worker ran, no candidate was generated, no production stage advanced, and no visual-quality claim is supported."
+  ]
+}

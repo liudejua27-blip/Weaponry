@@ -1,0 +1,14 @@
+{
+  "schema_version": "FpsProductionFoundationProvenance@1",
+  "pack_id": "forgecad-fps-production-foundation",
+  "pack_version": "0.1.0-proposal",
+  "recorded_on": "2026-08-27",
+  "adoption_policy": "selected byte-identical CC0 source assets only; no upstream scripts, plugins, installers, weights or network runtime",
+  "source_freeze": "official release/archive or exact Git commit plus SHA-256",
+  "first_party_derivation": "semantic node and socket mapping in foundation-template.json",
+  "runtime_allowlist_changed": false,
+  "active_skill_registry_changed": false,
+  "canonical_candidate_created": false,
+  "commercial_quality": "NOT_PROVEN",
+  "removal_plan": "remove this proposal directory and its adoption receipts; no Runtime database, candidate, version, lockfile or active registry migration is required"
+}

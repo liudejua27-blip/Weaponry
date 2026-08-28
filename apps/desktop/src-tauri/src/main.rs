@@ -93,6 +93,31 @@ fn viewer_provenance_graph(
     )
 }
 
+#[tauri::command]
+fn viewer_authoring_mesh(
+    project_id: String,
+    candidate_id: String,
+    artifact_id: String,
+    artifact_readback_sha256: String,
+    program_sha256: String,
+    operator_catalog_sha256: String,
+    readback_config_sha256: String,
+    authoring_node_id: String,
+    part_id: String,
+) -> serde_json::Value {
+    viewer::read_authoring_mesh(
+        &project_id,
+        &candidate_id,
+        &artifact_id,
+        &artifact_readback_sha256,
+        &program_sha256,
+        &operator_catalog_sha256,
+        &readback_config_sha256,
+        &authoring_node_id,
+        &part_id,
+    )
+}
+
 fn main() {
     if std::env::args().any(|argument| argument == "--build-identity") {
         println!(
@@ -126,7 +151,8 @@ fn main() {
             viewer_mechanical_animation_inventory,
             viewer_mechanical_animation_clip,
             viewer_mechanical_animation_frame_preview,
-            viewer_provenance_graph
+            viewer_provenance_graph,
+            viewer_authoring_mesh
         ])
         .run(tauri::generate_context!())
         .expect("failed to run ForgeCAD Runtime Viewer");

@@ -1,0 +1,269 @@
+{
+  "schema_version": "ProductionWeaponConfirmedFormArtFixtureReceipt@1",
+  "task_id": "FPS-FORM-REVIEW-CONFIRMATION-04C",
+  "recorded_at": "2026-08-24T00:00:00Z",
+  "status": "PASS_CROP_AWARE_CAMERA_CALIBRATED_DURABLE_FORM_ART_WITH_QUALITY_TARGET_NOT_MET",
+  "source_reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+  "review_proposal_file_sha256": "78bbd80429e7eb9bb16a579d315abc7b370ad5ca7fb819851e73ea2b6721e195",
+  "review_proposal_canonical_sha256": "864bf2134538b85e7e69aaa72980ae2ded2b8286c9f3b5c5576edf9e061abec2",
+  "review_confirmation_file_sha256": "5f01e6ed039f7870f0f285092995c2efc6b83895742a1b848bd00e21c9d21c37",
+  "candidate_id": "candidate-f02ebb792ec94e869aa6c9713b222b16",
+  "candidate_state_sha256": "c392d87c73ab7c5fbba4f9dbb9eb9dabea913c025bb7b46fc1e30648561dc071",
+  "artifact_sha256": "c7a289e99c5f73e7c482dc65e69041570f0cf679777a7d4049213a96198653bb",
+  "operator_catalog_sha256": "860f24812e651cbb7cded0d4058a354aabf231fc0ace73e4a4b06f6408a485d6",
+  "identity_view_kinds": [
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "rear-three-quarter"
+  ],
+  "reviewed_line_flow_count": 25,
+  "reviewed_negative_space_count": 6,
+  "depth_status": "UNKNOWN",
+  "render_set_count": 6,
+  "aov_pass_count": 54,
+  "crop_aware_camera_fit": {
+    "status": "PASS_SIX_VIEW_BOUNDED_SEARCH_WITH_AXIS_PRESERVED",
+    "camera_lock_canonical_sha256": "5a687ecc271ef00380e4cb2bf06c6933f4a29ec84c255c38eb3d584cc16e24f9",
+    "views": {
+      "front": {"status":"ready","camera_hash":"51c428a033c71dcb04d3fac8312a1258d4cc1856f85982b7ce07dca9d6807c41","silhouette_iou":0.438291832773,"boundary_f1_4px":0.080265677228,"bbox_edge_error":0.232421875,"centroid_error":0.215294083358},
+      "back": {"status":"no_improvement","camera_hash":"a2cdb5075527633272238af5626f05ee2235a94e25c519588f40c14e978bbed2","silhouette_iou":0.432820760766,"boundary_f1_4px":0.027501909855,"bbox_edge_error":0.232421875,"centroid_error":0.216011315652},
+      "left": {"status":"ready","camera_hash":"cd4cad426c4d55d2fa1f54a30eaf2c9593c24f138dadaa08802aecc51c2ed100","silhouette_iou":0.215828456,"boundary_f1_4px":0.11496646938,"bbox_edge_error":0.21484375,"centroid_error":0.098765638738},
+      "right": {"status":"ready","camera_hash":"56cd34ce087562819f2ab7c4faea301094a263ac7390ac16121ffb05f1f9a79a","silhouette_iou":0.213313846261,"boundary_f1_4px":0.172884286174,"bbox_edge_error":0.203125,"centroid_error":0.098838973221},
+      "top": {"status":"ready","camera_hash":"c19c4db8d38608cb3b8f51022a660f11adfb9968f7c5be5e11a63fed5e9f824d","silhouette_iou":0.426937802683,"boundary_f1_4px":0.055165672465,"bbox_edge_error":0.091796875,"centroid_error":0.015054894759},
+      "rear-three-quarter": {"status":"ready","camera_hash":"ed3df01a416bb663060a44f30ff4b3855cdf7de661e95a8b4504174b15019a7e","silhouette_iou":0.277923534028,"boundary_f1_4px":0.056581808597,"bbox_edge_error":0.375,"centroid_error":0.103805899546}
+    }
+  },
+  "directional_bbox_diagnostics": {
+    "front": {"target_bbox_px":[179,8,336,506],"model_bbox_px":[69,0,393,387],"model_minus_target_size_delta_px":[167,-111]},
+    "back": {"target_bbox_px":[178,11,332,505],"model_bbox_px":[119,0,444,386],"model_minus_target_size_delta_px":[171,-108]},
+    "left": {"target_bbox_px":[3,208,508,304],"model_bbox_px":[49,233,510,414],"model_minus_target_size_delta_px":[-44,85]},
+    "right": {"target_bbox_px":[4,203,506,305],"model_bbox_px":[1,227,462,409],"model_minus_target_size_delta_px":[-41,80]},
+    "top": {"target_bbox_px":[4,233,507,285],"model_bbox_px":[30,209,490,332],"model_minus_target_size_delta_px":[-43,71]},
+    "rear-three-quarter": {"target_bbox_px":[15,46,495,501],"model_bbox_px":[89,148,460,309],"model_minus_target_size_delta_px":[-109,-294]}
+  },
+  "bounded_parameter_trial": {
+    "parameter_id": "receiver-envelope-height",
+    "value": 0.9,
+    "outer_silhouette_acceptance_policy": "all_views_non_regressing_and_at_least_one_strictly_improved",
+    "negative_space_acceptance_policy": "left_right_rear3q_all_open_stock_metrics_non_regressing_and_at_least_one_strictly_improved",
+    "acceptance_policy": "outer_silhouette_accepted_and_negative_space_accepted",
+    "accepted": false,
+    "accepted_for_outer_silhouette": false,
+    "accepted_for_negative_space": false,
+    "all_views_non_regressing": false,
+    "any_view_improved": false,
+    "all_open_stock_void_metrics_non_regressing": true,
+    "any_open_stock_void_metric_improved": false,
+    "trial_minus_baseline_silhouette_iou": {
+      "front": 0.0,
+      "back": 0.0,
+      "left": -0.005793775531,
+      "right": -0.003489678528,
+      "top": 0.0,
+      "rear-three-quarter": -0.000874537504
+    },
+    "candidate_confirmed": false,
+    "production_stage_advanced": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "second_bounded_parameter_trial": {
+    "parameter_id": "receiver-envelope-width",
+    "value": 0.9,
+    "acceptance_policy": "all_views_non_regressing_and_at_least_one_strictly_improved",
+    "accepted": false,
+    "all_views_non_regressing": false,
+    "any_view_improved": true,
+    "trial_minus_baseline_silhouette_iou": {
+      "front": 0.0,
+      "back": 0.0,
+      "left": 0.0,
+      "right": 0.0,
+      "top": 0.002570143137,
+      "rear-three-quarter": -0.001420189109
+    },
+    "candidate_confirmed": false,
+    "production_stage_advanced": false,
+    "version_created": false,
+    "export_performed": false,
+    "runtime_test_passed": true,
+    "runtime_test_duration_seconds": 366.35
+  },
+  "third_bounded_parameter_trial": {
+    "parameter_id": "stock-open-frame-clearance",
+    "value": 0.22,
+    "acceptance_policy": "all_views_non_regressing_and_at_least_one_strictly_improved",
+    "accepted": false,
+    "all_views_non_regressing": false,
+    "any_view_improved": false,
+    "trial_minus_baseline_silhouette_iou": {
+      "front": 0.0,
+      "back": 0.0,
+      "left": -0.000293201195,
+      "right": -0.000205655818,
+      "top": 0.0,
+      "rear-three-quarter": -0.000426056732
+    },
+    "open_stock_void_metrics": {
+      "left": {
+        "structure_id": "left.open-stock-void",
+        "baseline": {"iou_milli":46,"boundary_f1_milli":236,"area_ratio_milli":52,"centroid_error_milli":4656,"sealed":false,"missing":false},
+        "trial": {"iou_milli":46,"boundary_f1_milli":236,"area_ratio_milli":52,"centroid_error_milli":4656,"sealed":false,"missing":false},
+        "all_metrics_non_regressing": true,
+        "any_metric_improved": false
+      },
+      "right": {
+        "structure_id": "right.open-stock-void",
+        "baseline": {"iou_milli":34,"boundary_f1_milli":428,"area_ratio_milli":41,"centroid_error_milli":2306,"sealed":false,"missing":false},
+        "trial": {"iou_milli":34,"boundary_f1_milli":428,"area_ratio_milli":41,"centroid_error_milli":2306,"sealed":false,"missing":false},
+        "all_metrics_non_regressing": true,
+        "any_metric_improved": false
+      },
+      "rear-three-quarter": {
+        "structure_id": "rear3q.open-stock-void",
+        "baseline": {"iou_milli":975,"boundary_f1_milli":1000,"area_ratio_milli":1018,"centroid_error_milli":27,"sealed":false,"missing":false},
+        "trial": {"iou_milli":975,"boundary_f1_milli":1000,"area_ratio_milli":1018,"centroid_error_milli":27,"sealed":false,"missing":false},
+        "all_metrics_non_regressing": true,
+        "any_metric_improved": false
+      }
+    },
+    "depth_fields_modified": false,
+    "rear_cap_modified": false,
+    "candidate_confirmed": false,
+    "production_stage_advanced": false,
+    "version_created": false,
+    "export_performed": false,
+    "runtime_test_passed": true,
+    "runtime_test_duration_seconds": 365.84
+  },
+  "fourth_bounded_parameter_trial": {
+    "parameter_id": "stock-open-frame-angle",
+    "value": 0.12,
+    "baseline_value": 0.16,
+    "outer_silhouette_acceptance_policy": "all_views_non_regressing_and_at_least_one_strictly_improved",
+    "negative_space_acceptance_policy": "left_right_rear3q_all_open_stock_metrics_non_regressing_and_at_least_one_strictly_improved",
+    "acceptance_policy": "outer_silhouette_accepted_and_negative_space_accepted",
+    "accepted": false,
+    "accepted_for_outer_silhouette": false,
+    "accepted_for_negative_space": false,
+    "all_views_non_regressing": false,
+    "any_view_improved": false,
+    "all_open_stock_void_metrics_non_regressing": true,
+    "any_open_stock_void_metric_improved": false,
+    "trial_minus_baseline_silhouette_iou": {
+      "front": 0.0,
+      "back": 0.0,
+      "left": -0.000011178188,
+      "right": -0.00000371142,
+      "top": 0.0,
+      "rear-three-quarter": -0.000089696154
+    },
+    "open_stock_void_metrics": {
+      "left": {
+        "structure_id": "left.open-stock-void",
+        "baseline": {"iou_milli":46,"boundary_f1_milli":236,"area_ratio_milli":52,"centroid_error_milli":4656,"sealed":false,"missing":false},
+        "trial": {"iou_milli":46,"boundary_f1_milli":236,"area_ratio_milli":52,"centroid_error_milli":4656,"sealed":false,"missing":false},
+        "all_metrics_non_regressing": true,
+        "any_metric_improved": false
+      },
+      "right": {
+        "structure_id": "right.open-stock-void",
+        "baseline": {"iou_milli":34,"boundary_f1_milli":428,"area_ratio_milli":41,"centroid_error_milli":2306,"sealed":false,"missing":false},
+        "trial": {"iou_milli":34,"boundary_f1_milli":428,"area_ratio_milli":41,"centroid_error_milli":2306,"sealed":false,"missing":false},
+        "all_metrics_non_regressing": true,
+        "any_metric_improved": false
+      },
+      "rear-three-quarter": {
+        "structure_id": "rear3q.open-stock-void",
+        "baseline": {"iou_milli":975,"boundary_f1_milli":1000,"area_ratio_milli":1018,"centroid_error_milli":27,"sealed":false,"missing":false},
+        "trial": {"iou_milli":975,"boundary_f1_milli":1000,"area_ratio_milli":1018,"centroid_error_milli":27,"sealed":false,"missing":false},
+        "all_metrics_non_regressing": true,
+        "any_metric_improved": false
+      }
+    },
+    "depth_fields_modified": false,
+    "rear_cap_modified": false,
+    "candidate_confirmed": false,
+    "production_stage_advanced": false,
+    "version_created": false,
+    "export_performed": false,
+    "runtime_test_passed": true,
+    "runtime_test_duration_seconds": 368.96
+  },
+  "form_evidence_receipt_object_sha256": "773bf0328da31009880251a1042ee862e1212c7accce5412b6c4e178cc10c40f",
+  "form_evidence_canonical_sha256": "cfd88b019a9ab3c3426b5e65c3907d2aaeb3bcf0f841cd1e4b561db9ff855969",
+  "form_art_receipt_object_sha256": "004a29f3f672db8544a00b2962a91068d940de42dcf7dce56a1d9ff2e0d785a7",
+  "form_art_canonical_sha256": "ec2c9972d37dcabf3936897de508bec936a89936f6b60266053444ef72a9b240",
+  "form_art_quality_status": "NOT_PROVEN",
+  "form_art_target_observation_diagnostics": [
+    {"view_kind":"front","negative_space_status":"not-applicable","negative_space_row_count":0,"line_flow_status":"inferred","line_flow_row_count":2,"reason_code":"LINE_FLOW_NOT_OBSERVED_OR_NOT_APPLICABLE"},
+    {"view_kind":"back","negative_space_status":"not-applicable","negative_space_row_count":0,"line_flow_status":"inferred","line_flow_row_count":1,"reason_code":"LINE_FLOW_NOT_OBSERVED_OR_NOT_APPLICABLE"},
+    {"view_kind":"left","negative_space_status":"unknown","negative_space_row_count":2,"line_flow_status":"unknown","line_flow_row_count":6,"reason_code":"NEGATIVE_SPACE_NOT_OBSERVED_OR_NOT_APPLICABLE"},
+    {"view_kind":"right","negative_space_status":"observed","negative_space_row_count":2,"line_flow_status":"inferred","line_flow_row_count":6,"reason_code":"NEGATIVE_SPACE_THRESHOLD_OR_BINDING_FAILED"},
+    {"view_kind":"top","negative_space_status":"not-applicable","negative_space_row_count":0,"line_flow_status":"inferred","line_flow_row_count":4,"reason_code":"LINE_FLOW_NOT_OBSERVED_OR_NOT_APPLICABLE"},
+    {"view_kind":"rear-three-quarter","negative_space_status":"observed","negative_space_row_count":2,"line_flow_status":"inferred","line_flow_row_count":6,"reason_code":"NEGATIVE_SPACE_THRESHOLD_OR_BINDING_FAILED"}
+  ],
+  "cross_view_evidence_object_sha256": "800f130544fcd17af9bbf72d5f4947fdbf89533d0fb63f6469893c41403c42b9",
+  "cross_view_aggregate_status": "QUALITY_TARGET_NOT_MET",
+  "cross_view_hard_gate_passed": false,
+  "cross_view_non_regressing": true,
+  "cross_view_strict_improvement": false,
+  "cross_view_failed_view_count": 6,
+  "form_quality_v2_status": "PREFLIGHT_BLOCKED_ZERO_WRITE",
+  "form_quality_v2_preflight_readiness_sha256": "e0e8cd6717e5fcdd0b9709e6df6814a6e14dbba11718ad170b96716608d33f5f",
+  "form_quality_v2_blocking_reasons": [
+    "cross_view_evidence:CROSS_VIEW_EVIDENCE_BLOCKED",
+    "form_art_target_observation:FORM_ART_TARGET_OBSERVATION_BLOCKED"
+  ],
+  "form_quality_v2_preflight_restart_hash_verified": true,
+  "same_candidate_replay_zero_new_objects": true,
+  "form_evidence_restart_hash_verified": true,
+  "form_art_restart_hash_verified": true,
+  "cross_view_restart_hash_verified": true,
+  "current_stage_head": "camera-calibrated",
+  "secondary_form_approved": "NOT_CREATED",
+  "candidate_confirmed": false,
+  "version_created": false,
+  "export_performed": false,
+  "human_visual_review_status": "NOT_RUN",
+  "runtime_test": {
+    "name": "production_weapon_form_evidence_real_user_weapon_d1_is_durable_replay_safe_and_coverage_blocked",
+    "passed": 1,
+    "failed": 0,
+    "duration_seconds": 368.96
+  },
+  "part_id_audit_supplemental": {
+    "task_id": "FPS-FORM-PART-ID-AUDIT-04F",
+    "source_receipt_path": "docs/evidence/mcp010f/production-weapon-form-part-id-audit-supplemental-20260824.json",
+    "status": "BLOCKED_OWNER_BINDING",
+    "owner_part_id": "rear-stock",
+    "all_open_stock_owner_bindings_ready": false,
+    "any_open_stock_owner_mask_changed": true,
+    "diagnostic_only": true,
+    "form_art_canonical_unchanged": true,
+    "promotable": false,
+    "depth_status": "UNKNOWN",
+    "left_owner_centroid_delta_milli_px": [-310838, 26745],
+    "right_owner_centroid_delta_milli_px": [310123, 20175],
+    "rear_three_quarter_owner_centroid_delta_milli_px": [-15544, -142517],
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "limitations": [
+    "User confirmation establishes target truth but does not make candidate line-flow or negative-space metrics pass.",
+    "Crop-aware target projection and bounded CameraCalibration@2 fitting materially improve comparison alignment, but all six views remain below the visual thresholds.",
+    "The receiver-envelope-height=0.90 trial regressed left, right, and rear-three-quarter silhouette IoU, so the correction was rejected and the baseline was retained.",
+    "The receiver-envelope-width=0.90 trial improved top silhouette IoU by 0.002570143137 but regressed rear-three-quarter by 0.001420189109, so it was also rejected and the baseline was retained.",
+    "The stock-open-frame-clearance=0.22 m trial preserved all depth fields and the rear cap, but improved no view and regressed left, right, and rear-three-quarter silhouette IoU; it was rejected and the baseline was retained.",
+    "The frozen-camera negative-space evaluator found the stock-open-frame-clearance=0.22 m trial metrically identical to baseline for left, right, and rear-three-quarter open-stock voids; it therefore provided no strict negative-space improvement and was rejected.",
+    "The stock-open-frame-angle=0.12 rad trial also left all three open-stock void metric rows unchanged while slightly regressing left, right, and rear-three-quarter outer silhouette IoU; it was rejected.",
+    "The exact Part-ID supplemental audit proves that the stock mutator changed the rear-stock mask in left, right, and rear-three-quarter, but every reviewed open-stock region is spatially unbound from that owner. Left and right are displaced by roughly 310 pixels horizontally and rear-three-quarter is displaced by roughly 143 pixels vertically. No further stock parameter trial is valid until the reviewed-region to Part-ID mapping is repaired without rewriting user-confirmed contour truth.",
+    "The test uses one exact candidate for FormArt and CrossView; it does not create a repaired candidate.",
+    "No visual, human, stage-promotion, confirmation, version, export, High/Low, bake, or 360-degree pass is claimed."
+  ]
+}

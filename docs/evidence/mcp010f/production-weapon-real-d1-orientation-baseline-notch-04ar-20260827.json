@@ -1,0 +1,106 @@
+{
+  "schema_version": "ForgeCADRealD1OrientationBaselineNotchReceipt@1",
+  "task_id": "FPS-FORM-04AR",
+  "recorded_on": "2026-08-27",
+  "route_changed": false,
+  "user_authority": {
+    "approved": true,
+    "rear_three_quarter_reference_rotation_degrees": 0,
+    "subject_screen_order": "stock-left-muzzle-right",
+    "upright": true,
+    "runtime_derived_camera_orbit_degrees": 180,
+    "camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb"
+  },
+  "source_build": {
+    "real_d1_execution_build_cohort_sha256": "55c50eb6877785017b4f6b2c09c3c7994e40fe137543c7730140f1b15b876e1f",
+    "runtime_mcp_geometry_render_same_cohort": true,
+    "cargo_check_runtime_mcp": "PASS",
+    "build_four_components": "PASS",
+    "git_diff_check": "PASS",
+    "post_execution_contract_sync_build_cohort_sha256": "07c53f8c72bf960d1d1572fd6603453d9fb0faf2715872ae1d84df0f386797ca",
+    "post_execution_contract_check": "PASS_538_SCHEMAS",
+    "post_execution_four_component_build_identity": "PASS",
+    "real_d1_rerun_after_contract_sync": false
+  },
+  "real_d1": {
+    "session_id": "fps-form-04a-session",
+    "project_id": "project-318e4de6aa4d4f33b2f740988fed6fa1",
+    "source_candidate_id": "candidate-8b35615c93e34775a7ca0d5418272adb",
+    "source_candidate_state_sha256": "47f7d2117a88beabc38d4cb123e694dbc425608a8aa43a5af40d10040c82ea67",
+    "source_artifact_sha256": "fa5d81fd9d219eaf85f7bb9094adb7d89338b3395f6263443b1159918418368e",
+    "pre_write_backup_created": true,
+    "database_integrity_after_restart": "ok"
+  },
+  "registration_lineage": {
+    "registration_lineage_id": "fps-form-04a-camera-lineage-v2",
+    "canonical_sha256": "fa12f0bfa40d2a2b8b37832ad0025dd3d4e9ab97a1d56ccf09e9e22115e9fe65",
+    "receipt_object_sha256": "b749b2e0e5f1988375bc6d450847be95dbc8caf18c85c8a5ebce0b7e5d85a4d4",
+    "approval_receipt_object_sha256": "72ce5e40854d0699df656f18c69a44e08ffc86a7db82ed772fd157ddd91c6321",
+    "registered_rig_v2_id": "fps-form-04a-registered-rig-v2",
+    "registered_rig_v2_canonical_sha256": "a56aab1322dbbc74827d090671473d055c2039dddf55f853a837e0b9e1d7fdcb",
+    "promotable": true,
+    "restart_hash_verified": true
+  },
+  "fresh_baseline": {
+    "baseline_id": "fps-form-04a-fresh-baseline-55c50e-v1",
+    "canonical_sha256": "84646e83013ffc39d69de1ac9002b84630cecbe6d55c8ba9a680b523ffe2c6e4",
+    "receipt_object_sha256": "513469371a5fac62ff2f39dc71dfa90f1c213475f141876f8449d873f38ce4e1",
+    "view_count": 6,
+    "aov_count_per_view": 9,
+    "rear_three_quarter_camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb",
+    "runtime_build_cohort_sha256": "55c50eb6877785017b4f6b2c09c3c7994e40fe137543c7730140f1b15b876e1f",
+    "restart_hash_verified": true,
+    "quality_status": "NOT_PROVEN",
+    "promotion_eligible": false
+  },
+  "repair": {
+    "schema_version": "AuthoringMeshOpenFrameNotch@1",
+    "operation": "open_frame_notch",
+    "source_node_id": "rear-stock",
+    "part_id": "rear-stock",
+    "opening_width_milli": 620,
+    "opening_height_milli": 680,
+    "typed_edit_canonical_sha256": "c79797c2575621d755147eb36c825ecf0f3399b8ca327847573f8792b283a2da",
+    "request_input_sha256": "92879ed187a70da60d8536b3e3e2e4c23ff395b140a8c7621260ca6483295e0e",
+    "child_revision_id": "amrev-57fa1a9f99b1478280f726076d4b5ad99a7e4ff635282393f4b4a931",
+    "child_revision_sha256": "ae514e51a2f7900e68584e50df8ba730e69ec2afb10714ef08820c7a1c64d10a",
+    "child_revision_object_sha256": "0a1002bdefd853bd1819cc9ae4c02608130c536116cd08abee543e91029d7463",
+    "derived_candidate_id": "candidate-91271488624940c194324793fc3fdc8b",
+    "derived_candidate_state_sha256": "69721c9368d796f47f416ec7cc8c863bca17b2aa9def8c48826997110a360106",
+    "derived_artifact_sha256": "f5ca3b2ffbccbbd395604a63c1b0e152df81dd401b695ecfcf567e435513d77c",
+    "derived_artifact_readback_sha256": "5398e00dfc96d346fbb3b3aa1fc26147f0a936ebf9ffab2dd452cc0ca2078ef0",
+    "triangle_count": 1900
+  },
+  "six_view_gate": {
+    "cross_view_bundle_sha256": "4b1e0e794c22c2fd74fa920d989e13602cee13f227978a6d472439d60be178ab",
+    "proposal_form_art_receipt_object_sha256": "6a83b7d42dd81ba80108c6e890a7849db9e2416dd4e5a4b27e57c6b30b14b880",
+    "proposal_form_art_canonical_sha256": "e809be52eb4f90bb0883d6b3ec9293242cd6549a1276e8f60890b27414162f56",
+    "source_camera_evidence_kind": "fresh-same-cohort-baseline-rig-v2",
+    "store_readback_verified": true,
+    "part_id_all_views_observed": true,
+    "negative_space_all_views_resolved": false,
+    "line_flow_all_views_resolved": false,
+    "strict_owner_void_all_views_passed": false,
+    "proposal_form_art_evidence_ready": false,
+    "proposal_form_art_status": "BLOCKED_PROPOSAL_FORM_ART_EVIDENCE",
+    "secondary_gate_status": "NOT_IMPROVED",
+    "proposal_status": "PREPARED_CHILD_REVISION_REJECTED_BY_SIX_VIEW_REGRESSION"
+  },
+  "visual_artifacts": {
+    "baseline_rear_three_quarter_beauty_sha256": "1561fbc3b4aab31cb4a983f80b277599d0c44dc7118477a3d1e67a38f507ae8d",
+    "proposal_rear_three_quarter_beauty_sha256": "632980f7ebaba038d74617153b2b912c9913d0dbe4f1d4af0c203b91a79e2e7b",
+    "proposal_rear_three_quarter_silhouette_sha256": "0b145e1e5e65213974b4e617518ebb237c252475a6325e0fb0fa0fff94c95ddc",
+    "proposal_rear_three_quarter_part_id_sha256": "459c4041550d2410ce8b0ca7cd8bcf3bc364cec0d3893dfeb3fa27043a635fc1"
+  },
+  "final_state": {
+    "stage": "camera-calibrated",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "secondary_form_approved": "NOT_CREATED",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "commercial_quality": "NOT_PROVEN",
+    "form_quality_v2_fresh_baseline_adapter": "BLOCKED_REQUIRED"
+  },
+  "next_atomic_action": "Implement the closed fresh-baseline-to-FormQualityV2 adapter before any further visual promotion; then author one new bounded rear-stock shape solution from the failed owner and line-flow evidence. Do not advance High and do not run another size-only notch sweep."
+}

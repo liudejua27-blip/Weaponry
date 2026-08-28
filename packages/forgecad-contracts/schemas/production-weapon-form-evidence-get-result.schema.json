@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-evidence-get-result.schema.json",
+  "title": "ProductionWeaponFormEvidenceGetResult@1",
+  "description": "Read-only restart-hash-verified result for ProductionWeaponFormEvidence@1. It never advances a stage or performs a write.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "form_evidence", "replayed", "runtime_write", "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed", "restart_hash_verified"],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormEvidenceGetResult@1"},
+    "form_evidence": {"$ref": "https://forgecad.local/contracts/production-weapon-form-evidence.schema.json"},
+    "replayed": {"type": "boolean"},
+    "runtime_write": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "restart_hash_verified": {"const": true}
+  }
+}

@@ -1,8 +1,39 @@
 # ForgeCAD Agentic Design Runtime 重规划
 
+> 2026-08-27 `FPS-FORM-04AV`：Agentic 编排现可调用 Runtime-owned 只读 `production_weapon_owner_reviewed_void_calibration_get`，但不得自行提交 mask/transform/camera 或改写 projection。投影将 calibration eligible 与 strict owner-void PASS 分开：前者只允许一个 bounded repair draft，后者与六视图/FormArt/用户 secondary approval 仍决定是否能离开 Form。当前 source/compile PASS，real-D1 projection 未运行，所以 Agentic Runtime 不得推进 Stage 或触发 High→Low→UV→Bake。
+
+> 2026-08-26 现行 source：**527 schemas / 115 read + 87 write = 202 tools**。真实 D1 已通过 Runtime-owned bounded stable-ID vertex move 形成派生候选与六视图 replay，但缺 fresh proposal-side FormArt owner evidence，尚未成为 secondary approval；AuthoringMesh/High/Low/UV/Bake/Material/FPS/Engine 仍未组成商业单资产 orchestrator 或视觉 PASS。
+
+> 商业武器 Agentic 编排必须遵循 `Form → AuthoringMesh → High → Low → UV → Bake → Material → FPS → Engine → Human`，并把每个自动算法输出保持为可拒绝 draft。实现蓝图见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。
+
+> 2026-08-26 商业 Goal 约束：Agentic Runtime 的价值是让 Codex 观察同一资产、选择一个可解释的高影响修复、生成 typed intent、比较前后证据并等待用户批准；它不是自动给自己打分或批量堆细节。最终编排对象是 `HeroSourceAsset + FpsPresentationPackage + EngineDeliveryPackage`，任何 source test/critic score 都不能替代真实资产、引擎和独立艺术家门。
+
+> 2026-08-26 source synchronization: current public surface is **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 MCP tools**. Low quad durable now reaches Runtime/Store/MCP but remains candidate-bound with exact provenance, `DRAFT_UNREVIEWED`, structural-only and unpromotable. Hero UV `hero_uv_durable_get/prepare` now reaches Store→Runtime→MCP; real prepare→replay→Runtime drop/reopen→get is **1/1 PASS**, with four Hero CAS roots linked/GC. This is structural/source evidence only, not artist-authored unwrap, visual, human, engine, commercial or packaged acceptance; Stage=`camera-calibrated`, visual=`QUALITY_TARGET_NOT_MET`, `FPS-HIGH-05=NOT_PASSED`, human/engine/distribution=`NOT_RUN`, HQ360=`BLOCKED_REFERENCE_COVERAGE`, and no Stage/confirm/version/export gate advances. Render Core raster attribution is not yet bound into the current Runtime Form diagnostic. Evidence: `docs/evidence/mcp010f/commercial-weapon-hero-uv-durable-restart-source-gate-20260826.json`.
+
+> 2026-08-25 最新投影口径：Native High 已通过公共 MCP source/focused Gate 与同 cohort Runtime durable restart fixture **1/1**；Agentic 只能将它显示为 `PASS_SOURCE_DURABLE_RESTART_MCP / FPS-HIGH-05=NOT_PASSED`。proposal 仍未注册，packaged/candidate visual/human/engine/distribution 未运行，不能自行激活或推进 Stage。
+
+> 2026-08-25 商业质量边界：Agentic observe/critic/repair 负责提出、比较和记录艺术决策，不能自我授予 `PASS_HUMAN_ART_REVIEW`，也不能用更多轮次跨越缺失的 AuthoringMesh、High/Low/Cage、Hero UV、diagnostic bake、商业引擎或独立人审。生产链和 Gate 以 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md` 为准。
+
+## 商业级 FPS 资产 Gate 映射（Agentic 只能编排，不能自我放行）
+
+Agentic loop 的 `Observe → Plan → Act → Inspect → Render → Evaluate → Checkpoint` 只是证据编排。商业 Hero Weapon 仍须按下表顺序由 Runtime/Worker 和独立评审共同闭合；critic、Codex typed review、Viewer 或更多迭代不得把 `NOT_RUN` 改写为 PASS。
+
+| Agentic stage | 必须产出的商业证据 | 当前真实差距 |
+|---|---|---|
+| Brief / design language | `WeaponArtBrief`、风格支柱、识别标志、material hierarchy、预算和授权/IP边界 | target/missing；没有独立 Art Direction receipt |
+| Silhouette / primary | 多视图 CameraLock、比例、negative space、landmark、primary form non-regression | Stage=`camera-calibrated`；CrossView=`QUALITY_TARGET_NOT_MET`，`secondary-form-approved=NOT_CREATED`，depth=`UNKNOWN` |
+| Secondary / tertiary | 二三级曲面节奏、panel/vent/groove/seam、倒角密度、高光连续性、可追溯 Part/source map | source Operators 不是商业美术接受；secondary/tertiary `NOT_PROVEN`，不可用细节覆盖形体失败 |
+| Authoring topology | original/evaluated 分离、quad/loop/ring/crease/edge flow、局部可编辑性和 stable IDs | split/collapse/dissolve durable/restart `3/3 PASS` 仍是 source structural slice；general correspondence/evaluated retarget/editor `NOT_PROVEN` |
+| High/Low/UV/Cage/Bake | `HighMeshArtifact`/`DetailGraph`、artist-authored Low、Hero UV、对应 cage、无 miss/fallback/cross-part 的 8-map bake | Native High source durable PASS但质量未过；Low 为 candidate-bound exact provenance 的 explicit quad draft（六个 Low CAS roots）；Hero UV public durable replay/drop/reopen/get **1/1 PASS**（四个 Hero UV CAS roots），两者仍 structural/source。Formal High internal materializer 与 Cage/Bake Worker/七记录 Store/MCP seam 仅 source/compile/focused，完整 positive restart/public surface/current-D1 receipt 缺失，new prepare 零写返回 `PRODUCTION_WEAPON_HIGH_LOW_BAKE_PRODUCER_UNAVAILABLE` |
+| Material Layer / PBR | Layer/Mask/Generator/Wear/Microdetail、roughness hierarchy、通道/色彩空间/provenance，多视图材质证据 | 当前 PBR/embedded texture 只为 structural/consumer evidence；fixed-formula preview，commercial PBR `NOT_PROVEN` |
+| FPS/world + engine/performance | first-person hip/ADS/inspect/equip/reload/recoil、third-person/world model、socket/readability、engine import、LOD/collision、frame/memory/draw-call budgets | FPS presentation、commercial engine 和性能 `NOT_RUN`；Three.js/固定 AOV 不能替代真实引擎往返 |
+| Human / export / restart | 独立 Art Director 盲审、修订批准、同 export hash 的 confirm/version/export/restart | human=`NOT_RUN`，`PASS_HUMAN_ART_REVIEW` 不存在；export/restart=`NOT_RUN`，不能由 Agentic 自评放行 |
+
+Native High 在 Agentic projection 中仍只能作为未通过的依赖显示：stable-ID/embedded GLB/当前 cohort Runtime CAS/Store/restart与公共 MCP source chain已通过，但 proposal保持`registered=false`，package/candidate quality仍未通过。Low quad draft 保持 candidate-bound exact provenance；Hero UV 已有 public durable get/prepare 与 Runtime replay receipt，但这两项仍仅为 structural/source producer，不是 artist unwrap、visual、human、engine、commercial 或 packaged PASS。任何一项都不可被 Agentic stage plan标为商业 active/PASS或解锁后续门。
+
 2026-08-17 P2 binding follow-up：RenderSet camera CAS 与 RepairIntent observation hash 已纳入 Runtime 生产/回读边界；最新 Dev.app isolated real-reference run 完成 compile/readback/render/compare/evaluate 后按严格视觉门 blocked，保留 staged-only、source unchanged、no confirm/version/export。receipt：`docs/evidence/mcp010f/real-reference-repair-intent-run-observation-cas-20260817.json`。
 
-2026-08-17 historical source/package slice：`repair_intent_run_prepare` 已把 CAS RepairIntent 校验、exact observation/reference/camera/candidate binding 和 bounded compile/readback/render/compare 连接起来；最终 Dev.app 的真实授权参考 packaged transport 已通过，但在 camera evidence gate blocked，只产 staged candidate。Repair apply/confirm、完整 orchestrator 与视觉质量门仍未完成。Fictional Energy Rifle Profile/Plan 仍为 nonfunctional source-only authoring aid。该 slice 当时工具面为 144 Schema、41 read + 33 opt-in write = 74 tools；当前机器真值为 187 schemas / 21/21 active operators / 54 read / 35 write / 89 total。Mechanical pose 单 tick/sequence 只是一条 candidate-bound Runtime read projection，不是 Agentic orchestrator、Armature/skin 或持久动画状态。
+2026-08-17 historical source/package slice：`repair_intent_run_prepare` 已把 CAS RepairIntent 校验、exact observation/reference/camera/candidate binding 和 bounded compile/readback/render/compare 连接起来；最终 Dev.app 的真实授权参考 packaged transport 已通过，但在 camera evidence gate blocked，只产 staged candidate。Repair apply/confirm、完整 orchestrator 与视觉质量门仍未完成。Fictional Energy Rifle Profile/Plan 仍为 nonfunctional source-only authoring aid。该 slice 当时工具面为 144 Schema、41 read + 33 opt-in write = 74 tools；2026-08-26 当前机器真值为 **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 tools**，499/186 仅是 2026-08-25 历史切片。Mechanical pose 单 tick/sequence 只是一条 candidate-bound Runtime read projection，不是 Agentic orchestrator、Armature/skin 或持久动画状态。
 
 版本：2026-08-13
 状态：目标架构计划；observe/plan projection、嵌套只读 projection producer/consumer conformance、durable session/checkpoint/RepairIntent prepare/readback 与 MCP010F 窄范围 Primary Form 单动作 prepare/evaluate 已实现并通过各自证据；durable/reference/DesignSpec 完整 producer、通用单动作 orchestrator、Repair 应用和完整视觉闭环仍未完成，不改变 MCP010F 的 `QUALITY_TARGET_NOT_MET` 事实
@@ -209,7 +240,7 @@ allowed: true
 
 ## 7. 文档和任务落地
 
-当前源码为 `187 Schema / 21/21 active operators / 54 read + 35 opt-in write = 89 tools`。`RenderSet@2` 已携带 Runtime-authenticated Render Worker cohort/status，Viewer 只读消费；Mechanical pose 单 tick/sequence 与 Boolean Operand Lineage 是 candidate-bound structural read projection；Subdivision artifact-lineage 另已有显式 Runtime-owned immutable CAS sidecar/Link，但仍不是跨版本 mesh-element identity。durable prepare/readback、CAS-bound RepairIntentRun 与 Primary Form 窄范围 prepare/evaluate/async-Job slice 已有各自 focused/source/real-Codex receipt；建议下一批文档/代码任务：
+当前源码为 `515 Schema / 28 operator entries / 111 read + 83 opt-in write = 194 tools`。`RenderSet@2` 已携带 Runtime-authenticated Render Worker cohort/status，Viewer 只读消费；Mechanical pose 单 tick/sequence 与 Boolean Operand Lineage 是 candidate-bound structural read projection。Low durable 有六个 linked/GC CAS roots；Hero UV durable 有四个，并完成 public replay/drop/reopen/get **1/1 PASS**。Cage/Bake public get/prepare 与七记录 Store seam 已存在，但 formal producer unavailable。上述都不等于 artist unwrap、visual、human、engine、commercial 或 packaged pass。Subdivision artifact-lineage 另已有显式 Runtime-owned immutable CAS sidecar/Link，但仍不是跨版本 mesh-element identity。durable prepare/readback、CAS-bound RepairIntentRun 与 Primary Form 窄范围 prepare/evaluate/async-Job slice 已有各自 receipt；唯一 `in_progress` 仍为 `FGC-MCP010F`，Stage/quality truth 不变且不 confirm/version/export。建议下一批文档/代码任务：
 
 1. 为 durable/reference/DesignSpec producer 增加剩余完整 producer/consumer conformance，避免字段漂移；嵌套只读 projection checker 已完成，回执见 `scripts/check_agentic_projection_receipt.py`；
 2. 将当前 Primary Form 窄范围链路抽象为通用单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator，但仍不绕过用户批准；

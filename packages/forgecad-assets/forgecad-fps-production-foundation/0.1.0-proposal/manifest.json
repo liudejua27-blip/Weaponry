@@ -1,0 +1,98 @@
+{
+  "schema_version": "FpsProductionFoundationPack@1",
+  "pack_id": "forgecad-fps-production-foundation",
+  "version": "0.1.0-proposal",
+  "publisher": "forgecad-first-party",
+  "status": "evaluation-only",
+  "runtime_active": false,
+  "purpose": "CC0 semantic weapon, modular part and first-person armature sources used to derive ForgeCAD-owned fictional FPS production templates",
+  "license_spdx": "CC0-1.0",
+  "license_text_sha256": "71ee3cb0fb0a8dd1559f42cb2abfc6b18cb0ba9b022e2705960d990aab4581db",
+  "sources": [
+    {
+      "source_id": "kenney-blaster-kit-2.1",
+      "author": "Kenney",
+      "source_url": "https://kenney.nl/assets/blaster-kit",
+      "download_url": "https://kenney.nl/media/pages/assets/blaster-kit/261d80a716-1753959510/kenney_blaster-kit_2.1.zip",
+      "revision": "2.1",
+      "retrieved_at": "2026-08-27",
+      "license_spdx": "CC0-1.0",
+      "source_archive_sha256": "91e3093e95427d59625e7e2ce2d0399b861600160fd0b4ada7714796b67cea8c",
+      "license_evidence_sha256": "bece5f4d99cca9dcf86931221a69909862ff6cc95e1735462ee678516a1063e2"
+    },
+    {
+      "source_id": "quaternius-sci-fi-modular-guns",
+      "author": "Quaternius",
+      "source_url": "https://quaternius.com/packs/scifimodularguns.html",
+      "revision": "official-drive-snapshot-2021-11",
+      "retrieved_at": "2026-08-27",
+      "license_spdx": "CC0-1.0",
+      "license_evidence_sha256": "83d8959f9fc56353ed571fbe2dc52e4bcd64508e2399501cd45ac2ce3df0bf8c"
+    },
+    {
+      "source_id": "pichuliru-flat-guns",
+      "author": "Pichuliru",
+      "source_url": "https://opengameart.org/content/cc0-flat-guns-west",
+      "revision": "official-opengameart-snapshot-2022",
+      "retrieved_at": "2026-08-27",
+      "license_spdx": "CC0-1.0",
+      "source_archives": [
+        {"name":"flat_guns_west.zip","sha256":"0e83e670f7c85a2c024887662f5f6ab584daceb5c8a38bac5a3f14a0397a1d29"},
+        {"name":"flat_guns_east.zip","sha256":"3d989ac8e9f0f1f0efe66098fc8f09f31cfadcebb1ed51260201f691946700d4"},
+        {"name":"flat_attachments.zip","sha256":"b8831bd8bb26bae1a84a4df2a8c1c3c0ad770909a5ca058a6c44497c5a62bcc1"}
+      ],
+      "license_evidence": "OpenGameArt source pages declare CC0; the normalized CC0-1.0 legal text is bundled separately"
+    },
+    {
+      "source_id": "lightning-pump-action-rifle",
+      "author": "LonesomeDucky",
+      "source_url": "https://opengameart.org/content/lightning-pump-action-rifle",
+      "download_url": "https://opengameart.org/sites/default/files/lightning_pump_action_0.zip",
+      "revision": "official-opengameart-snapshot-2025-03",
+      "retrieved_at": "2026-08-27",
+      "license_spdx": "CC0-1.0",
+      "source_archive_sha256": "b7a469de9ad14f28f2a2df357abf67f2b83217c14a13af992f456669092c1346",
+      "source_evidence": "official page states the reference-only Blend contains High and Low used for baking; admitted GLB is the Low with PBR textures and Fire/Pump animation"
+    },
+    {
+      "source_id": "wrad-arms",
+      "author": "wwwriks",
+      "source_url": "https://github.com/wwwriks/wrad-arms",
+      "revision": "f3987244176c33d2c20d4f9e139980af12684d87",
+      "retrieved_at": "2026-08-27",
+      "license_spdx": "CC0-1.0",
+      "upstream_license_git_blob": "0e259d42c996742e9e3cba14c677129b2c1b6311"
+    }
+  ],
+  "assets": [
+    {"asset_id":"kenney-blaster-a","file":"assets/kenney/blaster-a.glb","sha256":"d6d6fe0ec5baf21d7717449220799d45b95d2d663ace7b22612b255dc1a8b308","role":"silhouette-family-reference"},
+    {"asset_id":"kenney-blaster-r","file":"assets/kenney/blaster-r.glb","sha256":"ab0b5f51ecff405238727626d558414750a9946d5e255cd1dc8bf81eebe1f1e2","role":"silhouette-family-reference"},
+    {"asset_id":"quaternius-body-ar-1","file":"assets/quaternius/body-ar-1.gltf","sha256":"7d0854e5aee2453efd47cf3a80495cc96b1da8f6476a590d68488beacd86c97c","role":"modular-body-reference"},
+    {"asset_id":"quaternius-barrel-ar-1","file":"assets/quaternius/barrel-ar-1.glb","sha256":"be9309266e448a755c5c35853c82d79fc68633e9e6655f68122f93b55a3a091c","role":"modular-barrel-reference"},
+    {"asset_id":"quaternius-grip-ar-1","file":"assets/quaternius/grip-ar-1.gltf","sha256":"81e4c666a5891762012d0e76f24abfe09b0ec6fb4c508f9fbf1b67630fc33564","role":"modular-grip-reference"},
+    {"asset_id":"quaternius-magazine-ar","file":"assets/quaternius/magazine-ar.gltf","sha256":"e7cc5615a292cacec7d8a6b487b0b8f233a712e643210e622c7c846cfd3677af","role":"modular-magazine-reference"},
+    {"asset_id":"quaternius-stock-2","file":"assets/quaternius/stock-2.gltf","sha256":"e2d9d4ac7da3c9a079d6cb60d30fb22d946aa63b212df118bc803af5df3480ef","role":"modular-stock-reference"},
+    {"asset_id":"pichuliru-weapon-west","file":"assets/pichuliru/weapon-west.glb","sha256":"0d80dd2118c884172a856455968be14eadc97f041d27d52bfa75fedb708fa486","role":"rigged-weapon-semantic-source"},
+    {"asset_id":"pichuliru-weapon-east","file":"assets/pichuliru/weapon-east.glb","sha256":"8b3d3f90afbff9a699c3e2a14574ff0c5a687f1faf6dc4b51ba4a5629ea07783","role":"rigged-weapon-semantic-source"},
+    {"asset_id":"pichuliru-optic-holographic","file":"assets/pichuliru/optic-holographic.glb","sha256":"b94436754da9b7550f85c72adefb857090cb8299b3bc8d99cc339ad47f166987","role":"attachment-reference"},
+    {"asset_id":"pichuliru-optic-scope","file":"assets/pichuliru/optic-scope.glb","sha256":"a3c20e2c59273abd280f1a5ddb4f3ec104ca46fac3c06cbd2cf81664ee7cf195","role":"attachment-reference"},
+    {"asset_id":"pichuliru-muzzle-device","file":"assets/pichuliru/muzzle-device.glb","sha256":"0b7a598791ae01f212efd1df9817227b6514c52287c870bc72639dfff83897a4","role":"attachment-reference"},
+    {"asset_id":"pichuliru-foregrip","file":"assets/pichuliru/foregrip.glb","sha256":"0980af948e14a6023c2e0752bbf2cdc4ed3c57a44c21adb484b6b73322f4fbb8","role":"attachment-reference"},
+    {"asset_id":"lightning-low-pbr","file":"assets/lightning/lightning.glb","sha256":"3f84f2b0d011ebfb142de7f7d9cfa7d57a59451a815b834b4f33603256c8f911","role":"high-low-bake-pbr-animation-benchmark"},
+    {"asset_id":"wrad-arms","file":"assets/wrad/arms.glb","sha256":"580efbb0852bf0b41f82dd3e17eafec86b3d2a48f4a7acaa7e64d60e850f565d","role":"first-person-armature-source"},
+    {"asset_id":"wrad-arm-albedo-dark","file":"assets/wrad/arm-albedo-dark.png","sha256":"10683441d56b2d06d7ed0cc5cd9f9d18b216b255494007c5fe1e2271cccef5d1","role":"armature-preview-texture"},
+    {"asset_id":"wrad-arm-albedo-pale","file":"assets/wrad/arm-albedo-pale.png","sha256":"a856d5dab7d1da5b7c00faf12efd53cd41f3bf59b586679d444c341c6dc81a9d","role":"armature-preview-texture"}
+  ],
+  "admission": {
+    "allowed_now": ["offline visual study", "semantic node mapping", "socket vocabulary derivation", "blockout variation reference", "High-Low-Bake-PBR readback benchmark"],
+    "denied_now": ["Runtime candidate import", "active Skill registration", "confirm or export", "HeroSourceAsset truth", "commercial quality claim"],
+    "promotion_requires": ["typed importer", "coordinate and unit normalization", "strict GLB readback", "resource budget", "determinism receipt", "ForgeCAD-owned topology", "human review"]
+  },
+  "quality_truth": {
+    "high_low_uv_bake": "SOURCE_BENCHMARK_PRESENT_REFERENCE_ONLY_HIGH_LOW_AND_ADMITTED_BAKED_LOW",
+    "hero_pbr": "LOW_PBR_BENCHMARK_PRESENT_NOT_FORGECAD_HERO_TRUTH",
+    "fps_animation_clips": "SOURCE_FIRE_AND_PUMP_ONLY_INCOMPLETE",
+    "engine_validation": "NOT_RUN",
+    "commercial_hero_quality": "NOT_PROVEN"
+  }
+}

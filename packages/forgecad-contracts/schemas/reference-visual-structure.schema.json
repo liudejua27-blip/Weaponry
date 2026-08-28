@@ -37,6 +37,69 @@
     },
     "canonical_sha256": {"$ref": "#/$defs/sha256"}
   },
+  "allOf": [
+    {
+      "if": {
+        "required": ["review_status"],
+        "properties": {"review_status": {"const": "unreviewed"}}
+      },
+      "then": {
+        "properties": {
+          "regions": {
+            "items": {
+              "required": ["visibility"],
+              "properties": {"visibility": {"const": "unknown"}},
+              "not": {
+                "required": ["mask_operation"],
+                "properties": {"mask_operation": {"const": "subtract"}}
+              }
+            }
+          },
+          "line_flows": {
+            "items": {
+              "required": ["visibility"],
+              "properties": {"visibility": {"const": "unknown"}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["review_status", "regions"],
+        "properties": {
+          "regions": {
+            "contains": {
+              "required": ["mask_operation"],
+              "properties": {"mask_operation": {"const": "subtract"}}
+            }
+          }
+        }
+      },
+      "then": {
+        "required": ["review_status"],
+        "properties": {
+          "review_status": {"const": "user_confirmed"},
+          "regions": {
+            "items": {
+              "if": {
+                "required": ["mask_operation"],
+                "properties": {"mask_operation": {"const": "subtract"}}
+              },
+              "then": {
+                "required": ["visual_role", "visibility", "boundary_relationship"],
+                "properties": {
+                  "visual_role": {"const": "open-frame"},
+                  "visibility": {"const": "observed"},
+                  "boundary_relationship": {"const": "enclosed"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "id": {
       "type": "string",

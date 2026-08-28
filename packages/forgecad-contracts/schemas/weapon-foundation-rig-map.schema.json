@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weapon-foundation-rig-map.schema.json",
+  "title": "WeaponFoundationRigMap@1",
+  "description": "Closed semantic mapping for a foundation weapon and the first-person armature vocabulary. It records names and hashes only; rest-pose transforms, skinning and animation clips remain typed-import work.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "rig_map_id",
+    "weapon_asset_id",
+    "weapon_asset_sha256",
+    "arms_asset_id",
+    "arms_asset_sha256",
+    "coordinate_spec_sha256",
+    "socket_map_object_sha256",
+    "rig_policy",
+    "rig_type",
+    "weapon_root_candidates",
+    "part_mappings",
+    "arms_mapping",
+    "rest_pose",
+    "source_animation_clips",
+    "required_target_clips",
+    "skinning_status",
+    "materialization_status",
+    "quality_status",
+    "promotion_eligible",
+    "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponFoundationRigMap@1"},
+    "rig_map_id": {"$ref": "#/$defs/id"},
+    "weapon_asset_id": {"const": "pichuliru-weapon-west"},
+    "weapon_asset_sha256": {"$ref": "#/$defs/sha256"},
+    "arms_asset_id": {"const": "wrad-arms"},
+    "arms_asset_sha256": {"const": "580efbb0852bf0b41f82dd3e17eafec86b3d2a48f4a7acaa7e64d60e850f565d"},
+    "coordinate_spec_sha256": {"$ref": "#/$defs/sha256"},
+    "socket_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "rig_policy": {"const": "forgecad-rigid-weapon-and-first-person-armature-semantic-map@1"},
+    "rig_type": {"const": "rigid-weapon-plus-first-person-armature-reference@1"},
+    "weapon_root_candidates": {"const": ["Rifle_Assault_West.Rig", "Rifle_Assault_West"]},
+    "part_mappings": {"type": "array", "minItems": 7, "maxItems": 7, "uniqueItems": true, "items": {"$ref": "#/$defs/part_mapping"}},
+    "arms_mapping": {"$ref": "#/$defs/arms_mapping"},
+    "rest_pose": {"$ref": "#/$defs/rest_pose"},
+    "source_animation_clips": {"type": "array", "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "required_target_clips": {"const": ["idle", "equip", "fire_recoil", "reload", "inspect", "ads_in", "ads_out", "sprint", "holster"]},
+    "skinning_status": {"const": "PENDING_TYPED_MATERIALIZATION"},
+    "materialization_status": {"const": "MAPPING_ONLY"},
+    "quality_status": {"const": "structural_only"},
+    "promotion_eligible": {"const": false},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"weapon_asset_id": {"const": "pichuliru-weapon-west"}}, "required": ["weapon_asset_id"]},
+      "then": {"properties": {"weapon_asset_sha256": {"const": "0d80dd2118c884172a856455968be14eadc97f041d27d52bfa75fedb708fa486"}}}
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.: -]{0,127}$"
+    },
+    "part_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_id", "source_node_name", "target_node_name", "movement_class", "source_presence"],
+      "properties": {
+        "part_id": {"enum": ["magazine", "trigger", "selector", "bolt", "stock", "charging_handle", "magazine_release"]},
+        "source_node_name": {"$ref": "#/$defs/source_name"},
+        "target_node_name": {"$ref": "#/$defs/id"},
+        "movement_class": {"enum": ["rigid-link", "rigid-slide", "rigid-rotation", "rigid-toggle"]},
+        "source_presence": {"const": "PRESENT"}
+      }
+    },
+    "arms_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "left_grip_candidate", "right_grip_candidate", "left_wrist_ik", "right_wrist_ik", "left_arm_target", "right_arm_target"],
+      "properties": {
+        "root": {"const": "root"},
+        "left_grip_candidate": {"const": "socket.l"},
+        "right_grip_candidate": {"const": "socket.r"},
+        "left_wrist_ik": {"const": "wrist_ik.l"},
+        "right_wrist_ik": {"const": "wrist_ik.r"},
+        "left_arm_target": {"const": "arm_target.l"},
+        "right_arm_target": {"const": "arm_target.r"}
+      }
+    },
+    "rest_pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "rest_pose_sha256", "derivation_policy", "source_transform_payload"],
+      "properties": {
+        "status": {"const": "PENDING_DERIVATION"},
+        "rest_pose_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "derivation_policy": {"const": "runtime-derived-after-coordinate-normalization-and-node-validation@1"},
+        "source_transform_payload": {"const": "HASH_ONLY"}
+      }
+    }
+  }
+}

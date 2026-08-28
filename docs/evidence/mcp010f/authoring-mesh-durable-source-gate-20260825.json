@@ -1,0 +1,75 @@
+{
+  "schema_version": "ForgeCADAuthoringMeshDurableSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "slice_id": "CQ-02-AUTHORING-MESH-FOUNDATION",
+  "recorded_on": "2026-08-25",
+  "status": "PASS_PUBLIC_THREE_OBJECT_RUNTIME_RESTART_STRUCTURAL",
+  "scope": "ForgeCAD-only Runtime-owned durable AuthoringMesh foundation; structural source evidence only",
+  "architecture": {
+    "runtime_single_writer": true,
+    "mcp_database_access": false,
+    "viewer_read_only": true,
+    "arbitrary_script_execution": false,
+    "dcc_runtime_dependency": false,
+    "prepare_advances_stage": false,
+    "prepare_confirms_candidate": false,
+    "prepare_creates_version": false,
+    "prepare_exports_artifact": false
+  },
+  "contracts": {
+    "schema_count": 484,
+    "schema_content_set_sha256": "dadde788fcd1db16c0fa7e885a1993f0ae47829e4d6946d3e58d044f754a2e8b",
+    "durable_schemas": [
+      "AuthoringMeshCanonical@1",
+      "AuthoringMeshArtifact@1",
+      "AuthoringMeshLink@1",
+      "AuthoringMeshPrepareRequest@1",
+      "AuthoringMeshPrepareResult@1",
+      "AuthoringMeshGetRequest@1",
+      "AuthoringMeshGetResult@1"
+    ],
+    "self_referential_cas_hash_fields_removed": true,
+    "object_hash_binding": "outer prepare/get result and AuthoringMeshLink@1"
+  },
+  "mcp_surface": {
+    "read_tool": "authoring_mesh_durable_get",
+    "write_tool": "authoring_mesh_durable_prepare",
+    "read_count": 105,
+    "write_count": 77,
+    "total_count": 182,
+    "read_manifest_sha256": "833b990925194ba6dd67188a0f8f5752677fad8b1d955bb68a2d23a8871207c1",
+    "write_enabled_manifest_sha256": "191d3b904ee5b543595c3fc7dad2e38ca900489a3d271bc6ac00670d4db939e6",
+    "canonical_manifest_sha256": "e23978032022574e1892cea648fec5389a73c17c2aaeb4fcd33f6fa722fa56d3"
+  },
+  "source_sha256": {
+    "runtime_authoring_mesh_durable": "4023ec080018f63fb08ea9dd85f1b19e917a3a107f3f222883bfb7f4fca96557",
+    "store": "d767adde3a4345beb1a84e09fbecc0f73f3579cf045b3a42e56ccba55fc2b985",
+    "mcp_authoring_mesh_durable_tools": "209556c9b406cf4412773649b91c537b06d2a213c71a1fedc0174f9333959b2f",
+    "viewer_authoring_mesh_projection": "b36220de955141ce49e51e2b5b9894a5bbb7e276858f7999f34bf364c828d983"
+  },
+  "verification": {
+    "contracts": "PASS_484_SCHEMAS",
+    "store_runtime_mcp_compile": "PASS_WITH_EXISTING_DEAD_CODE_WARNINGS",
+    "store_projection_index_tests": "PASS_2_OF_2",
+    "mcp_durable_tool_tests": "PASS_2_OF_2",
+    "viewer_source_gate": "PASS_READ_ONLY",
+    "viewer_typescript": "PASS",
+    "targeted_rustfmt": "PASS",
+    "stage0_truth": "PASS_AFTER_CANONICAL_REBIND",
+    "public_three_object_runtime_restart_fixture": "PASS_1_OF_1_RUNTIME_DROP_REOPEN",
+    "public_three_object_runtime_restart_command": "script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime authoring_mesh_durable::tests::authoring_mesh_durable_prepare_get_survives_runtime_restart_with_public_object_hashes -- --exact --nocapture",
+    "public_three_object_runtime_restart_scope": "Canonical plus Artifact plus Link public bytes, object SHA-256, payload canonical hashes, Store lookup and candidate/program/artifact/readback binding; no stage, confirm, version or export"
+  },
+  "truth_boundary": {
+    "production_stage": "camera-calibrated",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "secondary_form_candidate": "NOT_CREATED",
+    "cross_version_stable_element_ids": "NOT_PROVEN",
+    "complete_authoring_editor": "NOT_IMPLEMENTED",
+    "human_visual_review": "NOT_RUN",
+    "engine_validation": "NOT_RUN",
+    "distribution_validation": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "next_required_gate": "Implement a public durable V2 AuthoringMeshIdentityLineage Store/CAS/MCP prepare/get chain, then prove same-lineage two-candidate edits, deterministic generated IDs, monotonic tombstones and split/merge correspondence before AuthoringMesh can be treated as a production editing substrate."
+}

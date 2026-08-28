@@ -1,0 +1,480 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-high-low-correspondence.schema.json",
+  "title": "ProductionWeaponHighLowCorrespondence@1",
+  "description": "FPS-HIGH-LOW-CAGE-05 additive structural contract; independent artifacts only, no geometry generation or ProductionStage@3 advancement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "correspondence_id",
+    "session_id",
+    "project_id",
+    "high_candidate_id",
+    "high_candidate_state_sha256",
+    "high_artifact_id",
+    "high_artifact_sha256",
+    "high_artifact_readback_sha256",
+    "low_candidate_id",
+    "low_candidate_state_sha256",
+    "low_artifact_id",
+    "low_artifact_sha256",
+    "low_artifact_readback_sha256",
+    "cage_artifact_id",
+    "cage_artifact_sha256",
+    "cage_artifact_readback_sha256",
+    "part_inventory_sha256",
+    "part_ids",
+    "material_zone_ids",
+    "correspondence_policy",
+    "correspondence_policy_sha256",
+    "part_pairs",
+    "mapping_object_sha256",
+    "mapping_canonical_sha256",
+    "unmapped_count",
+    "ambiguous_count",
+    "cross_part_count",
+    "cross_material_zone_count",
+    "stable_identity_policy",
+    "worker_algorithm_sha256",
+    "worker_build_cohort_sha256",
+    "worker_replay_count",
+    "replay_byte_exact",
+    "mapping_status",
+    "validator_status",
+    "structural_status",
+    "visual_status",
+    "human_status",
+    "engine_status",
+    "distribution_status",
+    "quality_status",
+    "hard_gate_passed",
+    "runtime_write_performed",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "request_sha256",
+    "input_sha256",
+    "receipt_object_sha256",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ProductionWeaponHighLowCorrespondence@1"
+    },
+    "correspondence_id": {
+      "$ref": "#/$defs/id"
+    },
+    "session_id": {
+      "$ref": "#/$defs/id"
+    },
+    "project_id": {
+      "$ref": "#/$defs/id"
+    },
+    "high_candidate_id": {
+      "$ref": "#/$defs/id"
+    },
+    "high_candidate_state_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "high_artifact_id": {
+      "$ref": "#/$defs/id"
+    },
+    "high_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "high_artifact_readback_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "low_candidate_id": {
+      "$ref": "#/$defs/id"
+    },
+    "low_candidate_state_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "low_artifact_id": {
+      "$ref": "#/$defs/id"
+    },
+    "low_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "low_artifact_readback_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "cage_artifact_id": {
+      "$ref": "#/$defs/id"
+    },
+    "cage_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "cage_artifact_readback_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "part_inventory_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "part_ids": {
+      "$ref": "#/$defs/ids"
+    },
+    "material_zone_ids": {
+      "$ref": "#/$defs/ids"
+    },
+    "correspondence_policy": {
+      "const": "production-weapon-high-low-cage-part-face-corner-correspondence@1"
+    },
+    "correspondence_policy_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "part_pairs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/part_pair"
+      }
+    },
+    "mapping_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "mapping_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "unmapped_count": {
+      "$ref": "#/$defs/count"
+    },
+    "ambiguous_count": {
+      "$ref": "#/$defs/count"
+    },
+    "cross_part_count": {
+      "$ref": "#/$defs/count"
+    },
+    "cross_material_zone_count": {
+      "$ref": "#/$defs/count"
+    },
+    "stable_identity_policy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "worker_algorithm_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "worker_build_cohort_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "worker_replay_count": {
+      "const": 2
+    },
+    "replay_byte_exact": {
+      "const": true
+    },
+    "mapping_status": {
+      "enum": [
+        "NOT_RUN",
+        "FAILED",
+        "PASS_SOURCE_STRUCTURAL"
+      ]
+    },
+    "validator_status": {
+      "enum": [
+        "passed",
+        "failed"
+      ]
+    },
+    "structural_status": {
+      "$ref": "#/$defs/structural_status"
+    },
+    "visual_status": {
+      "$ref": "#/$defs/visual_status"
+    },
+    "human_status": {
+      "$ref": "#/$defs/human_status"
+    },
+    "engine_status": {
+      "$ref": "#/$defs/engine_status"
+    },
+    "distribution_status": {
+      "$ref": "#/$defs/distribution_status"
+    },
+    "quality_status": {
+      "const": "structural_only"
+    },
+    "hard_gate_passed": {
+      "type": "boolean"
+    },
+    "runtime_write_performed": {
+      "type": "boolean"
+    },
+    "production_stage_advanced": {
+      "const": false
+    },
+    "candidate_confirmed": {
+      "const": false
+    },
+    "version_created": {
+      "const": false
+    },
+    "export_performed": {
+      "const": false
+    },
+    "request_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "input_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "receipt_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "created_at": {
+      "$ref": "#/$defs/timestamp"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "stage": {
+      "enum": [
+        "reference-intake",
+        "reference-coverage-reviewed",
+        "camera-calibrated",
+        "blockout-reviewed",
+        "primary-form-approved",
+        "secondary-form-approved",
+        "high-poly-approved",
+        "low-poly-approved",
+        "uv-approved",
+        "cage-approved",
+        "bake-approved",
+        "material-approved",
+        "rig-socket-approved",
+        "animation-approved",
+        "vfx-approved",
+        "lod-collision-approved",
+        "hero-art-review-approved",
+        "engine-validated",
+        "export-confirmed"
+      ]
+    },
+    "structural_status": {
+      "enum": [
+        "NOT_RUN",
+        "BLOCKED",
+        "PASS_SOURCE_STRUCTURAL"
+      ]
+    },
+    "visual_status": {
+      "enum": [
+        "NOT_RUN",
+        "BLOCKED",
+        "QUALITY_TARGET_NOT_MET",
+        "NOT_PROVEN"
+      ]
+    },
+    "human_status": {
+      "enum": [
+        "NOT_RUN",
+        "BLOCKED",
+        "REJECTED",
+        "PASS_HUMAN_ART_REVIEW"
+      ]
+    },
+    "engine_status": {
+      "enum": [
+        "NOT_RUN",
+        "BLOCKED",
+        "FAILED",
+        "PASS_ENGINE_VALIDATION"
+      ]
+    },
+    "distribution_status": {
+      "enum": [
+        "NOT_RUN",
+        "BLOCKED",
+        "FAILED",
+        "PASS_DISTRIBUTION"
+      ]
+    },
+    "bake_status": {
+      "enum": [
+        "NOT_HIGH_LOW_BAKE",
+        "DIAGNOSTIC_ONLY",
+        "PASS_SOURCE_STRUCTURAL"
+      ]
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000000
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1073741824
+    },
+    "sha_list": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/sha256"
+      }
+    },
+    "ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      }
+    },
+    "hard_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distinct_high_low_cage_bindings",
+        "high_readback_verified",
+        "low_readback_verified",
+        "cage_readback_verified",
+        "low_authoring_topology_verified",
+        "correspondence_verified",
+        "uv_tangent_binding_verified",
+        "ray_diagnostic_verified",
+        "no_candidate_surface_bake_reuse",
+        "same_cohort_replay_verified",
+        "output_byte_exact"
+      ],
+      "properties": {
+        "distinct_high_low_cage_bindings": {
+          "const": true
+        },
+        "high_readback_verified": {
+          "type": "boolean"
+        },
+        "low_readback_verified": {
+          "type": "boolean"
+        },
+        "cage_readback_verified": {
+          "type": "boolean"
+        },
+        "low_authoring_topology_verified": {
+          "type": "boolean"
+        },
+        "correspondence_verified": {
+          "type": "boolean"
+        },
+        "uv_tangent_binding_verified": {
+          "type": "boolean"
+        },
+        "ray_diagnostic_verified": {
+          "type": "boolean"
+        },
+        "no_candidate_surface_bake_reuse": {
+          "const": true
+        },
+        "same_cohort_replay_verified": {
+          "type": "boolean"
+        },
+        "output_byte_exact": {
+          "type": "boolean"
+        }
+      }
+    },
+    "part_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "high_part_id",
+        "low_part_id",
+        "cage_part_id",
+        "material_zone_id",
+        "high_source_node_id",
+        "low_source_node_id",
+        "cage_source_node_id",
+        "high_face_count",
+        "low_face_count",
+        "cage_face_count",
+        "vertex_map_sha256",
+        "face_map_sha256",
+        "mapping_status"
+      ],
+      "properties": {
+        "part_id": {
+          "$ref": "#/$defs/id"
+        },
+        "high_part_id": {
+          "$ref": "#/$defs/id"
+        },
+        "low_part_id": {
+          "$ref": "#/$defs/id"
+        },
+        "cage_part_id": {
+          "$ref": "#/$defs/id"
+        },
+        "material_zone_id": {
+          "$ref": "#/$defs/id"
+        },
+        "high_source_node_id": {
+          "$ref": "#/$defs/id"
+        },
+        "low_source_node_id": {
+          "$ref": "#/$defs/id"
+        },
+        "cage_source_node_id": {
+          "$ref": "#/$defs/id"
+        },
+        "high_face_count": {
+          "$ref": "#/$defs/count"
+        },
+        "low_face_count": {
+          "$ref": "#/$defs/count"
+        },
+        "cage_face_count": {
+          "$ref": "#/$defs/count"
+        },
+        "vertex_map_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "face_map_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "mapping_status": {
+          "enum": [
+            "NOT_RUN",
+            "FAILED",
+            "PASS_SOURCE_STRUCTURAL"
+          ]
+        }
+      }
+    }
+  }
+}

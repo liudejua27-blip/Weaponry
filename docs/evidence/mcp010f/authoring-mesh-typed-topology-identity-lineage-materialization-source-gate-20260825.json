@@ -1,0 +1,82 @@
+{
+  "schema_version": "AuthoringMeshTypedTopologyIdentityLineageMaterializationSourceGateReceipt@1",
+  "task_id": "CQ-02-AUTHORING-MESH-TYPED-TOPOLOGY-IDENTITY-LINEAGE",
+  "recorded_on": "2026-08-25",
+  "status": "PASS_RUNTIME_DURABLE_TYPED_SPLIT_COLLAPSE_DISSOLVE_IDENTITY_LINEAGE_MATERIALIZATION",
+  "scope": "fictional-nonfunctional-game-visual-authoring-only@1",
+  "source_surface": {
+    "schema_count": 490,
+    "read_tools": 106,
+    "write_tools": 78,
+    "total_tools": 184,
+    "tool_count_changed": false,
+    "edit_policy_sha256": "fc76c6dffef2a41c05ff0a65ff160c8fce5eb37d312a3ef7f78043ef92539144"
+  },
+  "contracts": {
+    "topology_operation_proof_schema": "TopologyOperationProof@1",
+    "prepare_result_sha256": "e64b86be3925eadf17413b868b926ec1c3871fa05768afc3d5cb66651d889425",
+    "get_result_sha256": "fa402098a290639b60e4a78f5b03bfc9d4118e2ab97b0176d0a92f732eb4a248",
+    "edit_preview_sha256": "03f37fdecf58f6e35321c2c59656ebc3f8bc9f7cfa222a47bd17e5c7bf9c1416",
+    "edit_prepare_sha256": "7b87997819ee50f644413db37e4086a5db7e679cf2fed4678b1e9b445cdc1bef",
+    "contract_check": "PASS_490_OF_490"
+  },
+  "runtime": {
+    "identity_source_sha256": "3db12c16e9d532c5c5425597f5b0a0186fe75f8c049f2e8b35d7e4ca1454ccd3",
+    "topology_source_sha256": "fcc4195b24fe1a786c74f90be0b3247552f7f27278e0690b556a77360b4b21b9",
+    "proof_recovery": "PASS_STORE_EXACT_CANDIDATE_IDEMPOTENCY_RESPONSE",
+    "parent_child_binding": "PASS_SOURCE_CANDIDATE_EQUALS_PARENT_AND_TARGET_EQUALS_CURRENT",
+    "source_loop_namespace": "PASS_HALF_EDGE_LINEAGE_SOURCE_LOOP_IDS",
+    "operation_derived_child_ids": "PASS_PARENT_ID_OPERATION_HASH_ROLE_ORDINAL_DERIVATION",
+    "tombstones": "PASS_TYPED_MONOTONIC_NON_REUSE",
+    "focused_full_chain_test": "PASS_3_OF_3_SPLIT_COLLAPSE_DISSOLVE_EDIT_DURABLE_IDENTITY_RESTART",
+    "existing_identity_restart_test": "PASS_1_OF_1"
+  },
+  "store": {
+    "source_sha256": "73389d2c2f9d49f1b00687183b91948cdeceb50868dd5020772aa273ca637f4a",
+    "authoring_mesh_focused_tests": "PASS_12_OF_12",
+    "exact_topology_response_restart_readback": "PASS",
+    "closed_relation_shapes": "PASS_PRESERVED_CREATED_RETIRED_ONE_TO_MANY_MANY_TO_ONE_MANY_TO_MANY",
+    "duplicate_relation_parent_rejected": true,
+    "tombstone_disappearance_or_reuse_rejected": true
+  },
+  "mcp": {
+    "identity_tools_source_sha256": "7a99ba8d56d71568362cdedac414c444a1b5828a805f5146eb58ae72af8165d8",
+    "main_source_sha256": "d404fe7a68595a2ee5152f2f60403a63142d3d843c39977478263f08ccb7744e",
+    "existing_tool_names_reused": ["authoring_mesh_edit_prepare", "authoring_mesh_prepare", "authoring_mesh_identity_lineage_prepare", "authoring_mesh_identity_lineage_get"],
+    "runtime_forwarding_changed": false,
+    "summary_invents_identity_or_correspondence": false,
+    "focused_tests": "PASS_3_OF_3",
+    "raw_stdio_positive_roundtrip": "NOT_RUN"
+  },
+  "identity_truth": {
+    "split_edge_one_to_many_identity_relation": "PASS_REAL_RUNTIME_CHAIN",
+    "collapse_edge_many_to_one_materialization_path": "PASS_REAL_RUNTIME_CHAIN",
+    "dissolve_edge_many_to_one_materialization_path": "PASS_REAL_RUNTIME_CHAIN",
+    "general_correspondence_beyond_typed_operations": "NOT_PROVEN",
+    "complete_edit_history": "NOT_PROVEN",
+    "evaluated_mesh_retarget": "NOT_PROVEN",
+    "cross_version_stability": "NOT_PROVEN"
+  },
+  "product_state": {
+    "runtime_sole_writer": true,
+    "stage": "camera-calibrated",
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "ONLY_THE_CLOSED_SPLIT_COLLAPSE_DISSOLVE_TYPED_OPERATIONS_HAVE_INDEPENDENT_FULL_CHAIN_RESTART_FIXTURES",
+    "NO_GENERAL_BRIDGE_INSET_EXTRUDE_OR_ARBITRARY_RETOPOLOGY_IDENTITY_CORRESPONDENCE",
+    "NO_EVALUATED_MESH_RETARGET_OR_COMPLETE_SELECTION_UNDO_HISTORY",
+    "NO_RAW_STDIO_PACKAGE_OR_LIVE_DESKTOP_PROOF",
+    "NO_VISUAL_HUMAN_ENGINE_DISTRIBUTION_OR_HQ_360_PASS"
+  ],
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "canonical_sha256": "927a95d0928e8f4bb1dedabe86059030ead04a43dd60fcd3dd7af525e4074bd3"
+}

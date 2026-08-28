@@ -12,8 +12,16 @@ const ARCHIVE_MAGIC: &[u8; 8] = b"FCBNDL01";
 // contains the closed first-party Bundle files plus every versioned contract
 // schema. 768 leaves bounded headroom for additive V2 production contracts
 // without weakening the byte-size or path-validation gates below.
-const MAX_ARCHIVE_FILES: usize = 768;
-const MAX_ARCHIVE_BYTES: usize = 2 * 1024 * 1024;
+// Keep the embedded declarative archive bounded while leaving explicit room
+// for the commercial-asset Low/UV contract families. The previous 768 cap
+// was already saturated by 499 public schemas plus the active first-party
+// Bundle files, so adding closed contracts could not compile at all.
+const MAX_ARCHIVE_FILES: usize = 896;
+// Declarative file contents remain capped at 3 MiB. The serialized envelope
+// additionally carries one bounded path and two length fields per file.
+const MAX_ARCHIVE_BYTES: usize = 3 * 1024 * 1024;
+const MAX_ARCHIVE_ENVELOPE_BYTES: usize =
+    12 + MAX_ARCHIVE_BYTES + MAX_ARCHIVE_FILES * (2 + 512 + 4);
 const MAX_ARTIFACT_BYTES: usize = 256 * 1024;
 
 #[derive(Deserialize)]
@@ -190,6 +198,14 @@ fn main() {
         .sum::<usize>();
     if total_bytes > MAX_ARCHIVE_BYTES {
         panic!("Skill build archive exceeds the declarative size limit");
+    }
+    let serialized_bytes = 12
+        + archive_files
+            .iter()
+            .map(|(path, bytes)| 2 + path.len() + 4 + bytes.len())
+            .sum::<usize>();
+    if serialized_bytes > MAX_ARCHIVE_ENVELOPE_BYTES {
+        panic!("Skill build archive exceeds the bounded envelope limit");
     }
 
     let output = PathBuf::from(env::var("OUT_DIR").expect("Cargo output dir"))

@@ -1,6 +1,8 @@
 # Codex 单张参考图操作手册
 
-版本：2026-08-13
+> 2026-08-25 商业质量停止条件：单张参考最多支持 `PARTIAL_VISIBLE_VIEW_PASS`；完成当前 FormQuality 后也不能跳到材质收尾，必须依次补 AuthoringMesh、High、Low、Hero UV、Cage/Bake、Material、FPS/LOD/Engine/Human。缺 front/back/left/right/rear-three-quarter 覆盖时，HQ360 继续 `BLOCKED_REFERENCE_COVERAGE`。详见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+版本：2026-08-26
 状态：当前 MCP010C/D/E source Gate 已完成、MCP010F Viewer source 与 packaged read-model/原生窗口结构路线可执行；不是视觉质量或材质质量验收。ADR-0026 要求后续单图流程升级为 ReferenceCanvas/DesignSpec/SemanticSceneGraph/stage gates；当前本手册仍只描述已存在工具链。
 
 本手册给 Codex/Luna 一条短而严格的单图调用路线。它适用于用户授权的一张 PNG/JPEG，尤其是机器人三分之四视图。它的结果是可编辑、可回读的结构化候选；当前 C 的 source/raw Gate、D/E 的 Operator/AssetPack source Gate 和 F 的 Viewer source surface 已通过，一次真实机器人参考运行已生成固定渲染、比较和评审证据，但首轮 primitive-only 候选的视觉阈值未通过。在真实 likeness、packaged Viewer、独立真人门和完整 360°门完成前，不得把结果称为像素相似、高质量 PBR 或完整 360°模型。
@@ -11,14 +13,14 @@ ADR-0026 的“Codex 必须看得见”原则在本手册中的当前做法是�
 
 ## 1. 先判断当前能力
 
-每次新会话先按顺序读取：
+每次新会话先读取 `skill_get(ponytail-preflight@0.1.0)`，再按顺序读取：
 
 1. `capabilities_get`
 2. `runtime_status` 与 `doctor`
 3. `operator_catalog_get`，并交叉读取 `forgecad://operators/catalog`
 4. `skill_list`
 
-只有 `status: active` 且同时出现在当前 catalog 的 Operator 才能进入 GeometryProgram。当前 catalog 有 19 项：`primitive@2`、`profile-extrude@1`、`profile-loft@1`、`longitudinal-section-loft@1`、`subd-cage@1`、`surface-patch@1`、`surface-shell@1`、`revolve@1`、`tube-sweep@1`、`transform@2`、`mirror@1`、`array@1`、`bevel@1`、`normal-policy@1`、`panel@1`、`vent-array@1`、`joint-stack@1`、`part-output@1` 和 `boolean@1`。`bevel@1` 只允许 direct source box，`normal-policy@1` 只允许固定 corner area×angle policy；`boolean@1` 只允许同一 Part scope 的 bounded union/difference/intersection，通用 mesh 操作不开放。`hard-surface-detail@0.2.0` 只有在 Runtime 验证其 manifest、recipe、operator lock、benchmark、provenance 和 trust 后才返回 active。`uv-pbr@0.2.0` 与 `forgecad-hard-surface-robot@1.0.0` AssetPack 已有 source-focused 离线验证；Codex 仍必须从当前 `skill_list`/AssetPack manifest 读取实际 hash，不能仅凭计划或 GitHub 项目名称调用。
+只有 `status: active` 且同时出现在当前 catalog 的 Operator 才能进入 GeometryProgram。下列 19 项是 active Geometry authoring 子目录；全仓 source catalog 当前有 28 operator entries，两者不是同一个计数：`primitive@2`、`profile-extrude@1`、`profile-loft@1`、`longitudinal-section-loft@1`、`subd-cage@1`、`surface-patch@1`、`surface-shell@1`、`revolve@1`、`tube-sweep@1`、`transform@2`、`mirror@1`、`array@1`、`bevel@1`、`normal-policy@1`、`panel@1`、`vent-array@1`、`joint-stack@1`、`part-output@1` 和 `boolean@1`。`bevel@1` 只允许 direct source box，`normal-policy@1` 只允许固定 corner area×angle policy；`boolean@1` 只允许同一 Part scope 的 bounded union/difference/intersection，通用 mesh 操作不开放。`hard-surface-detail@0.2.0` 只有在 Runtime 验证其 manifest、recipe、operator lock、benchmark、provenance 和 trust 后才返回 active。`uv-pbr@0.2.0` 与 `forgecad-hard-surface-robot@1.0.0` AssetPack 已有 source-focused 离线验证；Codex 仍必须从当前 `skill_list`/AssetPack manifest 读取实际 hash，不能仅凭计划或 GitHub 项目名称调用。
 
 如果 Runtime 不是 `Ready`、catalog/resource hash 不一致、或 MCP/Runtime cohort 不一致，立即停止写入，返回实际的 typed error；不要从旧 receipt、文档或 Skill manifest 猜 hash。
 
@@ -85,6 +87,18 @@ geometry_prepare(project_id, reference_id)
 - Worker 退出、超时、崩溃或 accepted peak-RSS 超预算时，不能产生 CAS/Candidate 写入。
 
 任何一项失败都停止，不要用 root extras、Skill receipt 或 `validator_status: passed` 代替真实 BIN/accessor readback。
+
+### 4.1 High/Low/Hero UV 后的 Cage/Bake 停止门
+
+只有 approved Form、formal High、artist-reviewed Low 与 Hero UV 都绑定同一 project/session/candidate/artifact/hash 后，才按下列顺序进入正式 Cage/Bake：
+
+```text
+production_weapon_high_low_bake_preflight_get
+→ production_weapon_high_low_bake_get（若已有 receipt，则只读精确重放）
+→ production_weapon_high_low_bake_prepare（仅显式 write opt-in）
+```
+
+preflight 只检查阻断，不写 Runtime/CAS。当前 source 虽已有 exact-topology Cage、Tangent Normal/AO/Curvature/Thickness/Position/Object/Material/Part ID 八类 maps、8-texel dilation 与七记录 Store seam，但全新 prepare 仍会在正式 producer 未齐时返回 `PRODUCTION_WEAPON_HIGH_LOW_BAKE_PRODUCER_UNAVAILABLE`、`runtime_write=false`。此时必须停止，不得把旧 2K standalone bake、self-surface bake 或 Three.js readback当成 formal High-to-Low receipt，也不得进入 Material/Stage/confirm/version/export。
 
 ## 5. 质量与确认策略
 

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-quality-v2-preflight-get-result.schema.json",
+  "title": "ProductionWeaponFormQualityV2PreflightGetResult@1",
+  "description": "Closed, restart-hash-verified, read-only readiness projection for the additive FormQuality@2 gate.",
+  "$comment": "Policy: production-weapon-form-quality-v2-preflight-readiness-gate@1. This projection never writes, starts a Worker, promotes a stage, confirms a candidate, creates a version, or exports.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "preflight_id", "session_id", "project_id", "candidate_id", "form_stage", "evidence_source_kind",
+    "checks", "ready_for_v2_prepare", "blocking_reasons", "quality_status", "visual_quality_status",
+    "human_review_status", "commercial_engine_status", "runtime_write", "worker_started",
+    "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed",
+    "restart_hash_verified", "readiness_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormQualityV2PreflightGetResult@1"},
+    "preflight_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "form_stage": {"enum": ["blockout", "primary", "secondary"]},
+    "evidence_source_kind": {"enum": ["legacy-source", "fresh-baseline-proposal"]},
+    "source_candidate_id": {"$ref": "#/$defs/nullable_id"}, "source_candidate_state_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_artifact_id": {"$ref": "#/$defs/nullable_id"}, "source_artifact_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_fresh_baseline_id": {"$ref": "#/$defs/nullable_id"},
+    "source_fresh_baseline_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_fresh_baseline_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_registration_lineage_id": {"$ref": "#/$defs/nullable_id"},
+    "source_registration_lineage_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_registration_lineage_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_registered_rig_v2_id": {"$ref": "#/$defs/nullable_id"},
+    "source_registered_rig_v2_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_registered_rig_v2_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_runtime_build_cohort_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_candidate_id": {"$ref": "#/$defs/nullable_id"}, "proposal_candidate_state_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_artifact_id": {"$ref": "#/$defs/nullable_id"}, "proposal_artifact_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_artifact_readback_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_worker_build_cohort_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "cross_view_evidence_bundle_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_form_art_evidence_id": {"$ref": "#/$defs/nullable_id"},
+    "proposal_form_art_evidence_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_form_art_evidence_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_part_id_evidence_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_negative_space_evidence_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "proposal_line_flow_evidence_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "checks": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "minProperties": 7, "maxProperties": 7, "required": ["legacy_form_quality", "form_art_evidence", "form_art_target_observation", "cross_view_evidence", "camera_lock_stage", "reference_authoring", "candidate_artifact"], "properties": {"legacy_form_quality": {"$ref": "#/$defs/check"}, "form_art_evidence": {"$ref": "#/$defs/check"}, "form_art_target_observation": {"$ref": "#/$defs/check"}, "cross_view_evidence": {"$ref": "#/$defs/check"}, "camera_lock_stage": {"$ref": "#/$defs/check"}, "reference_authoring": {"$ref": "#/$defs/check"}, "candidate_artifact": {"$ref": "#/$defs/check"}}},
+        {"type": "object", "additionalProperties": false, "minProperties": 9, "maxProperties": 9, "required": ["legacy_form_quality", "form_art_evidence", "form_art_target_observation", "cross_view_evidence", "camera_lock_stage", "reference_authoring", "candidate_artifact", "fresh_baseline_registration", "proposal_candidate_evidence"], "properties": {"legacy_form_quality": {"$ref": "#/$defs/check"}, "form_art_evidence": {"$ref": "#/$defs/check"}, "form_art_target_observation": {"$ref": "#/$defs/check"}, "cross_view_evidence": {"$ref": "#/$defs/check"}, "camera_lock_stage": {"$ref": "#/$defs/check"}, "reference_authoring": {"$ref": "#/$defs/check"}, "candidate_artifact": {"$ref": "#/$defs/check"}, "fresh_baseline_registration": {"$ref": "#/$defs/check"}, "proposal_candidate_evidence": {"$ref": "#/$defs/check"}}}
+      ]
+    },
+    "ready_for_v2_prepare": {"type": "boolean"},
+    "blocking_reasons": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 9,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/blocking_reason"}
+    },
+    "quality_status": {"const": "NOT_PROVEN"},
+    "visual_quality_status": {"const": "NOT_PROVEN"},
+    "human_review_status": {"const": "NOT_RUN"},
+    "commercial_engine_status": {"const": "NOT_RUN"},
+    "runtime_write": {"const": false},
+    "worker_started": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "restart_hash_verified": {"const": true},
+    "readiness_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {"if": {"properties": {"evidence_source_kind": {"const": "fresh-baseline-proposal"}}, "required": ["evidence_source_kind"]}, "then": {"required": ["source_candidate_id", "source_candidate_state_sha256", "source_artifact_id", "source_artifact_sha256", "source_fresh_baseline_id", "source_fresh_baseline_canonical_sha256", "source_fresh_baseline_receipt_object_sha256", "source_registration_lineage_id", "source_registration_lineage_canonical_sha256", "source_registration_lineage_receipt_object_sha256", "source_registered_rig_v2_id", "source_registered_rig_v2_object_sha256", "source_registered_rig_v2_canonical_sha256", "source_runtime_build_cohort_sha256", "proposal_candidate_id", "proposal_candidate_state_sha256", "proposal_artifact_id", "proposal_artifact_sha256", "proposal_artifact_readback_sha256", "proposal_worker_build_cohort_sha256", "cross_view_evidence_bundle_sha256", "proposal_form_art_evidence_id", "proposal_form_art_evidence_object_sha256", "proposal_form_art_evidence_canonical_sha256", "proposal_part_id_evidence_sha256", "proposal_negative_space_evidence_sha256", "proposal_line_flow_evidence_sha256"]}},
+    {"if": {"properties": {"evidence_source_kind": {"const": "legacy-source"}}, "required": ["evidence_source_kind"]}, "then": {"properties": {"source_candidate_id": {"const": null}, "source_candidate_state_sha256": {"const": null}, "source_artifact_id": {"const": null}, "source_artifact_sha256": {"const": null}, "source_fresh_baseline_id": {"const": null}, "source_fresh_baseline_canonical_sha256": {"const": null}, "source_fresh_baseline_receipt_object_sha256": {"const": null}, "source_registration_lineage_id": {"const": null}, "source_registration_lineage_canonical_sha256": {"const": null}, "source_registration_lineage_receipt_object_sha256": {"const": null}, "source_registered_rig_v2_id": {"const": null}, "source_registered_rig_v2_object_sha256": {"const": null}, "source_registered_rig_v2_canonical_sha256": {"const": null}, "source_runtime_build_cohort_sha256": {"const": null}, "proposal_candidate_id": {"const": null}, "proposal_candidate_state_sha256": {"const": null}, "proposal_artifact_id": {"const": null}, "proposal_artifact_sha256": {"const": null}, "proposal_artifact_readback_sha256": {"const": null}, "proposal_worker_build_cohort_sha256": {"const": null}, "cross_view_evidence_bundle_sha256": {"const": null}, "proposal_form_art_evidence_id": {"const": null}, "proposal_form_art_evidence_object_sha256": {"const": null}, "proposal_form_art_evidence_canonical_sha256": {"const": null}, "proposal_part_id_evidence_sha256": {"const": null}, "proposal_negative_space_evidence_sha256": {"const": null}, "proposal_line_flow_evidence_sha256": {"const": null}}}}
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_id": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/id"}]},
+    "nullable_sha256": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]},
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason_code", "object_sha256", "canonical_sha256"],
+      "properties": {
+        "status": {"enum": ["ready", "blocked", "invalid"]},
+        "reason_code": {
+          "enum": [
+            "READY",
+            "CAMERA_LOCK_OR_STAGE_BLOCKED", "CANDIDATE_MISSING", "CANDIDATE_READ_FAILED",
+            "CROSS_VIEW_EVIDENCE_BLOCKED",
+            "FORM_ART_EVIDENCE_BINDING_MISMATCH", "FORM_ART_EVIDENCE_MALFORMED",
+            "FORM_ART_EVIDENCE_MISSING", "FORM_ART_EVIDENCE_REQUIRED",
+            "FORM_ART_EVIDENCE_SCHEMA_MISMATCH", "FORM_ART_EVIDENCE_SCOPE_RETARGET",
+            "FORM_ART_EVIDENCE_STORE_MISMATCH", "FORM_ART_EVIDENCE_STORE_ROW_MISSING",
+            "FORM_ART_EVIDENCE_STORE_UNAVAILABLE", "FORM_ART_EVIDENCE_UNREADABLE",
+            "FORM_ART_EVIDENCE_VIEW_ORDER_MISMATCH", "FORM_ART_TARGET_OBSERVATION_BLOCKED",
+            "FORM_ART_VIEW_RECEIPT_BINDING_MISMATCH", "FORM_ART_VIEW_RECEIPT_MALFORMED",
+            "FORM_ART_VIEW_RECEIPT_MISSING", "FORM_ART_VIEW_RECEIPT_SCHEMA_MISMATCH",
+            "FORM_ART_VIEW_RECEIPT_SELF_REFERENCE", "LEGACY_AND_FORM_ART_REQUIRED",
+            "LEGACY_FORM_QUALITY_CANONICAL_MISMATCH", "LEGACY_FORM_QUALITY_MALFORMED",
+            "LEGACY_FORM_QUALITY_MISSING", "LEGACY_FORM_QUALITY_REQUIRED",
+            "LEGACY_FORM_QUALITY_SCHEMA_MISMATCH", "LEGACY_FORM_QUALITY_SCOPE_RETARGET",
+            "LEGACY_FORM_QUALITY_STORE_MISMATCH", "LEGACY_FORM_QUALITY_STORE_ROW_MISSING",
+            "LEGACY_FORM_QUALITY_STORE_UNAVAILABLE", "LEGACY_FORM_QUALITY_UNREADABLE",
+            "REFERENCE_CANVAS_OR_DESIGN_SPEC_BLOCKED"
+          ]
+        },
+        "object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/nullable_sha256"}
+      }
+    },
+    "blocking_reason": {
+      "type": "string",
+      "pattern": "^(legacy_form_quality|form_art_evidence|form_art_target_observation|cross_view_evidence|camera_lock_stage|reference_authoring|candidate_artifact|fresh_baseline_registration|proposal_candidate_evidence):[A-Z][A-Z0-9_]*$"
+    }
+  }
+}

@@ -1,5 +1,7 @@
 # ForgeCAD 单图参考 Detail Inventory 与质量合同
 
+> 2026-08-25 商业质量补充：单图 inventory 只能标 observed/inferred/unknown 并支持可见视图设计；它不能证明背面、深度、HQ360、High/Low/UV/Bake 或商业交付。进入建模前还需 `WeaponArtBrief`、原创概念变体和 ArtDecision；完整多视图与阶段链见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
 版本：`ForgeCADCodexReferenceInventory@1`  
 性质：Codex 编排模板；不是 Runtime 合同、不是 Skill Bundle、不会写 SQLite/CAS，也不会把图片字节写入 GeometryProgram。
 

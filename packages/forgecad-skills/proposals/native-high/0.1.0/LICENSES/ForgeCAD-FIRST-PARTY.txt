@@ -1,0 +1,3 @@
+ForgeCAD first-party declarative Skill metadata and source-only contract proposal.
+Copyright ForgeCAD Contributors. No third-party source, executable, model weight,
+texture, commercial asset, or remote asset is vendored in this directory.

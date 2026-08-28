@@ -1,0 +1,75 @@
+{
+  "schema_version": "ForgeCADProductionWeaponFormArtCompositeProposalPlanSourceGate@1",
+  "task_id": "FPS-FORM-04BE-A",
+  "recorded_on": "2026-08-28",
+  "status": "PASS_SOURCE_TYPED_ORIGINAL_CURRENT_BASE_DISJOINT_COMPOSITION_WORKER_COMPILE_NO_DURABLE_CANDIDATE",
+  "route_changed": false,
+  "scope": "Introduce the first non-lossy typed composition seam that keeps the original visual baseline separate from the current proposal base and applies only bounded ordered disjoint product-registered replacements to the current-base GeometryProgram.",
+  "contract": {
+    "schema_version": "ProductionWeaponFormArtCompositeProposalPlan@1",
+    "schema_count": 569,
+    "schema_content_set_sha256": "4e53d52c8f821fd84e0089d4690f628011ad1151c62996c79578b6fe433b872f",
+    "contract_manifest_sha256": "c2a6191efdcce31df18b3298e0b630f74b563d560c852e5a417983a8fd7ebfce",
+    "operation_count_bounds": "1..=8",
+    "operation_policy": "ordered, unique operation ID, unique stable source node and unique Part",
+    "registered_operation": {
+      "operation_kind": "registered_profile_replace",
+      "source_node_id": "trigger-guard",
+      "part_id": "trigger-guard",
+      "registered_profile_id": "trigger-guard-side-aperture-xy@1"
+    },
+    "caller_geometry_controls": [],
+    "forbidden_inputs": [
+      "raw mesh",
+      "profile points",
+      "arbitrary GeometryProgram patch",
+      "arbitrary operator ID",
+      "script",
+      "path",
+      "URL"
+    ]
+  },
+  "source": {
+    "runtime_module": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_form_art_composite_proposal.rs",
+    "runtime_module_sha256": "ec20b462399d947e8711100cbe2522ddf03efb31913238d35b637d26f2ef8c7e",
+    "registered_profile_module": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_assembly_parameter_mutator.rs",
+    "registered_profile_module_sha256": "e830f62ad271422a67c826927a2d52096d881c58397ca6ab48cb7f5b44061657",
+    "schema_path": "packages/forgecad-contracts/schemas/production-weapon-form-art-composite-proposal-plan.schema.json",
+    "schema_sha256": "834367399600f63287d569aca0b12211aebf0e51a3231830e10efb9639512195"
+  },
+  "verification": {
+    "contract_checker": "PASS_569_SCHEMAS",
+    "focused_runtime_tests": "PASS_2_OF_2",
+    "cargo_check": "PASS_FORGECAD_CONTRACTS_RUNTIME_MCP_WITH_EXISTING_WARNINGS",
+    "current_base_prior_edit_preserved": true,
+    "registered_trigger_aperture_added": true,
+    "geometry_worker_compile": "PASS",
+    "compiled_part_count": 23,
+    "duplicate_source_node_rejected": true,
+    "unregistered_profile_rejected": true,
+    "stage0_truth_checker": "PASS_WITH_RETAINED_QUALITY_TARGET_NOT_MET_AND_BLOCKED_INCOMPLETE_BINDING",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS",
+    "durable_candidate_prepare": "NOT_IMPLEMENTED_IN_04BE_A",
+    "six_view_render_sets": "NOT_RUN_NO_DURABLE_COMPOSITE_CANDIDATE",
+    "form_quality_v2_prepare": "NOT_RUN",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "final_state": {
+    "production_stage": "camera-calibrated",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "secondary_form_approved": "NOT_CREATED",
+    "high_low_uv_bake": "NOT_RUN",
+    "formal_human_review": "NOT_RUN",
+    "commercial_engine_validation": "NOT_RUN",
+    "commercial_quality": "NOT_PROVEN"
+  },
+  "next_atomic_action": "FPS-FORM-04BE-B must load and revalidate the original 04AZ baseline scope plus the exact 04BB current-base candidate/proposal evidence from Store/CAS, call this closed composition seam, prepare one immutable reviewable candidate through the Runtime writer, persist a composite receipt with restart GET, and only then run the exact 6 by 9 AOV comparison."
+}

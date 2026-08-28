@@ -1,0 +1,552 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh.schema.json",
+  "title": "AuthoringMesh@1",
+  "description": "Runtime-derived, read-only half-edge authoring projection. The original authoring mesh is authoritative; evaluated geometry is an artifact/readback lineage, never a fabricated one-to-one element map.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mesh_id",
+    "mesh_sha256",
+    "scope",
+    "representation",
+    "projection_kind",
+    "lineage",
+    "mesh_identity_derivation",
+    "mesh_identity_sha256",
+    "identity_policy",
+    "original_identity",
+    "evaluated_identity",
+    "cross_version_stable",
+    "counts",
+    "vertices",
+    "edges",
+    "half_edges",
+    "corners",
+    "faces",
+    "loops",
+    "rings",
+    "topology_policy",
+    "topology",
+    "authoring_mesh_policy_sha256",
+    "max_response_bytes",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "quality_status",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringMesh@1"},
+    "mesh_id": {"$ref": "#/$defs/identifier"},
+    "mesh_sha256": {"$ref": "#/$defs/sha256"},
+    "scope": {"const": "single-authoring-mesh"},
+    "representation": {"const": "half-edge-authoring@1"},
+    "projection_kind": {"const": "runtime-derived-read-only-projection@1"},
+    "lineage": {"$ref": "#/$defs/lineage"},
+    "mesh_identity_derivation": {
+      "const": "runtime-derived-from-candidate-program-artifact-readback@1"
+    },
+    "mesh_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "identity_policy": {
+      "const": "runtime-derived-original-evaluated-non-bijective@1"
+    },
+    "original_identity": {"$ref": "#/$defs/original_identity"},
+    "evaluated_identity": {"$ref": "#/$defs/evaluated_identity"},
+    "cross_version_stable": {"const": false},
+    "counts": {"$ref": "#/$defs/counts"},
+    "vertices": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8192,
+      "items": {"$ref": "#/$defs/vertex"}
+    },
+    "edges": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16384,
+      "items": {"$ref": "#/$defs/edge"}
+    },
+    "half_edges": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32768,
+      "items": {"$ref": "#/$defs/half_edge"}
+    },
+    "corners": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32768,
+      "items": {"$ref": "#/$defs/corner"}
+    },
+    "faces": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8192,
+      "items": {"$ref": "#/$defs/face"}
+    },
+    "loops": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32768,
+      "items": {"$ref": "#/$defs/loop"}
+    },
+    "rings": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 8192,
+      "items": {"$ref": "#/$defs/ring"}
+    },
+    "topology_policy": {
+      "const": "bounded-half-edge-manifold-with-boundary@1"
+    },
+    "topology": {"$ref": "#/$defs/topology"},
+    "authoring_mesh_policy_sha256": {
+      "const": "aa72cadabba90ddb43dd0014cfa434ab9b13f4e072b09258072f37334c72e709"
+    },
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "coordinate": {
+      "type": "number",
+      "minimum": -1000,
+      "maximum": 1000
+    },
+    "position": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/coordinate"}
+    },
+    "nullable_identifier": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "candidate_id",
+        "artifact_id",
+        "artifact_readback_sha256",
+        "program_sha256",
+        "operator_catalog_sha256",
+        "readback_config_sha256",
+        "authoring_node_id",
+        "part_id",
+        "lineage_status",
+        "lineage_sha256"
+      ],
+      "properties": {
+        "project_id": {"$ref": "#/$defs/identifier"},
+        "candidate_id": {"$ref": "#/$defs/identifier"},
+        "artifact_id": {"$ref": "#/$defs/sha256"},
+        "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+        "program_sha256": {"$ref": "#/$defs/sha256"},
+        "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+        "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+        "authoring_node_id": {"$ref": "#/$defs/identifier"},
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "lineage_status": {
+          "const": "candidate-program-artifact-readback-bound@1"
+        },
+        "lineage_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "original_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_id",
+        "identity_kind",
+        "topology_sha256",
+        "element_id_policy",
+        "position_space",
+        "namespace",
+        "source_lineage_sha256"
+      ],
+      "properties": {
+        "identity_id": {"$ref": "#/$defs/identifier"},
+        "identity_kind": {
+          "const": "runtime-derived-original-authoring@1"
+        },
+        "topology_sha256": {"$ref": "#/$defs/sha256"},
+        "element_id_policy": {
+          "const": "stable-within-authoring-mesh-lineage@1"
+        },
+        "position_space": {"const": "authoring-local@1"},
+        "namespace": {"const": "original"},
+        "source_lineage_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "evaluated_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_id",
+        "identity_kind",
+        "artifact_id",
+        "artifact_readback_sha256",
+        "element_id_policy",
+        "position_space",
+        "namespace",
+        "correspondence_policy",
+        "source_lineage_sha256"
+      ],
+      "properties": {
+        "identity_id": {"$ref": "#/$defs/identifier"},
+        "identity_kind": {
+          "const": "runtime-derived-evaluated-artifact-readback@1"
+        },
+        "artifact_id": {"$ref": "#/$defs/sha256"},
+        "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+        "element_id_policy": {
+          "const": "artifact-local-no-authoring-bijection@1"
+        },
+        "position_space": {"const": "evaluated-local@1"},
+        "namespace": {"const": "evaluated"},
+        "correspondence_policy": {
+          "const": "non-bijective-derived-only@1"
+        },
+        "source_lineage_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vertex_count",
+        "edge_count",
+        "half_edge_count",
+        "corner_count",
+        "face_count",
+        "loop_count",
+        "ring_count",
+        "boundary_edge_count",
+        "boundary_half_edge_count",
+        "hard_edge_count",
+        "crease_edge_count",
+        "uv_seam_count"
+      ],
+      "properties": {
+        "vertex_count": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "edge_count": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "half_edge_count": {"type": "integer", "minimum": 1, "maximum": 32768},
+        "corner_count": {"type": "integer", "minimum": 1, "maximum": 32768},
+        "face_count": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "loop_count": {"type": "integer", "minimum": 1, "maximum": 32768},
+        "ring_count": {"type": "integer", "minimum": 0, "maximum": 8192},
+        "boundary_edge_count": {"type": "integer", "minimum": 0, "maximum": 16384},
+        "boundary_half_edge_count": {"type": "integer", "minimum": 0, "maximum": 32768},
+        "hard_edge_count": {"type": "integer", "minimum": 0, "maximum": 16384},
+        "crease_edge_count": {"type": "integer", "minimum": 0, "maximum": 16384},
+        "uv_seam_count": {"type": "integer", "minimum": 0, "maximum": 16384}
+      }
+    },
+    "topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_edge_count",
+        "boundary_half_edge_count",
+        "non_manifold_edge_count",
+        "orientation_conflict_count",
+        "status",
+        "validation_status",
+        "rejection_policy",
+        "face_cycle_policy",
+        "twin_policy",
+        "boundary_policy"
+      ],
+      "properties": {
+        "boundary_edge_count": {"type": "integer", "minimum": 0, "maximum": 16384},
+        "boundary_half_edge_count": {"type": "integer", "minimum": 0, "maximum": 32768},
+        "non_manifold_edge_count": {"const": 0},
+        "orientation_conflict_count": {"const": 0},
+        "status": {"enum": ["closed_manifold", "manifold_with_boundary"]},
+        "validation_status": {"const": "passed"},
+        "rejection_policy": {"const": "fail-closed-on-non-manifold@1"},
+        "face_cycle_policy": {"const": "next-prev-complete-mutual@1"},
+        "twin_policy": {"const": "boundary-only-null-symmetric@1"},
+        "boundary_policy": {"const": "single-half-edge-per-boundary-edge@1"}
+      }
+    },
+    "element_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "original_element_ids",
+        "evaluated_element_ids",
+        "correspondence_kind",
+        "correspondence_sha256"
+      ],
+      "properties": {
+        "original_element_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "evaluated_element_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "correspondence_kind": {
+          "enum": ["not_materialized", "one_to_many", "many_to_one", "many_to_many", "unknown"]
+        },
+        "correspondence_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"correspondence_kind": {"const": "not_materialized"}},
+            "required": ["correspondence_kind"]
+          },
+          "then": {"properties": {"evaluated_element_ids": {"maxItems": 0}}}
+        },
+        {
+          "if": {
+            "properties": {"correspondence_kind": {"enum": ["one_to_many", "many_to_one", "many_to_many"]}},
+            "required": ["correspondence_kind"]
+          },
+          "then": {"properties": {"evaluated_element_ids": {"minItems": 1}}}
+        }
+      ]
+    },
+    "vertex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vertex_id",
+        "position_m",
+        "outgoing_half_edge_id",
+        "boundary",
+        "lineage"
+      ],
+      "properties": {
+        "vertex_id": {"$ref": "#/$defs/identifier"},
+        "position_m": {"$ref": "#/$defs/position"},
+        "outgoing_half_edge_id": {"$ref": "#/$defs/identifier"},
+        "boundary": {"type": "boolean"},
+        "lineage": {"$ref": "#/$defs/element_lineage"}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_id",
+        "vertex_ids",
+        "half_edge_ids",
+        "boundary",
+        "hard_edge",
+        "crease",
+        "uv_seam",
+        "lineage"
+      ],
+      "properties": {
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "vertex_ids": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "half_edge_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "boundary": {"type": "boolean"},
+        "hard_edge": {"type": "boolean"},
+        "crease": {"type": "integer", "minimum": 0, "maximum": 2},
+        "uv_seam": {"type": "boolean"},
+        "lineage": {"$ref": "#/$defs/element_lineage"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"boundary": {"const": true}}, "required": ["boundary"]},
+          "then": {"properties": {"half_edge_ids": {"maxItems": 1}}}
+        },
+        {
+          "if": {"properties": {"boundary": {"const": false}}, "required": ["boundary"]},
+          "then": {"properties": {"half_edge_ids": {"minItems": 2}}}
+        }
+      ]
+    },
+    "half_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "half_edge_id",
+        "origin_vertex_id",
+        "edge_id",
+        "face_id",
+        "corner_id",
+        "twin_id",
+        "next_id",
+        "prev_id",
+        "boundary",
+        "orientation",
+        "lineage"
+      ],
+      "properties": {
+        "half_edge_id": {"$ref": "#/$defs/identifier"},
+        "origin_vertex_id": {"$ref": "#/$defs/identifier"},
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "face_id": {"$ref": "#/$defs/identifier"},
+        "corner_id": {"$ref": "#/$defs/identifier"},
+        "twin_id": {"$ref": "#/$defs/nullable_identifier"},
+        "next_id": {"$ref": "#/$defs/identifier"},
+        "prev_id": {"$ref": "#/$defs/identifier"},
+        "boundary": {"type": "boolean"},
+        "orientation": {"enum": ["forward", "reverse"]},
+        "lineage": {"$ref": "#/$defs/element_lineage"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"boundary": {"const": true}}, "required": ["boundary"]},
+          "then": {
+            "properties": {
+              "twin_id": {"type": "null"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"boundary": {"const": false}}, "required": ["boundary"]},
+          "then": {
+            "properties": {
+              "twin_id": {"$ref": "#/$defs/identifier"}
+            }
+          }
+        }
+      ]
+    },
+    "corner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corner_id",
+        "face_id",
+        "half_edge_id",
+        "vertex_id",
+        "ordinal",
+        "lineage"
+      ],
+      "properties": {
+        "corner_id": {"$ref": "#/$defs/identifier"},
+        "face_id": {"$ref": "#/$defs/identifier"},
+        "half_edge_id": {"$ref": "#/$defs/identifier"},
+        "vertex_id": {"$ref": "#/$defs/identifier"},
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 31},
+        "lineage": {"$ref": "#/$defs/element_lineage"}
+      }
+    },
+    "face": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "face_id",
+        "first_half_edge_id",
+        "corner_ids",
+        "degree",
+        "boundary",
+        "lineage"
+      ],
+      "properties": {
+        "face_id": {"$ref": "#/$defs/identifier"},
+        "first_half_edge_id": {"$ref": "#/$defs/identifier"},
+        "corner_ids": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "degree": {"type": "integer", "minimum": 3, "maximum": 32},
+        "boundary": {"type": "boolean"},
+        "lineage": {"$ref": "#/$defs/element_lineage"}
+      }
+    },
+    "loop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "loop_id",
+        "face_id",
+        "first_half_edge_id",
+        "half_edge_ids",
+        "boundary",
+        "lineage"
+      ],
+      "properties": {
+        "loop_id": {"$ref": "#/$defs/identifier"},
+        "face_id": {"$ref": "#/$defs/identifier"},
+        "first_half_edge_id": {"$ref": "#/$defs/identifier"},
+        "half_edge_ids": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "boundary": {"type": "boolean"},
+        "lineage": {"$ref": "#/$defs/element_lineage"}
+      }
+    },
+    "ring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ring_id",
+        "kind",
+        "edge_ids",
+        "half_edge_ids",
+        "closed",
+        "boundary",
+        "lineage"
+      ],
+      "properties": {
+        "ring_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"enum": ["edge_flow", "boundary", "hard_edge", "crease", "uv_seam"]},
+        "edge_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "half_edge_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "closed": {"type": "boolean"},
+        "boundary": {"type": "boolean"},
+        "lineage": {"$ref": "#/$defs/element_lineage"}
+      }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-camera-lock-registration-lineage-preflight-projection-get-request.schema.json",
+  "title": "ProductionCameraLockRegistrationLineagePreflightProjectionGetRequest@1",
+  "description": "Closed read-only semantic-camera proposal. Runtime derives the camera orbit, camera hash, semantic anchors and upright proof; callers cannot supply those values or create approval authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "preflight_id",
+    "registration_lineage_id",
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "camera_lock_id",
+    "camera_lock_canonical_sha256",
+    "proposed_board_rotation_degrees",
+    "proposed_subject_screen_order",
+    "max_response_bytes",
+    "writer_policy",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionCameraLockRegistrationLineagePreflightProjectionGetRequest@1"},
+    "operation": {"const": "forgecad.production.camera-lock-registration-lineage-preflight-projection-get@1"},
+    "preflight_id": {"$ref": "#/$defs/id"},
+    "registration_lineage_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_lock_id": {"$ref": "#/$defs/id"},
+    "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "proposed_board_rotation_degrees": {"type": "integer", "enum": [-180, -90, 0, 90, 180]},
+    "proposed_subject_screen_order": {"enum": ["stock-left-muzzle-right", "muzzle-left-stock-right"]},
+    "max_response_bytes": {"const": 1048576},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

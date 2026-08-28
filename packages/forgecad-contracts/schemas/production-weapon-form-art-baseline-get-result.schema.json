@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-baseline-get-result.schema.json",
+  "title": "ProductionWeaponFormArtBaselineGetResult@1",
+  "description": "Read-only restart-verified result for one Runtime-owned fresh FormArt baseline. It preserves the evidence-only and no-promotion boundary.",
+  "type": "object", "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "baseline", "baseline_id", "registration_lineage_id", "registration_lineage_canonical_sha256",
+    "session_id", "project_id", "candidate_id", "candidate_state_sha256", "artifact_id", "artifact_sha256",
+    "runtime_build_cohort_sha256", "request_sha256", "request_input_sha256", "idempotency_key", "replayed",
+    "restart_hash_verified", "writer_policy", "canonicalization_policy", "runtime_write_performed",
+    "persistent_user_data_touched", "promotion_eligible", "quality_status", "production_stage_advanced",
+    "candidate_confirmed", "version_created", "export_performed", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtBaselineGetResult@1"},
+    "operation": {"const": "forgecad.production.weapon.form-art-baseline-get@1"},
+    "baseline": {"$ref": "https://forgecad.local/contracts/production-weapon-form-art-baseline.schema.json"},
+    "baseline_id": {"$ref": "#/$defs/id"},
+    "registration_lineage_id": {"$ref": "#/$defs/id"},
+    "registration_lineage_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "runtime_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "request_input_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "replayed": {"type": "boolean"},
+    "restart_hash_verified": {"const": true},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "promotion_eligible": {"const": false},
+    "quality_status": {"const": "NOT_PROVEN"},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

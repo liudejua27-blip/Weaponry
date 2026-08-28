@@ -11,9 +11,12 @@
     "base_topology_sha256": {"$ref": "#/$defs/sha256"},
     "edit": {"oneOf": [
       {"$ref": "#/$defs/translate_vertices"},
-      {"$ref": "#/$defs/single_face_extrude"}
+      {"$ref": "#/$defs/single_face_extrude"},
+      {"$ref": "#/$defs/split_edge"},
+      {"$ref": "#/$defs/collapse_edge"},
+      {"$ref": "#/$defs/dissolve_edge"}
     ]},
-    "edit_policy_sha256": {"const": "1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae"},
+    "edit_policy_sha256": {"const": "fc76c6dffef2a41c05ff0a65ff160c8fce5eb37d312a3ef7f78043ef92539144"},
     "input_sha256": {"$ref": "#/$defs/sha256"}
   },
   "$defs": {
@@ -35,6 +38,37 @@
         "operation": {"const": "single_face_extrude"},
         "face_id": {"$ref": "#/$defs/identifier"},
         "distance_m": {"type": "number", "minimum": 0.000001, "maximum": 1}
+      }
+    },
+    "split_edge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operation", "edge_id", "parent_revision", "operation_lineage_sha256"],
+      "properties": {
+        "operation": {"const": "split_edge"},
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "parent_revision": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "operation_lineage_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "collapse_edge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operation", "edge_id", "survivor_vertex_id", "parent_revision", "operation_lineage_sha256"],
+      "properties": {
+        "operation": {"const": "collapse_edge"},
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "survivor_vertex_id": {"$ref": "#/$defs/identifier"},
+        "parent_revision": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "operation_lineage_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "dissolve_edge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operation", "edge_id", "parent_revision", "operation_lineage_sha256"],
+      "properties": {
+        "operation": {"const": "dissolve_edge"},
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "parent_revision": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "operation_lineage_sha256": {"$ref": "#/$defs/sha256"}
       }
     }
   }

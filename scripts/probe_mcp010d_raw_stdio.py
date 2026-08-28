@@ -53,7 +53,7 @@ def authoring_preview_request(
         "topology_request": topology_request,
         "base_topology_sha256": base_topology_sha256,
         "edit": edit,
-        "edit_policy_sha256": "1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae",
+        "edit_policy_sha256": "fc76c6dffef2a41c05ff0a65ff160c8fce5eb37d312a3ef7f78043ef92539144",
     }
     request["input_sha256"] = canonical_hash(request)
     return request

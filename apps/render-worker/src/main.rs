@@ -1,20 +1,27 @@
 use base64::Engine;
 use forgecad_render_core::{
     render_fixed_glb, render_perspective_glb, render_perspective_glb_fit_at_resolution,
-    render_perspective_glb_with_emissive_overrides, render_perspective_glb_with_hdr_bloom,
+    render_perspective_glb_raster_hit_source_map, render_perspective_glb_with_emissive_overrides,
+    render_perspective_glb_with_hdr_bloom, render_static_hero_beauty_glb,
     render_typed_particles_with_glb, render_typed_trails_bloom_with_glb,
     render_typed_trails_with_glb, EmissiveMaterialOverride, HdrBloomProfile, RenderPass,
-    TypedParticle, TypedTrail, TypedTrailBloomProfile,
+    TypedParticle, TypedTrail, TypedTrailBloomProfile, HERO_BEAUTY_CAMERA_POLICY,
+    HERO_BEAUTY_LIGHTING_POLICY, HERO_BEAUTY_RESOLUTION,
 };
 use forgecad_worker_protocol::{
     build_cohort_sha256, canonical_json_sha256, render_profile, validate_request, WorkerError,
     WorkerRequest, WorkerResponse, MAX_WORKER_REQUEST_BYTES, MAX_WORKER_RESPONSE_BYTES,
-    RENDER_TYPED_ANIMATED_SOCKET_PARTICLES_OPERATION,
+    RENDER_RASTER_ATTRIBUTION_OPERATION, RENDER_TYPED_ANIMATED_SOCKET_PARTICLES_OPERATION,
     RENDER_TYPED_ANIMATED_SOCKET_TRAILS_BLOOM_OPERATION,
     RENDER_TYPED_ANIMATED_SOCKET_TRAILS_OPERATION, WORKER_PROTOCOL,
 };
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use std::io::{self, Read, Write};
+
+const HERO_BEAUTY_OPERATION: &str = "render_static_hero_beauty_2k";
+const HERO_BEAUTY_REQUEST_SCHEMA: &str = "HeroBeautyRenderRequest@1";
+const HERO_BEAUTY_RESULT_SCHEMA: &str = "HeroBeautyRenderResult@1";
 
 const RENDER_OPERATIONS: &[&str] = &[
     "render_fixed",
@@ -25,6 +32,7 @@ const RENDER_OPERATIONS: &[&str] = &[
     RENDER_TYPED_ANIMATED_SOCKET_PARTICLES_OPERATION,
     RENDER_TYPED_ANIMATED_SOCKET_TRAILS_OPERATION,
     RENDER_TYPED_ANIMATED_SOCKET_TRAILS_BLOOM_OPERATION,
+    RENDER_RASTER_ATTRIBUTION_OPERATION,
     "render_typed_trails",
     "render_typed_trails_bloom",
     "render_glb_fit_batch",
@@ -43,8 +51,11 @@ fn main() {
         );
         return;
     }
+    if args == ["--isolated-once-hero-beauty"] {
+        std::process::exit(run_hero_beauty_isolated_once());
+    }
     if args != ["--isolated-once"] {
-        eprintln!("usage: forgecad-render-worker --isolated-once");
+        eprintln!("usage: forgecad-render-worker --isolated-once | --isolated-once-hero-beauty");
         std::process::exit(2);
     }
     std::process::exit(run_isolated_once());
@@ -90,6 +101,91 @@ fn run_isolated_once() -> i32 {
     } else {
         1
     }
+}
+
+/// Closed render-worker-only entry for the transient static Hero beauty
+/// output. It intentionally does not deserialize `WorkerRequest`, so adding
+/// this 2048px source-only operation cannot widen the shared worker protocol
+/// or change the formal RenderSet@2 nine-AOV path.
+fn run_hero_beauty_isolated_once() -> i32 {
+    let response = match read_bounded_stdin() {
+        Ok(request_bytes) => match serde_json::from_slice::<Value>(&request_bytes) {
+            Ok(request) => match render_hero_beauty_result(&request) {
+                Ok(mut result) => {
+                    result["ok"] = Value::Bool(true);
+                    result
+                }
+                Err(message) => hero_beauty_error(message),
+            },
+            Err(error) => hero_beauty_error(format!("hero request parse failed: {error}")),
+        },
+        Err(message) => hero_beauty_error(message),
+    };
+    let ok = response.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    let mut stdout = io::BufWriter::new(io::stdout());
+    if !emit_hero_beauty(&mut stdout, response) {
+        return 1;
+    }
+    if ok {
+        0
+    } else {
+        1
+    }
+}
+
+fn render_hero_beauty_result(request: &Value) -> Result<Value, String> {
+    let payload = request
+        .as_object()
+        .ok_or_else(|| "hero request must be an object".to_owned())?;
+    require_closed_payload(payload, &["schema_version", "operation", "glb_base64"])?;
+    if payload.get("schema_version").and_then(Value::as_str) != Some(HERO_BEAUTY_REQUEST_SCHEMA) {
+        return Err("hero request schema_version is invalid".to_owned());
+    }
+    if payload.get("operation").and_then(Value::as_str) != Some(HERO_BEAUTY_OPERATION) {
+        return Err("hero request operation is invalid".to_owned());
+    }
+    let glb = decode_render_glb(payload)?;
+    let pass = render_static_hero_beauty_glb(&glb).map_err(|error| error.to_string())?;
+    if pass.pass != "beauty"
+        || pass.width != HERO_BEAUTY_RESOLUTION
+        || pass.height != HERO_BEAUTY_RESOLUTION
+    {
+        return Err("static Hero beauty output is outside the fixed contract".to_owned());
+    }
+    let png_sha256 = sha256_hex(&pass.png);
+    Ok(json!({
+        "schema_version":HERO_BEAUTY_RESULT_SCHEMA,
+        "operation":HERO_BEAUTY_OPERATION,
+        "pass":"beauty",
+        "mime":"image/png",
+        "width":HERO_BEAUTY_RESOLUTION,
+        "height":HERO_BEAUTY_RESOLUTION,
+        "renderer_revision":"forgecad-renderer-2",
+        "camera_policy":HERO_BEAUTY_CAMERA_POLICY,
+        "lighting_policy":HERO_BEAUTY_LIGHTING_POLICY,
+        "source_glb_sha256":sha256_hex(&glb),
+        "png_sha256":png_sha256,
+        "png_base64":base64::engine::general_purpose::STANDARD.encode(&pass.png),
+        "source_only":true,
+        "candidate_bound":false,
+        "runtime_write":false,
+        "production_stage_advanced":false,
+        "candidate_confirmed":false,
+        "version_created":false,
+        "export_performed":false,
+        "build_cohort_sha256":build_cohort_sha256()
+    }))
+}
+
+fn hero_beauty_error(message: impl Into<String>) -> Value {
+    json!({
+        "schema_version":HERO_BEAUTY_RESULT_SCHEMA,
+        "operation":HERO_BEAUTY_OPERATION,
+        "ok":false,
+        "source_only":true,
+        "runtime_write":false,
+        "error":{"code":"HERO_BEAUTY_REJECTED","message":message.into()}
+    })
 }
 
 fn read_bounded_stdin() -> Result<Vec<u8>, String> {
@@ -168,6 +264,55 @@ fn render_worker_result(request: &WorkerRequest) -> Result<Value, String> {
                 "renderer_revision":"forgecad-renderer-2",
                 "render_profile":render_profile(),
                 "passes":serialize_passes(&passes)
+            }))
+        }
+        RENDER_RASTER_ATTRIBUTION_OPERATION => {
+            require_closed_payload(payload, &["glb_base64", "camera"])?;
+            let glb = decode_render_glb(payload)?;
+            let camera = payload
+                .get("camera")
+                .ok_or_else(|| "camera is required".to_owned())?;
+            let map = render_perspective_glb_raster_hit_source_map(&glb, camera)
+                .map_err(|error| error.to_string())?;
+            let triangle_ids = map.encode_triangle_ids_le();
+            let sources = map
+                .sources
+                .iter()
+                .map(|source| {
+                    json!({
+                        "triangle_index":source.triangle_index,
+                        "mesh_index":source.mesh_index,
+                        "primitive_index":source.primitive_index,
+                        "triangle_index_in_primitive":source.triangle_index_in_primitive,
+                        "semantic_part_id":source.semantic_part_id,
+                        "source_node_id":source.source_node_id,
+                        "lineage_source_node_ids":source.lineage_source_node_ids,
+                        "material_zone_id":source.material_zone_id
+                    })
+                })
+                .collect::<Vec<_>>();
+            let source_table = Value::Array(sources.clone());
+            Ok(json!({
+                "schema_version":"RenderWorkerRasterAttributionResult@1",
+                "operation":RENDER_RASTER_ATTRIBUTION_OPERATION,
+                "width":map.width,
+                "height":map.height,
+                "raster_width":map.raster_width,
+                "raster_height":map.raster_height,
+                "renderer_revision":"forgecad-renderer-2",
+                "render_profile":render_profile(),
+                "triangle_id_encoding":"little-endian-u32-background-max",
+                "triangle_id_count":map.pixels.len(),
+                "triangle_ids_sha256":sha256_hex(&triangle_ids),
+                "triangle_ids_base64":base64::engine::general_purpose::STANDARD.encode(&triangle_ids),
+                "source_count":sources.len(),
+                "source_table_sha256":canonical_json_sha256(&source_table),
+                "sources":sources,
+                "runtime_write":false,
+                "production_stage_advanced":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
             }))
         }
         "render_glb_vfx_frame" => {
@@ -2079,6 +2224,11 @@ fn decode_render_glb(payload: &Map<String, Value>) -> Result<Vec<u8>, String> {
     Ok(glb)
 }
 
+fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
 fn serialize_passes(passes: &[RenderPass]) -> Vec<Value> {
     passes
         .iter()
@@ -2131,6 +2281,27 @@ fn emit(stdout: &mut impl Write, response: WorkerResponse) -> bool {
     stdout.write_all(b"\n").is_ok() && stdout.flush().is_ok()
 }
 
+fn emit_hero_beauty(stdout: &mut impl Write, response: Value) -> bool {
+    let bytes = match serde_json::to_vec(&response) {
+        Ok(bytes) => bytes,
+        Err(_) => return false,
+    };
+    if bytes.len() > MAX_WORKER_RESPONSE_BYTES {
+        let fallback =
+            hero_beauty_error("hero beauty response exceeds the bounded worker response");
+        let fallback_bytes = match serde_json::to_vec(&fallback) {
+            Ok(bytes) => bytes,
+            Err(_) => return false,
+        };
+        if stdout.write_all(&fallback_bytes).is_err() {
+            return false;
+        }
+    } else if stdout.write_all(&bytes).is_err() {
+        return false;
+    }
+    stdout.write_all(b"\n").is_ok() && stdout.flush().is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2149,6 +2320,74 @@ mod tests {
         let error =
             render_worker_result(&request).expect_err("render boundary must reject compiler input");
         assert!(error.contains("unknown field"));
+    }
+
+    #[test]
+    fn hero_beauty_operation_is_closed_hash_bound_and_source_only() {
+        let request = json!({
+            "schema_version":HERO_BEAUTY_REQUEST_SCHEMA,
+            "operation":HERO_BEAUTY_OPERATION,
+            "glb_base64":base64::engine::general_purpose::STANDARD.encode(animated_socket_test_glb())
+        });
+        let result = render_hero_beauty_result(&request).expect("Hero beauty render");
+        assert_eq!(result["width"], HERO_BEAUTY_RESOLUTION);
+        assert_eq!(result["height"], HERO_BEAUTY_RESOLUTION);
+        assert_eq!(result["camera_policy"], HERO_BEAUTY_CAMERA_POLICY);
+        assert_eq!(result["lighting_policy"], HERO_BEAUTY_LIGHTING_POLICY);
+        assert_eq!(result["source_only"], true);
+        assert_eq!(result["runtime_write"], false);
+        assert_eq!(result["production_stage_advanced"], false);
+        assert_eq!(result["candidate_confirmed"], false);
+        assert_eq!(result["version_created"], false);
+        assert_eq!(result["export_performed"], false);
+        let png = base64::engine::general_purpose::STANDARD
+            .decode(result["png_base64"].as_str().expect("Hero PNG base64"))
+            .expect("Hero PNG decodes");
+        assert_eq!(result["png_sha256"], sha256_hex(&png));
+        assert_eq!(
+            result["source_glb_sha256"],
+            sha256_hex(&animated_socket_test_glb())
+        );
+
+        let mut executable = request;
+        executable["script"] = Value::String("forbidden".to_owned());
+        assert!(render_hero_beauty_result(&executable).is_err());
+    }
+
+    #[test]
+    fn raster_attribution_operation_is_closed_deterministic_and_zero_write() {
+        let request = WorkerRequest {
+            protocol: WORKER_PROTOCOL.to_owned(),
+            request_id: "raster-attribution-1".to_owned(),
+            operation: RENDER_RASTER_ATTRIBUTION_OPERATION.to_owned(),
+            payload: json!({
+                "glb_base64":base64::engine::general_purpose::STANDARD.encode(animated_socket_test_glb()),
+                "camera":animated_socket_test_camera()
+            }),
+        };
+        validate_request(&request).expect("attribution operation allowlisted");
+        let first = render_worker_result(&request).expect("attribution result");
+        let replay = render_worker_result(&request).expect("attribution replay");
+        assert_eq!(first, replay);
+        assert_eq!(
+            first["schema_version"],
+            "RenderWorkerRasterAttributionResult@1"
+        );
+        assert_eq!(first["triangle_id_count"], 512 * 512);
+        assert_eq!(first["source_count"], 1);
+        assert_eq!(first["sources"][0]["semantic_part_id"], "test-part");
+        assert_eq!(first["sources"][0]["source_node_id"], "test-node");
+        assert_eq!(first["runtime_write"], false);
+        assert_eq!(first["production_stage_advanced"], false);
+        let ids = base64::engine::general_purpose::STANDARD
+            .decode(first["triangle_ids_base64"].as_str().expect("triangle ids"))
+            .expect("triangle ids decode");
+        assert_eq!(ids.len(), 512 * 512 * 4);
+        assert_eq!(first["triangle_ids_sha256"], sha256_hex(&ids));
+
+        let mut widened = request;
+        widened.payload["script"] = json!("forbidden");
+        assert!(render_worker_result(&widened).is_err());
     }
 
     #[test]
@@ -2359,10 +2598,16 @@ mod tests {
             "scenes":[{"nodes":[0]}],
             "nodes":[{"mesh":0}],
             "materials":[{"name":"test-material"}],
-            "meshes":[{"primitives":[{
+            "meshes":[{"extras":{"part_id":"test-part","material_zone_id":"test-zone"},"primitives":[{
                 "attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},
                 "indices":3,
-                "material":0
+                "material":0,
+                "extras":{
+                    "part_id":"test-part",
+                    "source_node_id":"test-node",
+                    "lineage_source_node_ids":["test-node"],
+                    "material_zone_id":"test-zone"
+                }
             }]}],
             "accessors":[
                 {"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"},

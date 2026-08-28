@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weapon-foundation-socket-map.schema.json",
+  "title": "WeaponFoundationSocketMap@1",
+  "description": "Closed semantic mapping from allowlisted foundation node names to ForgeCAD socket names. It carries no caller-authored transforms; target transforms are derived later by Runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "socket_map_id",
+    "source_asset_id",
+    "source_asset_sha256",
+    "coordinate_spec_sha256",
+    "mapping_policy",
+    "target_socket_namespace",
+    "required_socket_ids",
+    "source_missing_socket_ids",
+    "mappings",
+    "transform_status",
+    "materialization_status",
+    "quality_status",
+    "promotion_eligible",
+    "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponFoundationSocketMap@1"},
+    "socket_map_id": {"$ref": "#/$defs/id"},
+    "source_asset_id": {"enum": ["pichuliru-weapon-west", "pichuliru-weapon-east", "wrad-arms"]},
+    "source_asset_sha256": {"$ref": "#/$defs/sha256"},
+    "coordinate_spec_sha256": {"$ref": "#/$defs/sha256"},
+    "mapping_policy": {"const": "source-semantic-node-to-forgecad-socket-allowlist@1"},
+    "target_socket_namespace": {"const": "forgecad.weapon.socket@1"},
+    "required_socket_ids": {"const": ["optic", "muzzle", "rail_top", "rail_bottom", "rail_left", "rail_right", "left_grip", "right_grip", "mag_eject", "shell_eject", "vfx_origin", "audio_origin"]},
+    "source_missing_socket_ids": {"const": ["left_grip", "right_grip", "mag_eject", "shell_eject", "vfx_origin", "audio_origin"]},
+    "mappings": {"type": "array", "minItems": 12, "maxItems": 12, "uniqueItems": true, "items": {"$ref": "#/$defs/mapping"}},
+    "transform_status": {"const": "PENDING_RUNTIME_DERIVATION"},
+    "materialization_status": {"const": "MAPPING_ONLY"},
+    "quality_status": {"const": "structural_only"},
+    "promotion_eligible": {"const": false},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"source_asset_id": {"const": "pichuliru-weapon-west"}}, "required": ["source_asset_id"]},
+      "then": {"properties": {"source_asset_sha256": {"const": "0d80dd2118c884172a856455968be14eadc97f041d27d52bfa75fedb708fa486"}}}
+    },
+    {
+      "if": {"properties": {"source_asset_id": {"const": "pichuliru-weapon-east"}}, "required": ["source_asset_id"]},
+      "then": {"properties": {"source_asset_sha256": {"const": "8b3d3f90afbff9a699c3e2a14574ff0c5a687f1faf6dc4b51ba4a5629ea07783"}}}
+    },
+    {
+      "if": {"properties": {"source_asset_id": {"const": "wrad-arms"}}, "required": ["source_asset_id"]},
+      "then": {"properties": {"source_asset_sha256": {"const": "580efbb0852bf0b41f82dd3e17eafec86b3d2a48f4a7acaa7e64d60e850f565d"}}}
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["socket_id", "target_node_name", "source_node_name", "source_presence", "source_semantic", "parent_target_id", "local_transform_status"],
+      "properties": {
+        "socket_id": {"enum": ["optic", "muzzle", "rail_top", "rail_bottom", "rail_left", "rail_right", "left_grip", "right_grip", "mag_eject", "shell_eject", "vfx_origin", "audio_origin"]},
+        "target_node_name": {"$ref": "#/$defs/id"},
+        "source_node_name": {"type": ["string", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+        "source_presence": {"enum": ["PRESENT", "MISSING", "DERIVED_FROM_ARMATURE"]},
+        "source_semantic": {"enum": ["attachment", "grip", "ejection", "vfx", "audio"]},
+        "parent_target_id": {"enum": ["weapon_root", "body", "barrel", "grip", "magazine", "stock", "arm_root"]},
+        "local_transform_status": {"const": "NOT_ACCEPTED_FROM_SOURCE"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"source_presence": {"const": "MISSING"}}, "required": ["source_presence"]},
+          "then": {"properties": {"source_node_name": {"type": "null"}}}
+        },
+        {
+          "if": {"properties": {"source_presence": {"enum": ["PRESENT", "DERIVED_FROM_ARMATURE"]}}, "required": ["source_presence"]},
+          "then": {"properties": {"source_node_name": {"type": "string", "minLength": 1}}}
+        }
+      ]
+    }
+  }
+}

@@ -24,6 +24,7 @@ COMPARE_WORKER = ROOT / "apps/desktop/src/features/runtime-viewer/compare-worker
 AGENTIC_DESIGN = ROOT / "apps/desktop/src/features/runtime-viewer/agentic-design.ts"
 MECHANICAL_ANIMATION = ROOT / "apps/desktop/src/features/runtime-viewer/mechanical-animation.ts"
 PROVENANCE_GRAPH = ROOT / "apps/desktop/src/features/runtime-viewer/provenance-graph.ts"
+AUTHORING_MESH = ROOT / "apps/desktop/src/features/runtime-viewer/authoring-mesh.ts"
 
 
 def main() -> int:
@@ -35,6 +36,7 @@ def main() -> int:
     agentic_source = AGENTIC_DESIGN.read_text(encoding="utf-8")
     mechanical_animation_source = MECHANICAL_ANIMATION.read_text(encoding="utf-8")
     provenance_graph_source = PROVENANCE_GRAPH.read_text(encoding="utf-8")
+    authoring_mesh_source = AUTHORING_MESH.read_text(encoding="utf-8")
     normalizer_check = subprocess.run(
         [
             "node",
@@ -181,6 +183,22 @@ def main() -> int:
         if token in provenance_graph_source:
             raise SystemExit(f"Provenance graph normalizer must remain ephemeral and offline: {token}")
     for token in (
+        "AuthoringMesh@1",
+        "candidate-program-artifact-readback-bound@1",
+        "non-bijective-derived-only@1",
+        "cross_version_stable: false",
+        "runtime_write_performed: false",
+        "persistent_user_data_touched: false",
+        "normalizeAuthoringMesh",
+        "isCurrentAuthoringMeshResponse",
+        "AUTHORING_MESH_BINDING_MISMATCH",
+    ):
+        if token not in authoring_mesh_source:
+            raise SystemExit(f"AuthoringMesh fail-closed normalizer is missing: {token}")
+    for token in ("window.localStorage", "globalThis.localStorage", "fetch("):
+        if token in authoring_mesh_source:
+            raise SystemExit(f"AuthoringMesh normalizer must remain ephemeral and offline: {token}")
+    for token in (
         "artifactReadbackSha256 !== normalizedClip.artifactReadbackSha256",
         "geometryCandidateEvidenceSha256 !== normalizedClip.geometryCandidateEvidenceSha256",
         "programSha256 !== normalizedClip.programSha256",
@@ -216,6 +234,7 @@ def main() -> int:
         "viewer_mechanical_animation_clip",
         "viewer_mechanical_animation_frame_preview",
         "viewer_provenance_graph",
+        "viewer_authoring_mesh",
         "selectedPartId",
         "selectedMaterialZone",
         "exploded",
@@ -371,6 +390,7 @@ def main() -> int:
         "viewer_mechanical_animation_clip",
         "viewer_mechanical_animation_frame_preview",
         "viewer_provenance_graph",
+        "viewer_authoring_mesh",
     })
     actual_runtime_commands = sorted(set(re.findall(
         r"runtimeInvoke(?:<[^>]+>)?\(\s*['\"]([^'\"]+)", source

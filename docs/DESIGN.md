@@ -1,7 +1,11 @@
 # ForgeCAD Codex-only MCP Runtime 设计
 
-版本：2026-08-13
-状态：单用户 MVP 架构；MCP001–009 Runtime/MCP/Worker/Viewer functional core 已实现，真实 Codex/视觉/packaged gates 单独保留。ADR-0026 的 Agentic Design Runtime 目标模块见 `ARCHITECTURE_MODULE_BOUNDARY.md`，尚未改变当前实现。
+> 2026-08-26 商业设计补充：创作真值采用 `AuthoringMesh revision DAG → HighRecipe/evaluated High → AutoRetopoDraft → approved LowAuthoringMesh → explicit correspondence/Cage/Bake → MaterialLayerGraph`；表现与交付分别进入 FPS package 和 Engine package。Runtime 继续唯一写入 SQLite/CAS，Worker 仅接受 closed typed request，Viewer 仅做 Art Director 只读审查。
+
+版本：2026-08-25
+状态：单用户 MVP 架构；MCP001–009 Runtime/MCP/Worker/Viewer functional core 已实现，FGC-MCP010F 仍唯一 `in_progress`。ADR-0026 定义 Agentic Design Runtime，ADR-0027 与 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md` 定义 ForgeCAD-only 商业 FPS Hero Asset 生产链。当前 AuthoringMesh 已有 candidate-bound read-only projection、durable prepare/get 与受限 split/collapse/dissolve identity-lineage source evidence；Native High、Low draft、Hero UV也只有各自注明的 structural/source slice，仍不构成完整 artist authoring、商业视觉、人评或引擎验收，视觉保持 `QUALITY_TARGET_NOT_MET`。
+
+目标执行栈在现有 Runtime 唯一写者边界内增加固定内置 Art Direction、Authoring Mesh、High、Low/Retopo、UV、Cage/Bake、Surface/Texture、LOD/Collision/Socket、Render/AOV 和 Engine Validation Workers。Worker 只能接收 closed typed request，不联网、不读写 SQLite/CAS、不接受脚本/URL/路径；所有持久化、阶段晋级、批准、版本和导出仍由 Runtime 负责。Blender、Substance、Maya 与外部 DCC 不属于产品运行架构。正式商业放行还必须有独立 `HeroArtReviewReceipt@1`，Codex、Viewer 或 Worker 不能自我批准。
 
 ## 1. 系统上下文
 
@@ -15,7 +19,7 @@ flowchart LR
   R --> K["forgecad-core"]
   R --> G["restricted geometry worker"]
   R --> E["headless render evidence worker"]
-  R -. post-MVP .-> B["optional fixed Blender worker"]
+  R --> A["restricted authoring/high-low/UV/bake/surface/package workers"]
   R --> SK["first-party declarative Skills"]
 ```
 
@@ -36,7 +40,7 @@ Codex IDE/VS Code/Cursor/Windsurf 的 MCP 兼容代码可以保留为未来宿�
 | `forgecad-mcp` | Codex stdio tool/resource 适配 | 数据库、第二状态、算法真值 |
 | `geometry-worker` | 受限 typed 几何编译 | 网络、任意路径、FastAPI |
 | `render-worker` | 固定 headless scene/AOV | 作为项目材质或版本真值 |
-| `blender-worker` | 可选固定 bake/render recipe | 任意 Python/addon/.blend 真值 |
+| ForgeCAD production workers | Authoring/High/Low/UV/Cage-Bake/Surface/FPS/Packaging 的 fixed typed execution | Blender/DCC、任意 Python/addon、网络、`.blend` 真值、直接写 DB/CAS |
 | Runtime Viewer | 查看、选择、隔离、临时爆炸 | 聊天、上传、Provider、永久编辑 |
 | Skill Registry | Bundle 验证、启用、撤销 | 直接执行未注册代码 |
 | DesignSession（目标） | stage/checkpoint/失败门/下一步允许动作 | 替代 Runtime candidate/version 或直接写几何 |

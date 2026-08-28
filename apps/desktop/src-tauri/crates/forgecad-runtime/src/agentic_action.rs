@@ -10,6 +10,7 @@
 //! failed stage is still persisted as an immutable, fail-closed run so Codex
 //! can inspect the exact stopping point.
 
+use super::production_weapon_assembly_parameter_mutator::production_weapon_stock_profile_reconstruction_mutate;
 use super::{
     canonical_json_bytes, canonical_json_hash, hash_geometry_program_with_runtime_worker,
     now_string, sha256_hex, strict_glb_inspection, validate_quality_report_v2_output,
@@ -34,6 +35,14 @@ const DESIGN_STAGES: [&str; 6] = [
 ];
 
 const PIPELINE_STAGES: [&str; 5] = ["prepare", "compile", "readback", "render", "evaluate"];
+const REAL_D1_REPAIR_SIX_VIEW_KINDS: [&str; 6] = [
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "rear-three-quarter",
+];
 
 const ACTION_KINDS: [&str; 16] = [
     "reference-import",
@@ -85,10 +94,10 @@ const OPERATOR_IDS: [&str; 27] = [
 ];
 
 #[derive(Debug, Clone)]
-struct GeometryBindings {
-    evidence: GeometryCandidateEvidenceRecord,
-    program: Value,
-    artifact_sha256: String,
+pub(crate) struct GeometryBindings {
+    pub(crate) evidence: GeometryCandidateEvidenceRecord,
+    pub(crate) program: Value,
+    pub(crate) artifact_sha256: String,
 }
 
 #[derive(Debug, Clone)]
@@ -102,16 +111,16 @@ struct VisualBindings {
 }
 
 #[derive(Debug, Clone)]
-struct ViewEvaluation {
-    view_id: String,
-    kind: String,
-    visibility: String,
-    confidence: f64,
-    reference_id: String,
-    reference_sha256: String,
-    target_sha256: Option<String>,
-    view_spec: Value,
-    camera: Value,
+pub(crate) struct ViewEvaluation {
+    pub(crate) view_id: String,
+    pub(crate) kind: String,
+    pub(crate) visibility: String,
+    pub(crate) confidence: f64,
+    pub(crate) reference_id: String,
+    pub(crate) reference_sha256: String,
+    pub(crate) target_sha256: Option<String>,
+    pub(crate) view_spec: Value,
+    pub(crate) camera: Value,
 }
 
 impl Runtime {
@@ -951,6 +960,14 @@ impl Runtime {
             .get("action")
             .ok_or_else(|| RuntimeError::InvalidInput("action is required".to_owned()))?;
         validate_action(action)?;
+        if matches!(
+            runtime_parameter_patch_strategy(action),
+            Ok("rear-stock-profile-reconstruction-v1")
+        ) {
+            return Err(RuntimeError::InvalidInput(
+                "ACTION_STOCK_PROFILE_EXTERNAL_REPAIR_INTENT_FORBIDDEN".to_owned(),
+            ));
+        }
         let proposal = object
             .get("proposal")
             .and_then(Value::as_object)
@@ -1582,6 +1599,20 @@ impl Runtime {
             .or(automatic_parameter_patch.as_ref());
 
         if let Some(requested_proposal) = requested_proposal {
+            if matches!(
+                runtime_parameter_patch_strategy(action),
+                Ok("rear-stock-profile-reconstruction-v1")
+            ) && !is_runtime_parameter_patch_proposal(requested_proposal)
+            {
+                return persist_blocked_run(
+                    self,
+                    run,
+                    "evaluate",
+                    Some("render"),
+                    "repair-proposal",
+                    "ACTION_STOCK_PROFILE_CALLER_PROGRAM_FORBIDDEN",
+                );
+            }
             let proposal = if is_runtime_parameter_patch_proposal(requested_proposal) {
                 match materialize_runtime_parameter_patch_proposal(
                     requested_proposal,
@@ -2086,8 +2117,10 @@ fn stable_proposal_failure_code(error: &RuntimeError) -> String {
     let allowed_prefix = [
         "ACTION_",
         "AGENTIC_",
+        "ASSEMBLY_",
         "CAMERA_",
         "CONTRACT_",
+        "CROSS_VIEW_",
         "GEOMETRY_",
         "REPAIR_",
         "REFERENCE_",
@@ -2182,6 +2215,11 @@ enum RuntimeParameterSemantic {
     InnerRadius,
     Thickness,
     Bevel,
+    RearStockInnerReceiverDeltaY,
+    RearStockInnerCapDeltaY,
+    RearStockReceiverInnerXDelta,
+    RearStockCapInnerXDelta,
+    RearStockDepthCenterInnerDeltaY,
     SurfaceControlPoint { index: usize, axis: usize },
 }
 
@@ -2207,7 +2245,17 @@ fn runtime_parameter_semantic(parameter_id: &str) -> Option<RuntimeParameterSema
     }
     let matches =
         |suffix: &str| parameter_id == suffix || parameter_id.ends_with(&format!("-{suffix}"));
-    if matches("width") {
+    if parameter_id == "rear-stock-inner-receiver-delta-y" {
+        Some(RuntimeParameterSemantic::RearStockInnerReceiverDeltaY)
+    } else if parameter_id == "rear-stock-inner-cap-delta-y" {
+        Some(RuntimeParameterSemantic::RearStockInnerCapDeltaY)
+    } else if parameter_id == "rear-stock-receiver-inner-x-delta" {
+        Some(RuntimeParameterSemantic::RearStockReceiverInnerXDelta)
+    } else if parameter_id == "rear-stock-cap-inner-x-delta" {
+        Some(RuntimeParameterSemantic::RearStockCapInnerXDelta)
+    } else if parameter_id == "rear-stock-depth-center-inner-delta-y" {
+        Some(RuntimeParameterSemantic::RearStockDepthCenterInnerDeltaY)
+    } else if matches("width") {
         Some(RuntimeParameterSemantic::Size(0))
     } else if matches("height") {
         Some(RuntimeParameterSemantic::Size(1))
@@ -2242,6 +2290,13 @@ fn runtime_parameter_semantic(parameter_id: &str) -> Option<RuntimeParameterSema
 
 fn runtime_parameter_strategy(semantic: RuntimeParameterSemantic) -> &'static str {
     match semantic {
+        RuntimeParameterSemantic::RearStockInnerReceiverDeltaY
+        | RuntimeParameterSemantic::RearStockInnerCapDeltaY
+        | RuntimeParameterSemantic::RearStockReceiverInnerXDelta
+        | RuntimeParameterSemantic::RearStockCapInnerXDelta
+        | RuntimeParameterSemantic::RearStockDepthCenterInnerDeltaY => {
+            "rear-stock-profile-reconstruction-v1"
+        }
         RuntimeParameterSemantic::SurfaceControlPoint { .. } => "surface-control-points-v1",
         RuntimeParameterSemantic::Thickness | RuntimeParameterSemantic::Bevel => {
             "hard-surface-finish-v1"
@@ -2321,6 +2376,11 @@ fn runtime_parameter_node_supports(
         return false;
     };
     match semantic {
+        RuntimeParameterSemantic::RearStockInnerReceiverDeltaY
+        | RuntimeParameterSemantic::RearStockInnerCapDeltaY
+        | RuntimeParameterSemantic::RearStockReceiverInnerXDelta
+        | RuntimeParameterSemantic::RearStockCapInnerXDelta
+        | RuntimeParameterSemantic::RearStockDepthCenterInnerDeltaY => false,
         RuntimeParameterSemantic::Size(2) if energy_core_operator => {
             parameters.get("depth_m").and_then(Value::as_f64).is_some()
         }
@@ -2393,6 +2453,11 @@ fn runtime_parameter_value_in_bounds(semantic: RuntimeParameterSemantic, value: 
         RuntimeParameterSemantic::InnerRadius => (0.0..=5.0).contains(&value),
         RuntimeParameterSemantic::Thickness => value > 0.0 && value <= 10.0,
         RuntimeParameterSemantic::Bevel => value >= 0.0 && value <= 5.0,
+        RuntimeParameterSemantic::RearStockInnerReceiverDeltaY
+        | RuntimeParameterSemantic::RearStockInnerCapDeltaY => (0.0..=0.07).contains(&value),
+        RuntimeParameterSemantic::RearStockReceiverInnerXDelta
+        | RuntimeParameterSemantic::RearStockCapInnerXDelta => (-0.01..=0.01).contains(&value),
+        RuntimeParameterSemantic::RearStockDepthCenterInnerDeltaY => (0.0..=0.01).contains(&value),
         RuntimeParameterSemantic::SurfaceControlPoint { .. } => (-10.0..=10.0).contains(&value),
     }
 }
@@ -2407,6 +2472,11 @@ fn runtime_parameter_unit_allowed(semantic: RuntimeParameterSemantic, unit: &str
         | RuntimeParameterSemantic::InnerRadius
         | RuntimeParameterSemantic::Thickness
         | RuntimeParameterSemantic::Bevel
+        | RuntimeParameterSemantic::RearStockInnerReceiverDeltaY
+        | RuntimeParameterSemantic::RearStockInnerCapDeltaY
+        | RuntimeParameterSemantic::RearStockReceiverInnerXDelta
+        | RuntimeParameterSemantic::RearStockCapInnerXDelta
+        | RuntimeParameterSemantic::RearStockDepthCenterInnerDeltaY
         | RuntimeParameterSemantic::SurfaceControlPoint { .. } => {
             matches!(unit, "meter" | "ratio")
         }
@@ -2529,6 +2599,201 @@ fn bind_repair_camera(
     Ok(bound)
 }
 
+fn materialize_rear_stock_profile_reconstruction_proposal(
+    action_object: &Map<String, Value>,
+    changes: &[Value],
+    session: &AgenticSessionRecord,
+    source_candidate: &CandidateRecord,
+    source_geometry: &GeometryBindings,
+    source_visual: &VisualBindings,
+    requested_stage: &str,
+    view_spec: &Value,
+    camera: &Value,
+) -> Result<Value, RuntimeError> {
+    if action_object.get("target_id").and_then(Value::as_str) != Some("rear-stock")
+        || action_object.get("operator_id").and_then(Value::as_str)
+            != Some("forgecad.geometry.profile-loft@2")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "ACTION_STOCK_PROFILE_RECONSTRUCTION_SCOPE_MISMATCH".to_owned(),
+        ));
+    }
+    let required = [
+        ("rear-stock-inner-receiver-delta-y", 0.0_f64),
+        ("rear-stock-inner-cap-delta-y", 0.0_f64),
+        ("rear-stock-receiver-inner-x-delta", 0.0_f64),
+        ("rear-stock-cap-inner-x-delta", 0.0_f64),
+        ("rear-stock-depth-center-inner-delta-y", 0.0_f64),
+    ];
+    if changes.len() != required.len() {
+        return Err(RuntimeError::InvalidInput(
+            "ACTION_STOCK_PROFILE_RECONSTRUCTION_COMPLETE_CONTROL_SET_REQUIRED".to_owned(),
+        ));
+    }
+    let mut after_values = HashMap::new();
+    for change in changes {
+        let object = change.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "ACTION_STOCK_PROFILE_RECONSTRUCTION_INVALID_CHANGE".to_owned(),
+            )
+        })?;
+        let parameter_id = object
+            .get("parameter_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "ACTION_STOCK_PROFILE_RECONSTRUCTION_PARAMETER_REQUIRED".to_owned(),
+                )
+            })?;
+        let Some((_, expected_before)) = required
+            .iter()
+            .find(|(required_id, _)| *required_id == parameter_id)
+        else {
+            return Err(RuntimeError::InvalidInput(format!(
+                "ACTION_STOCK_PROFILE_RECONSTRUCTION_UNSUPPORTED_PARAMETER: {parameter_id}"
+            )));
+        };
+        if object.get("unit").and_then(Value::as_str) != Some("meter") {
+            return Err(RuntimeError::InvalidInput(
+                "ACTION_STOCK_PROFILE_RECONSTRUCTION_METER_UNIT_REQUIRED".to_owned(),
+            ));
+        }
+        let before = object
+            .get("before")
+            .and_then(Value::as_f64)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "ACTION_STOCK_PROFILE_RECONSTRUCTION_BEFORE_REQUIRED".to_owned(),
+                )
+            })?;
+        let tolerance = 1.0e-9 * expected_before.abs().max(1.0);
+        if (before - expected_before).abs() > tolerance {
+            return Err(RuntimeError::InvalidInput(
+                "ACTION_STOCK_PROFILE_RECONSTRUCTION_STALE_BASELINE".to_owned(),
+            ));
+        }
+        let after = object.get("after").and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "ACTION_STOCK_PROFILE_RECONSTRUCTION_AFTER_REQUIRED".to_owned(),
+            )
+        })?;
+        let semantic = runtime_parameter_semantic(parameter_id).ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "ACTION_STOCK_PROFILE_RECONSTRUCTION_SEMANTIC_UNAVAILABLE".to_owned(),
+            )
+        })?;
+        if runtime_parameter_strategy(semantic) != "rear-stock-profile-reconstruction-v1"
+            || !runtime_parameter_value_in_bounds(semantic, after)
+            || after_values.insert(parameter_id, after).is_some()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "ACTION_STOCK_PROFILE_RECONSTRUCTION_CONTROL_INVALID".to_owned(),
+            ));
+        }
+    }
+    let value = |parameter_id: &str| {
+        after_values.get(parameter_id).copied().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "ACTION_STOCK_PROFILE_RECONSTRUCTION_COMPLETE_CONTROL_SET_REQUIRED".to_owned(),
+            )
+        })
+    };
+    let mut program = production_weapon_stock_profile_reconstruction_mutate(
+        &source_geometry.program,
+        value("rear-stock-inner-receiver-delta-y")?,
+        value("rear-stock-inner-cap-delta-y")?,
+        value("rear-stock-receiver-inner-x-delta")?,
+        value("rear-stock-cap-inner-x-delta")?,
+        value("rear-stock-depth-center-inner-delta-y")?,
+    )?;
+    program
+        .as_object_mut()
+        .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_PROGRAM_INVALID".to_owned()))?
+        .remove("canonical_sha256");
+    let hash_result = hash_geometry_program_with_runtime_worker(&program).map_err(|error| {
+        RuntimeError::InvalidInput(format!("ACTION_PARAMETER_PATCH_HASH_FAILED: {error}"))
+    })?;
+    let proposed_program_sha256 = hash_result
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .filter(|value| is_sha256(value))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("ACTION_PARAMETER_PATCH_HASH_INVALID".to_owned())
+        })?
+        .to_owned();
+    program["canonical_sha256"] = Value::String(proposed_program_sha256.clone());
+
+    let seed = canonical_json_hash(&json!({
+        "candidate_id": source_candidate.candidate_id,
+        "action": Value::Object(action_object.clone()),
+        "geometry_program_sha256": proposed_program_sha256,
+    }));
+    let critic_prefix = source_visual
+        .quality_sha256
+        .chars()
+        .take(24)
+        .collect::<String>();
+    let mut intent = json!({
+        "schema_version":"RepairIntent@1",
+        "intent_id":format!("runtime-stock-profile-reconstruction-{}", &seed[..32]),
+        "session_id":session.session_id,
+        "project_id":session.project_id,
+        "candidate_id":source_candidate.candidate_id,
+        "candidate_state_sha256":source_candidate.canonical_sha256,
+        "reference_id":session.reference_id,
+        "reference_sha256":session.reference_sha256,
+        "camera_hash":session.camera_hash,
+        "observation_sha256":session.observation_sha256,
+        "source_evidence_sha256":session.evidence_sha256,
+        "source_critic_report_id":format!("critic-report-{critic_prefix}"),
+        "source_critic_report_sha256":source_visual.quality_sha256,
+        "stage":requested_stage,
+        "scope":{"kind":"part","part_id":"rear-stock"},
+        "action":{
+            "action_kind":"bounded-repair",
+            "kit_id":"forgecad.kit.frame@1",
+            "operator_id":"forgecad.geometry.profile-loft@2",
+            "operation":"rebuild-part",
+            "parameter_changes":action_object["parameter_changes"].clone(),
+            "bounded":true,
+            "description":action_object["description"].clone()
+        },
+        "precondition":{
+            "failed_gate_id":"visible-view",
+            "quality_status":source_visual.quality_status,
+            "current_candidate_state_sha256":source_candidate.canonical_sha256,
+            "evidence_sha256":session.evidence_sha256,
+            "status":"failed"
+        },
+        "recompute":{
+            "steps":["compile","readback","render","compare"],
+            "must_rebind_reference":true,
+            "must_rebind_camera":true,
+            "confirm_allowed":false
+        },
+        "rollback":{
+            "relation":"none",
+            "target_checkpoint_id":null,
+            "target_checkpoint_sha256":null,
+            "target_version_id":null,
+            "target_version_sha256":null,
+            "on_failure":"keep-current",
+            "reason":null
+        },
+        "status":"approved",
+        "approval_required":true,
+        "runtime_write":false,
+        "canonical_sha256":""
+    });
+    intent["canonical_sha256"] = Value::String(canonical_json_hash(&intent));
+    Ok(json!({
+        "repair_intent":intent,
+        "geometry_program":program,
+        "view_spec":view_spec,
+        "camera":camera
+    }))
+}
+
 fn materialize_runtime_parameter_patch_proposal(
     proposal: &Value,
     action: &Value,
@@ -2543,7 +2808,10 @@ fn materialize_runtime_parameter_patch_proposal(
             "ACTION_PARAMETER_PATCH_INVALID: proposal must be an object".to_owned(),
         )
     })?;
-    reject_unknown_keys(proposal_object, &["parameter_patch", "view_spec", "camera"])?;
+    reject_unknown_keys(
+        proposal_object,
+        &["parameter_patch", "view_spec", "camera", "view_evaluations"],
+    )?;
     let patch = proposal_object
         .get("parameter_patch")
         .and_then(Value::as_object)
@@ -2568,7 +2836,10 @@ fn materialize_runtime_parameter_patch_proposal(
         })?;
     if !matches!(
         strategy,
-        "primitive-dimensions-v1" | "surface-control-points-v1" | "hard-surface-finish-v1"
+        "primitive-dimensions-v1"
+            | "surface-control-points-v1"
+            | "hard-surface-finish-v1"
+            | "rear-stock-profile-reconstruction-v1"
     ) {
         return Err(RuntimeError::InvalidInput(
             "ACTION_PARAMETER_PATCH_UNSUPPORTED: strategy is unavailable".to_owned(),
@@ -2582,6 +2853,11 @@ fn materialize_runtime_parameter_patch_proposal(
         .get("camera")
         .cloned()
         .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_CAMERA_REQUIRED".to_owned()))?;
+    // Keep the optional, candidate-bound six-view request attached to the
+    // Runtime-generated proposal.  It is validated only after the exact
+    // source-node program is materialized; callers never get to replace the
+    // GeometryProgram or camera with copies of their own.
+    let view_evaluations = proposal_object.get("view_evaluations").cloned();
     let action_object = action.as_object().ok_or_else(|| {
         RuntimeError::InvalidInput("ACTION_PARAMETER_PATCH_INVALID: action".to_owned())
     })?;
@@ -2597,6 +2873,24 @@ fn materialize_runtime_parameter_patch_proposal(
         .ok_or_else(|| {
             RuntimeError::InvalidInput("REPAIR_PARAMETER_CHANGES_REQUIRED".to_owned())
         })?;
+
+    if strategy == "rear-stock-profile-reconstruction-v1" {
+        let mut materialized = materialize_rear_stock_profile_reconstruction_proposal(
+            action_object,
+            changes,
+            session,
+            source_candidate,
+            source_geometry,
+            source_visual,
+            requested_stage,
+            view_spec,
+            &camera,
+        )?;
+        if let Some(view_evaluations) = view_evaluations {
+            materialized["view_evaluations"] = view_evaluations;
+        }
+        return Ok(materialized);
+    }
 
     let mut program = source_geometry.program.clone();
     let program_object = program.as_object_mut().ok_or_else(|| {
@@ -2792,6 +3086,11 @@ fn materialize_runtime_parameter_patch_proposal(
                 parameters.get("thickness_m").and_then(Value::as_f64)
             }
             RuntimeParameterSemantic::Bevel => parameters.get("bevel_m").and_then(Value::as_f64),
+            RuntimeParameterSemantic::RearStockInnerReceiverDeltaY
+            | RuntimeParameterSemantic::RearStockInnerCapDeltaY
+            | RuntimeParameterSemantic::RearStockReceiverInnerXDelta
+            | RuntimeParameterSemantic::RearStockCapInnerXDelta
+            | RuntimeParameterSemantic::RearStockDepthCenterInnerDeltaY => None,
             RuntimeParameterSemantic::SurfaceControlPoint { index, axis } => parameters
                 .get("control_points")
                 .and_then(Value::as_array)
@@ -2883,6 +3182,15 @@ fn materialize_runtime_parameter_patch_proposal(
             }
             RuntimeParameterSemantic::Bevel => {
                 parameters.insert("bevel_m".to_owned(), proposed_value);
+            }
+            RuntimeParameterSemantic::RearStockInnerReceiverDeltaY
+            | RuntimeParameterSemantic::RearStockInnerCapDeltaY
+            | RuntimeParameterSemantic::RearStockReceiverInnerXDelta
+            | RuntimeParameterSemantic::RearStockCapInnerXDelta
+            | RuntimeParameterSemantic::RearStockDepthCenterInnerDeltaY => {
+                return Err(RuntimeError::InvalidInput(
+                    "ACTION_STOCK_PROFILE_RECONSTRUCTION_ROUTING_MISMATCH".to_owned(),
+                ));
             }
             RuntimeParameterSemantic::SurfaceControlPoint { index, axis } => {
                 let points = parameters
@@ -2987,12 +3295,16 @@ fn materialize_runtime_parameter_patch_proposal(
         "canonical_sha256":""
     });
     intent["canonical_sha256"] = Value::String(canonical_json_hash(&intent));
-    Ok(json!({
+    let mut materialized = json!({
         "repair_intent":intent,
         "geometry_program":program,
         "view_spec":view_spec,
         "camera":camera
-    }))
+    });
+    if let Some(view_evaluations) = view_evaluations {
+        materialized["view_evaluations"] = view_evaluations;
+    }
+    Ok(materialized)
 }
 
 /// Execute the first real RepairIntent slice.  The source candidate remains
@@ -3108,13 +3420,26 @@ fn execute_bounded_repair_proposal(
     let mut cross_view_bundle_sha256 = None;
     let mut cross_view_hard_gate_passed = false;
     if let Some(view_evaluations) = view_evaluations.as_ref() {
-        let cross_view = evaluate_cross_view_proposal(
-            runtime,
-            session,
-            source_candidate,
-            &proposal_candidate,
-            view_evaluations,
-        )?;
+        let cross_view = if matches!(
+            runtime_parameter_patch_strategy(action),
+            Ok("rear-stock-profile-reconstruction-v1")
+        ) {
+            evaluate_rear_stock_profile_six_view_gate(
+                runtime,
+                session,
+                source_candidate,
+                &proposal_candidate,
+                view_evaluations,
+            )?
+        } else {
+            evaluate_cross_view_proposal(
+                runtime,
+                session,
+                source_candidate,
+                &proposal_candidate,
+                view_evaluations,
+            )?
+        };
         cross_view_bundle_sha256 = Some(cross_view.bundle_sha256.clone());
         cross_view_hard_gate_passed = cross_view.hard_gate_passed;
         visual_status = cross_view.aggregate_status.clone();
@@ -3140,10 +3465,12 @@ fn execute_bounded_repair_proposal(
     } else {
         visual_status == "PARTIAL_VISIBLE_VIEW_PASS"
     };
-    runtime.mark_candidate_quality(&proposal_candidate_id, quality_report_id, quality_passed)?;
-    let proposal_candidate = runtime
-        .candidate(&proposal_candidate_id)?
-        .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_CANDIDATE_DISAPPEARED".to_owned()))?;
+    // ActionRun proposals are review evidence, not active candidate commits.
+    // Mutating the proposal's quality bit here would change its canonical
+    // state after the CrossViewEvidenceBundle had already bound that state,
+    // leaving an internally stale evidence chain.  Keep the reviewable
+    // candidate immutable; confirmation/promotion owns any later state move.
+    let _quality_report_id = quality_report_id;
 
     let visual_passed = quality_passed;
     let checkpoint = runtime.prepare_action_checkpoint(
@@ -3321,7 +3648,7 @@ fn direct_primary_form_stage_results(result: &Value, result_sha256: &str, prepar
     stages
 }
 
-fn validate_view_evaluations(
+pub(crate) fn validate_view_evaluations(
     runtime: &Runtime,
     proposal: &Map<String, Value>,
     session: &AgenticSessionRecord,
@@ -3552,14 +3879,253 @@ fn validate_cross_view_evaluation_coverage(
 }
 
 #[derive(Debug, Clone)]
-struct CrossViewEvaluationResult {
-    bundle_sha256: String,
-    aggregate_status: String,
-    hard_gate_passed: bool,
-    strict_improvement: bool,
-    non_regressing: bool,
-    baseline_score: f64,
-    proposal_score: f64,
+pub(crate) struct CrossViewEvaluationResult {
+    pub(crate) bundle_sha256: String,
+    pub(crate) aggregate_status: String,
+    pub(crate) hard_gate_passed: bool,
+    pub(crate) strict_improvement: bool,
+    pub(crate) non_regressing: bool,
+    pub(crate) baseline_score: f64,
+    pub(crate) proposal_score: f64,
+}
+
+/// Real D1 rear-stock repairs must be evaluated against the complete six-view
+/// identity set.  This wrapper deliberately keeps the existing immutable
+/// CrossViewEvidenceBundle producer as the implementation seam while making
+/// the coverage contract explicit for the one-node source repair.
+pub(crate) fn evaluate_rear_stock_profile_six_view_gate(
+    runtime: &Runtime,
+    session: &AgenticSessionRecord,
+    source_candidate: &CandidateRecord,
+    proposal_candidate: &CandidateRecord,
+    view_evaluations: &[ViewEvaluation],
+) -> Result<CrossViewEvaluationResult, RuntimeError> {
+    let expected = REAL_D1_REPAIR_SIX_VIEW_KINDS
+        .iter()
+        .copied()
+        .collect::<HashSet<_>>();
+    let actual = view_evaluations
+        .iter()
+        .map(|evaluation| evaluation.kind.as_str())
+        .collect::<HashSet<_>>();
+    let view_ids = view_evaluations
+        .iter()
+        .map(|evaluation| evaluation.view_id.as_str())
+        .collect::<HashSet<_>>();
+    if view_evaluations.len() != REAL_D1_REPAIR_SIX_VIEW_KINDS.len()
+        || actual.len() != REAL_D1_REPAIR_SIX_VIEW_KINDS.len()
+        || view_ids.len() != REAL_D1_REPAIR_SIX_VIEW_KINDS.len()
+        || actual != expected
+    {
+        return Err(RuntimeError::InvalidInput(
+            "REPAIR_REAL_D1_SIX_VIEW_GATE_COVERAGE_REQUIRED".to_owned(),
+        ));
+    }
+    let (canvas, canvas_sha256) =
+        super::agentic_session::durable_reference_canvas_for_session_binding(
+            runtime,
+            &session.project_id,
+            &session.session_id,
+            &session.candidate_id,
+        )?;
+    validate_cross_view_evaluation_coverage(&canvas, view_evaluations)?;
+    // A one-node FormArt proposal is idempotent across Runtime restarts. The
+    // general same-candidate path already replays by immutable identity, but
+    // this source-versus-proposal wrapper previously skipped that lookup and
+    // attempted to insert a second bundle for the same identity. Re-read and
+    // validate the existing bundle before any Render Worker or Store write.
+    if let Some(existing) = runtime.store.get_cross_view_evidence_by_identity(
+        &session.project_id,
+        &session.session_id,
+        &proposal_candidate.candidate_id,
+        &canvas_sha256,
+    )? {
+        let bundle = read_json_object(runtime, &existing.bundle_object_sha256)?;
+        super::validate_cross_view_evidence_bundle(&bundle)?;
+        if bundle.get("candidate_id").and_then(Value::as_str)
+            != Some(proposal_candidate.candidate_id.as_str())
+            || bundle.get("candidate_state_sha256").and_then(Value::as_str)
+                != Some(proposal_candidate.canonical_sha256.as_str())
+            || bundle.get("project_id").and_then(Value::as_str) != Some(session.project_id.as_str())
+            || bundle.get("session_id").and_then(Value::as_str) != Some(session.session_id.as_str())
+            || bundle
+                .get("reference_canvas_sha256")
+                .and_then(Value::as_str)
+                != Some(canvas_sha256.as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_REAL_D1_SIX_VIEW_REPLAY_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let existing_views = bundle
+            .get("view_evaluations")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "REPAIR_REAL_D1_SIX_VIEW_REPLAY_VIEWS_INVALID".to_owned(),
+                )
+            })?;
+        let views_match = existing_views.len() == view_evaluations.len()
+            && view_evaluations.iter().all(|expected| {
+                existing_views.iter().any(|actual| {
+                    actual.get("view_id").and_then(Value::as_str) == Some(expected.view_id.as_str())
+                        && actual.get("kind").and_then(Value::as_str)
+                            == Some(expected.kind.as_str())
+                        && actual.get("reference_id").and_then(Value::as_str)
+                            == Some(expected.reference_id.as_str())
+                        && actual.get("reference_sha256").and_then(Value::as_str)
+                            == Some(expected.reference_sha256.as_str())
+                        && actual.get("camera_hash").and_then(Value::as_str)
+                            == expected.camera.get("camera_hash").and_then(Value::as_str)
+                })
+            });
+        if !views_match {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_REAL_D1_SIX_VIEW_REPLAY_COVERAGE_MISMATCH".to_owned(),
+            ));
+        }
+        return Ok(CrossViewEvaluationResult {
+            bundle_sha256: existing.bundle_object_sha256,
+            aggregate_status: existing.aggregate_status,
+            hard_gate_passed: existing.hard_gate_passed,
+            strict_improvement: bundle["strict_improvement"].as_bool().unwrap_or(false),
+            non_regressing: bundle["non_regressing"].as_bool().unwrap_or(false),
+            baseline_score: bundle["baseline_score"].as_f64().unwrap_or(0.0),
+            proposal_score: bundle["proposal_score"].as_f64().unwrap_or(0.0),
+        });
+    }
+    evaluate_cross_view_proposal(
+        runtime,
+        session,
+        source_candidate,
+        proposal_candidate,
+        view_evaluations,
+    )
+}
+
+/// Produces or replays candidate-bound six-view evidence without claiming a
+/// repair or promotion.  All durable identity/head/camera/canvas checks run
+/// before the first comparison write.  Identical replay reads the immutable
+/// bundle and starts no Render Worker.
+pub(crate) fn evaluate_same_candidate_cross_view(
+    runtime: &Runtime,
+    session: &AgenticSessionRecord,
+    candidate: &CandidateRecord,
+    view_evaluations: &[ViewEvaluation],
+) -> Result<CrossViewEvaluationResult, RuntimeError> {
+    if session.project_id != candidate.project_id
+        || session.candidate_id != candidate.candidate_id
+        || session.candidate_state_sha256 != candidate.canonical_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CROSS_VIEW_SAME_CANDIDATE_SESSION_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let artifact_sha256 = candidate
+        .prepared_object_sha256
+        .as_deref()
+        .filter(|hash| is_sha256(hash))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CROSS_VIEW_SAME_CANDIDATE_ARTIFACT_UNAVAILABLE".to_owned())
+        })?;
+    let head = runtime
+        .store
+        .get_production_stage_head_v3(
+            &session.session_id,
+            &session.project_id,
+            &session.candidate_id,
+        )?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CROSS_VIEW_CAMERA_HEAD_UNAVAILABLE".to_owned())
+        })?;
+    if head.head_stage != "camera-calibrated"
+        || head.head_candidate_id != candidate.candidate_id
+        || head.head_candidate_state_sha256 != candidate.canonical_sha256
+        || head.head_artifact_sha256 != artifact_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CROSS_VIEW_CAMERA_HEAD_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let camera_lock_id = head.camera_lock_id.as_deref().ok_or_else(|| {
+        RuntimeError::InvalidInput("CROSS_VIEW_CAMERA_LOCK_UNAVAILABLE".to_owned())
+    })?;
+    let camera_lock = runtime
+        .store
+        .get_production_camera_lock(camera_lock_id)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CROSS_VIEW_CAMERA_LOCK_UNAVAILABLE".to_owned())
+        })?;
+    if head.camera_lock_canonical_sha256.as_deref() != Some(camera_lock.canonical_sha256.as_str())
+        || head.camera_rig_object_sha256.as_deref()
+            != Some(camera_lock.camera_rig_object_sha256.as_str())
+        || head.camera_rig_canonical_sha256.as_deref()
+            != Some(camera_lock.camera_rig_canonical_sha256.as_str())
+        || head.camera_lock_receipt_object_sha256.as_deref()
+            != Some(camera_lock.receipt_object_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CROSS_VIEW_CAMERA_LOCK_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let (canvas, canvas_sha256) =
+        super::agentic_session::durable_reference_canvas_for_session_binding(
+            runtime,
+            &session.project_id,
+            &session.session_id,
+            &session.candidate_id,
+        )?;
+    validate_cross_view_evaluation_coverage(&canvas, view_evaluations)?;
+
+    if let Some(existing) = runtime.store.get_cross_view_evidence_by_identity(
+        &session.project_id,
+        &session.session_id,
+        &candidate.candidate_id,
+        &canvas_sha256,
+    )? {
+        let bundle = read_json_object(runtime, &existing.bundle_object_sha256)?;
+        super::validate_cross_view_evidence_bundle(&bundle)?;
+        if bundle.get("candidate_state_sha256").and_then(Value::as_str)
+            != Some(candidate.canonical_sha256.as_str())
+            || bundle.get("artifact_sha256").and_then(Value::as_str) != Some(artifact_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CROSS_VIEW_EVIDENCE_CONFLICT".to_owned(),
+            ));
+        }
+        let existing_views = bundle["view_evaluations"]
+            .as_array()
+            .ok_or_else(|| RuntimeError::InvalidInput("CROSS_VIEW_EVIDENCE_INVALID".to_owned()))?;
+        let views_match = existing_views.len() == view_evaluations.len()
+            && view_evaluations.iter().all(|expected| {
+                existing_views.iter().any(|actual| {
+                    actual.get("view_id").and_then(Value::as_str) == Some(expected.view_id.as_str())
+                        && actual.get("kind").and_then(Value::as_str)
+                            == Some(expected.kind.as_str())
+                        && actual.get("reference_id").and_then(Value::as_str)
+                            == Some(expected.reference_id.as_str())
+                        && actual.get("reference_sha256").and_then(Value::as_str)
+                            == Some(expected.reference_sha256.as_str())
+                        && actual.get("camera_hash").and_then(Value::as_str)
+                            == expected.camera.get("camera_hash").and_then(Value::as_str)
+                })
+            });
+        if !views_match {
+            return Err(RuntimeError::InvalidInput(
+                "CROSS_VIEW_EVIDENCE_CONFLICT".to_owned(),
+            ));
+        }
+        return Ok(CrossViewEvaluationResult {
+            bundle_sha256: existing.bundle_object_sha256,
+            aggregate_status: existing.aggregate_status,
+            hard_gate_passed: existing.hard_gate_passed,
+            strict_improvement: bundle["strict_improvement"].as_bool().unwrap_or(false),
+            non_regressing: bundle["non_regressing"].as_bool().unwrap_or(false),
+            baseline_score: bundle["baseline_score"].as_f64().unwrap_or(0.0),
+            proposal_score: bundle["proposal_score"].as_f64().unwrap_or(0.0),
+        });
+    }
+    evaluate_cross_view_proposal(runtime, session, candidate, candidate, view_evaluations)
 }
 
 fn evaluate_cross_view_proposal(
@@ -3568,6 +4134,47 @@ fn evaluate_cross_view_proposal(
     source_candidate: &CandidateRecord,
     proposal_candidate: &CandidateRecord,
     view_evaluations: &[ViewEvaluation],
+) -> Result<CrossViewEvaluationResult, RuntimeError> {
+    let reservation = runtime.store.begin_cas_reservation();
+    let mut reserved_objects = Vec::new();
+    let result = evaluate_cross_view_proposal_reserved(
+        runtime,
+        session,
+        source_candidate,
+        proposal_candidate,
+        view_evaluations,
+        &reservation,
+        &mut reserved_objects,
+    );
+    let cleanup = result.is_err();
+    let mut rollback_error = None;
+    for object in reserved_objects.iter().rev() {
+        if let Err(error) = runtime.store.release_cas_reservation_object(
+            &reservation,
+            object,
+            cleanup && object.created_new,
+        ) {
+            rollback_error.get_or_insert(error);
+        }
+    }
+    match (result, rollback_error) {
+        (Ok(value), None) => Ok(value),
+        (Err(error), None) => Err(error),
+        (Ok(_), Some(error)) => Err(RuntimeError::Store(error)),
+        (Err(error), Some(rollback)) => Err(RuntimeError::InvalidInput(format!(
+            "{error}; CROSS_VIEW_ROLLBACK_FAILED: {rollback}"
+        ))),
+    }
+}
+
+fn evaluate_cross_view_proposal_reserved(
+    runtime: &Runtime,
+    session: &AgenticSessionRecord,
+    source_candidate: &CandidateRecord,
+    proposal_candidate: &CandidateRecord,
+    view_evaluations: &[ViewEvaluation],
+    reservation: &forgecad_store::CasReservation,
+    reserved_objects: &mut Vec<forgecad_store::CasObject>,
 ) -> Result<CrossViewEvaluationResult, RuntimeError> {
     let (canvas, canvas_sha256) =
         super::agentic_session::durable_reference_canvas_for_session_binding(
@@ -3586,8 +4193,6 @@ fn evaluate_cross_view_proposal(
         let mut baseline_request = json!({
                 "project_id":session.project_id,
                 "candidate_id":source_candidate.candidate_id,
-                "session_id":session.session_id,
-                "authoring_candidate_id":source_candidate.candidate_id,
                 "reference_id":view.reference_id,
                 "view_id":view.view_id,
                 "view_spec":view.view_spec,
@@ -3596,13 +4201,15 @@ fn evaluate_cross_view_proposal(
         if let Some(target_sha256) = view.target_sha256.as_deref() {
             baseline_request["target_sha256"] = Value::String(target_sha256.to_owned());
         }
-        let baseline =
-            runtime.prepare_reference_comparison(&session.project_id, baseline_request)?;
+        let baseline = runtime.prepare_reference_comparison_detached(
+            &session.project_id,
+            baseline_request,
+            reservation,
+            reserved_objects,
+        )?;
         let mut proposal_request = json!({
                 "project_id":session.project_id,
                 "candidate_id":proposal_candidate.candidate_id,
-                "session_id":session.session_id,
-                "authoring_candidate_id":source_candidate.candidate_id,
                 "reference_id":view.reference_id,
                 "view_id":view.view_id,
                 "view_spec":view.view_spec,
@@ -3611,8 +4218,12 @@ fn evaluate_cross_view_proposal(
         if let Some(target_sha256) = view.target_sha256.as_deref() {
             proposal_request["target_sha256"] = Value::String(target_sha256.to_owned());
         }
-        let proposal =
-            runtime.prepare_reference_comparison(&session.project_id, proposal_request)?;
+        let proposal = runtime.prepare_reference_comparison_detached(
+            &session.project_id,
+            proposal_request,
+            reservation,
+            reserved_objects,
+        )?;
         let baseline_report = baseline
             .get("comparison_report")
             .and_then(Value::as_object)
@@ -3743,15 +4354,28 @@ fn evaluate_cross_view_proposal(
         "limitations":["human_visual_review_not_run","export_restart_hash_not_run"],
         "canonical_sha256":""
     });
+    // Stabilize serde_json's in-memory floating-number representation at the
+    // exact canonical wire boundary before hashing. Candidate-derived camera
+    // metrics can otherwise hash one Number spelling in memory and be parsed
+    // back with an equivalent but different spelling by Store, which must
+    // correctly reject the apparent canonical mismatch.
+    bundle = serde_json::from_slice(
+        &super::canonical_json_bytes(&bundle)
+            .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
+    )
+    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
     bundle["canonical_sha256"] = Value::String(super::canonical_json_hash(&bundle));
     super::validate_cross_view_evidence_bundle(&bundle)?;
-    let object = runtime.put_object(
+    let object = runtime.store.put_object_reserved(
+        reservation,
         &super::canonical_json_bytes(&bundle)
             .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
         None,
         "application/json",
         "cross-view-evidence-bundle",
+        &super::now_string(),
     )?;
+    reserved_objects.push(object.clone());
     let now = super::now_string();
     runtime
         .store
@@ -3775,8 +4399,12 @@ fn evaluate_cross_view_proposal(
         hard_gate_passed,
         strict_improvement,
         non_regressing,
-        baseline_score: baseline_total / count,
-        proposal_score: proposal_total / count,
+        baseline_score: bundle["baseline_score"]
+            .as_f64()
+            .unwrap_or(baseline_total / count),
+        proposal_score: bundle["proposal_score"]
+            .as_f64()
+            .unwrap_or(proposal_total / count),
     })
 }
 
@@ -4013,6 +4641,17 @@ fn validate_repair_proposal(
         program_object,
         target_part_id,
     )?;
+    if matches!(
+        runtime_parameter_patch_strategy(action),
+        Ok("rear-stock-profile-reconstruction-v1")
+    ) {
+        validate_exact_rear_stock_source_node_change(
+            source_geometry.program.as_object().ok_or_else(|| {
+                RuntimeError::InvalidInput("REPAIR_BASELINE_PROGRAM_INVALID".to_owned())
+            })?,
+            program_object,
+        )?;
+    }
 
     let reference = runtime
         .reference(&session.reference_id)?
@@ -4022,6 +4661,46 @@ fn validate_repair_proposal(
     if camera.get("camera_hash").and_then(Value::as_str) != Some(session.camera_hash.as_str()) {
         return Err(RuntimeError::InvalidInput(
             "REPAIR_CAMERA_BINDING_MISMATCH_VALIDATE".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_exact_rear_stock_source_node_change(
+    baseline: &Map<String, Value>,
+    proposed: &Map<String, Value>,
+) -> Result<(), RuntimeError> {
+    let baseline_nodes = node_map(baseline)?;
+    let proposed_nodes = node_map(proposed)?;
+    if baseline_nodes.len() != proposed_nodes.len()
+        || baseline_nodes.keys().collect::<HashSet<_>>()
+            != proposed_nodes.keys().collect::<HashSet<_>>()
+    {
+        return Err(RuntimeError::InvalidInput(
+            "REPAIR_STOCK_PROFILE_SOURCE_NODE_SET_CHANGED".to_owned(),
+        ));
+    }
+    let changed = baseline_nodes
+        .iter()
+        .filter_map(|(node_id, before)| {
+            (proposed_nodes.get(node_id) != Some(before)).then_some(node_id.as_str())
+        })
+        .collect::<HashSet<_>>();
+    if changed != HashSet::from(["rear-stock"])
+        || baseline_nodes
+            .get("rear-stock")
+            .and_then(|node| node.get("operator_id"))
+            .and_then(Value::as_str)
+            != Some("forgecad.geometry.primitive@2")
+        || proposed_nodes
+            .get("rear-stock")
+            .and_then(|node| node.get("operator_id"))
+            .and_then(Value::as_str)
+            != Some("forgecad.geometry.profile-loft@2")
+        || part_output_map(baseline)? != part_output_map(proposed)?
+    {
+        return Err(RuntimeError::InvalidInput(
+            "REPAIR_STOCK_PROFILE_EXACT_SOURCE_NODE_REQUIRED".to_owned(),
         ));
     }
     Ok(())
@@ -4261,7 +4940,7 @@ fn finalize_run(run: &mut Value) {
     run["canonical_sha256"] = Value::String(canonical_json_hash(run));
 }
 
-fn load_geometry_bindings(
+pub(crate) fn load_geometry_bindings(
     runtime: &Runtime,
     candidate: &CandidateRecord,
     project_id: &str,
@@ -4331,7 +5010,7 @@ fn load_geometry_bindings(
     })
 }
 
-fn recompile_candidate(
+pub(crate) fn recompile_candidate(
     _runtime: &Runtime,
     geometry: &GeometryBindings,
 ) -> Result<super::integrity::GlbIntegrity, RuntimeError> {
@@ -4353,7 +5032,7 @@ fn recompile_candidate(
     Ok(inspection)
 }
 
-fn verify_artifact_readback(
+pub(crate) fn verify_artifact_readback(
     runtime: &Runtime,
     candidate: &CandidateRecord,
     geometry: &GeometryBindings,
@@ -4530,7 +5209,7 @@ fn verify_visual_bindings(
     })
 }
 
-fn read_json_object(runtime: &Runtime, sha256: &str) -> Result<Value, RuntimeError> {
+pub(crate) fn read_json_object(runtime: &Runtime, sha256: &str) -> Result<Value, RuntimeError> {
     if !is_sha256(sha256) {
         return Err(RuntimeError::InvalidInput(
             "CAS_OBJECT_HASH_INVALID".to_owned(),

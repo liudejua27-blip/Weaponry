@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://forgecad.local/contracts/fps-presentation-package-v2-get-request.schema.json","title":"FpsPresentationPackageV2GetRequest@1","type":"object","additionalProperties":false,
+  "required":["schema_version","project_id","package_id","runtime_write_performed","persistent_user_data_touched","input_sha256"],
+  "properties":{"schema_version":{"const":"FpsPresentationPackageV2GetRequest@1"},"project_id":{"$ref":"#/$defs/id"},"package_id":{"$ref":"#/$defs/id"},"package_sha256":{"anyOf":[{"$ref":"#/$defs/sha"},{"type":"null"}]},"runtime_write_performed":{"const":false},"persistent_user_data_touched":{"const":false},"input_sha256":{"$ref":"#/$defs/sha"}},
+  "$defs":{"id":{"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},"sha":{"type":"string","pattern":"^[0-9a-f]{64}$"}}
+}

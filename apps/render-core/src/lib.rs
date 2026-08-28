@@ -17,6 +17,70 @@ pub struct RenderPass {
     pub height: u32,
 }
 
+/// One source-lineage row in the transient fixed-renderer hit map.
+///
+/// The row is deliberately indexed by the renderer's deterministic triangle
+/// walk (mesh, primitive, then triangle within the primitive).  It is not a
+/// candidate/Stage record and is never persisted by this crate.  The GLB
+/// primitive `extras` are the only accepted source of semantic lineage; an
+/// attribution render fails closed when that metadata is absent or ambiguous.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RasterHitSourceMapEntry {
+    pub triangle_index: u32,
+    pub mesh_index: u32,
+    pub primitive_index: u32,
+    pub triangle_index_in_primitive: u32,
+    pub semantic_part_id: String,
+    pub source_node_id: String,
+    pub lineage_source_node_ids: Vec<String>,
+    pub material_zone_id: String,
+}
+
+/// The exact output-pixel hit produced by the fixed 512px renderer's depth
+/// raster.  `triangle_index` and `source_map_index` are both retained: the
+/// former is the face identity, while the latter makes the source table
+/// binding explicit for consumers that aggregate pixels by Part/source node.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RasterPixelHit {
+    pub triangle_index: u32,
+    pub source_map_index: u32,
+    pub barycentric_milli: [u16; 3],
+    pub depth_micros: u32,
+}
+
+/// A bounded, read-only pixel → triangle → source-node/semantic-Part
+/// projection from the current fixed renderer.  It is transient by design:
+/// callers must bind it to their candidate/reference/camera hashes before
+/// using it in a diagnostic receipt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RasterHitSourceMap {
+    pub width: u32,
+    pub height: u32,
+    pub raster_width: u32,
+    pub raster_height: u32,
+    pub pixels: Vec<Option<RasterPixelHit>>,
+    pub sources: Vec<RasterHitSourceMapEntry>,
+}
+
+impl RasterHitSourceMap {
+    /// Encode one little-endian u32 triangle id per output pixel. `u32::MAX`
+    /// denotes the fixed renderer background.  This compact representation is
+    /// suitable for the isolated Render Worker transport and carries no raw
+    /// GLB/image bytes.
+    pub fn encode_triangle_ids_le(&self) -> Vec<u8> {
+        let mut encoded = Vec::with_capacity(self.pixels.len() * 4);
+        for hit in &self.pixels {
+            encoded.extend_from_slice(
+                &hit.as_ref()
+                    .map(|value| value.triangle_index)
+                    .unwrap_or(u32::MAX)
+                    .to_le_bytes(),
+            );
+        }
+        encoded
+    }
+}
+
 /// A transient, bounded override for one already-authored GLB material.
 /// `material_zone_id` is matched against the glTF material name while
 /// `material_id` is matched against `extras.forgecad.material_id`; callers
@@ -428,6 +492,9 @@ struct RasterHit {
     uv: [f32; 2],
     mesh_index: usize,
     material_index: usize,
+    triangle_index: u32,
+    source_map_index: u32,
+    barycentric: [f32; 3],
     edge: bool,
     uv_stretch: f32,
 }
@@ -440,6 +507,19 @@ enum CameraProjection {
 
 type Mat4 = [[f32; 4]; 4];
 
+/// The bounded static Hero beauty output. This is deliberately a transient
+/// render size and does not alter the formal RenderSet@2 512px AOV contract.
+pub const HERO_BEAUTY_RESOLUTION: u32 = 2048;
+/// The fixed camera policy used by the render-worker-only Hero operation.
+pub const HERO_BEAUTY_CAMERA_POLICY: &str = "fixed-static-hero-perspective@1";
+/// The existing product-owned three-point studio light policy used by the
+/// material shader. No caller-supplied light, shader, or HDRI is accepted.
+pub const HERO_BEAUTY_LIGHTING_POLICY: &str = "fixed-three-point-studio@1";
+// Hero uses one sample per fixed 2048px output pixel. Keeping this separate
+// from the existing 2x formal-AOV path avoids allocating a 4096x4096 hit
+// buffer while retaining a literal 2048x2048 Hero raster.
+const HERO_BEAUTY_RASTER_RESOLUTION: u32 = HERO_BEAUTY_RESOLUTION;
+
 /// Render a self-contained GLB using the C-stage fixed camera contract. This
 /// is deliberately a small deterministic software renderer: node transforms,
 /// V1 perspective and V2 orthographic projections, a depth buffer, fixed
@@ -448,6 +528,29 @@ type Mat4 = [[f32; 4]; 4];
 /// material paths from the request.
 pub fn render_perspective_glb(glb: &[u8], camera: &Value) -> Result<Vec<RenderPass>, RenderError> {
     render_perspective_glb_at_resolution(glb, camera, 512)
+}
+
+/// Render the fixed 512×512 camera and return its transient pixel hit/source
+/// projection. This uses the same 1024×1024 supersampled raster grid as the
+/// formal nine-AOV path, then samples that depth-resolved grid at output
+/// pixels. It never writes a RenderSet, candidate, CAS object, or stage.
+pub fn render_perspective_glb_raster_hit_source_map(
+    glb: &[u8],
+    camera: &Value,
+) -> Result<RasterHitSourceMap, RenderError> {
+    let (_, source_map) = render_perspective_glb_at_resolution_with_passes_bounded(
+        glb,
+        camera,
+        512,
+        &["silhouette", "part-id"],
+        &[],
+        None,
+        false,
+        true,
+    )?;
+    source_map.ok_or_else(|| {
+        RenderError::Invalid("fixed raster hit/source map was not produced".to_owned())
+    })
 }
 
 /// Render the same fixed camera at a bounded internal resolution. The public
@@ -476,6 +579,47 @@ pub fn render_perspective_glb_at_resolution(
         &[],
         None,
     )
+}
+
+/// Render one deterministic static Hero beauty PNG from the exact supplied
+/// GLB. The camera, three-point lights, resolution, and pass inventory are
+/// closed in this function; the caller cannot provide paths, shaders, or
+/// arbitrary render stages. The returned pass is transient and does not
+/// advance a candidate, create a version, or write Runtime/CAS state.
+pub fn render_static_hero_beauty_glb(glb: &[u8]) -> Result<RenderPass, RenderError> {
+    let camera = serde_json::json!({
+        "schema_version":"CameraCalibration@1",
+        "projection":"perspective",
+        "transform":{
+            "position_m":[0.0,0.25,10.0],
+            "target_m":[0.0,0.25,0.0],
+            "up":[0.0,1.0,0.0]
+        },
+        "fov_y_degrees":40.0,
+        "near_m":0.05,
+        "far_m":100.0,
+        // CameraCalibration remains the 512px calibration contract; this
+        // operation's transient raster/output size is fixed independently.
+        "resolution":{"width":512,"height":512},
+        "coordinate_system":"right-handed-y-up-meter"
+    });
+    let passes = render_perspective_glb_at_resolution_with_passes_bounded(
+        glb,
+        &camera,
+        HERO_BEAUTY_RESOLUTION,
+        &["beauty"],
+        &[],
+        None,
+        true,
+        false,
+    )?;
+    let mut passes = passes.0;
+    if passes.len() != 1 {
+        return Err(RenderError::Invalid(
+            "static Hero beauty pass inventory is not fixed".to_owned(),
+        ));
+    }
+    Ok(passes.remove(0))
 }
 
 /// Render a formal 512x512 nine-AOV frame while replacing emissive values for
@@ -1216,6 +1360,105 @@ fn separable_min_depth(input: &[f32], width: u32, height: u32, radius: u32) -> V
     vertical
 }
 
+fn required_lineage_text(
+    extras: &Map<String, Value>,
+    field: &str,
+    label: &str,
+) -> Result<String, RenderError> {
+    extras
+        .get(field)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty() && value.len() <= 256)
+        .map(str::to_owned)
+        .ok_or_else(|| RenderError::Invalid(format!("{label} lineage {field} is missing")))
+}
+
+fn raster_source_lineage(
+    mesh: &Map<String, Value>,
+    primitive: &Map<String, Value>,
+    mesh_index: usize,
+    primitive_index: usize,
+) -> Result<(String, String, Vec<String>, String), RenderError> {
+    let primitive_extras = primitive
+        .get("extras")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            RenderError::Invalid(format!(
+                "raster attribution primitive {mesh_index}:{primitive_index} lineage is missing"
+            ))
+        })?;
+    let semantic_part_id =
+        required_lineage_text(primitive_extras, "part_id", "raster attribution primitive")?;
+    let source_node_id = required_lineage_text(
+        primitive_extras,
+        "source_node_id",
+        "raster attribution primitive",
+    )?;
+    let material_zone_id = required_lineage_text(
+        primitive_extras,
+        "material_zone_id",
+        "raster attribution primitive",
+    )?;
+    let lineage_source_node_ids = primitive_extras
+        .get("lineage_source_node_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RenderError::Invalid(
+                "raster attribution primitive lineage_source_node_ids is missing".to_owned(),
+            )
+        })?
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .filter(|value| !value.is_empty() && value.len() <= 256)
+                .map(str::to_owned)
+                .ok_or_else(|| {
+                    RenderError::Invalid(
+                        "raster attribution source lineage node id is invalid".to_owned(),
+                    )
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if lineage_source_node_ids.is_empty()
+        || !lineage_source_node_ids
+            .iter()
+            .any(|value| value == &source_node_id)
+        || lineage_source_node_ids.iter().collect::<HashSet<_>>().len()
+            != lineage_source_node_ids.len()
+    {
+        return Err(RenderError::Invalid(
+            "raster attribution source lineage is ambiguous".to_owned(),
+        ));
+    }
+    if let Some(mesh_extras) = mesh.get("extras").and_then(Value::as_object) {
+        for (field, expected) in [
+            ("part_id", semantic_part_id.as_str()),
+            ("material_zone_id", material_zone_id.as_str()),
+        ] {
+            if mesh_extras
+                .get(field)
+                .and_then(Value::as_str)
+                .is_some_and(|observed| observed != expected)
+            {
+                return Err(RenderError::Invalid(format!(
+                    "raster attribution mesh {mesh_index} lineage {field} differs"
+                )));
+            }
+        }
+    }
+    Ok((
+        semantic_part_id,
+        source_node_id,
+        lineage_source_node_ids,
+        material_zone_id,
+    ))
+}
+
+fn quantize_barycentric(values: [f32; 3]) -> [u16; 3] {
+    values.map(|value| (value.clamp(0.0, 1.0) * 1000.0).round() as u16)
+}
+
 fn render_perspective_glb_at_resolution_with_passes(
     glb: &[u8],
     camera: &Value,
@@ -1224,7 +1467,32 @@ fn render_perspective_glb_at_resolution_with_passes(
     emissive_overrides: &[EmissiveMaterialOverride],
     hdr_bloom_profile: Option<&HdrBloomProfile>,
 ) -> Result<Vec<RenderPass>, RenderError> {
-    if !(64..=512).contains(&resolution) {
+    render_perspective_glb_at_resolution_with_passes_bounded(
+        glb,
+        camera,
+        resolution,
+        requested_passes,
+        emissive_overrides,
+        hdr_bloom_profile,
+        false,
+        false,
+    )
+    .map(|(passes, _)| passes)
+}
+
+fn render_perspective_glb_at_resolution_with_passes_bounded(
+    glb: &[u8],
+    camera: &Value,
+    resolution: u32,
+    requested_passes: &[&str],
+    emissive_overrides: &[EmissiveMaterialOverride],
+    hdr_bloom_profile: Option<&HdrBloomProfile>,
+    allow_hero_resolution: bool,
+    capture_raster_attribution: bool,
+) -> Result<(Vec<RenderPass>, Option<RasterHitSourceMap>), RenderError> {
+    let fixed_resolution = (64..=512).contains(&resolution);
+    let hero_resolution = allow_hero_resolution && resolution == HERO_BEAUTY_RESOLUTION;
+    if !fixed_resolution && !hero_resolution {
         return Err(RenderError::Invalid(
             "fit render resolution is outside the bounded range".to_owned(),
         ));
@@ -1313,7 +1581,9 @@ fn render_perspective_glb_at_resolution_with_passes(
     let transient_binary_fit = requested_passes.len() == 2
         && requested_passes.contains(&"silhouette")
         && requested_passes.contains(&"part-id");
-    let raster_resolution = if transient_binary_fit {
+    let raster_resolution = if allow_hero_resolution {
+        HERO_BEAUTY_RASTER_RESOLUTION
+    } else if transient_binary_fit {
         if resolution == 512 {
             resolution * 2
         } else {
@@ -1330,6 +1600,64 @@ fn render_perspective_glb_at_resolution_with_passes(
     let mut hits = vec![None::<RasterHit>; (sample_width * sample_height) as usize];
     let aspect = width as f32 / height as f32;
     let mut rendered_triangles = 0usize;
+    let mut raster_sources = Vec::<RasterHitSourceMapEntry>::new();
+    let mut primitive_source_bases = vec![Vec::<u32>::new(); meshes.len()];
+    if capture_raster_attribution {
+        for (mesh_index, mesh) in meshes.iter().enumerate() {
+            let mesh = mesh.as_object().ok_or_else(|| {
+                RenderError::Invalid("raster attribution mesh is invalid".to_owned())
+            })?;
+            let primitives = mesh
+                .get("primitives")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    RenderError::Invalid("raster attribution primitive list is missing".to_owned())
+                })?;
+            for (primitive_index, primitive) in primitives.iter().enumerate() {
+                let primitive = primitive.as_object().ok_or_else(|| {
+                    RenderError::Invalid("raster attribution primitive is invalid".to_owned())
+                })?;
+                let (semantic_part_id, source_node_id, lineage_source_node_ids, material_zone_id) =
+                    raster_source_lineage(mesh, primitive, mesh_index, primitive_index)?;
+                let index_accessor = primitive
+                    .get("indices")
+                    .and_then(Value::as_u64)
+                    .ok_or_else(|| {
+                        RenderError::Invalid(
+                            "raster attribution index accessor is missing".to_owned(),
+                        )
+                    })? as usize;
+                let indices = read_indices_accessor(accessors, views, &binary, index_accessor)?;
+                let triangle_count = indices.len() / 3;
+                let first_triangle = u32::try_from(raster_sources.len()).map_err(|_| {
+                    RenderError::Invalid("raster attribution triangle map exceeds u32".to_owned())
+                })?;
+                primitive_source_bases[mesh_index].push(first_triangle);
+                for triangle_index_in_primitive in 0..triangle_count {
+                    let triangle_index = u32::try_from(raster_sources.len()).map_err(|_| {
+                        RenderError::Invalid(
+                            "raster attribution triangle map exceeds u32".to_owned(),
+                        )
+                    })?;
+                    raster_sources.push(RasterHitSourceMapEntry {
+                        triangle_index,
+                        mesh_index: mesh_index as u32,
+                        primitive_index: primitive_index as u32,
+                        triangle_index_in_primitive: triangle_index_in_primitive as u32,
+                        semantic_part_id: semantic_part_id.clone(),
+                        source_node_id: source_node_id.clone(),
+                        lineage_source_node_ids: lineage_source_node_ids.clone(),
+                        material_zone_id: material_zone_id.clone(),
+                    });
+                }
+            }
+        }
+        if raster_sources.is_empty() {
+            return Err(RenderError::Invalid(
+                "raster attribution has no triangles".to_owned(),
+            ));
+        }
+    }
 
     for (mesh_index, transform) in instances {
         let mesh = meshes
@@ -1340,7 +1668,7 @@ fn render_perspective_glb_at_resolution_with_passes(
             .get("primitives")
             .and_then(Value::as_array)
             .ok_or_else(|| RenderError::Invalid("GLB primitive list is missing".to_owned()))?;
-        for primitive in primitives {
+        for (primitive_index, primitive) in primitives.iter().enumerate() {
             let attributes = primitive
                 .get("attributes")
                 .and_then(Value::as_object)
@@ -1391,7 +1719,8 @@ fn render_perspective_glb_at_resolution_with_passes(
                 .get("material")
                 .and_then(Value::as_u64)
                 .unwrap_or(0) as usize;
-            for index_triplet in indices.chunks_exact(3) {
+            for (triangle_index_in_primitive, index_triplet) in indices.chunks_exact(3).enumerate()
+            {
                 let mut projected = [PerspectiveVertex {
                     screen_x: 0.0,
                     screen_y: 0.0,
@@ -1459,6 +1788,20 @@ fn render_perspective_glb_at_resolution_with_passes(
                     continue;
                 }
                 rendered_triangles += 1;
+                let triangle_index = if capture_raster_attribution {
+                    primitive_source_bases
+                        .get(mesh_index)
+                        .and_then(|bases| bases.get(primitive_index))
+                        .copied()
+                        .and_then(|base| base.checked_add(triangle_index_in_primitive as u32))
+                        .ok_or_else(|| {
+                            RenderError::Invalid(
+                                "raster attribution triangle lineage is unavailable".to_owned(),
+                            )
+                        })?
+                } else {
+                    0
+                };
                 rasterize_perspective_triangle(
                     &mut hits,
                     sample_width,
@@ -1467,6 +1810,8 @@ fn render_perspective_glb_at_resolution_with_passes(
                     area,
                     mesh_index,
                     material_index,
+                    triangle_index,
+                    triangle_index,
                 );
             }
         }
@@ -1597,7 +1942,43 @@ fn render_perspective_glb_at_resolution_with_passes(
             height,
         });
     }
-    Ok(passes)
+    let source_map = if capture_raster_attribution {
+        let mut pixels = Vec::with_capacity((width * height) as usize);
+        for y in 0..height {
+            // Keep the hit projection byte-for-byte aligned with the formal
+            // `imageops::resize(..., FilterType::Nearest)` Part-ID output.
+            // image's nearest sampler selects the source pixel at the output
+            // pixel centre, so a 512 -> 1024 map starts at sample 1 rather
+            // than sample 0.
+            let sample_y = (((y as f32 + 0.5) * sample_height as f32 / height as f32).floor()
+                as u32)
+                .min(sample_height - 1);
+            for x in 0..width {
+                let sample_x = (((x as f32 + 0.5) * sample_width as f32 / width as f32).floor()
+                    as u32)
+                    .min(sample_width - 1);
+                let hit =
+                    hits[(sample_y * sample_width + sample_x) as usize].map(|hit| RasterPixelHit {
+                        triangle_index: hit.triangle_index,
+                        source_map_index: hit.source_map_index,
+                        barycentric_milli: quantize_barycentric(hit.barycentric),
+                        depth_micros: (hit.depth.clamp(0.0, 1.0) * 1_000_000.0).round() as u32,
+                    });
+                pixels.push(hit);
+            }
+        }
+        Some(RasterHitSourceMap {
+            width,
+            height,
+            raster_width: sample_width,
+            raster_height: sample_height,
+            pixels,
+            sources: raster_sources,
+        })
+    } else {
+        None
+    };
+    Ok((passes, source_map))
 }
 
 fn parse_camera(
@@ -2086,6 +2467,8 @@ fn rasterize_perspective_triangle(
     area: f32,
     mesh_index: usize,
     material_index: usize,
+    triangle_index: u32,
+    source_map_index: u32,
 ) {
     let min_x = vertices
         .iter()
@@ -2180,6 +2563,9 @@ fn rasterize_perspective_triangle(
                 ],
                 mesh_index,
                 material_index,
+                triangle_index,
+                source_map_index,
+                barycentric: [w0, w1, w2],
                 edge: w0.min(w1).min(w2) < 0.025,
                 uv_stretch: stretch,
             });
@@ -2955,6 +3341,189 @@ fn material_color(root: &Value, mesh_index: usize) -> [u8; 4] {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    fn push_f32_bytes(output: &mut Vec<u8>, value: f32) {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+
+    fn push_u32_bytes(output: &mut Vec<u8>, value: u32) {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+
+    fn hero_test_glb() -> Vec<u8> {
+        let mut binary = Vec::new();
+        for vertex in [[-1.0_f32, -1.0, 0.0], [1.0, -1.0, 0.0], [0.0, 1.0, 0.0]] {
+            for value in vertex {
+                push_f32_bytes(&mut binary, value);
+            }
+        }
+        for _ in 0..3 {
+            for value in [0.0_f32, 0.0, 1.0] {
+                push_f32_bytes(&mut binary, value);
+            }
+        }
+        for uv in [[0.0_f32, 0.0], [1.0, 0.0], [0.5, 1.0]] {
+            for value in uv {
+                push_f32_bytes(&mut binary, value);
+            }
+        }
+        for value in [0_u32, 1, 2] {
+            push_u32_bytes(&mut binary, value);
+        }
+        let root = json!({
+            "asset":{"version":"2.0"},
+            "scene":0,
+            "scenes":[{"nodes":[0]}],
+            "nodes":[{"mesh":0,"extras":{"part_id":"hero-part","material_zone_id":"hero-zone"}}],
+            "materials":[{"name":"hero-test-material","pbrMetallicRoughness":{"baseColorFactor":[0.4,0.5,0.7,1.0]}}],
+            "meshes":[{"extras":{"part_id":"hero-part","material_zone_id":"hero-zone"},"primitives":[{
+                "attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},
+                "indices":3,
+                "material":0,
+                "extras":{"part_id":"hero-part","source_node_id":"hero-node","lineage_source_node_ids":["hero-node"],"material_zone_id":"hero-zone"}
+            }]}],
+            "accessors":[
+                {"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"},
+                {"bufferView":1,"componentType":5126,"count":3,"type":"VEC3"},
+                {"bufferView":2,"componentType":5126,"count":3,"type":"VEC2"},
+                {"bufferView":3,"componentType":5125,"count":3,"type":"SCALAR"}
+            ],
+            "bufferViews":[
+                {"buffer":0,"byteOffset":0,"byteLength":36},
+                {"buffer":0,"byteOffset":36,"byteLength":36},
+                {"buffer":0,"byteOffset":72,"byteLength":24},
+                {"buffer":0,"byteOffset":96,"byteLength":12}
+            ],
+            "buffers":[{"byteLength":108}]
+        });
+        let mut json_bytes = serde_json::to_vec(&root).expect("test GLB JSON serializes");
+        while json_bytes.len() % 4 != 0 {
+            json_bytes.push(b' ');
+        }
+        let total_length = 12 + 8 + json_bytes.len() + 8 + binary.len();
+        let mut glb = Vec::with_capacity(total_length);
+        glb.extend_from_slice(b"glTF");
+        glb.extend_from_slice(&2_u32.to_le_bytes());
+        glb.extend_from_slice(&(total_length as u32).to_le_bytes());
+        glb.extend_from_slice(&(json_bytes.len() as u32).to_le_bytes());
+        glb.extend_from_slice(b"JSON");
+        glb.extend_from_slice(&json_bytes);
+        glb.extend_from_slice(&(binary.len() as u32).to_le_bytes());
+        glb.extend_from_slice(b"BIN\0");
+        glb.extend_from_slice(&binary);
+        glb
+    }
+
+    fn hero_test_camera() -> Value {
+        json!({
+            "schema_version":"CameraCalibration@1",
+            "projection":"perspective",
+            "transform":{
+                "position_m":[0.0,0.25,10.0],
+                "target_m":[0.0,0.25,0.0],
+                "up":[0.0,1.0,0.0]
+            },
+            "fov_y_degrees":40.0,
+            "near_m":0.05,
+            "far_m":100.0,
+            "resolution":{"width":512,"height":512},
+            "coordinate_system":"right-handed-y-up-meter"
+        })
+    }
+
+    #[test]
+    fn static_hero_beauty_is_bounded_deterministic_and_keeps_formal_aovs() {
+        let glb = hero_test_glb();
+        let first = render_static_hero_beauty_glb(&glb).expect("static Hero beauty render");
+        let second = render_static_hero_beauty_glb(&glb).expect("deterministic Hero replay");
+        assert_eq!(first.pass, "beauty");
+        assert_eq!((first.width, first.height), (2048, 2048));
+        assert_eq!(first.png, second.png);
+        let image = image::load_from_memory(&first.png)
+            .expect("Hero PNG decodes")
+            .to_rgba8();
+        assert_eq!((image.width(), image.height()), (2048, 2048));
+
+        let formal = render_perspective_glb(&glb, &hero_test_camera())
+            .expect("formal RenderSet@2 camera remains available");
+        assert_eq!(formal.len(), 9);
+        assert!(formal
+            .iter()
+            .all(|pass| { pass.width == 512 && pass.height == 512 }));
+    }
+
+    #[test]
+    fn fixed_renderer_exposes_deterministic_pixel_triangle_source_lineage() {
+        let glb = hero_test_glb();
+        let camera = hero_test_camera();
+        let map = render_perspective_glb_raster_hit_source_map(&glb, &camera)
+            .expect("fixed renderer source map");
+        let replay = render_perspective_glb_raster_hit_source_map(&glb, &camera)
+            .expect("fixed renderer source map replay");
+        assert_eq!(map, replay);
+        assert_eq!((map.width, map.height), (512, 512));
+        assert_eq!((map.raster_width, map.raster_height), (1024, 1024));
+        assert_eq!(map.pixels.len(), 512 * 512);
+        assert_eq!(map.sources.len(), 1);
+        let source = &map.sources[0];
+        assert_eq!(source.triangle_index, 0);
+        assert_eq!(source.semantic_part_id, "hero-part");
+        assert_eq!(source.source_node_id, "hero-node");
+        assert_eq!(source.lineage_source_node_ids, ["hero-node"]);
+        assert_eq!(source.material_zone_id, "hero-zone");
+        let visible = map.pixels.iter().flatten().collect::<Vec<_>>();
+        assert!(!visible.is_empty());
+        assert!(visible.iter().all(|hit| {
+            hit.triangle_index == 0
+                && hit.source_map_index == 0
+                && hit.barycentric_milli.iter().all(|value| *value <= 1000)
+                && hit.depth_micros <= 1_000_000
+        }));
+        let part_id = render_perspective_glb(&glb, &camera)
+            .expect("formal AOV render")
+            .into_iter()
+            .find(|pass| pass.pass == "part-id")
+            .expect("part-id pass");
+        let part_id = image::load_from_memory(&part_id.png)
+            .expect("part-id PNG decodes")
+            .to_rgba8();
+        let expected_part_color = part_color(0);
+        for (index, hit) in map.pixels.iter().enumerate() {
+            let x = (index % 512) as u32;
+            let y = (index / 512) as u32;
+            let observed = part_id.get_pixel(x, y).0;
+            assert_eq!(hit.is_some(), observed == expected_part_color);
+        }
+        assert_eq!(map.encode_triangle_ids_le().len(), 512 * 512 * 4);
+    }
+
+    #[test]
+    fn raster_source_map_fails_closed_when_primitive_lineage_is_missing() {
+        let glb = hero_test_glb();
+        let (mut root, binary) = parse_glb(&glb).expect("test GLB parses");
+        root["meshes"][0]["primitives"][0]
+            .as_object_mut()
+            .expect("primitive object")
+            .remove("extras");
+        let mut json_bytes = serde_json::to_vec(&root).expect("test GLB JSON serializes");
+        while json_bytes.len() % 4 != 0 {
+            json_bytes.push(b' ');
+        }
+        let total_length = 12 + 8 + json_bytes.len() + 8 + binary.len();
+        let mut modified = Vec::with_capacity(total_length);
+        modified.extend_from_slice(b"glTF");
+        modified.extend_from_slice(&2_u32.to_le_bytes());
+        modified.extend_from_slice(&(total_length as u32).to_le_bytes());
+        modified.extend_from_slice(&(json_bytes.len() as u32).to_le_bytes());
+        modified.extend_from_slice(b"JSON");
+        modified.extend_from_slice(&json_bytes);
+        modified.extend_from_slice(&(binary.len() as u32).to_le_bytes());
+        modified.extend_from_slice(b"BIN\0");
+        modified.extend_from_slice(&binary);
+        let error = render_perspective_glb_raster_hit_source_map(&modified, &hero_test_camera())
+            .expect_err("lineage is required for attribution");
+        assert!(error.to_string().contains("lineage is missing"));
+    }
 
     #[test]
     fn fixed_id_palettes_fail_closed_outside_u8_domain() {

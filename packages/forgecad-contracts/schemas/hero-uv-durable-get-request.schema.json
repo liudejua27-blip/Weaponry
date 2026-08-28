@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/hero-uv-durable-get-request.schema.json",
+  "title": "HeroUvDurableGetRequest@1",
+  "description": "Closed read-only restart lookup for one exact Runtime-owned Hero UV durable link.",
+  "type": "object", "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "candidate_id", "candidate_state_sha256", "base_version_id",
+    "source_low_artifact_id", "source_low_artifact_sha256", "layout_object_sha256", "layout_canonical_sha256", "link_id", "link_object_sha256",
+    "resolution", "padding_texels", "min_mip_level", "hard_edge_angle_deg", "stretch_threshold", "visibility_weights_sha256", "idempotency_key", "source_only", "writer_policy", "runtime_write_performed", "persistent_user_data_touched", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "HeroUvDurableGetRequest@1"}, "operation": {"const": "forgecad.production.hero-uv-durable-get@1"}, "project_id": {"$ref": "#/$defs/id"}, "candidate_id": {"$ref": "#/$defs/id"}, "candidate_state_sha256": {"$ref": "#/$defs/sha256"}, "base_version_id": {"$ref": "#/$defs/nullable_id"},
+    "source_low_artifact_id": {"$ref": "#/$defs/id"}, "source_low_artifact_sha256": {"$ref": "#/$defs/sha256"}, "layout_object_sha256": {"$ref": "#/$defs/sha256"}, "layout_canonical_sha256": {"$ref": "#/$defs/sha256"}, "link_id": {"$ref": "#/$defs/id"}, "link_object_sha256": {"$ref": "#/$defs/sha256"},
+    "resolution": {"enum": [2048, 4096]}, "padding_texels": {"type": "integer", "minimum": 1, "maximum": 128}, "min_mip_level": {"type": "integer", "minimum": 0, "maximum": 12}, "hard_edge_angle_deg": {"type": "number", "exclusiveMinimum": 0.1, "exclusiveMaximum": 89.9}, "stretch_threshold": {"type": "number", "minimum": 1, "maximum": 100}, "visibility_weights_sha256": {"$ref": "#/$defs/sha256"}, "idempotency_key": {"$ref": "#/$defs/id"},
+    "source_only": {"const": true}, "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"}, "runtime_write_performed": {"const": false}, "persistent_user_data_touched": {"const": false}, "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {"id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "nullable_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.:-]{1,128}$"}}
+}

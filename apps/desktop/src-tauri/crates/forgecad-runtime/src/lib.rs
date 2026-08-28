@@ -6,6 +6,13 @@ mod agentic_orchestrator;
 mod agentic_session;
 pub(crate) mod animation_vfx_dependency_bundle;
 mod appearance_source_lineage;
+mod authoring_mesh;
+mod authoring_mesh_durable;
+mod authoring_mesh_identity;
+mod authoring_mesh_identity_durable;
+mod authoring_mesh_v2;
+mod authoring_mesh_v2_durable;
+mod authoring_mesh_v2_geometry;
 mod authoring_topology;
 mod boolean_lineage;
 mod candidate_animation_vfx_quality;
@@ -20,18 +27,50 @@ mod fictional_energy_vfx_animated_socket_trails;
 mod fictional_energy_vfx_animated_socket_trails_bloom;
 mod fictional_energy_vfx_animated_socket_trails_bloom_v2;
 mod fictional_energy_vfx_animated_socket_trails_v2;
+mod fps_presentation_package_v2;
+mod fps_presentation_package_v2_candidate;
 mod game_asset_delivery;
 mod game_weapon_animated_glb_socket_transform_projection_v2;
 mod game_weapon_animated_glb_socket_v2;
 mod geometry_worker;
+mod hero_uv_durable;
 mod ipc;
+mod low_quad_durable;
 mod mechanical_animation_clip_v2;
 mod mechanical_animation_glb_v2;
 mod mechanical_pose;
 mod multiview;
+mod native_high_durable;
+mod native_high_glb_readback;
 mod optimization;
 mod parametric_group;
 mod process_lock;
+mod production_blender_worker_capability;
+mod production_camera_lock_registration_lineage_preflight;
+mod production_weapon_art_decision_proposal;
+mod production_weapon_assembly_parameter_mutator;
+mod production_weapon_assembly_parameter_sink;
+mod production_weapon_authoring_mesh_v2_source;
+mod production_weapon_d1_review_profile;
+mod production_weapon_d1_seed;
+mod production_weapon_form_art_baseline;
+mod production_weapon_form_art_baseline_single_flight;
+mod production_weapon_form_art_composite_evidence;
+mod production_weapon_form_art_composite_proposal;
+mod production_weapon_form_art_evidence;
+mod production_weapon_form_art_failure_diagnostic;
+mod production_weapon_form_art_mesh_proposal;
+mod production_weapon_form_art_repair_plan;
+mod production_weapon_form_evidence;
+mod production_weapon_form_quality;
+mod production_weapon_form_quality_v2;
+mod production_weapon_formal_high;
+mod production_weapon_formal_high_factory;
+mod production_weapon_formal_high_public;
+mod production_weapon_high_low_bake;
+mod production_weapon_high_low_bake_preflight;
+mod production_weapon_owner_reviewed_void_calibration;
+mod production_weapon_retopology_cage_source;
 mod render_evidence_integrity;
 mod render_worker;
 mod rigid_animation_glb;
@@ -41,6 +80,9 @@ mod subdivision_crease;
 mod subdivision_lineage;
 mod viewer_provenance;
 mod weapon;
+mod weapon_foundation_authoring_materialization;
+mod weapon_foundation_import;
+mod weapon_foundation_runtime;
 
 // The Runtime owns the final, strict GLB readback. Keeping the implementation
 // compiled into Runtime ensures a worker's self-reported metadata can never
@@ -92,7 +134,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use uuid::Uuid;
 
@@ -213,6 +255,11 @@ pub struct Runtime {
     // A Runtime restart intentionally loses this cache; bound consumers then
     // fall back to recomputation plus canonical-hash validation.
     agentic_observation_cache: Mutex<HashMap<String, Value>>,
+    // The durable Store idempotency row remains authoritative. This shared
+    // process-local coordination only closes the preflight-to-six-render
+    // window for concurrent calls through the foreground/background Runtime
+    // views. It never becomes persisted state or a second writer.
+    form_art_baseline_flights: Arc<production_weapon_form_art_baseline_single_flight::Flights>,
     _process_lock: Option<process_lock::ProcessLock>,
 }
 
@@ -319,6 +366,9 @@ impl Runtime {
             reference_attachment_roots: configured_attachment_roots(),
             camera_fit_cache: Mutex::new(HashMap::new()),
             agentic_observation_cache: Mutex::new(HashMap::new()),
+            form_art_baseline_flights: Arc::new(
+                production_weapon_form_art_baseline_single_flight::Flights::default(),
+            ),
             _process_lock: Some(process_lock),
         })
     }
@@ -341,6 +391,9 @@ impl Runtime {
             reference_attachment_roots,
             camera_fit_cache: Mutex::new(HashMap::new()),
             agentic_observation_cache: Mutex::new(HashMap::new()),
+            form_art_baseline_flights: Arc::new(
+                production_weapon_form_art_baseline_single_flight::Flights::default(),
+            ),
             _process_lock: None,
         })
     }
@@ -357,6 +410,7 @@ impl Runtime {
             reference_attachment_roots: self.reference_attachment_roots.clone(),
             camera_fit_cache: Mutex::new(HashMap::new()),
             agentic_observation_cache: Mutex::new(HashMap::new()),
+            form_art_baseline_flights: Arc::clone(&self.form_art_baseline_flights),
             _process_lock: None,
         }
     }
@@ -927,6 +981,7 @@ impl Runtime {
                 | "forgecad.geometry.profile-loft@1"
                 | "forgecad.geometry.longitudinal-section-loft@1"
                 | "forgecad.geometry.subd-cage@1"
+                | "forgecad.geometry.authoring-mesh@1"
                 | "forgecad.geometry.surface-patch@1"
                 | "forgecad.geometry.revolve@1"
                 | "forgecad.geometry.tube-sweep@1"
@@ -1011,6 +1066,7 @@ impl Runtime {
                     | "forgecad.geometry.mirror@1"
                     | "forgecad.geometry.array@1"
                     | "forgecad.geometry.bevel@1"
+                    | "forgecad.geometry.bevel@2"
                     | "forgecad.geometry.normal-policy@1"
             ) || !modifier.get("parameters").is_some_and(Value::is_object)
             {
@@ -1034,6 +1090,16 @@ impl Runtime {
                 {
                     return Err(RuntimeError::InvalidInput(
                         "GEOMETRY_MODIFIER_STACK_INVALID: bevel@1 must be the first enabled modifier on one solid primitive box"
+                            .to_owned(),
+                    ));
+                }
+                if operator_id == "forgecad.geometry.bevel@2"
+                    && (effective_node_id != base_node_id
+                        || base_operator != "forgecad.geometry.authoring-mesh@1"
+                        || !solid)
+                {
+                    return Err(RuntimeError::InvalidInput(
+                        "GEOMETRY_MODIFIER_STACK_INVALID: bevel@2 must be the first enabled modifier on one solid authoring-mesh@1 source"
                             .to_owned(),
                     ));
                 }
@@ -2379,10 +2445,16 @@ impl Runtime {
                 "REFERENCE_SCOPE_DENIED: reference is outside the target project".to_owned(),
             ));
         }
+        let user_confirmed = request_user_confirmed(object, "reference_mask_prepare")?;
         let contour_points = parse_contour_points(object.get("contour_points"))?;
         let landmarks = parse_target_landmarks(object.get("landmarks"))?;
         let parts = parse_target_parts(object.get("parts"))?;
-        let user_confirmed = request_user_confirmed(object, "reference_mask_prepare")?;
+        validate_target_annotation_visibility(
+            &landmarks,
+            &parts,
+            user_confirmed,
+            "REFERENCE_MASK_INVALID",
+        )?;
         let visual_structure =
             prepare_reference_visual_structure(object.get("visual_structure"), user_confirmed)?;
         if user_confirmed && contour_points.is_none() {
@@ -2462,6 +2534,12 @@ impl Runtime {
             None => base.get("parts").cloned().unwrap_or_else(|| json!([])),
         };
         let user_confirmed = request_user_confirmed(object, "reference_mask_refine_prepare")?;
+        validate_target_annotation_visibility(
+            &landmarks,
+            &parts,
+            user_confirmed,
+            "REFERENCE_MASK_INVALID",
+        )?;
         let visual_structure = match object.get("visual_structure") {
             Some(value) => prepare_reference_visual_structure(Some(value), user_confirmed)?,
             None => base
@@ -2506,7 +2584,13 @@ impl Runtime {
         })?;
         validate_request_keys(
             object,
-            &["project_id", "candidate_id", "target_sha256", "camera"],
+            &[
+                "project_id",
+                "candidate_id",
+                "target_sha256",
+                "camera",
+                "view_spec",
+            ],
             "camera_fit_prepare",
         )?;
         if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
@@ -2544,16 +2628,26 @@ impl Runtime {
                 inspection.failure_codes.join(",")
             )));
         }
-        let reference_mask = self.target_mask(target_sha256, &target)?;
+        let mut reference_mask = self.target_mask(target_sha256, &target)?;
+        if let Some(view_spec) = object.get("view_spec") {
+            validate_reference_view_spec(view_spec, &reference).map_err(|error| {
+                RuntimeError::InvalidInput(format!("CAMERA_FIT_INVALID: view_spec: {error}"))
+            })?;
+            reference_mask.mask =
+                project_reference_mask_to_view(&reference_mask.mask, view_spec, true)?;
+            reference_mask.png = mask_to_png(&reference_mask.mask)?;
+        }
         let base_camera = object
             .get("camera")
             .filter(|value| !value.is_null())
             .cloned()
             .unwrap_or_else(default_camera_calibration);
-        if base_camera.get("schema_version").and_then(Value::as_str) != Some("CameraCalibration@1")
-        {
+        if !matches!(
+            base_camera.get("schema_version").and_then(Value::as_str),
+            Some("CameraCalibration@1" | "CameraCalibration@2")
+        ) {
             return Err(RuntimeError::InvalidInput(
-                "CAMERA_FIT_INVALID: V1 only accepts perspective CameraCalibration@1".to_owned(),
+                "CAMERA_FIT_INVALID: camera must be CameraCalibration@1 or @2".to_owned(),
             ));
         }
         validate_camera_calibration(&base_camera)?;
@@ -3521,7 +3615,7 @@ impl Runtime {
             ));
         }
         let target = self.read_silhouette_target(target_sha256)?;
-        let target_mask = self.target_mask(target_sha256, &target)?;
+        let mut target_mask = self.target_mask(target_sha256, &target)?;
         // A Primary Form request may carry the exact ReferenceViewSpec used by
         // the canonical observe/compare turn.  Validate it against the
         // hash-bound target reference before allowing it into the bounded
@@ -3551,6 +3645,11 @@ impl Runtime {
                 "regions":[]
             })
         };
+        if object.get("view_spec").is_some() {
+            target_mask.mask =
+                project_reference_mask_to_view(&target_mask.mask, &fit_view_spec, true)?;
+            target_mask.png = mask_to_png(&target_mask.mask)?;
+        }
         let rig = object.get("rig").ok_or_else(|| {
             RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: rig is required".to_owned())
         })?;
@@ -5875,18 +5974,31 @@ impl Runtime {
         user_confirmed: bool,
         parent_target_sha256: Option<&str>,
     ) -> Result<Value, RuntimeError> {
+        // `prepare_reference_visual_structure` validates the public draft, but
+        // keep the CAS boundary defensive as well.  This private store path is
+        // also exercised by Runtime-owned callers and must never materialize a
+        // mask before a complete, canonical visual-structure validation.
+        if let Some(structure) = visual_structure.as_ref() {
+            validate_reference_visual_structure(structure)?;
+        }
         if automatic_source && user_confirmed {
             return Err(RuntimeError::InvalidInput(
                 "REFERENCE_MASK_INVALID: automatic target cannot be user-confirmed".to_owned(),
             ));
         }
+        validate_target_annotation_visibility(
+            &landmarks,
+            &parts,
+            user_confirmed,
+            "REFERENCE_MASK_INVALID",
+        )?;
         let mut mask = if let Some(points) = contour_points {
             rasterize_contour(points)
         } else {
             automatic.mask.clone()
         };
         if let Some(structure) = visual_structure.as_ref() {
-            apply_visual_structure_mask_operations(&mut mask, structure)?;
+            apply_visual_structure_mask_operations(&mut mask, contour_points, structure)?;
         }
         let png = mask_to_png(&mask)?;
         let mask_object =
@@ -6233,6 +6345,67 @@ impl Runtime {
         project_id: &str,
         request: Value,
     ) -> Result<Value, RuntimeError> {
+        let mut ignored_objects = Vec::new();
+        self.prepare_reference_comparison_with_projection(
+            project_id,
+            request,
+            true,
+            None,
+            None,
+            &mut ignored_objects,
+        )
+    }
+
+    /// Produce immutable comparison artifacts without replacing the mutable
+    /// latest-view observation projection. Cross-view evidence owns and links
+    /// these hashes directly, so historical DesignSession/FormEvidence
+    /// bindings remain restart-readable after the comparison.
+    pub(crate) fn prepare_reference_comparison_detached(
+        &self,
+        project_id: &str,
+        request: Value,
+        reservation: &forgecad_store::CasReservation,
+        reserved_objects: &mut Vec<CasObject>,
+    ) -> Result<Value, RuntimeError> {
+        self.prepare_reference_comparison_with_projection(
+            project_id,
+            request,
+            false,
+            Some(reservation),
+            None,
+            reserved_objects,
+        )
+    }
+
+    /// Fresh FormArt baseline variant of the detached comparison producer.
+    /// Every derived CAS object is preclaimed by the Store-owned durable batch
+    /// before bytes are installed, closing the process-crash ownership gap.
+    pub(crate) fn prepare_reference_comparison_detached_form_art_batch(
+        &self,
+        project_id: &str,
+        request: Value,
+        batch: &forgecad_store::ProductionWeaponFormArtBaselineCasBatch,
+        reserved_objects: &mut Vec<CasObject>,
+    ) -> Result<Value, RuntimeError> {
+        self.prepare_reference_comparison_with_projection(
+            project_id,
+            request,
+            false,
+            Some(batch.reservation()),
+            Some(batch),
+            reserved_objects,
+        )
+    }
+
+    fn prepare_reference_comparison_with_projection(
+        &self,
+        project_id: &str,
+        request: Value,
+        update_visual_evidence_projection: bool,
+        reservation: Option<&forgecad_store::CasReservation>,
+        form_art_batch: Option<&forgecad_store::ProductionWeaponFormArtBaselineCasBatch>,
+        reserved_objects: &mut Vec<CasObject>,
+    ) -> Result<Value, RuntimeError> {
         validate_id(project_id)?;
         let object = request.as_object().ok_or_else(|| {
             RuntimeError::InvalidInput("reference comparison request must be an object".to_owned())
@@ -6246,11 +6419,17 @@ impl Runtime {
                 "view_spec",
                 "camera",
                 "target_sha256",
+                "view_id",
             ],
             "reference_compare_prepare",
         )?;
         let candidate_id = required_value_id(object.get("candidate_id"), "candidate_id")?;
         let reference_id = required_value_id(object.get("reference_id"), "reference_id")?;
+        let view_id = object
+            .get("view_id")
+            .map(|value| required_value_id(Some(value), "view_id"))
+            .transpose()?
+            .map(str::to_owned);
         let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
             RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
         })?;
@@ -6339,7 +6518,7 @@ impl Runtime {
         let mut render_worker_cohort = initial_render.build_cohort_sha256.clone();
         let render_profile = initial_render.render_profile.clone();
         let mut render_passes = initial_render.passes;
-        let (reference_mask, reference_mask_method, reference_mask_revision) =
+        let (mut reference_mask, reference_mask_method, reference_mask_revision) =
             if let Some(target_sha256) = target_sha256.as_deref() {
                 // A caller-supplied SilhouetteTarget is the reviewed contour
                 // truth for this comparison. Falling back to a fresh
@@ -6360,6 +6539,12 @@ impl Runtime {
                     "mask-2",
                 )
             };
+        reference_mask.mask = project_reference_mask_to_view(
+            &reference_mask.mask,
+            view_spec,
+            target_sha256.is_some(),
+        )?;
+        reference_mask.png = mask_to_png(&reference_mask.mask)?;
         if !explicit_camera && !reused_cached_camera_fit {
             let initial_silhouette = render_passes
                 .iter()
@@ -6416,7 +6601,10 @@ impl Runtime {
         }
         let camera_bytes = canonical_json_bytes(&camera)
             .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-        let camera_object = self.put_object(
+        let camera_object = self.put_reference_comparison_object(
+            reservation,
+            form_art_batch,
+            reserved_objects,
             &camera_bytes,
             None,
             "application/json",
@@ -6434,7 +6622,10 @@ impl Runtime {
         let mut pass_artifacts = serde_json::Map::new();
         let mut pass_bytes = std::collections::HashMap::new();
         for pass in &render_passes {
-            let stored = self.put_object(
+            let stored = self.put_reference_comparison_object(
+                reservation,
+                form_art_batch,
+                reserved_objects,
                 &pass.png,
                 None,
                 "image/png",
@@ -6477,14 +6668,27 @@ impl Runtime {
             "pass_artifacts":pass_artifacts,
             "canonical_sha256":""
         });
+        if let Some(view_id) = view_id.as_deref() {
+            render_set["view_id"] = Value::String(view_id.to_owned());
+        }
         render_set["canonical_sha256"] = Value::String(canonical_json_hash(&render_set));
         validate_render_set_v2_output(&render_set)?;
         let render_set_bytes = canonical_json_bytes(&render_set)
             .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-        let render_set_object =
-            self.put_object(&render_set_bytes, None, "application/json", "render-set-v2")?;
+        let render_set_object = self.put_reference_comparison_object(
+            reservation,
+            form_art_batch,
+            reserved_objects,
+            &render_set_bytes,
+            None,
+            "application/json",
+            "render-set-v2",
+        )?;
         let render_set_hash = render_set_object.record.sha256.clone();
-        let mask_object = self.put_object(
+        let mask_object = self.put_reference_comparison_object(
+            reservation,
+            form_art_batch,
+            reserved_objects,
             &reference_mask.png,
             None,
             "image/png",
@@ -6536,9 +6740,15 @@ impl Runtime {
             "status":visual_status,
             "canonical_sha256":""
         });
+        if let Some(view_id) = view_id.as_deref() {
+            comparison["view_id"] = Value::String(view_id.to_owned());
+        }
         comparison["canonical_sha256"] = Value::String(canonical_json_hash(&comparison));
         validate_reference_comparison_report(&comparison)?;
-        let comparison_object = self.put_object(
+        let comparison_object = self.put_reference_comparison_object(
+            reservation,
+            form_art_batch,
+            reserved_objects,
             &canonical_json_bytes(&comparison)
                 .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
             None,
@@ -6584,9 +6794,15 @@ impl Runtime {
             "limitations":limitations,
             "canonical_sha256":""
         });
+        if let Some(view_id) = view_id.as_deref() {
+            quality["view_id"] = Value::String(view_id.to_owned());
+        }
         quality["canonical_sha256"] = Value::String(canonical_json_hash(&quality));
         validate_quality_report_v2_output(&quality)?;
-        let quality_object = self.put_object(
+        let quality_object = self.put_reference_comparison_object(
+            reservation,
+            form_art_batch,
+            reserved_objects,
             &canonical_json_bytes(&quality)
                 .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
             None,
@@ -6594,19 +6810,45 @@ impl Runtime {
             "quality-report-v2",
         )?;
         let now = now_string();
-        self.store.upsert_visual_evidence(&VisualEvidenceRecord {
-            candidate_id: candidate_id.to_owned(),
-            project_id: project_id.to_owned(),
-            reference_id: reference_id.to_owned(),
-            target_sha256: target_sha256.clone(),
-            render_set_object_sha256: render_set_object.record.sha256.clone(),
-            comparison_report_object_sha256: Some(comparison_object.record.sha256.clone()),
-            visual_review_object_sha256: None,
-            quality_report_object_sha256: quality_object.record.sha256.clone(),
-            human_receipt_object_sha256: None,
-            created_at: now.clone(),
-            updated_at: now,
-        })?;
+        if update_visual_evidence_projection {
+            self.store.upsert_visual_evidence(&VisualEvidenceRecord {
+                candidate_id: candidate_id.to_owned(),
+                project_id: project_id.to_owned(),
+                reference_id: reference_id.to_owned(),
+                target_sha256: target_sha256.clone(),
+                render_set_object_sha256: render_set_object.record.sha256.clone(),
+                comparison_report_object_sha256: Some(comparison_object.record.sha256.clone()),
+                visual_review_object_sha256: None,
+                quality_report_object_sha256: quality_object.record.sha256.clone(),
+                human_receipt_object_sha256: None,
+                created_at: now.clone(),
+                updated_at: now,
+            })?;
+            if let Some(view_id) = view_id {
+                let now = now_string();
+                self.store.upsert_visual_evidence_view(
+                    &forgecad_store::VisualEvidenceViewRecord {
+                        candidate_id: candidate_id.to_owned(),
+                        project_id: project_id.to_owned(),
+                        view_id,
+                        reference_id: reference_id.to_owned(),
+                        reference_sha256: reference.object_sha256.clone(),
+                        camera_hash: camera["camera_hash"]
+                            .as_str()
+                            .unwrap_or_default()
+                            .to_owned(),
+                        render_set_object_sha256: render_set_object.record.sha256.clone(),
+                        comparison_report_object_sha256: Some(
+                            comparison_object.record.sha256.clone(),
+                        ),
+                        quality_report_object_sha256: quality_object.record.sha256.clone(),
+                        quality_status: visual_status.to_owned(),
+                        created_at: now.clone(),
+                        updated_at: now,
+                    },
+                )?;
+            }
+        }
         Ok(json!({
             "schema_version":"ReferenceComparisonPrepareResult@1",
             "candidate_id":candidate_id,
@@ -6622,6 +6864,48 @@ impl Runtime {
             "quality_report":quality,
             "quality_report_object_sha256":quality_object.record.sha256
         }))
+    }
+
+    fn put_reference_comparison_object(
+        &self,
+        reservation: Option<&forgecad_store::CasReservation>,
+        form_art_batch: Option<&forgecad_store::ProductionWeaponFormArtBaselineCasBatch>,
+        reserved_objects: &mut Vec<CasObject>,
+        bytes: &[u8],
+        expected_sha256: Option<&str>,
+        mime: &str,
+        kind: &str,
+    ) -> Result<CasObject, RuntimeError> {
+        let object = match (form_art_batch, reservation) {
+            (Some(batch), Some(_)) => self
+                .store
+                .put_production_weapon_form_art_baseline_cas_object(
+                    batch,
+                    bytes,
+                    expected_sha256,
+                    mime,
+                    kind,
+                    &now_string(),
+                )?,
+            (None, Some(reservation)) => self.store.put_object_reserved(
+                reservation,
+                bytes,
+                expected_sha256,
+                mime,
+                kind,
+                &now_string(),
+            )?,
+            (None, None) => self.put_object(bytes, expected_sha256, mime, kind)?,
+            (Some(_), None) => {
+                return Err(RuntimeError::InvalidInput(
+                    "FORM_ART_CAS_BATCH_RESERVATION_MISSING".to_owned(),
+                ))
+            }
+        };
+        if reservation.is_some() && object.record.reachability == "temporary" {
+            reserved_objects.push(object.clone());
+        }
+        Ok(object)
     }
 
     pub fn render_pass_get(
@@ -9258,8 +9542,37 @@ impl Runtime {
         idempotency_key: &str,
         request: Value,
     ) -> Result<Value, RuntimeError> {
+        self.prepare_geometry_candidate_exact_bounded(
+            project_id,
+            base_version_id,
+            idempotency_key,
+            request,
+            1024 * 1024,
+        )
+    }
+
+    /// Runtime-internal form of exact geometry prepare for typed producers
+    /// whose topology already lives in Runtime CAS. Public MCP callers remain
+    /// on the historical 1 MiB request/program ceiling; only closed Runtime
+    /// materializers may select a larger, still-bounded envelope.
+    pub(crate) fn prepare_geometry_candidate_exact_bounded(
+        &self,
+        project_id: &str,
+        base_version_id: Option<&str>,
+        idempotency_key: &str,
+        request: Value,
+        max_input_bytes: usize,
+    ) -> Result<Value, RuntimeError> {
         const TOOL: &str = "geometry_prepare";
-        const MAX_JSON_BYTES: usize = 1024 * 1024;
+        const MAX_RESPONSE_JSON_BYTES: usize = 1024 * 1024;
+        const MAX_INTERNAL_INPUT_BYTES: usize = 64 * 1024 * 1024;
+
+        if !(1024 * 1024..=MAX_INTERNAL_INPUT_BYTES).contains(&max_input_bytes) {
+            return Err(RuntimeError::InvalidInput(
+                "GEOMETRY_PREPARE_INPUT_BUDGET_INVALID: input budget must remain between 1 MiB and 64 MiB"
+                    .to_owned(),
+            ));
+        }
 
         validate_id(project_id)?;
         validate_id(idempotency_key)?;
@@ -9358,7 +9671,7 @@ impl Runtime {
         });
         let request_bytes = canonical_json_bytes(&request_envelope)
             .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-        if request_bytes.is_empty() || request_bytes.len() > MAX_JSON_BYTES {
+        if request_bytes.is_empty() || request_bytes.len() > max_input_bytes {
             return Err(RuntimeError::InvalidInput(
                 "GEOMETRY_PREPARE_REQUEST_TOO_LARGE: exact request exceeds 1 MiB".to_owned(),
             ));
@@ -9589,10 +9902,10 @@ impl Runtime {
                 ));
             }
 
-            let first = geometry_worker::compile_geometry(&program, None).map_err(|error| {
+            let first = compile_geometry_with_runtime_worker(&program, None).map_err(|error| {
                 RuntimeError::InvalidInput(format!("GEOMETRY_REJECTED: {error}"))
             })?;
-            let repeat = geometry_worker::compile_geometry(&program, None).map_err(|error| {
+            let repeat = compile_geometry_with_runtime_worker(&program, None).map_err(|error| {
                 RuntimeError::InvalidInput(format!("GEOMETRY_REJECTED: {error}"))
             })?;
             let expected_cohort = build_cohort_sha256()
@@ -9791,7 +10104,7 @@ impl Runtime {
                 .remove("canonical_sha256");
             let program_bytes = canonical_json_bytes(&program_draft)
                 .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-            if program_bytes.is_empty() || program_bytes.len() > MAX_JSON_BYTES {
+            if program_bytes.is_empty() || program_bytes.len() > max_input_bytes {
                 return Err(RuntimeError::InvalidInput(
                     "GEOMETRY_REJECTED: canonical GeometryProgram exceeds 1 MiB".to_owned(),
                 ));
@@ -9836,7 +10149,7 @@ impl Runtime {
                 validate_artifact_readback_v2_output(&readback)?;
                 let readback_bytes = canonical_json_bytes(&readback)
                     .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                if readback_bytes.len() > MAX_JSON_BYTES {
+                if readback_bytes.len() > MAX_RESPONSE_JSON_BYTES {
                     return Err(RuntimeError::InvalidInput(
                         "GEOMETRY_REJECTED: artifact readback exceeds 1 MiB".to_owned(),
                     ));
@@ -9870,7 +10183,7 @@ impl Runtime {
                 validate_geometry_quality_report_v2_output(&quality_report)?;
                 let quality_bytes = canonical_json_bytes(&quality_report)
                     .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                if quality_bytes.len() > MAX_JSON_BYTES {
+                if quality_bytes.len() > MAX_RESPONSE_JSON_BYTES {
                     return Err(RuntimeError::InvalidInput(
                         "GEOMETRY_REJECTED: quality report exceeds 1 MiB".to_owned(),
                     ));
@@ -9889,7 +10202,7 @@ impl Runtime {
                 let mut modifier_sidecar_object = if let Some(evaluation) = &modifier_evaluation {
                     let bytes = canonical_json_bytes(evaluation)
                         .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                    if bytes.is_empty() || bytes.len() > MAX_JSON_BYTES {
+                    if bytes.is_empty() || bytes.len() > MAX_RESPONSE_JSON_BYTES {
                         return Err(RuntimeError::InvalidInput(
                         "GEOMETRY_MODIFIER_APPLY_EVIDENCE_TOO_LARGE: evaluation sidecar exceeds 1 MiB"
                             .to_owned(),
@@ -9964,7 +10277,7 @@ impl Runtime {
                     validate_geometry_modifier_apply_result(&apply_result)?;
                     let bytes = canonical_json_bytes(&apply_result)
                         .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                    if bytes.is_empty() || bytes.len() > MAX_JSON_BYTES {
+                    if bytes.is_empty() || bytes.len() > MAX_RESPONSE_JSON_BYTES {
                         return Err(RuntimeError::InvalidInput(
                             "GEOMETRY_MODIFIER_APPLY_RESULT_TOO_LARGE: sidecar exceeds 1 MiB"
                                 .to_owned(),
@@ -9997,7 +10310,7 @@ impl Runtime {
                     validate_geometry_modifier_apply_bevel_v2_result(&apply_result)?;
                     let bytes = canonical_json_bytes(&apply_result)
                         .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                    if bytes.is_empty() || bytes.len() > MAX_JSON_BYTES {
+                    if bytes.is_empty() || bytes.len() > MAX_RESPONSE_JSON_BYTES {
                         return Err(RuntimeError::InvalidInput(
                             "GEOMETRY_MODIFIER_APPLY_V2_RESULT_TOO_LARGE: sidecar exceeds 1 MiB"
                                 .to_owned(),
@@ -10467,7 +10780,7 @@ impl Runtime {
                 validate_geometry_prepare_result_v2_output(&result)?;
                 let response_json = serde_json::to_string(&result)
                     .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                if response_json.len() > MAX_JSON_BYTES {
+                if response_json.len() > MAX_RESPONSE_JSON_BYTES {
                     return Err(RuntimeError::InvalidInput(
                         "GEOMETRY_PREPARE_RESPONSE_TOO_LARGE: exact response exceeds 1 MiB"
                             .to_owned(),
@@ -11505,6 +11818,222 @@ impl Runtime {
         authoring_topology::get(self, request)
     }
 
+    /// Return the candidate-bound original/evaluated half-edge projection for
+    /// one direct `authoring-mesh@1` Part.  The projection is reconstructed
+    /// from durable Geometry evidence and is strictly read-only; it never
+    /// creates a CAS object, candidate, version, Job, or stage transition.
+    pub fn authoring_mesh(&self, request: &Value) -> Result<Value, RuntimeError> {
+        authoring_mesh::get(self, request)
+    }
+
+    /// Materialize the Runtime-owned durable AuthoringMesh canonical/original
+    /// payload, evaluated sidecar and link from existing candidate evidence.
+    /// This deliberately does not advance stage, confirm a candidate, create
+    /// a version or export an artifact.
+    pub fn authoring_mesh_durable_prepare(&self, request: &Value) -> Result<Value, RuntimeError> {
+        authoring_mesh_durable::prepare(self, request)
+    }
+
+    /// Read one durable AuthoringMesh materialization by its candidate-bound
+    /// canonical mesh/artifact hashes. The result is reconstructed and
+    /// checked from Store/CAS rather than an in-process cache.
+    pub fn authoring_mesh_durable_get(&self, request: &Value) -> Result<Value, RuntimeError> {
+        authoring_mesh_durable::get(self, request)
+    }
+
+    /// Persist one Runtime-owned AuthoringMesh@2 immutable revision (genesis
+    /// or the bounded split_edge operation) into Store/CAS. This does not
+    /// advance a candidate, version, stage or export state.
+    pub fn authoring_mesh_v2_durable_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        authoring_mesh_v2_durable::prepare(self, request)
+    }
+
+    /// Read one AuthoringMesh@2 revision solely from the durable Store/CAS
+    /// index and revalidate the typed topology after a Runtime restart.
+    pub fn authoring_mesh_v2_durable_get(&self, request: &Value) -> Result<Value, RuntimeError> {
+        authoring_mesh_v2_durable::get(self, request)
+    }
+
+    /// Prepare a closed, Runtime-owned typed import for one embedded FPS
+    /// foundation source. The output is a hash-only structural draft; the
+    /// compact topology remains in CAS and AuthoringMesh materialization is
+    /// explicitly pending.
+    pub fn weapon_foundation_asset_prepare(&self, request: &Value) -> Result<Value, RuntimeError> {
+        weapon_foundation_runtime::prepare(self, request)
+    }
+
+    /// Read and reverify one typed foundation import after a Runtime restart.
+    /// This path never repairs Store reachability and never returns source or
+    /// topology bytes.
+    pub fn weapon_foundation_asset_get(&self, request: &Value) -> Result<Value, RuntimeError> {
+        weapon_foundation_runtime::get(self, request)
+    }
+
+    /// Atomically materialize every imported foundation Part as a
+    /// Runtime-owned AuthoringMesh@2 genesis revision. The public result is a
+    /// compact hash/count receipt; full topology remains in CAS.
+    pub fn weapon_foundation_authoring_materialization_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        weapon_foundation_authoring_materialization::prepare(self, request)
+    }
+
+    /// Restart-safe readback for one foundation AuthoringMesh@2 aggregate.
+    pub fn weapon_foundation_authoring_materialization_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        weapon_foundation_authoring_materialization::get(self, request)
+    }
+
+    /// Bind the immutable weapon, first-person arms and animation foundation
+    /// materializations into one editable, Runtime-owned composite package.
+    pub fn fps_presentation_package_v2_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        fps_presentation_package_v2::prepare(self, request)
+    }
+
+    pub fn fps_presentation_package_v2_get(&self, request: &Value) -> Result<Value, RuntimeError> {
+        fps_presentation_package_v2::get(self, request)
+    }
+
+    pub fn fps_presentation_package_v2_production_preflight_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        fps_presentation_package_v2::production_preflight_get(self, request)
+    }
+
+    pub fn fps_presentation_package_v2_candidate_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        fps_presentation_package_v2_candidate::prepare(self, request)
+    }
+
+    pub fn fps_presentation_package_v2_candidate_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        fps_presentation_package_v2_candidate::get(self, request)
+    }
+
+    /// Derive one real-candidate-bound AuthoringMesh@2 genesis from an exact
+    /// product-owned weapon source node. The caller supplies identities and
+    /// hashes only; Runtime owns the topology projection and durable write.
+    pub fn production_weapon_authoring_mesh_v2_source_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_authoring_mesh_v2_source::prepare(self, request)
+    }
+
+    /// Build a read-only, real-D1 FormArt single-source-node MoveVertices
+    /// proposal from an already durable AuthoringMesh@2 parent. This returns a
+    /// typed compatibility payload and deterministic child revision identity;
+    /// it does not apply MoveVertices or advance Stage.
+    pub fn production_weapon_form_art_mesh_proposal_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_mesh_proposal::get(self, request)
+    }
+
+    /// Materialize a real-D1 FormArt MoveVertices child revision, replace the
+    /// bound GeometryProgram source node with authoring-mesh@1, and prepare a
+    /// worker-validated review candidate. This never approves secondary form,
+    /// advances Stage, confirms a candidate, creates a version or exports.
+    pub fn production_weapon_form_art_mesh_proposal_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_mesh_proposal::prepare(self, request)
+    }
+
+    /// Prepare one cumulative FormArt review candidate from an immutable
+    /// original visual baseline, an exact current proposal base and only
+    /// product-registered disjoint source-node replacements. This writes the
+    /// candidate and composite lineage only; it never confirms, promotes,
+    /// versions or exports the asset.
+    pub fn production_weapon_form_art_composite_proposal_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_composite_proposal::prepare(self, request)
+    }
+
+    /// Read and revalidate one immutable cumulative FormArt review candidate
+    /// after Runtime restart without performing a write.
+    pub fn production_weapon_form_art_composite_proposal_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_composite_proposal::get(self, request)
+    }
+
+    /// Evaluate and append immutable six-view evidence for an existing
+    /// composite proposal without mutating or promoting its parent candidate.
+    pub fn production_weapon_form_art_composite_evidence_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_composite_evidence::prepare(self, request)
+    }
+
+    pub fn production_weapon_form_art_composite_evidence_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_composite_evidence::get(self, request)
+    }
+
+    /// Derive one closed, evidence-bound rear-stock repair plan from the
+    /// immutable composite six-view evidence. This is a read-only projection;
+    /// it never edits geometry or promotes the candidate.
+    pub fn production_weapon_form_art_repair_plan_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_repair_plan::get(self, request)
+    }
+
+    /// Diagnose the exact measured failure delta of one rejected composite
+    /// FormArt repair. This read-only projection separates geometry response,
+    /// owner attribution, side-aperture visibility and line-flow blockers.
+    pub fn production_weapon_form_art_failure_diagnostic_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_failure_diagnostic::get(self, request)
+    }
+
+    /// Materialize one Runtime-owned `AuthoringMeshIdentityLineage@1` CAS
+    /// payload from the current durable AuthoringMesh source.  Stable authored
+    /// IDs never use candidate/program/evaluated artifact/readback hashes as
+    /// preimage.  This prepare has no stage, confirmation, version or export
+    /// side effect.
+    pub fn authoring_mesh_identity_lineage_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        authoring_mesh_identity_durable::prepare(self, request)
+    }
+
+    /// Read one durable AuthoringMesh identity-lineage CAS object and replay
+    /// its candidate/source bindings after a Runtime restart.
+    pub fn authoring_mesh_identity_lineage_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        authoring_mesh_identity_durable::get(self, request)
+    }
+
     /// Apply one bounded authoring edit to a transient program, compile it
     /// twice with the fixed Geometry Worker and return hashes/readback only.
     pub fn authoring_mesh_edit_preview(&self, request: &Value) -> Result<Value, RuntimeError> {
@@ -12201,8 +12730,14 @@ impl Runtime {
                 "CANDIDATE_ARTIFACT_MISMATCH: candidate is unavailable".to_owned(),
             )
         })?;
-        if candidate.manifest_hash.as_deref() != Some(artifact_id)
-            || candidate.prepared_object_sha256.as_deref() != Some(artifact_id)
+        // `Candidate@1.manifest_hash` is a historical optional projection.
+        // When present it must agree with the prepared artifact; when absent,
+        // the required prepared-object SHA remains the authoritative binding.
+        if candidate.prepared_object_sha256.as_deref() != Some(artifact_id)
+            || candidate
+                .manifest_hash
+                .as_deref()
+                .is_some_and(|manifest_hash| manifest_hash != artifact_id)
         {
             return Err(RuntimeError::InvalidInput(
                 "CANDIDATE_ARTIFACT_MISMATCH: artifact is not bound to this candidate".to_owned(),
@@ -13512,6 +14047,17 @@ impl Runtime {
             | "production_stage_transition_get"
             | "production_stage_transition_v2_prepare"
             | "production_stage_transition_v2_get"
+            | "production_stage_transition_v3_prepare"
+            | "production_stage_transition_v3_get"
+            | "production_camera_lock_prepare"
+            | "production_camera_lock_get"
+            | "production_camera_lock_registration_lineage_prepare"
+            | "production_camera_lock_registration_lineage_get"
+            | "production_camera_lock_registration_lineage_preflight_get"
+            | "production_camera_lock_registration_lineage_preflight_projection_get"
+            | "production_weapon_form_art_baseline_preflight_get"
+            | "production_weapon_form_art_baseline_prepare"
+            | "production_weapon_form_art_baseline_get"
             | "candidate_material_surface_quality_prepare"
             | "candidate_material_surface_quality_get"
             | "candidate_animation_vfx_quality_prepare"
@@ -13520,6 +14066,51 @@ impl Runtime {
             | "candidate_animation_vfx_quality_v2_get"
             | "candidate_topology_quality_prepare"
             | "candidate_topology_quality_get"
+            | "production_weapon_form_evidence_prepare"
+            | "production_weapon_form_evidence_get"
+            | "production_weapon_form_art_evidence_prepare"
+            | "production_weapon_form_art_evidence_get"
+            | "production_weapon_form_art_mesh_proposal_prepare"
+            | "production_weapon_form_art_mesh_proposal_get"
+            | "production_weapon_form_art_composite_proposal_prepare"
+            | "production_weapon_form_art_composite_proposal_get"
+            | "production_weapon_form_art_composite_evidence_prepare"
+            | "production_weapon_form_art_composite_evidence_get"
+            | "production_weapon_form_art_repair_plan_get"
+            | "production_weapon_form_art_failure_diagnostic_get"
+            | "production_weapon_owner_reviewed_void_calibration_get"
+            | "production_weapon_art_decision_proposal_get"
+            | "production_weapon_assembly_parameter_sink_get"
+            | "production_weapon_form_quality_prepare"
+            | "production_weapon_form_quality_get"
+            | "production_weapon_form_quality_v2_prepare"
+            | "production_weapon_form_quality_v2_get"
+            | "production_weapon_form_quality_v2_preflight_get"
+            | "production_blender_worker_capability_get"
+            | "production_weapon_formal_high_prepare"
+            | "production_weapon_formal_high_get"
+            | "production_weapon_high_low_bake_prepare"
+            | "production_weapon_high_low_bake_get"
+            | "production_weapon_high_low_bake_preflight_get"
+            | "production_weapon_retopology_cage_source_bundle_prepare"
+            | "production_weapon_retopology_cage_source_bundle_get"
+            | "production_weapon_retopology_cage_source_prepare"
+            | "production_weapon_retopology_cage_source_get"
+            | "native_high_durable_prepare"
+            | "native_high_durable_get"
+            | "low_quad_draft_durable_prepare"
+            | "low_quad_draft_durable_get"
+            | "hero_uv_durable_prepare"
+            | "hero_uv_durable_get"
+            | "weapon_foundation_asset_prepare"
+            | "weapon_foundation_asset_get"
+            | "weapon_foundation_authoring_materialization_prepare"
+            | "weapon_foundation_authoring_materialization_get"
+            | "fps_presentation_package_v2_prepare"
+            | "fps_presentation_package_v2_get"
+            | "fps_presentation_package_v2_production_preflight_get"
+            | "fps_presentation_package_v2_candidate_prepare"
+            | "fps_presentation_package_v2_candidate_get"
             | "design_action_run_prepare"
             | "repair_intent_run_prepare"
             | "design_action_run_get"
@@ -13541,6 +14132,38 @@ impl Runtime {
                 }
                 "production_stage_transition_v2_get" => {
                     self.production_stage_transition_v2_get(payload.clone())
+                }
+                "production_stage_transition_v3_prepare" => {
+                    self.production_stage_transition_v3_prepare(payload.clone())
+                }
+                "production_stage_transition_v3_get" => {
+                    self.production_stage_transition_v3_get(payload.clone())
+                }
+                "production_camera_lock_prepare" => {
+                    self.production_camera_lock_prepare(payload.clone())
+                }
+                "production_camera_lock_get" => self.production_camera_lock_get(payload.clone()),
+                "production_camera_lock_registration_lineage_prepare" => {
+                    self.production_camera_lock_registration_lineage_prepare(payload.clone())
+                }
+                "production_camera_lock_registration_lineage_get" => {
+                    self.production_camera_lock_registration_lineage_get(payload.clone())
+                }
+                "production_camera_lock_registration_lineage_preflight_get" => {
+                    self.production_camera_lock_registration_lineage_preflight_get(payload.clone())
+                }
+                "production_camera_lock_registration_lineage_preflight_projection_get" => self
+                    .production_camera_lock_registration_lineage_preflight_projection_get(
+                        payload.clone(),
+                    ),
+                "production_weapon_form_art_baseline_preflight_get" => {
+                    self.production_weapon_form_art_baseline_preflight_get(payload.clone())
+                }
+                "production_weapon_form_art_baseline_prepare" => {
+                    self.production_weapon_form_art_baseline_prepare(payload.clone())
+                }
+                "production_weapon_form_art_baseline_get" => {
+                    self.production_weapon_form_art_baseline_get(payload.clone())
                 }
                 "candidate_material_surface_quality_prepare" => {
                     self.candidate_material_surface_quality_prepare(payload.clone())
@@ -13565,6 +14188,125 @@ impl Runtime {
                 }
                 "candidate_topology_quality_get" => {
                     self.candidate_topology_quality_get(payload.clone())
+                }
+                "production_weapon_form_evidence_prepare" => {
+                    self.production_weapon_form_evidence_prepare(payload.clone())
+                }
+                "production_weapon_form_evidence_get" => {
+                    self.production_weapon_form_evidence_get(payload.clone())
+                }
+                "production_weapon_form_art_evidence_prepare" => {
+                    self.production_weapon_form_art_evidence_prepare(payload.clone())
+                }
+                "production_weapon_form_art_evidence_get" => {
+                    self.production_weapon_form_art_evidence_get(payload.clone())
+                }
+                "production_weapon_form_art_mesh_proposal_prepare" => {
+                    self.production_weapon_form_art_mesh_proposal_prepare(payload)
+                }
+                "production_weapon_form_art_mesh_proposal_get" => {
+                    self.production_weapon_form_art_mesh_proposal_get(payload)
+                }
+                "production_weapon_form_art_composite_proposal_prepare" => {
+                    self.production_weapon_form_art_composite_proposal_prepare(payload)
+                }
+                "production_weapon_form_art_composite_proposal_get" => {
+                    self.production_weapon_form_art_composite_proposal_get(payload)
+                }
+                "production_weapon_form_art_composite_evidence_prepare" => {
+                    self.production_weapon_form_art_composite_evidence_prepare(payload)
+                }
+                "production_weapon_form_art_composite_evidence_get" => {
+                    self.production_weapon_form_art_composite_evidence_get(payload)
+                }
+                "production_weapon_form_art_repair_plan_get" => {
+                    self.production_weapon_form_art_repair_plan_get(payload)
+                }
+                "production_weapon_form_art_failure_diagnostic_get" => {
+                    self.production_weapon_form_art_failure_diagnostic_get(payload)
+                }
+                "production_weapon_owner_reviewed_void_calibration_get" => {
+                    self.production_weapon_owner_reviewed_void_calibration_get(payload.clone())
+                }
+                "production_weapon_art_decision_proposal_get" => {
+                    self.production_weapon_art_decision_proposal_get(payload.clone())
+                }
+                "production_weapon_assembly_parameter_sink_get" => {
+                    self.production_weapon_assembly_parameter_sink_get(payload.clone())
+                }
+                "production_weapon_form_quality_prepare" => {
+                    self.production_weapon_form_quality_prepare(payload.clone())
+                }
+                "production_weapon_form_quality_get" => {
+                    self.production_weapon_form_quality_get(payload.clone())
+                }
+                "production_weapon_form_quality_v2_prepare" => {
+                    self.production_weapon_form_quality_v2_prepare(payload.clone())
+                }
+                "production_weapon_form_quality_v2_get" => {
+                    self.production_weapon_form_quality_v2_get(payload.clone())
+                }
+                "production_weapon_form_quality_v2_preflight_get" => {
+                    self.production_weapon_form_quality_v2_preflight_get(payload.clone())
+                }
+                "production_blender_worker_capability_get" => {
+                    self.production_blender_worker_capability_get(payload.clone())
+                }
+                "production_weapon_formal_high_prepare" => {
+                    self.production_weapon_formal_high_prepare(payload.clone())
+                }
+                "production_weapon_formal_high_get" => {
+                    self.production_weapon_formal_high_get(payload.clone())
+                }
+                "production_weapon_high_low_bake_prepare" => {
+                    self.production_weapon_high_low_bake_prepare(payload.clone())
+                }
+                "production_weapon_high_low_bake_get" => {
+                    self.production_weapon_high_low_bake_get(payload.clone())
+                }
+                "production_weapon_high_low_bake_preflight_get" => {
+                    self.production_weapon_high_low_bake_preflight_get(payload.clone())
+                }
+                "production_weapon_retopology_cage_source_bundle_prepare" => {
+                    self.production_weapon_retopology_cage_source_bundle_prepare(payload.clone())
+                }
+                "production_weapon_retopology_cage_source_bundle_get" => {
+                    self.production_weapon_retopology_cage_source_bundle_get(payload.clone())
+                }
+                "production_weapon_retopology_cage_source_prepare" => {
+                    self.production_weapon_retopology_cage_source_prepare(payload.clone())
+                }
+                "production_weapon_retopology_cage_source_get" => {
+                    self.production_weapon_retopology_cage_source_get(payload.clone())
+                }
+                "native_high_durable_prepare" => self.native_high_durable_prepare(payload.clone()),
+                "native_high_durable_get" => self.native_high_durable_get(payload.clone()),
+                "low_quad_draft_durable_prepare" => {
+                    self.low_quad_draft_durable_prepare(payload.clone())
+                }
+                "low_quad_draft_durable_get" => self.low_quad_draft_durable_get(payload.clone()),
+                "hero_uv_durable_prepare" => self.hero_uv_durable_prepare(payload.clone()),
+                "hero_uv_durable_get" => self.hero_uv_durable_get(payload.clone()),
+                "weapon_foundation_asset_prepare" => self.weapon_foundation_asset_prepare(payload),
+                "weapon_foundation_asset_get" => self.weapon_foundation_asset_get(payload),
+                "weapon_foundation_authoring_materialization_prepare" => {
+                    self.weapon_foundation_authoring_materialization_prepare(payload)
+                }
+                "weapon_foundation_authoring_materialization_get" => {
+                    self.weapon_foundation_authoring_materialization_get(payload)
+                }
+                "fps_presentation_package_v2_prepare" => {
+                    self.fps_presentation_package_v2_prepare(payload)
+                }
+                "fps_presentation_package_v2_get" => self.fps_presentation_package_v2_get(payload),
+                "fps_presentation_package_v2_production_preflight_get" => {
+                    self.fps_presentation_package_v2_production_preflight_get(payload)
+                }
+                "fps_presentation_package_v2_candidate_prepare" => {
+                    self.fps_presentation_package_v2_candidate_prepare(payload)
+                }
+                "fps_presentation_package_v2_candidate_get" => {
+                    self.fps_presentation_package_v2_candidate_get(payload)
                 }
                 "design_action_run_prepare" => self.design_action_run_prepare(payload.clone()),
                 "repair_intent_run_prepare" => self.repair_intent_run_prepare(payload.clone()),
@@ -13818,6 +14560,22 @@ impl Runtime {
                 )?)
             }
             "authoring_topology_get" => Ok(self.authoring_topology(payload)?),
+            "authoring_mesh_get" => Ok(self.authoring_mesh(payload)?),
+            "authoring_mesh_durable_get" => Ok(self.authoring_mesh_durable_get(payload)?),
+            "authoring_mesh_durable_prepare" => Ok(self.authoring_mesh_durable_prepare(payload)?),
+            "authoring_mesh_v2_durable_get" => Ok(self.authoring_mesh_v2_durable_get(payload)?),
+            "authoring_mesh_v2_durable_prepare" => {
+                Ok(self.authoring_mesh_v2_durable_prepare(payload)?)
+            }
+            "production_weapon_authoring_mesh_v2_source_prepare" => {
+                Ok(self.production_weapon_authoring_mesh_v2_source_prepare(payload)?)
+            }
+            "authoring_mesh_identity_lineage_get" => {
+                Ok(self.authoring_mesh_identity_lineage_get(payload)?)
+            }
+            "authoring_mesh_identity_lineage_prepare" => {
+                Ok(self.authoring_mesh_identity_lineage_prepare(payload)?)
+            }
             "authoring_mesh_edit_preview" => Ok(self.authoring_mesh_edit_preview(payload)?),
             "authoring_mesh_edit_prepare" => Ok(self.authoring_mesh_edit_prepare(payload)?),
             "mechanical_pose_evaluate" => Ok(self.mechanical_pose_evaluate(payload)?),
@@ -15080,9 +15838,9 @@ fn stable_camera_calibration_hashes(value: Value) -> Value {
     camera
 }
 
-/// Preserve the original height-only framing candidate so the bounded search
-/// can compare it with the width/centroid candidate below. This is deliberately
-/// kept separate from explicit CameraCalibration input.
+/// Preserve the original height-derived framing candidate. Perspective input
+/// changes only distance; orthographic input additionally aligns the observed
+/// mask centroid without rotating the authored evidence axis.
 fn calibrate_default_camera_height_only(
     camera: &Value,
     reference: &[bool],
@@ -15100,6 +15858,84 @@ fn calibrate_default_camera_height_only(
         return camera.clone();
     }
     let scale = (model_height / reference_height).clamp(0.55, 1.45);
+    if camera.get("projection").and_then(Value::as_str) == Some("orthographic") {
+        let Some(ortho_scale) = camera.get("ortho_scale").and_then(Value::as_f64) else {
+            return camera.clone();
+        };
+        let mut calibrated = camera.clone();
+        let fitted_scale = (ortho_scale * scale).clamp(0.01, 1000.0);
+        calibrated["ortho_scale"] = json!(fitted_scale);
+        let Some(transform) = camera.get("transform").and_then(Value::as_object) else {
+            return stable_camera_calibration_hashes(calibrated);
+        };
+        let (Some(mut position), Some(mut target), Some(up_input)) = (
+            camera_vec3(transform.get("position_m")),
+            camera_vec3(transform.get("target_m")),
+            camera_vec3(transform.get("up")),
+        ) else {
+            return stable_camera_calibration_hashes(calibrated);
+        };
+        let view = [
+            target[0] - position[0],
+            target[1] - position[1],
+            target[2] - position[2],
+        ];
+        let view_length = (view[0] * view[0] + view[1] * view[1] + view[2] * view[2]).sqrt();
+        if !view_length.is_finite() || view_length <= f64::EPSILON {
+            return stable_camera_calibration_hashes(calibrated);
+        }
+        let forward = [
+            view[0] / view_length,
+            view[1] / view_length,
+            view[2] / view_length,
+        ];
+        let right_raw = [
+            forward[1] * up_input[2] - forward[2] * up_input[1],
+            forward[2] * up_input[0] - forward[0] * up_input[2],
+            forward[0] * up_input[1] - forward[1] * up_input[0],
+        ];
+        let right_length = (right_raw[0] * right_raw[0]
+            + right_raw[1] * right_raw[1]
+            + right_raw[2] * right_raw[2])
+            .sqrt();
+        if !right_length.is_finite() || right_length <= f64::EPSILON {
+            return stable_camera_calibration_hashes(calibrated);
+        }
+        let right = [
+            right_raw[0] / right_length,
+            right_raw[1] / right_length,
+            right_raw[2] / right_length,
+        ];
+        let corrected_up = [
+            right[1] * forward[2] - right[2] * forward[1],
+            right[2] * forward[0] - right[0] * forward[2],
+            right[0] * forward[1] - right[1] * forward[0],
+        ];
+        let (Some(reference_center), Some(model_center)) =
+            (mask_centroid(reference), mask_centroid(model))
+        else {
+            return stable_camera_calibration_hashes(calibrated);
+        };
+        let dx = (reference_center.0 - model_center.0) / 512.0;
+        let dy = (reference_center.1 - model_center.1) / 512.0;
+        let shift = [
+            -right[0] * dx * fitted_scale + corrected_up[0] * dy * fitted_scale,
+            -right[1] * dx * fitted_scale + corrected_up[1] * dy * fitted_scale,
+            -right[2] * dx * fitted_scale + corrected_up[2] * dy * fitted_scale,
+        ];
+        for index in 0..3 {
+            position[index] += shift[index];
+            target[index] += shift[index];
+        }
+        if let Some(transform) = calibrated
+            .get_mut("transform")
+            .and_then(Value::as_object_mut)
+        {
+            transform.insert("position_m".to_owned(), json!(position));
+            transform.insert("target_m".to_owned(), json!(target));
+        }
+        return stable_camera_calibration_hashes(calibrated);
+    }
     let Some(transform) = camera.get("transform").and_then(Value::as_object) else {
         return camera.clone();
     };
@@ -15127,12 +15963,12 @@ fn calibrate_default_camera_height_only(
 
 /// Fit the product-owned default camera to the visible reference silhouette.
 ///
-/// This is deliberately a framing-only calibration: it changes the camera
-/// distance along the existing view ray, never the model, camera direction or
-/// hidden geometry. A caller-supplied CameraCalibration remains authoritative
-/// and bypasses this helper. The bounded mask heuristic keeps the comparison
-/// useful for a close-cropped single image without introducing a segmentation
-/// model or a second source of geometry truth.
+/// This is deliberately a framing-only calibration: it changes perspective
+/// distance or orthographic scale along the existing view ray, never the
+/// model, camera direction or hidden geometry. A caller-supplied calibration
+/// remains the immutable baseline against which this proposal is ranked. The
+/// bounded mask heuristic keeps the comparison useful for a close-cropped
+/// image without introducing a segmentation model or a second geometry truth.
 fn calibrate_default_camera(camera: &Value, reference: &[bool], model: &[bool]) -> Value {
     let Some(reference_bbox) = bbox(reference) else {
         return camera.clone();
@@ -15156,6 +15992,14 @@ fn calibrate_default_camera(camera: &Value, reference: &[bool], model: &[bool]) 
     let scale = (model_height / reference_height)
         .max(model_width / reference_width)
         .clamp(0.55, 1.45);
+    if camera.get("projection").and_then(Value::as_str) == Some("orthographic") {
+        let Some(ortho_scale) = camera.get("ortho_scale").and_then(Value::as_f64) else {
+            return camera.clone();
+        };
+        let mut calibrated = camera.clone();
+        calibrated["ortho_scale"] = json!((ortho_scale * scale).clamp(0.01, 1000.0));
+        return stable_camera_calibration_hashes(calibrated);
+    }
     let Some(transform) = camera.get("transform").and_then(Value::as_object) else {
         return camera.clone();
     };
@@ -16082,6 +16926,15 @@ fn validate_reference_view_spec(
             )));
         }
     }
+    let crop_x = crop.get("x").and_then(Value::as_f64).unwrap_or(0.0);
+    let crop_y = crop.get("y").and_then(Value::as_f64).unwrap_or(0.0);
+    let crop_width = crop.get("width").and_then(Value::as_f64).unwrap_or(0.0);
+    let crop_height = crop.get("height").and_then(Value::as_f64).unwrap_or(0.0);
+    if crop_x + crop_width > 1.0 + f64::EPSILON || crop_y + crop_height > 1.0 + f64::EPSILON {
+        return Err(RuntimeError::InvalidInput(
+            "ReferenceViewSpec@1.image.crop bounds exceed the image".to_owned(),
+        ));
+    }
     let landmarks = object
         .get("landmarks")
         .and_then(Value::as_array)
@@ -16175,6 +17028,16 @@ fn validate_reference_view_spec(
                 "ReferenceViewSpec@1.unknown region confidence must be zero".to_owned(),
             ));
         }
+    }
+    // Mask and reviewed FormArt contours have an explicit crop+rotation
+    // projection. ReferenceViewSpec landmarks/regions do not yet carry a
+    // projected-frame provenance contract, so non-zero rotation with either
+    // annotation surface must fail closed before CameraFit, comparison or
+    // FormQuality can consume mixed coordinate frames.
+    if rotation.abs() > f64::EPSILON && (!landmarks.is_empty() || !regions.is_empty()) {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_VIEW_ROTATION_UNPROJECTED_ANNOTATIONS".to_owned(),
+        ));
     }
     verify_output_canonical_hash(value, "ReferenceViewSpec@1")
 }
@@ -16623,6 +17486,14 @@ fn validate_silhouette_target(value: &Value) -> Result<(), RuntimeError> {
             ));
         }
     }
+    validate_target_annotation_visibility(
+        object
+            .get("landmarks")
+            .expect("target landmarks validated above"),
+        object.get("parts").expect("target parts validated above"),
+        annotation_status == "user_confirmed",
+        "CONTRACT_OUTPUT_INVALID",
+    )?;
     required_contract_sha256(object, "canonical_sha256", "SilhouetteTarget@1")?;
     verify_output_canonical_hash(value, "SilhouetteTarget@1")
 }
@@ -18330,8 +19201,11 @@ fn validate_objective_part_metrics(value: &Value) -> Result<(), RuntimeError> {
     }
     Ok(())
 }
-fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(
+fn validate_render_set_v2_output_with_cohort_policy(
+    value: &Value,
+    require_current_runtime_cohort: bool,
+) -> Result<(), RuntimeError> {
+    let object = exact_object_with_optional(
         value,
         &[
             "schema_version",
@@ -18356,6 +19230,7 @@ fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
             "pass_artifacts",
             "canonical_sha256",
         ],
+        &["view_id"],
         "RenderSet@2",
     )?;
     if object.get("schema_version").and_then(Value::as_str) != Some("RenderSet@2")
@@ -18368,6 +19243,9 @@ fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
     }
     for key in ["render_set_id", "candidate_id", "reference_id"] {
         required_contract_identifier(object, key, "RenderSet@2")?;
+    }
+    if object.contains_key("view_id") {
+        required_contract_identifier(object, "view_id", "RenderSet@2")?;
     }
     for key in [
         "artifact_sha256",
@@ -18419,7 +19297,9 @@ fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
                     "CONTRACT_OUTPUT_INVALID: verified RenderSet worker cohort is null".to_owned(),
                 )
             })?;
-            if build_cohort_sha256().as_deref() != Some(worker_cohort) {
+            if require_current_runtime_cohort
+                && build_cohort_sha256().as_deref() != Some(worker_cohort)
+            {
                 return Err(RuntimeError::InvalidInput(
                     "CONTRACT_OUTPUT_INVALID: RenderSet Worker cohort differs from Runtime cohort"
                         .to_owned(),
@@ -18534,7 +19414,7 @@ fn validate_reference_comparison_report(value: &Value) -> Result<(), RuntimeErro
             "status",
             "canonical_sha256",
         ],
-        &["benchmark_eligibility"],
+        &["benchmark_eligibility", "view_id"],
         "ReferenceComparisonReport@1",
     )?;
     if object.get("schema_version").and_then(Value::as_str) != Some("ReferenceComparisonReport@1")
@@ -18553,6 +19433,9 @@ fn validate_reference_comparison_report(value: &Value) -> Result<(), RuntimeErro
     }
     for key in ["report_id", "candidate_id", "reference_id"] {
         required_contract_identifier(object, key, "ReferenceComparisonReport@1")?;
+    }
+    if object.contains_key("view_id") {
+        required_contract_identifier(object, "view_id", "ReferenceComparisonReport@1")?;
     }
     for key in [
         "artifact_sha256",
@@ -18844,6 +19727,18 @@ fn validate_bounded_text(
     Ok(())
 }
 
+fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
+    validate_render_set_v2_output_with_cohort_policy(value, true)
+}
+
+/// Validate immutable historical RenderSet bytes without pretending that the
+/// Worker which created them belongs to the currently running build cohort.
+/// Active evaluation paths continue to use `validate_render_set_v2_output`
+/// and therefore still fail closed on a cross-cohort render.
+pub(crate) fn validate_persisted_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
+    validate_render_set_v2_output_with_cohort_policy(value, false)
+}
+
 fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> {
     let object = exact_object_with_optional(
         value,
@@ -18868,7 +19763,7 @@ fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> 
             "limitations",
             "canonical_sha256",
         ],
-        &["benchmark_eligibility"],
+        &["benchmark_eligibility", "view_id"],
         "QualityReport@2",
     )?;
     if object.get("schema_version").and_then(Value::as_str) != Some("QualityReport@2")
@@ -18892,6 +19787,9 @@ fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> 
     }
     for key in ["quality_report_id", "candidate_id"] {
         required_contract_identifier(object, key, "QualityReport@2")?;
+    }
+    if object.contains_key("view_id") {
+        required_contract_identifier(object, "view_id", "QualityReport@2")?;
     }
     for key in [
         "artifact_sha256",
@@ -19296,6 +20194,120 @@ struct ReferenceMask {
     png: Vec<u8>,
 }
 
+fn reference_view_crop(view_spec: &Value) -> Result<[f64; 4], RuntimeError> {
+    let crop = view_spec
+        .get("image")
+        .and_then(|value| value.get("crop"))
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REFERENCE_VIEW_CROP_INVALID: crop is unavailable".to_owned(),
+            )
+        })?;
+    let read = |key: &str| {
+        crop.get(key).and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "REFERENCE_VIEW_CROP_INVALID: crop.{key} is invalid"
+            ))
+        })
+    };
+    let bounds = [read("x")?, read("y")?, read("width")?, read("height")?];
+    if bounds.iter().any(|value| !value.is_finite())
+        || bounds[0] < 0.0
+        || bounds[1] < 0.0
+        || bounds[2] <= 0.0
+        || bounds[3] <= 0.0
+        || bounds[0] + bounds[2] > 1.0 + f64::EPSILON
+        || bounds[1] + bounds[3] > 1.0 + f64::EPSILON
+    {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_VIEW_CROP_INVALID: crop bounds exceed the reference".to_owned(),
+        ));
+    }
+    Ok(bounds)
+}
+
+/// Return the authored clockwise image-space rotation for a ReferenceViewSpec.
+/// Positive angles are clockwise because normalized image coordinates use a
+/// downward-positive Y axis.  The rotation is applied after crop projection;
+/// it is reference registration, never a post-render AOV transform.
+fn reference_view_rotation_degrees(view_spec: &Value) -> Result<f64, RuntimeError> {
+    let rotation = view_spec
+        .get("image")
+        .and_then(Value::as_object)
+        .and_then(|image| image.get("rotation_degrees"))
+        .and_then(Value::as_f64)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REFERENCE_VIEW_ROTATION_INVALID: rotation_degrees is unavailable".to_owned(),
+            )
+        })?;
+    if !rotation.is_finite() || !(-180.0..=180.0).contains(&rotation) {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_VIEW_ROTATION_INVALID: rotation_degrees is out of range".to_owned(),
+        ));
+    }
+    Ok(rotation)
+}
+
+fn rotate_reference_view_point(point: [f64; 2], rotation_degrees: f64) -> [f64; 2] {
+    if rotation_degrees.abs() <= f64::EPSILON {
+        return point;
+    }
+    let radians = rotation_degrees.to_radians();
+    let (sin, cos) = radians.sin_cos();
+    let x = point[0] - 0.5;
+    let y = point[1] - 0.5;
+    [0.5 + cos * x - sin * y, 0.5 + sin * x + cos * y]
+}
+
+/// Project a full-reference 512px mask into the normalized coordinate space
+/// of one ReferenceViewSpec crop. The original SilhouetteTarget remains the
+/// immutable source truth; this deterministic view mask is only an
+/// observation derived for comparison and FormArt evidence. Reviewed targets
+/// require a non-empty crop; automatic flood-fill aids may remain empty so the
+/// caller can retain an explicit quality failure instead of promoting them.
+fn project_reference_mask_to_view(
+    source: &[bool],
+    view_spec: &Value,
+    require_non_empty: bool,
+) -> Result<Vec<bool>, RuntimeError> {
+    if source.len() != 512 * 512 {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_VIEW_CROP_INVALID: source mask is not 512x512".to_owned(),
+        ));
+    }
+    let [crop_x, crop_y, crop_width, crop_height] = reference_view_crop(view_spec)?;
+    let rotation_degrees = reference_view_rotation_degrees(view_spec)?;
+    let mut projected = vec![false; 512 * 512];
+    for y in 0..512usize {
+        for x in 0..512usize {
+            // Inverse-map the destination pixel through the authored
+            // reference rotation, then through the immutable source crop.
+            let local = rotate_reference_view_point(
+                [(x as f64 + 0.5) / 512.0, (y as f64 + 0.5) / 512.0],
+                -rotation_degrees,
+            );
+            if !(0.0..=1.0).contains(&local[0]) || !(0.0..=1.0).contains(&local[1]) {
+                continue;
+            }
+            let source_x = ((crop_x + local[0] * crop_width) * 512.0)
+                .floor()
+                .clamp(0.0, 511.0) as usize;
+            let source_y = ((crop_y + local[1] * crop_height) * 512.0)
+                .floor()
+                .clamp(0.0, 511.0) as usize;
+            projected[y * 512 + x] = source[source_y * 512 + source_x];
+        }
+    }
+    if require_non_empty && !projected.iter().any(|value| *value) {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_VIEW_CROP_EMPTY: crop contains no reviewed silhouette".to_owned(),
+        ));
+    }
+    Ok(projected)
+}
+
 fn request_user_confirmed(
     object: &serde_json::Map<String, Value>,
     context: &str,
@@ -19500,6 +20512,38 @@ fn parse_target_parts(value: Option<&Value>) -> Result<Value, RuntimeError> {
     Ok(value.clone())
 }
 
+fn validate_target_annotation_visibility(
+    landmarks: &Value,
+    parts: &Value,
+    user_confirmed: bool,
+    context: &str,
+) -> Result<(), RuntimeError> {
+    if user_confirmed {
+        return Ok(());
+    }
+    let landmarks = landmarks.as_array().ok_or_else(|| {
+        RuntimeError::InvalidInput(format!("{context}: landmarks must be an array"))
+    })?;
+    for landmark in landmarks {
+        if landmark.get("visibility").and_then(Value::as_str) != Some("unknown") {
+            return Err(RuntimeError::InvalidInput(format!(
+                "{context}: unreviewed landmark visibility must be unknown"
+            )));
+        }
+    }
+    let parts = parts
+        .as_array()
+        .ok_or_else(|| RuntimeError::InvalidInput(format!("{context}: parts must be an array")))?;
+    for part in parts {
+        if part.get("visibility").and_then(Value::as_str) != Some("unknown") {
+            return Err(RuntimeError::InvalidInput(format!(
+                "{context}: unreviewed part visibility must be unknown"
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Convert Codex/user image-space annotations into a neutral visual
 /// decomposition.  This deliberately describes continuity, overlap, depth
 /// evidence and line flow rather than conventional product functions.  The
@@ -19562,6 +20606,10 @@ fn rebind_reference_visual_structure_review(
 }
 
 fn validate_reference_visual_structure(value: &Value) -> Result<(), RuntimeError> {
+    const MIN_REGION_AREA: f64 = 1.0e-8;
+    const MIN_REGION_RASTER_PIXELS: usize = 16;
+    const EDGE_LENGTH_EPSILON_SQUARED: f64 = 1.0e-16;
+
     let object = exact_object(
         value,
         &[
@@ -19603,6 +20651,11 @@ fn validate_reference_visual_structure(value: &Value) -> Result<(), RuntimeError
             "REFERENCE_VISUAL_STRUCTURE_INVALID: policy constants drifted".to_owned(),
         ));
     }
+    let review_status = object
+        .get("review_status")
+        .and_then(Value::as_str)
+        .expect("review_status enum validated above");
+    let unreviewed = review_status == "unreviewed";
 
     let regions = object
         .get("regions")
@@ -19705,6 +20758,12 @@ fn validate_reference_visual_structure(value: &Value) -> Result<(), RuntimeError
                 "REFERENCE_VISUAL_STRUCTURE_INVALID: region enum is unsupported".to_owned(),
             ));
         }
+        if unreviewed && region.get("visibility").and_then(Value::as_str) != Some("unknown") {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: unreviewed region visibility must be unknown"
+                    .to_owned(),
+            ));
+        }
         if region
             .get("layer_index")
             .and_then(Value::as_i64)
@@ -19719,13 +20778,21 @@ fn validate_reference_visual_structure(value: &Value) -> Result<(), RuntimeError
             3,
             "ReferenceVisualStructure@1.region.contour_points",
         )?;
+        validate_closed_bounded_polygon(
+            region.get("contour_points"),
+            "ReferenceVisualStructure@1.region.contour_points",
+            MIN_REGION_AREA,
+            MIN_REGION_RASTER_PIXELS,
+            EDGE_LENGTH_EPSILON_SQUARED,
+        )?;
         if region.get("mask_operation").and_then(Value::as_str) == Some("subtract")
-            && (region.get("visual_role").and_then(Value::as_str) != Some("open-frame")
+            && (review_status != "user_confirmed"
+                || region.get("visual_role").and_then(Value::as_str) != Some("open-frame")
                 || region.get("visibility").and_then(Value::as_str) != Some("observed")
                 || region.get("boundary_relationship").and_then(Value::as_str) != Some("enclosed"))
         {
             return Err(RuntimeError::InvalidInput(
-                "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract requires an observed open-frame region"
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract requires a user-confirmed observed open-frame region"
                     .to_owned(),
             ));
         }
@@ -19783,6 +20850,12 @@ fn validate_reference_visual_structure(value: &Value) -> Result<(), RuntimeError
                 "REFERENCE_VISUAL_STRUCTURE_INVALID: line flow enum is unsupported".to_owned(),
             ));
         }
+        if unreviewed && line_flow.get("visibility").and_then(Value::as_str) != Some("unknown") {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: unreviewed line flow visibility must be unknown"
+                    .to_owned(),
+            ));
+        }
         validate_visual_points(
             line_flow.get("points"),
             2,
@@ -19791,6 +20864,132 @@ fn validate_reference_visual_structure(value: &Value) -> Result<(), RuntimeError
     }
     required_contract_sha256(object, "canonical_sha256", "ReferenceVisualStructure@1")?;
     verify_output_canonical_hash(value, "ReferenceVisualStructure@1")
+}
+
+/// Validate an image-space region as a closed polygon before it can become
+/// part of a target or subtractive mask.  The JSON Schema owns the field
+/// shape and [0,1] coordinate bounds; this Runtime-owned check adds geometric
+/// safety that a schema cannot express: no repeated/zero-length edges, no
+/// self-crossing loop, meaningful continuous area, and a minimum 512x512
+/// raster footprint.  The raster check is deliberately in ForgeCAD's fixed
+/// image space rather than a physical/manufacturing unit.
+fn validate_closed_bounded_polygon(
+    value: Option<&Value>,
+    context: &str,
+    minimum_area: f64,
+    minimum_raster_pixels: usize,
+    edge_length_epsilon_squared: f64,
+) -> Result<(), RuntimeError> {
+    let points = value.and_then(Value::as_array).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} must be an array"
+        ))
+    })?;
+    if !(3..=256).contains(&points.len()) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} point count is out of bounds"
+        )));
+    }
+
+    let mut parsed = Vec::with_capacity(points.len());
+    for point in points {
+        let values = point.as_array().ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} point must be [x,y]"
+            ))
+        })?;
+        if values.len() != 2 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} point must contain two coordinates"
+            )));
+        }
+        let x = values[0].as_f64().ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} x coordinate is invalid"
+            ))
+        })?;
+        let y = values[1].as_f64().ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} y coordinate is invalid"
+            ))
+        })?;
+        if !x.is_finite()
+            || !y.is_finite()
+            || !(0.0..=1.0).contains(&x)
+            || !(0.0..=1.0).contains(&y)
+        {
+            return Err(RuntimeError::InvalidInput(format!(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} coordinates are out of bounds"
+            )));
+        }
+        parsed.push([x, y]);
+    }
+
+    for (index, point) in parsed.iter().enumerate() {
+        let next = parsed[(index + 1) % parsed.len()];
+        let dx = point[0] - next[0];
+        let dy = point[1] - next[1];
+        if dx * dx + dy * dy <= edge_length_epsilon_squared {
+            return Err(RuntimeError::InvalidInput(format!(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} contains a repeated or zero-length edge"
+            )));
+        }
+    }
+    for left in 0..parsed.len() {
+        for right in (left + 1)..parsed.len() {
+            let dx = parsed[left][0] - parsed[right][0];
+            let dy = parsed[left][1] - parsed[right][1];
+            if dx * dx + dy * dy <= edge_length_epsilon_squared {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} contains repeated points"
+                )));
+            }
+        }
+    }
+
+    if closed_polygon_self_intersects(&parsed) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} self-intersects"
+        )));
+    }
+    let area = multi_loop_signed_area(&parsed).abs();
+    if !area.is_finite() || area <= minimum_area {
+        return Err(RuntimeError::InvalidInput(format!(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} has insufficient non-zero area"
+        )));
+    }
+
+    let raster_pixels = rasterize_contour_raw(&parsed)
+        .into_iter()
+        .filter(|value| *value)
+        .count();
+    if raster_pixels < minimum_raster_pixels {
+        return Err(RuntimeError::InvalidInput(format!(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} raster footprint is too small"
+        )));
+    }
+    Ok(())
+}
+
+fn closed_polygon_self_intersects(points: &[[f64; 2]]) -> bool {
+    for left in 0..points.len() {
+        let left_next = (left + 1) % points.len();
+        for right in (left + 1)..points.len() {
+            let right_next = (right + 1) % points.len();
+            if left == right || left_next == right || right_next == left {
+                continue;
+            }
+            if multi_loop_segments_intersect(
+                points[left],
+                points[left_next],
+                points[right],
+                points[right_next],
+            ) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn validate_visual_points(
@@ -19939,6 +21138,7 @@ fn rasterize_contour_raw(points: &[[f64; 2]]) -> Vec<bool> {
 
 fn apply_visual_structure_mask_operations(
     mask: &mut [bool],
+    outer_contour_points: Option<&[[f64; 2]]>,
     structure: &Value,
 ) -> Result<(), RuntimeError> {
     if mask.len() != 512 * 512 {
@@ -19988,6 +21188,22 @@ fn apply_visual_structure_mask_operations(
                 ])
             })
             .collect::<Result<Vec<_>, RuntimeError>>()?;
+        let outer_contour_points = outer_contour_points.ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract region requires an explicit reviewed outer contour"
+                    .to_owned(),
+            )
+        })?;
+        if points
+            .iter()
+            .any(|point| !multi_loop_point_inside(point, outer_contour_points))
+            || multi_loop_polygons_touch_or_cross(&points, outer_contour_points)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract contour must be strictly enclosed by and must not cross the reviewed outer contour"
+                    .to_owned(),
+            ));
+        }
         // A subtractive contour is direct observed evidence. Do not run the
         // outer-silhouette closing pass here: it can erase narrow intentional
         // slots. Multiple overlapping subtract regions are unioned before one
@@ -20503,6 +21719,12 @@ fn camera_fit_variant_extended(
     global_scale: f64,
 ) -> Value {
     let mut camera = camera_orbit_variant(base, yaw, pitch, distance_scale * global_scale);
+    if base.get("projection").and_then(Value::as_str) == Some("orthographic") {
+        if let Some(ortho_scale) = base.get("ortho_scale").and_then(Value::as_f64) {
+            camera["ortho_scale"] =
+                json!((ortho_scale * distance_scale * global_scale).clamp(0.01, 1000.0));
+        }
+    }
     let Some(transform) = camera.get("transform").and_then(Value::as_object).cloned() else {
         return camera;
     };
@@ -21930,6 +23152,7 @@ fn materialize_rig_geometry_program(
                         | "forgecad.geometry.mirror@1"
                         | "forgecad.geometry.array@1"
                         | "forgecad.geometry.bevel@1"
+                        | "forgecad.geometry.bevel@2"
                         | "forgecad.geometry.normal-policy@1"
                         | "forgecad.geometry.part-output@1"
                 );
@@ -27043,6 +28266,7 @@ fn validate_geometry_modifier_stack_program(value: &Value) -> Result<(), Runtime
                         | "forgecad.geometry.mirror@1"
                         | "forgecad.geometry.array@1"
                         | "forgecad.geometry.bevel@1"
+                        | "forgecad.geometry.bevel@2"
                         | "forgecad.geometry.normal-policy@1"
                 )
             )
@@ -27231,6 +28455,7 @@ fn is_geometry_modifier_operator(value: Option<&str>) -> bool {
                 | "forgecad.geometry.mirror@1"
                 | "forgecad.geometry.array@1"
                 | "forgecad.geometry.bevel@1"
+                | "forgecad.geometry.bevel@2"
                 | "forgecad.geometry.normal-policy@1"
         )
     )
@@ -31926,7 +33151,8 @@ mod tests {
                     "project_id":fixture.project_id,
                     "reference_id":fixture.reference.reference_id,
                     "contour_points":[[0.1,0.1],[0.9,0.1],[0.9,0.9],[0.1,0.9]],
-                    "parts":[{"part_id":"barrel-assembly","start_index":0,"end_index":3,"visibility":"observed"}]
+                    "parts":[{"part_id":"barrel-assembly","start_index":0,"end_index":3,"visibility":"observed"}],
+                    "user_confirmed":true
                 }),
             )
             .expect("animation/VFX fixture reference target");
@@ -33889,7 +35115,8 @@ mod tests {
                     "project_id":fixture.project_id,
                     "reference_id":fixture.reference.reference_id,
                     "contour_points":[[0.1,0.1],[0.9,0.1],[0.9,0.9],[0.1,0.9]],
-                    "parts":[{"part_id":"barrel-assembly","start_index":0,"end_index":3,"visibility":"observed"}]
+                    "parts":[{"part_id":"barrel-assembly","start_index":0,"end_index":3,"visibility":"observed"}],
+                    "user_confirmed":true
                 }),
             )
             .expect("Quality@2 fixture reference target");
@@ -35529,6 +36756,64 @@ mod tests {
     }
 
     #[test]
+    fn reference_view_crop_projects_mask_to_view_space_and_fails_closed() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project(
+                "ReferenceViewSpec crop projection",
+                json!({"profile":"mvp"}),
+            )
+            .expect("project");
+        let (reference, mut spec) =
+            reference_view_spec_fixture(&runtime, &project.project_id, json!([]), json!([]));
+        spec["image"]["crop"] = json!({"x":0.25,"y":0.25,"width":0.5,"height":0.5});
+        spec["canonical_sha256"] = Value::String(String::new());
+        spec["canonical_sha256"] = Value::String(canonical_json_hash(&spec));
+        validate_reference_view_spec(&spec, &reference).expect("bounded crop");
+
+        let mut source = vec![false; 512 * 512];
+        for y in 192..320usize {
+            for x in 192..320usize {
+                source[y * 512 + x] = true;
+            }
+        }
+        let projected = project_reference_mask_to_view(&source, &spec, true)
+            .expect("crop-local silhouette projection");
+        assert_eq!(bbox(&projected), Some((128, 128, 383, 383)));
+
+        let mut asymmetric_source = vec![false; 512 * 512];
+        for y in 96..160usize {
+            for x in 64..128usize {
+                asymmetric_source[y * 512 + x] = true;
+            }
+        }
+        spec["image"]["crop"] = json!({"x":0.0,"y":0.0,"width":1.0,"height":1.0});
+        spec["image"]["rotation_degrees"] = json!(180.0);
+        spec["canonical_sha256"] = Value::String(String::new());
+        spec["canonical_sha256"] = Value::String(canonical_json_hash(&spec));
+        validate_reference_view_spec(&spec, &reference).expect("authored 180-degree registration");
+        let rotated = project_reference_mask_to_view(&asymmetric_source, &spec, true)
+            .expect("rotated reference projection");
+        assert_eq!(bbox(&rotated), Some((384, 352, 447, 415)));
+
+        let empty = vec![false; 512 * 512];
+        let empty_error = project_reference_mask_to_view(&empty, &spec, true)
+            .expect_err("empty crop projection must fail closed");
+        assert!(empty_error
+            .to_string()
+            .contains("REFERENCE_VIEW_CROP_EMPTY"));
+
+        spec["image"]["crop"] = json!({"x":0.75,"y":0.25,"width":0.5,"height":0.5});
+        spec["canonical_sha256"] = Value::String(String::new());
+        spec["canonical_sha256"] = Value::String(canonical_json_hash(&spec));
+        let overflow = validate_reference_view_spec(&spec, &reference)
+            .expect_err("crop extending past the reference must fail closed");
+        assert!(overflow
+            .to_string()
+            .contains("crop bounds exceed the image"));
+    }
+
+    #[test]
     fn reference_view_spec_rejects_nonzero_unknown_confidence() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
@@ -35560,6 +36845,43 @@ mod tests {
         assert!(region_error
             .to_string()
             .contains("unknown region confidence must be zero"));
+    }
+
+    #[test]
+    fn reference_view_spec_rejects_rotated_unprojected_annotations() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project(
+                "ReferenceViewSpec rotated annotation guard",
+                json!({"profile":"mvp"}),
+            )
+            .expect("project");
+        let (reference, mut spec) = reference_view_spec_fixture(
+            &runtime,
+            &project.project_id,
+            json!([
+                {"landmark_id":"observed","x":0.5,"y":0.5,"visibility":"observed","confidence":1.0}
+            ]),
+            json!([]),
+        );
+        spec["image"]["rotation_degrees"] = json!(180.0);
+        spec["canonical_sha256"] = Value::String(canonical_json_hash(&spec));
+        let landmark_error = validate_reference_view_spec(&spec, &reference)
+            .expect_err("rotated landmarks without projected provenance must fail closed");
+        assert!(landmark_error
+            .to_string()
+            .contains("REFERENCE_VIEW_ROTATION_UNPROJECTED_ANNOTATIONS"));
+
+        spec["landmarks"] = json!([]);
+        spec["regions"] = json!([
+            {"region_id":"observed-region","x":0.1,"y":0.1,"width":0.2,"height":0.2,"visibility":"observed","confidence":1.0}
+        ]);
+        spec["canonical_sha256"] = Value::String(canonical_json_hash(&spec));
+        let region_error = validate_reference_view_spec(&spec, &reference)
+            .expect_err("rotated regions without projected provenance must fail closed");
+        assert!(region_error
+            .to_string()
+            .contains("REFERENCE_VIEW_ROTATION_UNPROJECTED_ANNOTATIONS"));
     }
 
     #[test]
@@ -43457,8 +44779,41 @@ mod tests {
         });
         quality["canonical_sha256"] = Value::String(canonical_json_hash(&quality));
         validate_quality_report_v2_output(&quality).expect("not-run quality is structurally valid");
+        quality["view_id"] = Value::String("view-id-regression".to_owned());
+        quality["canonical_sha256"] = Value::String(String::new());
+        quality["canonical_sha256"] = Value::String(canonical_json_hash(&quality));
+        validate_quality_report_v2_output(&quality)
+            .expect("view-bound not-run quality is structurally valid");
+        quality["view_id"] = Value::String(String::new());
+        quality["canonical_sha256"] = Value::String(String::new());
+        quality["canonical_sha256"] = Value::String(canonical_json_hash(&quality));
+        assert!(validate_quality_report_v2_output(&quality).is_err());
         quality["hard_gate_passed"] = Value::Bool(true);
         assert!(validate_quality_report_v2_output(&quality).is_err());
+
+        let mut comparison = json!({
+            "schema_version":"ReferenceComparisonReport@1",
+            "report_id":"comparison-view-regression",
+            "candidate_id":"candidate-view-regression",
+            "artifact_sha256":"a".repeat(64),
+            "reference_id":"reference-view-regression",
+            "reference_sha256":"b".repeat(64),
+            "render_set_hash":"c".repeat(64),
+            "camera_hash":"d".repeat(64),
+            "mask":{"method":"silhouette-target","revision":"target-1","sha256":"e".repeat(64),"width":512,"height":512},
+            "metrics":{"silhouette_iou":0.0,"boundary_f1_4px":0.0,"bbox_edge_error":0.0,"centroid_error":0.0,"landmark_coverage":0.0,"landmark_nme":0.0,"region_median_iou":0.0,"critical_region_min_iou":0.0},
+            "status":"QUALITY_TARGET_NOT_MET",
+            "view_id":"view-id-regression",
+            "canonical_sha256":""
+        });
+        comparison["canonical_sha256"] = Value::String(String::new());
+        comparison["canonical_sha256"] = Value::String(canonical_json_hash(&comparison));
+        validate_reference_comparison_report(&comparison)
+            .expect("view-bound comparison is structurally valid");
+        comparison["view_id"] = Value::String(String::new());
+        comparison["canonical_sha256"] = Value::String(String::new());
+        comparison["canonical_sha256"] = Value::String(canonical_json_hash(&comparison));
+        assert!(validate_reference_comparison_report(&comparison).is_err());
     }
 
     #[test]
@@ -43836,6 +45191,51 @@ mod tests {
         assert_eq!(
             result["geometry_program"]["nodes"][0]["operator_id"],
             "forgecad.geometry.energy-core@1"
+        );
+        assert_eq!(result["quality_status"], "structural_only");
+    }
+
+    #[test]
+    fn geometry_modifier_stack_lowers_stable_authoring_edge_bevel_v2() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("Authoring edge high-detail stack", json!({"profile":"mvp"}))
+            .expect("project");
+        let source = authoring_bevel_v2_source_program(&project.project_id);
+        let mut request = json!({
+            "schema_version":"GeometryModifierStackRequest@1",
+            "project_id":project.project_id,
+            "representation_plan_sha256":"5".repeat(64),
+            "part_id":"beveled-part",
+            "material_zone_id":"zone-authored-shell",
+            "solid":true,
+            "base_node":source["nodes"][0],
+            "modifiers":[
+                {"modifier_id":"hero-edge","enabled":true,"operator_id":"forgecad.geometry.bevel@2","parameters":{"shape":"bevel","source_edge_ids":["e-v000-v001"],"width_m":0.08,"segments":3,"profile":0.5,"clamp_overlap":false}},
+                {"modifier_id":"hero-normals","enabled":true,"operator_id":"forgecad.geometry.normal-policy@1","parameters":{"shape":"normal-policy","weighting":"face-area-x-corner-angle","crease_angle_rad":1.0471975511965976,"keep_sharp":true,"output_domain":"corner"}}
+            ],
+            "input_sha256":""
+        });
+        let mut binding = request.clone();
+        binding
+            .as_object_mut()
+            .expect("request object")
+            .remove("input_sha256");
+        request["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        let result = runtime
+            .geometry_program_hash(&request)
+            .expect("stable-edge bevel@2 modifier stack lowering");
+        assert_eq!(
+            result["geometry_program"]["nodes"][0]["operator_id"],
+            "forgecad.geometry.authoring-mesh@1"
+        );
+        assert_eq!(
+            result["geometry_program"]["nodes"][1]["operator_id"],
+            "forgecad.geometry.bevel@2"
+        );
+        assert_eq!(
+            result["geometry_program"]["nodes"][1]["parameters"]["source_edge_ids"],
+            json!(["e-v000-v001"])
         );
         assert_eq!(result["quality_status"], "structural_only");
     }
@@ -45381,7 +46781,12 @@ mod tests {
             .silhouette_target_get(prepared["target_sha256"].as_str().unwrap())
             .expect("visual structure readback");
         assert_eq!(readback["visual_structure"], *structure);
-        let refined = runtime
+        let objects_before_rebind = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before unreviewed rebind");
+        let rebind_error = runtime
             .refine_reference_mask(
                 &project.project_id,
                 json!({
@@ -45390,15 +46795,591 @@ mod tests {
                     "contour_points":[[0.04,0.24],[0.96,0.24],[0.96,0.76],[0.04,0.76]]
                 }),
             )
-            .expect("refined visual structure target");
+            .expect_err("confirmed observed structure must not be silently downgraded");
+        assert!(rebind_error
+            .to_string()
+            .contains("unreviewed region visibility must be unknown"));
         assert_eq!(
-            refined["target"]["visual_structure"]["review_status"],
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after unreviewed rebind rejection"),
+            objects_before_rebind
+        );
+        assert_eq!(
+            runtime
+                .silhouette_target_get(prepared["target_sha256"].as_str().unwrap())
+                .expect("confirmed target remains readable")["visual_structure"],
+            *structure
+        );
+    }
+
+    #[test]
+    fn unreviewed_visual_structure_rejects_observed_and_allows_unknown_without_writes() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project(
+                "visual structure review semantics",
+                json!({"profile":"mvp"}),
+            )
+            .expect("project");
+        let reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "visual structure review semantics test".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference")
+            .reference;
+
+        let draft = |region_visibility: &str, line_visibility: &str| {
+            json!({
+                "regions":[{
+                    "structure_id":"primary-volume",
+                    "visual_role":"primary-volume",
+                    "continuity_group_id":"main-flow",
+                    "layer_index":0,
+                    "boundary_relationship":"shared",
+                    "visibility":region_visibility,
+                    "depth_policy":"unknown",
+                    "profile_policy":"material-only",
+                    "contour_points":[[0.2,0.2],[0.8,0.2],[0.8,0.8],[0.2,0.8]]
+                }],
+                "line_flows":[{
+                    "line_flow_id":"upper-ridge",
+                    "continuity_group_id":"main-flow",
+                    "kind":"ridge",
+                    "visibility":line_visibility,
+                    "points":[[0.2,0.3],[0.8,0.3]]
+                }]
+            })
+        };
+        let prepare =
+            |visual_structure: Value, user_confirmed: bool, contour_points: Option<Value>| {
+                let mut request = json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "parts":[],
+                    "landmarks":[],
+                    "visual_structure":visual_structure,
+                    "user_confirmed":user_confirmed
+                });
+                if let Some(contour_points) = contour_points {
+                    request["contour_points"] = contour_points;
+                }
+                runtime.prepare_reference_mask(&project.project_id, request)
+            };
+
+        let objects_before_region_rejection = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before unreviewed observed region");
+        let region_error = prepare(draft("observed", "unknown"), false, None)
+            .expect_err("unreviewed observed region must be rejected");
+        assert!(region_error
+            .to_string()
+            .contains("unreviewed region visibility must be unknown"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after unreviewed observed region"),
+            objects_before_region_rejection
+        );
+
+        let objects_before_line_rejection = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before unreviewed observed line flow");
+        let line_error = prepare(draft("unknown", "observed"), false, None)
+            .expect_err("unreviewed observed line flow must be rejected");
+        assert!(line_error
+            .to_string()
+            .contains("unreviewed line flow visibility must be unknown"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after unreviewed observed line flow"),
+            objects_before_line_rejection
+        );
+
+        let unknown = prepare(
+            draft("unknown", "unknown"),
+            false,
+            Some(json!([[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]])),
+        )
+        .expect("unreviewed unknown structure is valid");
+        assert_eq!(
+            unknown["target"]["visual_structure"]["review_status"],
             "unreviewed"
         );
-        assert_ne!(
-            refined["target"]["visual_structure"]["canonical_sha256"],
-            structure["canonical_sha256"]
+        assert_eq!(
+            unknown["target"]["visual_structure"]["regions"][0]["visibility"],
+            "unknown"
         );
+        assert_eq!(
+            unknown["target"]["visual_structure"]["line_flows"][0]["visibility"],
+            "unknown"
+        );
+
+        let confirmed = prepare(
+            draft("observed", "observed"),
+            true,
+            Some(json!([[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]])),
+        )
+        .expect("user-confirmed observed structure is valid");
+        assert_eq!(
+            confirmed["target"]["visual_structure"]["review_status"],
+            "user_confirmed"
+        );
+        assert_eq!(
+            confirmed["target"]["visual_structure"]["regions"][0]["visibility"],
+            "observed"
+        );
+        assert_eq!(
+            confirmed["target"]["visual_structure"]["line_flows"][0]["visibility"],
+            "observed"
+        );
+
+        let subtractive = json!({
+            "regions":[{
+                "structure_id":"trigger-void",
+                "visual_role":"open-frame",
+                "continuity_group_id":"main-flow",
+                "layer_index":1,
+                "boundary_relationship":"enclosed",
+                "visibility":"observed",
+                "depth_policy":"from-multiview",
+                "profile_policy":"preserve-continuity",
+                "mask_operation":"subtract",
+                "contour_points":[[0.3,0.3],[0.7,0.3],[0.7,0.7],[0.3,0.7]]
+            }],
+            "line_flows":[]
+        });
+        assert!(prepare_reference_visual_structure(Some(&subtractive), false).is_err());
+        let confirmed_subtractive = prepare_reference_visual_structure(Some(&subtractive), true)
+            .expect("subtract requires and accepts user-confirmed observed open-frame")
+            .expect("subtractive structure should be present");
+        assert_eq!(confirmed_subtractive["review_status"], "user_confirmed");
+    }
+
+    #[test]
+    fn reference_visual_structure_region_polygon_accepts_valid_subtract() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("closed subtract geometry", json!({"profile":"mvp"}))
+            .expect("project");
+        let reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "closed subtract geometry test".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference")
+            .reference;
+        let outer = [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+        let prepared = runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "contour_points":outer,
+                    "parts":[],
+                    "landmarks":[],
+                    "visual_structure":{
+                        "regions":[{
+                            "structure_id":"trigger-void",
+                            "visual_role":"open-frame",
+                            "continuity_group_id":"main-flow",
+                            "layer_index":1,
+                            "boundary_relationship":"enclosed",
+                            "visibility":"observed",
+                            "depth_policy":"unknown",
+                            "profile_policy":"material-only",
+                            "mask_operation":"subtract",
+                            "contour_points":[[0.3,0.3],[0.7,0.3],[0.7,0.7],[0.3,0.7]]
+                        }],
+                        "line_flows":[]
+                    },
+                    "user_confirmed":true
+                }),
+            )
+            .expect("valid subtract target");
+        let target = runtime
+            .silhouette_target_get(prepared["target_sha256"].as_str().unwrap())
+            .expect("target readback");
+        assert_eq!(
+            target["visual_structure"]["regions"][0]["mask_operation"],
+            "subtract"
+        );
+        let target_mask = runtime
+            .target_mask(prepared["target_sha256"].as_str().unwrap(), &target)
+            .expect("target mask");
+        assert!(!target_mask.mask[256 * 512 + 256]);
+        assert!(target_mask.mask[128 * 512 + 128]);
+    }
+
+    #[test]
+    fn reference_visual_structure_region_geometry_rejects_invalid_shapes_without_cas_writes() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("closed polygon rejection", json!({"profile":"mvp"}))
+            .expect("project");
+        let reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "closed polygon rejection test".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference")
+            .reference;
+        let outer = [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+        let visual_structure = |points: Value| {
+            json!({
+                "regions":[{
+                    "structure_id":"trigger-void",
+                    "visual_role":"open-frame",
+                    "continuity_group_id":"main-flow",
+                    "layer_index":1,
+                    "boundary_relationship":"enclosed",
+                    "visibility":"observed",
+                    "depth_policy":"unknown",
+                    "profile_policy":"material-only",
+                    "mask_operation":"subtract",
+                    "contour_points":points
+                }],
+                "line_flows":[]
+            })
+        };
+        let prepare = |points: Value| {
+            runtime.prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "contour_points":outer,
+                    "parts":[],
+                    "landmarks":[],
+                    "visual_structure":visual_structure(points),
+                    "user_confirmed":true
+                }),
+            )
+        };
+        let invalid_shapes = [
+            (
+                "bow-tie",
+                json!([[0.25, 0.25], [0.75, 0.75], [0.25, 0.75], [0.75, 0.25]]),
+                "self-intersects",
+            ),
+            (
+                "self-intersection",
+                json!([[0.5, 0.1], [0.9, 0.8], [0.1, 0.35], [0.9, 0.35], [0.1, 0.8]]),
+                "self-intersects",
+            ),
+            (
+                "repeated-edge",
+                json!([
+                    [0.25, 0.25],
+                    [0.75, 0.25],
+                    [0.75, 0.75],
+                    [0.75, 0.75],
+                    [0.25, 0.75]
+                ]),
+                "repeated or zero-length edge",
+            ),
+            (
+                "small-area",
+                json!([[0.4, 0.4], [0.4001, 0.4], [0.4, 0.4001]]),
+                "insufficient non-zero area",
+            ),
+            (
+                "small-raster",
+                json!([[0.49, 0.49], [0.495, 0.49], [0.495, 0.495], [0.49, 0.495]]),
+                "raster footprint is too small",
+            ),
+        ];
+        for (label, points, error_fragment) in invalid_shapes {
+            let before = runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS before invalid prepare");
+            let error = prepare(points).expect_err(label);
+            assert!(
+                error.to_string().contains(error_fragment),
+                "{label}: {error}"
+            );
+            assert_eq!(
+                runtime
+                    .store
+                    .cas()
+                    .list_objects()
+                    .expect("CAS after invalid prepare"),
+                before,
+                "{label} must not write CAS"
+            );
+        }
+
+        let valid = runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "contour_points":outer,
+                    "parts":[],
+                    "landmarks":[],
+                    "visual_structure":visual_structure(json!([[0.3,0.3],[0.7,0.3],[0.7,0.7],[0.3,0.7]])),
+                    "user_confirmed":true
+                }),
+            )
+            .expect("valid base target");
+        let refined_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before invalid refine");
+        let refine_error = runtime
+            .refine_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "base_target_sha256":valid["target_sha256"].clone(),
+                    "contour_points":outer,
+                    "visual_structure":visual_structure(json!([[0.25,0.25],[0.75,0.75],[0.25,0.75],[0.75,0.25]])),
+                    "user_confirmed":true
+                }),
+            )
+            .expect_err("invalid refine geometry");
+        assert!(refine_error.to_string().contains("self-intersects"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after invalid refine"),
+            refined_before,
+            "invalid refine must not write CAS"
+        );
+
+        let reference_record = runtime
+            .reference(&reference.reference_id)
+            .expect("reference lookup")
+            .expect("reference record");
+        let valid_structure = valid["target"]["visual_structure"].clone();
+        let mut invalid_structure = valid_structure;
+        invalid_structure["regions"][0]["contour_points"] =
+            json!([[0.49, 0.49], [0.495, 0.49], [0.495, 0.495], [0.49, 0.495]]);
+        invalid_structure["canonical_sha256"] = Value::String(String::new());
+        invalid_structure["canonical_sha256"] =
+            Value::String(canonical_json_hash(&invalid_structure));
+        let store_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before invalid store");
+        let store_error = runtime
+            .store_silhouette_target(
+                &project.project_id,
+                &reference_record,
+                Some(&outer),
+                json!([]),
+                json!([]),
+                Some(invalid_structure),
+                ReferenceMask {
+                    mask: rasterize_contour(&outer),
+                    png: Vec::new(),
+                },
+                false,
+                true,
+                None,
+            )
+            .expect_err("invalid store geometry");
+        assert!(store_error
+            .to_string()
+            .contains("raster footprint is too small"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after invalid store"),
+            store_before,
+            "invalid store must not write CAS"
+        );
+    }
+
+    #[test]
+    fn unreviewed_target_annotations_reject_observed_or_inferred_without_writes() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project(
+                "target annotation review semantics",
+                json!({"profile":"mvp"}),
+            )
+            .expect("project");
+        let reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "target annotation review semantics test".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference")
+            .reference;
+        let contour = json!([[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]);
+        let annotations = |landmark_visibility: &str, part_visibility: &str| {
+            (
+                json!([{
+                    "landmark_id":"core-center",
+                    "x":0.5,
+                    "y":0.5,
+                    "visibility":landmark_visibility
+                }]),
+                json!([{
+                    "part_id":"receiver-main",
+                    "start_index":0,
+                    "end_index":3,
+                    "visibility":part_visibility
+                }]),
+            )
+        };
+        let prepare = |landmark_visibility: &str, part_visibility: &str, user_confirmed: bool| {
+            let (landmarks, parts) = annotations(landmark_visibility, part_visibility);
+            runtime.prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "contour_points":contour.clone(),
+                    "landmarks":landmarks,
+                    "parts":parts,
+                    "user_confirmed":user_confirmed
+                }),
+            )
+        };
+
+        let objects_before_landmark_rejection = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before unreviewed observed landmark");
+        let landmark_error = prepare("observed", "unknown", false)
+            .expect_err("unreviewed observed landmark must be rejected");
+        assert!(landmark_error
+            .to_string()
+            .contains("unreviewed landmark visibility must be unknown"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after unreviewed observed landmark"),
+            objects_before_landmark_rejection
+        );
+
+        let objects_before_part_rejection = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before unreviewed inferred part");
+        let part_error = prepare("unknown", "inferred", false)
+            .expect_err("unreviewed inferred part must be rejected");
+        assert!(part_error
+            .to_string()
+            .contains("unreviewed part visibility must be unknown"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after unreviewed inferred part"),
+            objects_before_part_rejection
+        );
+
+        let unknown = prepare("unknown", "unknown", false)
+            .expect("unreviewed unknown target annotations are valid");
+        assert_eq!(unknown["target"]["annotation_status"], "unreviewed");
+        assert_eq!(unknown["target"]["landmarks"][0]["visibility"], "unknown");
+        assert_eq!(unknown["target"]["parts"][0]["visibility"], "unknown");
+        validate_silhouette_target(&unknown["target"])
+            .expect("unreviewed unknown target validates");
+
+        let confirmed = prepare("observed", "inferred", true)
+            .expect("user-confirmed observed/inferred annotations are valid");
+        assert_eq!(confirmed["target"]["annotation_status"], "user_confirmed");
+        assert_eq!(
+            confirmed["target"]["landmarks"][0]["visibility"],
+            "observed"
+        );
+        assert_eq!(confirmed["target"]["parts"][0]["visibility"], "inferred");
+
+        let objects_before_rebind = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before confirmed target rebind");
+        let rebind_error = runtime
+            .refine_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "base_target_sha256":confirmed["target_sha256"].clone(),
+                    "contour_points":contour.clone()
+                }),
+            )
+            .expect_err("confirmed annotations must not silently downgrade");
+        assert!(rebind_error
+            .to_string()
+            .contains("unreviewed landmark visibility must be unknown"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after confirmed target rebind rejection"),
+            objects_before_rebind
+        );
+
+        let mut tampered = unknown["target"].clone();
+        tampered["landmarks"][0]["visibility"] = Value::String("observed".to_owned());
+        tampered["canonical_sha256"] = Value::String(String::new());
+        tampered["canonical_sha256"] = Value::String(canonical_json_hash(&tampered));
+        assert!(validate_silhouette_target(&tampered).is_err());
     }
 
     #[test]
@@ -45408,6 +47389,7 @@ mod tests {
         let before = mask.iter().filter(|value| **value).count();
         apply_visual_structure_mask_operations(
             &mut mask,
+            Some(&outer),
             &json!({
                 "regions":[{
                     "visual_role":"open-frame",
@@ -45430,6 +47412,7 @@ mod tests {
         let mut mask = rasterize_contour(&outer);
         let result = apply_visual_structure_mask_operations(
             &mut mask,
+            Some(&outer),
             &json!({
                 "regions":[{
                     "visual_role":"open-frame",
@@ -45440,6 +47423,43 @@ mod tests {
             }),
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn subtractive_visual_region_edge_cannot_escape_a_concave_outer_contour() {
+        // Every cutout vertex is strictly inside this U-shaped outer polygon,
+        // but the lower cutout edge crosses the open notch.  A vertex-only
+        // containment check would accept it; the full segment gate must reject
+        // it before the raster/CAS boundary.
+        let outer = [
+            [0.1, 0.1],
+            [0.9, 0.1],
+            [0.9, 0.9],
+            [0.65, 0.9],
+            [0.65, 0.35],
+            [0.35, 0.35],
+            [0.35, 0.9],
+            [0.1, 0.9],
+        ];
+        let cutout = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]];
+        assert!(cutout
+            .iter()
+            .all(|point| multi_loop_point_inside(point, &outer)));
+        let mut mask = rasterize_contour(&outer);
+        let error = apply_visual_structure_mask_operations(
+            &mut mask,
+            Some(&outer),
+            &json!({
+                "regions":[{
+                    "visual_role":"open-frame",
+                    "visibility":"observed",
+                    "mask_operation":"subtract",
+                    "contour_points":cutout
+                }]
+            }),
+        )
+        .expect_err("cutout edge must not cross a concave outer boundary");
+        assert!(error.to_string().contains("must not cross"));
     }
 
     #[test]
@@ -46231,7 +48251,7 @@ mod tests {
         // comparison. Keep that ordering here so repeated CAS admission of
         // the same mask bytes is covered by the focused regression.
         let target = runtime
-            .prepare_reference_mask(&project.project_id, json!({"project_id":project.project_id.clone(),"reference_id":reference.reference_id,"contour_points":[[0.1,0.1],[0.5,0.1],[0.9,0.1],[0.9,0.5],[0.9,0.9],[0.5,0.9],[0.1,0.9],[0.1,0.5]],"parts":[{"part_id":"shell","start_index":0,"end_index":3,"visibility":"observed"},{"part_id":"visor","start_index":4,"end_index":7,"visibility":"observed"}]}))
+            .prepare_reference_mask(&project.project_id, json!({"project_id":project.project_id.clone(),"reference_id":reference.reference_id,"contour_points":[[0.1,0.1],[0.5,0.1],[0.9,0.1],[0.9,0.5],[0.9,0.9],[0.5,0.9],[0.1,0.9],[0.1,0.5]],"parts":[{"part_id":"shell","start_index":0,"end_index":3,"visibility":"observed"},{"part_id":"visor","start_index":4,"end_index":7,"visibility":"observed"}],"user_confirmed":true}))
             .expect("target");
         let mut view_spec = json!({
             "schema_version":"ReferenceViewSpec@1","reference_id":reference.reference_id,"reference_sha256":reference.object_sha256,
@@ -46241,7 +48261,7 @@ mod tests {
         });
         view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
         runtime
-            .prepare_reference_comparison(&project.project_id, json!({"candidate_id":first_id,"reference_id":reference.reference_id,"view_spec":view_spec.clone()}))
+            .prepare_reference_comparison(&project.project_id, json!({"candidate_id":first_id,"reference_id":reference.reference_id,"view_spec":view_spec.clone(),"target_sha256":target["target_sha256"].clone()}))
             .expect("first comparison");
         let mut rig = json!({"schema_version":"SilhouetteRig@1","rig_id":"robot-rig","candidate_id":first_id.clone(),"parameters":[{"parameter_id":"shell-width","part_id":"shell","semantic":"width","value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"meter"}],"canonical_sha256":""});
         rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
@@ -46580,7 +48600,7 @@ mod tests {
             .unwrap()
             .to_owned();
         runtime
-            .prepare_reference_comparison(&project.project_id, json!({"candidate_id":second_id,"reference_id":reference.reference_id,"view_spec":view_spec}))
+            .prepare_reference_comparison(&project.project_id, json!({"candidate_id":second_id,"reference_id":reference.reference_id,"view_spec":view_spec,"target_sha256":target["target_sha256"].clone()}))
             .expect("second comparison");
         let compared = runtime.silhouette_candidate_compare(&project.project_id, json!({"project_id":project.project_id.clone(),"target_sha256":target["target_sha256"].clone(),"candidate_ids":[first_id,second_id]})).expect("compare");
         validate_silhouette_candidate_compare_result(&compared).expect("compare contract");
@@ -49185,7 +51205,8 @@ mod tests {
                     "project_id":project.project_id.clone(),
                     "reference_id":reference.reference_id.clone(),
                     "contour_points":[[0.1,0.1],[0.9,0.1],[0.9,0.9],[0.1,0.9]],
-                    "parts":[{"part_id":"shell","start_index":0,"end_index":3,"visibility":"observed"}]
+                    "parts":[{"part_id":"shell","start_index":0,"end_index":3,"visibility":"observed"}],
+                    "user_confirmed":true
                 }),
             )
             .expect("target");
@@ -50752,6 +52773,17 @@ mod tests {
         render_set["canonical_sha256"] = Value::String(canonical_json_hash(&render_set));
         validate_render_set_v2_output(&render_set)
             .expect("unavailable worker identity is explicit");
+
+        let mut view_bound = render_set.clone();
+        view_bound["view_id"] = Value::String("view-id-regression".to_owned());
+        view_bound["canonical_sha256"] = Value::String(String::new());
+        view_bound["canonical_sha256"] = Value::String(canonical_json_hash(&view_bound));
+        validate_render_set_v2_output(&view_bound)
+            .expect("view-bound RenderSet remains contract-valid");
+        view_bound["view_id"] = Value::String(String::new());
+        view_bound["canonical_sha256"] = Value::String(String::new());
+        view_bound["canonical_sha256"] = Value::String(canonical_json_hash(&view_bound));
+        assert!(validate_render_set_v2_output(&view_bound).is_err());
 
         let mut tampered_profile = render_set.clone();
         tampered_profile["render_profile"]["aovs"][2]["encoding"] =

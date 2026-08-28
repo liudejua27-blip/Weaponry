@@ -1,0 +1,67 @@
+{
+  "schema_version": "ForgeCADProductionWeaponFormReviewConfirmedTargetGate@1",
+  "task_id": "FPS-FORM-EVIDENCE-04A-CONFIRMED-TARGET",
+  "status": "PASS_RUNTIME_TARGET_PREPARE_WITHOUT_QUALITY_PROMOTION",
+  "source": {
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "proposal_file_sha256": "78bbd80429e7eb9bb16a579d315abc7b370ad5ca7fb819851e73ea2b6721e195",
+    "proposal_canonical_sha256": "864bf2134538b85e7e69aaa72980ae2ded2b8286c9f3b5c5576edf9e061abec2",
+    "confirmation_file_sha256": "5f01e6ed039f7870f0f285092995c2efc6b83895742a1b848bd00e21c9d21c37",
+    "confirmation_canonical_sha256": "a084f1825647adbeab13ba4a237f58dd6500eacbf5eee7d3f685bf5c5a0c89f1",
+    "expanded_rear_crop_file_sha256": "f398e0212edcf2529731d4dc7c8356cf09e3eaab5bea2027e9340a28e9e32c39",
+    "expanded_rear_crop_runtime_png_sha256": "816458cf392ca500db6c1fef4a93f6d5a599e0e32a943b54fa5836acad3b0413"
+  },
+  "fixture": {
+    "test": "agentic_session::tests::production_weapon_real_reference_confirmation_materializes_six_reviewed_targets",
+    "result": "PASS_1_OF_1",
+    "identity_view_count": 6,
+    "accepted_line_flow_count": 25,
+    "accepted_negative_space_count": 6,
+    "runtime_target_object_and_canonical_sha256": {
+      "front": [
+        "511de190963257fb8203d8a97c55fa925300e7dde9b00d623636af12ffd0a44d",
+        "a4dab0b2d687c82b858e68948fdfa13ff75862afc1c8b070b140ea3e34550d82"
+      ],
+      "back": [
+        "41a97c1e42907f723bf0b59a4c7f05f1fc4ef1b3cf983276cbb0e0724d537bea",
+        "202b7e87464efa6789b4a9e489acf593daaee303fabb22a76bd41d711b5a8af3"
+      ],
+      "left": [
+        "211ec997075069e993dd836a86616cc318adcb7f858221085a32af0663eb0879",
+        "e465ecbfd19656dcd719f1cc4d6c5013cdc64e6b2a6e3b8f07c9005cc4b93f85"
+      ],
+      "right": [
+        "46e2ee724fd52d3f2e2f4b604081265f63f16f6ba4a74b732e6e99a81bf30b82",
+        "f560603dcc8e148d0e45cf732aec24cf64c9d0eee949a27d5e52b85e2c6b4bcd"
+      ],
+      "top": [
+        "82474da046051200a342ef55675bf7494a1c7b217ac7acc5e0b630aad64d1cb6",
+        "5f8ca0ac38cb5aefd5bb75253a6e4473da079f9dc9bec994d97199775ee6f7f4"
+      ],
+      "rear-three-quarter": [
+        "ba361a8c427820d3e67a0bae4eab2be55462d953449701433a39a9d8be75b3a5",
+        "42475b62419ad9dd798419058d14962de83d4e252dfcad7ede2a9299f2a077af"
+      ]
+    },
+    "temporary_cas_object_delta": 30,
+    "restart_hash_verified": true,
+    "worker_started": false,
+    "persistent_user_data_touched": false
+  },
+  "quality_boundary": {
+    "depth_status": "UNKNOWN",
+    "candidate_match_status": "NOT_RUN",
+    "form_art_status": "NOT_RUN",
+    "cross_view_quality_status": "QUALITY_TARGET_NOT_MET",
+    "form_quality_v2_status": "BLOCKED",
+    "secondary_form_approved": "NOT_CREATED",
+    "visual_quality_status": "NOT_PROVEN",
+    "human_review_status": "NOT_RUN",
+    "production_stage_advanced": false
+  },
+  "limitations": [
+    "This gate proves only the user-confirmed visible-2D annotation join, Runtime-owned target/mask creation, exact line-flow kind/group preservation, subtract containment, and restart-safe target readback.",
+    "The expanded rear contour and negative-space contour are conservative two-dimensional boundaries designed under the user's explicit delegation; they do not prove depth, through-structure, geometry match, or manufacturable structure.",
+    "No Geometry Worker or Render Worker ran, no candidate was generated or confirmed, no FormArt/FormQuality receipt was created, and no production stage advanced."
+  ]
+}

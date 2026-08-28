@@ -1,0 +1,64 @@
+{
+  "schema_version": "AuthoringMeshReadonlyProjectionSourceGate@1",
+  "task_id": "FGC-MCP010F-CQ02-READONLY-SLICE",
+  "recorded_at": "2026-08-25T00:00:00+08:00",
+  "status": "PASS_SOURCE_RUNTIME_MCP_READ_ONLY_STRUCTURAL",
+  "scope": "candidate-bound single direct authoring-mesh part",
+  "contracts": {
+    "schema_count": 476,
+    "schema_content_set_sha256": "3119de8b5ecdaa4965a39e7cc30bcf4cc0fc54e7b53a6308d454a3a9439e532d",
+    "request_schema_sha256": "9383fe6f7de8a0d0e2b23565dc7f254298a27e2bb5a13f881d661267a588c90b",
+    "result_schema_sha256": "01e09c51b255655a725dae9da218b70f35a6fade393cd6548cd9b739e507ddcb"
+  },
+  "runtime": {
+    "authoring_mesh_source_sha256": "ab76b6820379db21491fd52d994301c080029d00c24ec1cbbbee8fbdd0de0c77",
+    "authoring_topology_source_sha256": "5eb99c006edec9763c185fd3cd7774e5996ff91ac4f1f840543593dd30e4b365",
+    "runtime_lib_source_sha256": "7d110b6ddd62c2239c950f89d1b725c22c6a806b5ac5a183b461a239a479b086",
+    "projection": "runtime-derived-read-only-projection@1",
+    "representation": "half-edge-authoring@1",
+    "lineage": "candidate-program-artifact-readback-bound@1",
+    "identity_policy": "runtime-derived-original-evaluated-non-bijective@1",
+    "topology_policy": "bounded-half-edge-manifold-with-boundary@1",
+    "runtime_write_performed": false,
+    "persistent_user_data_touched": false
+  },
+  "mcp": {
+    "source_sha256": "99195107d7b4187998410169bbfade7f3e1c93e34ba46f31f3c6440bb6af1a41",
+    "tool": "authoring_mesh_get",
+    "read_count": 104,
+    "write_count": 76,
+    "total_count": 180,
+    "read_manifest_sha256": "eb85fe69990545918c52f7b59eb2ad7ecc3dff85aea9801d78820ff45bedb5d2",
+    "write_enabled_manifest_sha256": "29275a50e4e695b32a3ebb2cde55c79d2127ebca5dbec5b4f6ad44fc745d4511"
+  },
+  "verification": {
+    "cargo_fmt_check": "PASS",
+    "cargo_check_runtime_mcp": "PASS_WITH_EXISTING_WARNINGS",
+    "runtime_focused_tests": "PASS_2_OF_2",
+    "mcp_focused_test": "PASS_1_OF_1",
+    "contract_checker": "PASS_476_SCHEMAS"
+  },
+  "fail_closed": [
+    "non-manifold edge incidence",
+    "same-direction interior twins",
+    "broken or incomplete face cycles",
+    "dangling V/E/H/C/F references",
+    "zero-length edges and zero-area faces",
+    "unknown request or source fields",
+    "response larger than 1 MiB"
+  ],
+  "not_proven": [
+    "durable canonical AuthoringMesh CAS or SQLite object",
+    "cross-version stable editable element identities",
+    "evaluated artifact element bijection",
+    "Viewer live AuthoringMesh read model",
+    "secondary-form-approved Stage",
+    "commercial visual quality",
+    "human art review",
+    "engine import",
+    "packaged or distribution evidence"
+  ],
+  "quality_status": "structural_only",
+  "visual_status": "QUALITY_TARGET_NOT_MET",
+  "canonical_sha256": "e83dd3fd8b12092e352ab99d5649c026b6d3b8e9b8a0f1b570bb53732866abe7"
+}

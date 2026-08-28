@@ -1,0 +1,67 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FPS-FORM-04AT",
+  "recorded_on": "2026-08-27",
+  "status": "SOURCE_KERNEL_COMPILE_PASS",
+  "build_cohort_sha256": "575070e61aa45a0f6e904ce754fc20b61a74e7df5caabb161a87f7328daff768",
+  "user_authority": {
+    "rear_three_quarter_reference_rotation_degrees": 0,
+    "orientation": "stock-left-muzzle-right-upright",
+    "runtime_derived_orbit_degrees": 180,
+    "approved_camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb"
+  },
+  "decision": {
+    "rejected_direction": "open-frame-notch-size-sweep-or-derived-u-frame",
+    "selected_operation": "rear_stock_void_rail_bow",
+    "selected_schema": "AuthoringMeshRearStockVoidRailBow@1",
+    "scope": "rear-stock-upper-rail-only",
+    "station_parameters_m": [
+      [0.0, 0.0],
+      [0.25, 0.03],
+      [0.5, 0.045],
+      [0.75, 0.03],
+      [1.0, 0.0]
+    ],
+    "preserved": [
+      "outer-envelope-endpoints",
+      "rear-stock-lower-beam",
+      "rear-cap",
+      "aggregate-part-output",
+      "source-binding-and-lineage"
+    ]
+  },
+  "implementation": {
+    "contracts": "PASS",
+    "typed_topology_operation_kind": "PASS",
+    "runtime_owned_edge_discovery": "PASS_SOURCE",
+    "depth_symmetric_three-station_split": "PASS_SOURCE",
+    "void_normal_sign_validation": "PASS_SOURCE",
+    "durable_operation_name_mapping": "PASS_SOURCE",
+    "caller_vertex_ids_or_raw_mesh_accepted": false,
+    "arbitrary_script_accepted": false
+  },
+  "compile_gate": {
+    "command": "cargo check --locked -p forgecad-contracts -p forgecad-runtime -p forgecad-store",
+    "status": "PASS",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "not_claimed": {
+    "proposal_public_seam": "NOT_IMPLEMENTED",
+    "mcp_write_surface": "NOT_IMPLEMENTED",
+    "durable_real_d1_child": "NOT_RUN",
+    "fresh_same_cohort_baseline": "NOT_RUN",
+    "six_view_form_art": "NOT_RUN",
+    "form_quality_v2": "NOT_RUN",
+    "secondary_form_approved": "NOT_CREATED",
+    "stage_advance": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "visual_quality": "QUALITY_TARGET_NOT_MET"
+  },
+  "next_atomic_action": "Expose RearStockVoidRailBow through the closed typed proposal schema, Runtime-owned semantic orientation derivation, durable child persistence and MCP read/write surface; then build a fresh same-cohort D1 baseline and run exactly one six-view candidate."
+}

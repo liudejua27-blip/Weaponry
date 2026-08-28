@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-camera-lock-registration-lineage-prepare-request.schema.json",
+  "title": "ProductionCameraLockRegistrationLineagePrepareRequest@1",
+  "description": "Closed, non-injectable prepare intent. The caller identifies the lineage scope, exact parent CameraLock@1 and output identities, then supplies an independently approved rear-three-quarter board rotation, semantic stock/muzzle screen order and closed camera-orbit choice. Runtime keeps reference-pixel rotation separate from camera selection, projects source anchors to prove screen order and world-Y upright, and derives every crop/matrix/provenance/CAS hash.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "registration_lineage_id",
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "camera_lock_id",
+    "camera_lock_canonical_sha256",
+    "semantic_landmark_ordering_id",
+    "authored_orientation_id",
+    "registered_rig_v2_id",
+    "rear_three_quarter_rotation_degrees",
+    "rear_three_quarter_subject_screen_order",
+    "rear_three_quarter_camera_orbit_degrees",
+    "approval_receipt_id",
+    "approval_session_id",
+    "approval_expires_at",
+    "approval_summary",
+    "approved",
+    "idempotency_key",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionCameraLockRegistrationLineagePrepareRequest@1"},
+    "operation": {"const": "forgecad.production.camera-lock-registration-lineage-prepare@1"},
+    "registration_lineage_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_lock_id": {"$ref": "#/$defs/id"},
+    "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "semantic_landmark_ordering_id": {"$ref": "#/$defs/id"},
+    "authored_orientation_id": {"$ref": "#/$defs/id"},
+    "registered_rig_v2_id": {"$ref": "#/$defs/id"},
+    "rear_three_quarter_rotation_degrees": {"type": "integer", "enum": [-180, -90, 0, 90, 180]},
+    "rear_three_quarter_subject_screen_order": {"enum": ["stock-left-muzzle-right", "muzzle-left-stock-right"]},
+    "rear_three_quarter_camera_orbit_degrees": {"type": "integer", "enum": [0, 180]},
+    "approval_receipt_id": {"$ref": "#/$defs/id"},
+    "approval_session_id": {"$ref": "#/$defs/id"},
+    "approval_expires_at": {"$ref": "#/$defs/epoch"},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "approved": {"const": true},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"rear_three_quarter_subject_screen_order": {"const": "stock-left-muzzle-right"}}, "required": ["rear_three_quarter_subject_screen_order"]},
+      "then": {"properties": {"rear_three_quarter_camera_orbit_degrees": {"const": 180}}},
+      "else": {"properties": {"rear_three_quarter_camera_orbit_degrees": {"const": 0}}}
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "epoch": {"type": "string", "pattern": "^[0-9]{1,10}$"}
+  }
+}

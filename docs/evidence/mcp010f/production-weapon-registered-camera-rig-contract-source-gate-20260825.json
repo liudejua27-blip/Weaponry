@@ -1,0 +1,71 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04I-REGISTERED-CAMERA-RIG-CONTRACT-SOURCE",
+  "status": "PASS_PUBLIC_CONTRACT_SOURCE_NON_DURABLE",
+  "task_id": "FGC-MCP010F",
+  "schema_count": 474,
+  "contracts": [
+    {
+      "schema_version": "ProductionWeaponSubjectFrameRegistration@1",
+      "schema_sha256": "a3a2d025157fd54fdea7f54f5fb781f2f727515bd701ac32d8856323a416bf79",
+      "derivation_policy": "exact-semantic-anchor-axis-registration@1",
+      "allowed_transforms": [
+        "identity",
+        "yaw-180-y"
+      ]
+    },
+    {
+      "schema_version": "RegisteredCameraRigCalibration@1",
+      "schema_sha256": "4aa8fe0c217ba0c74c20766301837650e9d9b943ef0e1ca805568a0d565abf73",
+      "lineage_fields": [
+        "candidate_state_sha256",
+        "artifact_sha256",
+        "geometry_program_object_sha256",
+        "geometry_program_sha256",
+        "operator_catalog_sha256",
+        "subject_camera_rig_object_sha256",
+        "subject_camera_rig_canonical_sha256",
+        "subject_frame_registration_canonical_sha256"
+      ]
+    }
+  ],
+  "manifest_sha256": "6c80d882102cdab4e37ffb629e709952494cf73beafc388fa9dcf4e8a16fcd6e",
+  "verification": {
+    "contract_checker": "PASS_474_SCHEMAS",
+    "camera_registration_unit_tests": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    "exact_rotation_binding": true,
+    "same_candidate_lineage_fields_required": true,
+    "source_and_registered_camera_hashes_retained": true,
+    "camera_lock_v1_sibling_link": "PASS_READ_ONLY_SOURCE_VALIDATION",
+    "camera_lock_required_view_count": 7,
+    "stale_camera_lock_candidate_state_rejected": true,
+    "tampered_registered_camera_rejected": true,
+    "cross_artifact_retarget_rejected": true
+  },
+  "runtime_boundary": {
+    "store_or_sqlite_contract_added": false,
+    "cas_durable_object_added": false,
+    "mcp_tool_added": false,
+    "existing_camera_rig_schema_modified": false,
+    "existing_camera_lock_schema_modified": false,
+    "runtime_write_performed": false,
+    "worker_invoked": false
+  },
+  "quality_boundary": {
+    "depth_status": "UNKNOWN",
+    "quality_status": "NOT_EVALUATED",
+    "rear_three_quarter_reference_registration": "BLOCKED",
+    "owner_void_acceptance": "NOT_RUN",
+    "real_d1_registered_camera_lock_replay": "NOT_RUN",
+    "real_d1_form_quality_status": "NOT_RUN",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "next_action": "FPS-FORM-04J-REAL-D1-CAMERA-LOCK-READONLY-LINK-REPLAY"
+}

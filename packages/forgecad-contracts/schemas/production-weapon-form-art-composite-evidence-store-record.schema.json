@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-composite-evidence-store-record.schema.json",
+  "title": "ProductionWeaponFormArtCompositeEvidenceRecord@1",
+  "description": "Immutable Store index binding one exact composite proposal parent to its CrossView and proposal FormArt CAS receipts. Detailed evaluation remains in CAS; this index never grants approval, confirmation, version creation, export, or production-stage advancement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "attachment_id",
+    "project_id",
+    "proposal_id",
+    "parent_record_canonical_sha256",
+    "parent_receipt_object_sha256",
+    "cross_view_evidence_bundle_sha256",
+    "proposal_form_art_evidence_receipt_object_sha256",
+    "attachment_receipt_object_sha256",
+    "request_sha256",
+    "input_sha256",
+    "idempotency_key",
+    "status",
+    "quality_status",
+    "candidate_confirm_allowed",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtCompositeEvidenceRecord@1"},
+    "attachment_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "proposal_id": {"$ref": "#/$defs/id"},
+    "parent_record_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "parent_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "cross_view_evidence_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_form_art_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "attachment_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "status": {"const": "SIX_VIEW_EVIDENCE_BOUND_NOT_PROMOTED"},
+    "quality_status": {"const": "QUALITY_TARGET_NOT_MET"},
+    "candidate_confirm_allowed": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"type": "string", "minLength": 1, "maxLength": 128}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

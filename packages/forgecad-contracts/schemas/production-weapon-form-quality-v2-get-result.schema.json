@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-quality-v2-get-result.schema.json",
+  "title": "ProductionWeaponFormQualityGetResult@2",
+  "description": "Read-only restart-hash-verified FormQuality@2 result. It never advances a stage or performs a write.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "form_quality", "replayed", "runtime_write", "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed", "restart_hash_verified"],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormQualityGetResult@2"},
+    "form_quality": {"$ref": "https://forgecad.local/contracts/production-weapon-form-quality-v2.schema.json"},
+    "replayed": {"type": "boolean"}, "runtime_write": {"const": false},
+    "production_stage_advanced": {"const": false}, "candidate_confirmed": {"const": false},
+    "version_created": {"const": false}, "export_performed": {"const": false},
+    "restart_hash_verified": {"const": true}
+  }
+}

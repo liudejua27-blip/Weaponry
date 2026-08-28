@@ -1,0 +1,89 @@
+{
+  "schema_version": "ProductionWeaponFormArtBaselineWriteSafetyCohortGateReceipt@1",
+  "task_id": "FPS-FORM-04AN",
+  "recorded_on": "2026-08-27",
+  "status": "PASS_SOURCE_COMPILE_SAME_COHORT_WRITE_SAFETY_NOT_RUN_REAL_D1",
+  "scope": "Fresh FormArt baseline same-cohort build identity, durable binding, idempotency and conservative crash reconciliation",
+  "same_cohort_gate": {
+    "source_build_cohort_sha256": "04e977f19fae250c4659ab629ba63b8835a99e0fdc811367be069672160f44eb",
+    "source_file_count": 1187,
+    "isolated_target": "temporary-non-product-build-directory",
+    "forgecad_mcp_build_cohort_sha256": "04e977f19fae250c4659ab629ba63b8835a99e0fdc811367be069672160f44eb",
+    "forgecad_runtime_build_cohort_sha256": "04e977f19fae250c4659ab629ba63b8835a99e0fdc811367be069672160f44eb",
+    "forgecad_geometry_worker_build_cohort_sha256": "04e977f19fae250c4659ab629ba63b8835a99e0fdc811367be069672160f44eb",
+    "forgecad_render_worker_build_cohort_sha256": "04e977f19fae250c4659ab629ba63b8835a99e0fdc811367be069672160f44eb",
+    "all_four_components_match_current_source": true,
+    "real_runtime_started": false
+  },
+  "write_safety": {
+    "runtime_replay_reports_runtime_write_performed": false,
+    "runtime_replay_reports_persistent_user_data_touched": false,
+    "runtime_fresh_prepare_reports_runtime_write_performed": true,
+    "runtime_fresh_prepare_reports_persistent_user_data_touched": true,
+    "restart_hash_verified_without_restart": false,
+    "candidate_project_state_artifact_and_base_version_bound_before_render": true,
+    "candidate_binding_rechecked_after_six_renders": true,
+    "candidate_binding_rechecked_inside_store_commit_transaction": true,
+    "derived_render_comparison_quality_candidate_artifact_binding": true,
+    "one_baseline_per_registration_lineage_candidate_artifact": true,
+    "legacy_duplicate_rows_preserved": true,
+    "duplicate_new_writes_fail_with_typed_conflict": true,
+    "prepare_tool_write_annotation": "approval-required",
+    "preflight_ready_and_blocked_schema_branches": "validated"
+  },
+  "cas_reconciliation": {
+    "startup_reconciliation": "metadata-only-conservative",
+    "eligible_reachability": "temporary",
+    "eligible_object_kinds": [
+      "production-weapon-form-art-baseline-parent-receipt",
+      "production-weapon-form-art-baseline-view-receipt"
+    ],
+    "minimum_age_seconds": 3600,
+    "maximum_objects_per_open": 64,
+    "active_reservations_skipped": true,
+    "durably_linked_objects_skipped": true,
+    "corrupt_or_missing_bytes_preserved_for_diagnosis": true,
+    "cas_bytes_deleted": false,
+    "reachable_objects_deleted": false
+  },
+  "verification": {
+    "contracts": "PASS_538_SCHEMAS",
+    "cargo_format": "PASS",
+    "cargo_build_store_runtime_mcp": "PASS_WARNINGS_ONLY",
+    "cargo_build_geometry_worker": "PASS",
+    "cargo_build_render_worker": "PASS",
+    "git_diff_check": "PASS",
+    "real_d1_prepare": "NOT_RUN_BLOCKED_EXACT_USER_ORIENTATION_APPROVAL",
+    "real_d1_restart_readback": "NOT_RUN"
+  },
+  "truth_boundaries": {
+    "runtime_single_writer_unchanged": true,
+    "production_stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "quality": "QUALITY_TARGET_NOT_MET",
+    "commercial_quality": "NOT_PROVEN",
+    "persistent_real_d1_user_data_touched": false
+  },
+  "limitations": [
+    "Startup reconciliation is intentionally limited to stale unlinked FormArt parent and view receipt metadata; generic camera, render-pass, RenderSet, mask, comparison and quality temporary objects are not owner-tagged by this slice and are not quarantined.",
+    "Store replay equivalence is the closed Runtime-owned source and request scope, not arbitrary caller-supplied child-graph byte equality; callers cannot submit camera, AOV or derived evidence hashes through the public MCP prepare contract.",
+    "The standard Runtime path owns the process lock. Direct non-product Store construction does not establish an independent cross-process writer lock.",
+    "Source compile and cohort identity do not prove visual likeness, human approval, engine validation, package behavior or commercial asset quality."
+  ],
+  "source_hashes": {
+    "cohort_calculator_sha256": "482a345154ca64adf6df3e7d664b895b5fa0e6068d350189568579173a668556",
+    "development_entrypoint_sha256": "4d58058dd93f725b1972699727c5a4a1710bcb0f0aad1900f3d8c3b4a4ea2bfd",
+    "installer_sha256": "cd79626235d9d82a170082b74ff83d9fc185c564b994b3ab704e447cada56715",
+    "store_module_sha256": "50b56420c5f3f70249ebdee78e064ad35e35611fcbf5fb85d6255525356c659f",
+    "store_lib_sha256": "25326837ab7d7cc2935d35b3e9f1ad056651e2200cf68e3b923dec79bfc46933",
+    "runtime_module_sha256": "d248e2e43d16377e0b917a85e59bb99222a2109ef0dd7cc4af285a5153eded18",
+    "mcp_materializer_tools_sha256": "70c97a20192d78792822b0ec65ecb9c858052bc9980bdaa8b4f49fea68d3707a",
+    "mcp_preflight_tools_sha256": "60b29cdfebc44e8a0d75adb8f6c728688bf637c916dba9aa4f0c77ddd85e5d25",
+    "preflight_result_schema_sha256": "b3ef377ed365dc24e053f9e097f4985b488e2a7d47c5a6e3b35e07408373e300",
+    "source_tool_manifest_summary_sha256": "307fe20cd284b5589623021cb2e64d349f3e8bcd21f6cd5d7104235096cd9bcf"
+  },
+  "canonical_sha256": "66fbf6d8e8f08b012ea26b01030d4e3c51287ab16b80e825d541cd73a0532280"
+}

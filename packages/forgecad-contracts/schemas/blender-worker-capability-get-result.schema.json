@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/blender-worker-capability-get-result.schema.json",
+  "title": "BlenderWorkerCapabilityGetResult@1",
+  "description": "Closed read-only, non-promoting result for the fixed Blender headless Worker evaluation capability.",
+  "$comment": "The result returns only a Runtime-owned capability projection. It never invokes a Worker, writes Runtime state, generates a candidate, advances a stage, confirms, versions, or exports.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "capability",
+    "read_only",
+    "runtime_write_performed",
+    "worker_invoked",
+    "candidate_generated",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "BlenderWorkerCapabilityGetResult@1"},
+    "capability": {"$ref": "https://forgecad.local/contracts/blender-worker-capability.schema.json"},
+    "read_only": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "worker_invoked": {"const": false},
+    "candidate_generated": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false}
+  }
+}

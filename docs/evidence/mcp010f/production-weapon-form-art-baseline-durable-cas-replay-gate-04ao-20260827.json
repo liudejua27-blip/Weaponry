@@ -1,0 +1,108 @@
+{
+  "schema_version": "ProductionWeaponFormArtBaselineDurableCasReplayGateReceipt@1",
+  "task_id": "FPS-FORM-04AO",
+  "recorded_on": "2026-08-27",
+  "status": "PASS_SOURCE_BUILD_DURABLE_CAS_REPLAY_NOT_RUN_REAL_D1",
+  "scope": "Fresh FormArt complete derived-CAS batch ownership, conservative crash recovery and persisted source replay validation",
+  "same_cohort_gate": {
+    "source_build_cohort_sha256": "dbdccfaa1e9fec54cc7e0d10ce30dc70d9c45265f600a30cd3de3cb571bc49e3",
+    "source_file_count": 1187,
+    "isolated_target": "temporary-non-product-build-directory",
+    "forgecad_mcp_build_cohort_sha256": "dbdccfaa1e9fec54cc7e0d10ce30dc70d9c45265f600a30cd3de3cb571bc49e3",
+    "forgecad_runtime_build_cohort_sha256": "dbdccfaa1e9fec54cc7e0d10ce30dc70d9c45265f600a30cd3de3cb571bc49e3",
+    "forgecad_geometry_worker_build_cohort_sha256": "dbdccfaa1e9fec54cc7e0d10ce30dc70d9c45265f600a30cd3de3cb571bc49e3",
+    "forgecad_render_worker_build_cohort_sha256": "dbdccfaa1e9fec54cc7e0d10ce30dc70d9c45265f600a30cd3de3cb571bc49e3",
+    "all_four_components_match_current_source": true,
+    "real_runtime_started": false
+  },
+  "durable_cas_batch": {
+    "owner_persisted_before_first_derived_object": true,
+    "object_hash_preclaimed_before_cas_put": true,
+    "owned_object_kinds": [
+      "camera-calibration",
+      "render-pass-beauty",
+      "render-pass-silhouette",
+      "render-pass-depth",
+      "render-pass-normal",
+      "render-pass-ao",
+      "render-pass-part-id",
+      "render-pass-material-id",
+      "render-pass-wireframe",
+      "render-pass-uv-stretch",
+      "render-set-v2",
+      "reference-silhouette-mask-v1",
+      "reference-comparison-report",
+      "quality-report-v2",
+      "production-weapon-form-art-baseline-view-v1",
+      "production-weapon-form-art-baseline-v1"
+    ],
+    "same_hash_reachable_reuse": "verified-metadata-reuse-without-temporary-ownership",
+    "normal_commit_completion": "batch-and-object-metadata-committed-after-durable-baseline-link",
+    "startup_reconciliation": "bounded-expired-owner-metadata-only",
+    "active_reservations_skipped": true,
+    "live_peer_owners_skipped": true,
+    "durably_linked_objects_skipped": true,
+    "unknown_or_invalid_metadata_retained": true,
+    "cas_bytes_deleted": false,
+    "reachable_objects_deleted": false
+  },
+  "persisted_replay_validation": {
+    "prepare_early_replay_request_hash_exact": true,
+    "current_runtime_build_cohort_revalidated": true,
+    "registration_lineage_runtime_revalidated": true,
+    "registration_lineage_promotable_required": true,
+    "registration_lineage_receipt_and_scope_revalidated": true,
+    "registered_rig_v2_canonical_and_six_view_revalidated": true,
+    "durable_reference_canvas_session_binding_revalidated": true,
+    "get_restart_hash_verified_after_store_and_source_validation": true,
+    "caller_supplied_derived_graph_identity": false
+  },
+  "verification": {
+    "cargo_format": "PASS",
+    "cargo_check_store_runtime_mcp": "PASS_WARNINGS_ONLY",
+    "cargo_build_mcp_runtime_geometry_render_same_cohort": "PASS_WARNINGS_ONLY",
+    "embedded_build_cohort_scan_all_four_binaries": "PASS",
+    "store_focused_recovery_test": "PASS_AGENT_EXECUTED_ONE_FOCUSED_TEST",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "stage0_truth_gate": "PASS_538_SCHEMAS_206_TOOLS_QUALITY_TARGET_NOT_MET",
+    "git_diff_check": "PASS",
+    "real_d1_prepare": "NOT_RUN_BLOCKED_EXACT_USER_ORIENTATION_APPROVAL",
+    "real_d1_restart_readback": "NOT_RUN"
+  },
+  "real_d1_unchanged": {
+    "sqlite_sha256": "dec5963005e121d54af94a5fc5ff4a39c12ff5f9b48750af0dad4a70b0cddf35",
+    "cas_file_count": 1509,
+    "registration_lineage_count": 0,
+    "persistent_user_data_touched": false
+  },
+  "truth_boundaries": {
+    "runtime_single_writer_unchanged": true,
+    "production_stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "quality": "QUALITY_TARGET_NOT_MET",
+    "commercial_quality": "NOT_PROVEN"
+  },
+  "limitations": [
+    "This is a source, compile and same-cohort binary receipt; no real D1 FormArt baseline was produced.",
+    "A normal or crashed failed prepare may retain Store-local diagnostic owner rows and CAS bytes; recovery quarantines metadata only and never deletes bytes.",
+    "The Store race winner is authoritative under Runtime single-writer policy; random derived quality IDs do not imply contender graph byte equality.",
+    "Visual likeness, independent human review, engine validation, package behavior and commercial asset quality remain unproven."
+  ],
+  "source_hashes": {
+    "cohort_calculator_sha256": "482a345154ca64adf6df3e7d664b895b5fa0e6068d350189568579173a668556",
+    "development_entrypoint_sha256": "4d58058dd93f725b1972699727c5a4a1710bcb0f0aad1900f3d8c3b4a4ea2bfd",
+    "store_module_sha256": "7450bb941623487e4eb6456f1ac89f4d33ed199b9aa81bfaed07b8aafb834035",
+    "store_lib_sha256": "0775200c8095e502860689f6aede076d816d456924c3a6a11b628791d7a61f74",
+    "runtime_baseline_module_sha256": "77c6504c9cd04299cf7c5e5dfd25bc23165813aa297934900cff9f43a2c33c3f",
+    "runtime_lib_sha256": "76b87e8b5368c0732c51217cd4a88397c5e01b31e1a9cf4d48eb4572bd445239",
+    "source_tool_manifest_summary_sha256": "ade5b24a976dd6f73e1bd091a5fccd200ff8d449595d1c7e2f9a432724b36245"
+  },
+  "canonical_sha256": "7651bfdbe5ac51c869e1ed689a76d630b5944147f6ec2a6903c6f032673ecc85"
+}

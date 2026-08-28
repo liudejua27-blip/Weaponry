@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-art-decision-proposal-get-request.schema.json",
+  "title": "ProductionWeaponArtDecisionProposalGetRequest@1",
+  "description": "Hash/id-only read request for the bounded art-decision projection. First-person profile bindings are nullable until a reviewed profile exists; no geometry, metrics, status, prompt, path or executable input is accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "artifact_id",
+    "artifact_sha256",
+    "geometry_program_sha256",
+    "geometry_program_canonical_sha256",
+    "operator_catalog_sha256",
+    "reference_canvas_canonical_sha256",
+    "design_spec_canonical_sha256",
+    "camera_lock_id",
+    "camera_lock_canonical_sha256",
+    "form_evidence_id",
+    "form_evidence_object_sha256",
+    "form_evidence_canonical_sha256",
+    "form_art_evidence_id",
+    "form_art_evidence_object_sha256",
+    "form_art_evidence_canonical_sha256",
+    "first_person_profile_id",
+    "first_person_profile_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponArtDecisionProposalGetRequest@1"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_canvas_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "design_spec_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_lock_id": {"$ref": "#/$defs/id"},
+    "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "form_evidence_id": {"$ref": "#/$defs/id"},
+    "form_evidence_object_sha256": {"$ref": "#/$defs/sha256"},
+    "form_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "form_art_evidence_id": {"$ref": "#/$defs/id"},
+    "form_art_evidence_object_sha256": {"$ref": "#/$defs/sha256"},
+    "form_art_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "first_person_profile_id": {"$ref": "#/$defs/nullable_id"},
+    "first_person_profile_sha256": {"$ref": "#/$defs/nullable_sha256"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_id": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "nullable_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

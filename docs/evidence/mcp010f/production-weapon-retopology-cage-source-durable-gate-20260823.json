@@ -1,0 +1,82 @@
+{
+  "schema_version": "ProductionWeaponRetopologyCageSourceDurableGate@1",
+  "task_id": "FPS-HIGH-LOW-CAGE-05",
+  "recorded_at": "2026-08-23",
+  "status": "PASS_SOURCE_RUNTIME_DURABLE_SAME_COHORT_RETOPOLOGY_CAGE",
+  "build_cohort_sha256": "85ee16d8ded3dc025df1a9191c4e62bc2277ecc76329052e692395061a4d5ba0",
+  "source_binding": {
+    "contracts": [
+      "ProductionWeaponHighArtifact@1",
+      "ProductionWeaponLowArtifact@1",
+      "ProductionWeaponCageArtifact@1",
+      "ProductionWeaponHighLowCorrespondence@1"
+    ],
+    "runtime_public_fixture_entry": "production_weapon_retopology_cage_source_public_fixture_is_durable_replayable_and_restart_verified",
+    "dynamic_candidate_artifact_and_cas_hashes": "OMITTED_INTENTIONALLY_RUNTIME_GET_RESTART_IS_AUTHORITATIVE"
+  },
+  "fixture": {
+    "source_triangle_count": 12,
+    "low_triangle_count": 10,
+    "cage_triangle_count": 10,
+    "cage_matches_low_topology": true,
+    "exact_correspondence_fields": [
+      "topology",
+      "face_order",
+      "part_id",
+      "source_node_id",
+      "material_zone_id"
+    ],
+    "owned_cas_object_count": 8,
+    "parent_key_is_cas": false,
+    "prepare_replay_new_objects": 0,
+    "get_new_objects": 0,
+    "reopen_new_objects": 0,
+    "retarget_new_objects": 0,
+    "fixture_runs": 1
+  },
+  "verification": {
+    "fixture": "1_PASS_0_FAIL",
+    "runtime_module": "6_PASS_0_FAIL",
+    "store_focused": "4_PASS_0_FAIL",
+    "store_full": "128_PASS_0_FAIL",
+    "worker_low": "4_PASS_0_FAIL",
+    "worker_cage": "4_PASS_0_FAIL",
+    "mcp": "3_PASS_0_FAIL"
+  },
+  "execution": {
+    "isolated_target_id": "forgecad-retopo-cage-source-root-20260823",
+    "target_path_persisted": false,
+    "geometry_worker_built_same_cohort": true,
+    "render_worker_built_same_cohort": true,
+    "build_order": [
+      "geometry_worker",
+      "render_worker",
+      "runtime_public_fixture"
+    ],
+    "persistent_user_project_touched": false
+  },
+  "truth_boundaries": {
+    "runtime_write": "PASS_DURABLE_STRUCTURAL_ONLY",
+    "source_only": true,
+    "artist_authored_quad_topology": false,
+    "edge_flow_status": "NOT_PROVEN",
+    "secondary_form_approved_stage_head": "NOT_FOUND",
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "hero_uv": "NOT_RUN",
+    "formal_high_to_low_bake": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "engine_validation": "NOT_RUN",
+    "visual_quality": "NOT_PROVEN",
+    "quality_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "limitations": [
+    "This bounded Low retopology and topology-correspondent Cage source fixture is structural durable evidence, not professional artist-authored quad topology.",
+    "Dynamic candidate, artifact and CAS output hashes are intentionally omitted; Runtime get/restart is authoritative for hash-bound details.",
+    "No secondary-form-approved source head exists; this receipt does not advance ProductionStage@3.",
+    "Hero UV, formal High-to-Low Bake, human review, engine validation and final export remain NOT_RUN."
+  ],
+  "canonical_sha256": "c1335b29e7353168ab362ad634ec3f891485d843fa3011a8c454cef858477d07"
+}

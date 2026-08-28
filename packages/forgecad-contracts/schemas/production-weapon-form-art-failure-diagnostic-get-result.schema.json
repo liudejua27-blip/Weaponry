@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-failure-diagnostic-get-result.schema.json",
+  "title": "ProductionWeaponFormArtFailureDiagnosticGetResult@1",
+  "description": "Runtime-derived, evidence-bound diagnosis of one rejected FormArt repair. It separates measured geometry response, owner-attribution conflict, trigger-aperture visibility and line-flow status, and authorizes no new geometry repair or production-stage transition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "diagnostic_id", "composite_evidence_id", "proposal_id",
+    "session_id", "project_id", "current_base_candidate_id", "current_base_candidate_state_sha256",
+    "proposal_candidate_id", "proposal_candidate_state_sha256", "current_base_geometry_program_sha256",
+    "proposal_geometry_program_sha256", "composite_evidence_record_canonical_sha256",
+    "composite_evidence_receipt_object_sha256", "cross_view_evidence_bundle_sha256",
+    "cross_view_canonical_sha256", "current_base_form_art_evidence_receipt_object_sha256",
+    "current_base_form_art_evidence_canonical_sha256", "proposal_form_art_evidence_receipt_object_sha256",
+    "proposal_form_art_evidence_canonical_sha256", "geometry_delta", "cross_view_delta",
+    "owner_deltas", "rear_three_quarter_negative_space", "side_trigger_visibility",
+    "line_flow_views", "diagnoses", "next_atomic_action", "diagnostic_status", "quality_status",
+    "form_quality_v2_status", "candidate_confirm_allowed", "secondary_form_approved",
+    "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed",
+    "runtime_write_performed", "persistent_user_data_touched", "worker_started",
+    "diagnostic_policy", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtFailureDiagnosticGetResult@1"},
+    "operation": {"const": "forgecad.production.weapon.form-art-failure-diagnostic-get@1"},
+    "diagnostic_id": {"$ref": "#/$defs/id"},
+    "composite_evidence_id": {"$ref": "#/$defs/id"},
+    "proposal_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "current_base_candidate_id": {"$ref": "#/$defs/id"},
+    "current_base_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_candidate_id": {"$ref": "#/$defs/id"},
+    "proposal_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "current_base_geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "composite_evidence_record_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "composite_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "cross_view_evidence_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "cross_view_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "current_base_form_art_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "current_base_form_art_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_form_art_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_form_art_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_delta": {"$ref": "#/$defs/geometry_delta"},
+    "cross_view_delta": {"$ref": "#/$defs/cross_view_delta"},
+    "owner_deltas": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/owner_delta"}},
+    "rear_three_quarter_negative_space": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/negative_space"}},
+    "side_trigger_visibility": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/negative_space"}},
+    "line_flow_views": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/line_flow_view"}},
+    "diagnoses": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"$ref": "#/$defs/diagnosis"}},
+    "next_atomic_action": {"const": "RUN_HASH_BOUND_OWNER_ATTRIBUTION_AND_SIDE_APERTURE_VISIBILITY_CALIBRATION_BEFORE_ANY_NEW_REGISTERED_GEOMETRY_PROFILE"},
+    "diagnostic_status": {"const": "FAILURE_ROOT_CAUSES_SEPARATED_NO_GEOMETRY_REPAIR_AUTHORIZED"},
+    "quality_status": {"const": "QUALITY_TARGET_NOT_MET"},
+    "form_quality_v2_status": {"const": "NOT_CREATED"},
+    "candidate_confirm_allowed": {"const": false},
+    "secondary_form_approved": {"const": "NOT_CREATED"},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "worker_started": {"const": false},
+    "diagnostic_policy": {"const": "exact-parent-proposal-cross-view-form-art-delta-diagnostic@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}},
+    "bbox": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "integer", "minimum": 0, "maximum": 511}},
+    "vertex_delta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["element_id", "before_position_m", "after_position_m", "delta_m"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/id"},
+        "before_position_m": {"$ref": "#/$defs/vec3"},
+        "after_position_m": {"$ref": "#/$defs/vec3"},
+        "delta_m": {"$ref": "#/$defs/vec3"}
+      }
+    },
+    "geometry_delta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_part_id", "coordinate_space", "changed_vertex_count", "topology_preserved", "stable_vertex_ids_preserved", "x_unchanged", "z_unchanged", "y_delta_direction", "changed_vertices"],
+      "properties": {
+        "target_part_id": {"const": "rear-stock"},
+        "coordinate_space": {"const": "source-local"},
+        "changed_vertex_count": {"const": 6},
+        "topology_preserved": {"const": true},
+        "stable_vertex_ids_preserved": {"const": true},
+        "x_unchanged": {"const": true},
+        "z_unchanged": {"const": true},
+        "y_delta_direction": {"const": "negative"},
+        "changed_vertices": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/vertex_delta"}}
+      }
+    },
+    "cross_view_delta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseline_score", "proposal_score", "hard_gate_passed", "non_regressing", "promotion_status", "left_boundary_f1_4px_before", "left_boundary_f1_4px_after", "left_boundary_f1_4px_delta"],
+      "properties": {
+        "baseline_score": {"type": "number"}, "proposal_score": {"type": "number"},
+        "hard_gate_passed": {"const": false}, "non_regressing": {"const": false},
+        "promotion_status": {"const": "rejected-regression"},
+        "left_boundary_f1_4px_before": {"type": "number"},
+        "left_boundary_f1_4px_after": {"type": "number"},
+        "left_boundary_f1_4px_delta": {"type": "number", "exclusiveMaximum": 0}
+      }
+    },
+    "owner_measurement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["expected_void_bbox_px", "owner_bbox_px", "owner_region_pixel_count", "owner_expected_void_overlap_milli", "owner_boundary_adjacency_milli", "ranked_transform"],
+      "properties": {
+        "expected_void_bbox_px": {"$ref": "#/$defs/bbox"}, "owner_bbox_px": {"$ref": "#/$defs/bbox"},
+        "owner_region_pixel_count": {"type": "integer", "minimum": 0},
+        "owner_expected_void_overlap_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "owner_boundary_adjacency_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "ranked_transform": {"enum": ["identity", "horizontal-flip", "vertical-flip", "both-flip"]}
+      }
+    },
+    "owner_delta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["view_kind", "before", "after", "owner_bbox_changed", "owner_region_pixel_delta", "owner_overlap_delta_milli", "owner_adjacency_delta_milli"],
+      "properties": {
+        "view_kind": {"enum": ["left", "right", "rear-three-quarter"]},
+        "before": {"$ref": "#/$defs/owner_measurement"}, "after": {"$ref": "#/$defs/owner_measurement"},
+        "owner_bbox_changed": {"type": "boolean"}, "owner_region_pixel_delta": {"type": "integer"},
+        "owner_overlap_delta_milli": {"type": "integer"}, "owner_adjacency_delta_milli": {"type": "integer"}
+      }
+    },
+    "negative_space": {
+      "type": "object", "additionalProperties": false,
+      "required": ["view_kind", "structure_id", "status", "sealed", "missing", "iou_milli", "boundary_f1_milli", "centroid_error_milli"],
+      "properties": {
+        "view_kind": {"enum": ["left", "right", "rear-three-quarter"]},
+        "structure_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "status": {"enum": ["observed", "inferred", "unknown", "missing"]},
+        "sealed": {"type": "boolean"}, "missing": {"type": "boolean"},
+        "iou_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "boundary_f1_milli": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "centroid_error_milli": {"type": "integer", "minimum": 0, "maximum": 100000}
+      }
+    },
+    "line_flow_view": {
+      "type": "object", "additionalProperties": false,
+      "required": ["view_kind", "status", "row_count", "unknown_count", "inferred_count", "observed_count"],
+      "properties": {
+        "view_kind": {"enum": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+        "status": {"enum": ["observed", "inferred", "unknown", "not-applicable"]},
+        "row_count": {"type": "integer", "minimum": 0, "maximum": 64},
+        "unknown_count": {"type": "integer", "minimum": 0, "maximum": 64},
+        "inferred_count": {"type": "integer", "minimum": 0, "maximum": 64},
+        "observed_count": {"type": "integer", "minimum": 0, "maximum": 64}
+      }
+    },
+    "diagnosis": {
+      "type": "object", "additionalProperties": false,
+      "required": ["diagnosis_id", "status", "next_geometry_repair_allowed"],
+      "properties": {
+        "diagnosis_id": {"enum": ["rear-stock-negative-y-profile-effect", "rear-three-quarter-owner-attribution", "side-trigger-aperture-visibility", "line-flow-separability"]},
+        "status": {"type": "string", "minLength": 1, "maxLength": 160},
+        "next_geometry_repair_allowed": {"const": false}
+      }
+    }
+  }
+}

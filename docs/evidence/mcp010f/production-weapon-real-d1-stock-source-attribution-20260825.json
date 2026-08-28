@@ -1,0 +1,98 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04O-REAL-D1-STOCK-SOURCE-ATTRIBUTION",
+  "task_id": "FPS-FORM-04O",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 517.50,
+  "fixture_log_filename": "forgecad-d1-04o-stock-source-attribution-r2-20260825.log",
+  "fixture_log_sha256": "d5fc26419d008862aa63473cf4cb3c98789496795f9502c2791c49b93d20f51c",
+  "baseline_candidate_id": "candidate-7ee2b7937fcd4c1d9422cf3103b13192",
+  "split_candidate_id": "candidate-1237dfc837e342a9bacd928012a3e5c9",
+  "split_artifact_sha256": "bc546105108ed9e02f3a1c389cfcb7087a6be51f031bd1264e089a3f3199409c",
+  "semantic_owner_part_id": "rear-stock",
+  "source_diagnostic_part_ids": ["rear-stock-upper-diagnostic", "rear-stock-lower-diagnostic"],
+  "invariants": {
+    "split_nodes_unchanged": true,
+    "rear_cap_binding_unchanged": true,
+    "source_union_exact_all_views": true,
+    "source_masks_overlap_pixel_count_all_views": 0,
+    "lineage_unchanged_all_views": true
+  },
+  "views": {
+    "left": {
+      "structure_id": "left.open-stock-void",
+      "source_union_mismatch_pixel_count": 0,
+      "upper": {
+        "source_expected_void_overlap_pixel_count": 302,
+        "source_expected_void_overlap_milli": 296,
+        "source_boundary_adjacency_milli": 319,
+        "source_minus_expected_void_bbox_edge_delta_px": [44, 7, 45, 6],
+        "source_minus_expected_void_centroid_delta_milli_px": [45731, 6650]
+      },
+      "lower": {
+        "source_expected_void_overlap_pixel_count": 0,
+        "source_expected_void_overlap_milli": 0,
+        "source_boundary_adjacency_milli": 0,
+        "source_minus_expected_void_bbox_edge_delta_px": [43, 50, 45, 56],
+        "source_minus_expected_void_centroid_delta_milli_px": [45777, 53537]
+      }
+    },
+    "right": {
+      "structure_id": "right.open-stock-void",
+      "source_union_mismatch_pixel_count": 0,
+      "upper": {
+        "source_expected_void_overlap_pixel_count": 560,
+        "source_expected_void_overlap_milli": 345,
+        "source_boundary_adjacency_milli": 420,
+        "source_minus_expected_void_bbox_edge_delta_px": [-42, 2, -52, -4],
+        "source_minus_expected_void_centroid_delta_milli_px": [-46569, -129]
+      },
+      "lower": {
+        "source_expected_void_overlap_pixel_count": 0,
+        "source_expected_void_overlap_milli": 0,
+        "source_boundary_adjacency_milli": 0,
+        "source_minus_expected_void_bbox_edge_delta_px": [-42, 45, -51, 47],
+        "source_minus_expected_void_centroid_delta_milli_px": [-46144, 46726]
+      }
+    },
+    "rear-three-quarter": {
+      "structure_id": "rear3q.open-stock-void",
+      "source_union_mismatch_pixel_count": 0,
+      "upper": {
+        "source_expected_void_overlap_pixel_count": 587,
+        "source_expected_void_overlap_milli": 154,
+        "source_boundary_adjacency_milli": 248,
+        "source_minus_expected_void_bbox_edge_delta_px": [-9, 98, 64, 27],
+        "source_minus_expected_void_centroid_delta_milli_px": [19579, 55214]
+      },
+      "lower": {
+        "source_expected_void_overlap_pixel_count": 0,
+        "source_expected_void_overlap_milli": 0,
+        "source_boundary_adjacency_milli": 0,
+        "source_minus_expected_void_bbox_edge_delta_px": [-7, 158, 27, 69],
+        "source_minus_expected_void_centroid_delta_milli_px": [12670, 111695]
+      }
+    }
+  },
+  "conclusion": {
+    "all_observed_owner_intrusion_is_upper_beam": true,
+    "lower_beam_is_current_owner_intrusion_source": false,
+    "continue_symmetric_two_beam_search": false,
+    "next_action": "PRIVATE_BOUNDED_UPPER_BEAM_SINGLE_VARIABLE_SCREEN",
+    "promote_split_part_ids": false,
+    "promote_to_public_sink": false
+  },
+  "promotion": {
+    "diagnostic_only": true,
+    "promotable": false,
+    "quality_status": "NOT_PROVEN",
+    "depth_status": "UNKNOWN",
+    "public_sink_available": false,
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  }
+}

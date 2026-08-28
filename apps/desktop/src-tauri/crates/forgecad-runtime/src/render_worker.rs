@@ -9,6 +9,7 @@
 use super::geometry_worker::{self, GeometryWorkerError};
 use image::ImageDecoder;
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 use std::io::Cursor;
 
 const RENDER_WORKER_BINARY: &str = "forgecad-render-worker";
@@ -32,6 +33,35 @@ pub(crate) struct RenderWorkerRender {
     pub passes: Vec<RenderPass>,
     pub build_cohort_sha256: Option<String>,
     pub render_profile: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RasterAttributionSource {
+    pub triangle_index: u32,
+    pub mesh_index: u32,
+    pub primitive_index: u32,
+    pub triangle_index_in_primitive: u32,
+    pub semantic_part_id: String,
+    pub source_node_id: String,
+    pub lineage_source_node_ids: Vec<String>,
+    pub material_zone_id: String,
+}
+
+/// Transient fixed-renderer attribution returned by the isolated Worker.
+/// `triangle_ids_le` is exactly one little-endian u32 per 512px output pixel;
+/// `u32::MAX` denotes background. Runtime callers may derive diagnostics from
+/// it, but this adapter performs no CAS/SQLite/Stage write.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RenderWorkerRasterAttribution {
+    pub width: u32,
+    pub height: u32,
+    pub raster_width: u32,
+    pub raster_height: u32,
+    pub triangle_ids_le: Vec<u8>,
+    pub triangle_ids_sha256: String,
+    pub source_table_sha256: String,
+    pub sources: Vec<RasterAttributionSource>,
+    pub build_cohort_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -282,6 +312,186 @@ pub(crate) fn render_glb(
     camera: &Value,
 ) -> Result<Vec<RenderPass>, GeometryWorkerError> {
     render_glb_with_worker_identity(glb, camera).map(|render| render.passes)
+}
+
+pub(crate) fn render_glb_raster_attribution(
+    glb: &[u8],
+    camera: &Value,
+) -> Result<RenderWorkerRasterAttribution, GeometryWorkerError> {
+    if glb.is_empty() || glb.len() > 64 * 1024 * 1024 {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, glb);
+    let result = execute_render_worker_with_metadata(
+        forgecad_worker_protocol::RENDER_RASTER_ATTRIBUTION_OPERATION,
+        json!({"glb_base64":encoded,"camera":camera}),
+    )?;
+    let object = strict_object(&result.result)?;
+    require_exact_keys(
+        object,
+        &[
+            "schema_version",
+            "operation",
+            "width",
+            "height",
+            "raster_width",
+            "raster_height",
+            "renderer_revision",
+            "render_profile",
+            "triangle_id_encoding",
+            "triangle_id_count",
+            "triangle_ids_sha256",
+            "triangle_ids_base64",
+            "source_count",
+            "source_table_sha256",
+            "sources",
+            "runtime_write",
+            "production_stage_advanced",
+            "candidate_confirmed",
+            "version_created",
+            "export_performed",
+        ],
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("RenderWorkerRasterAttributionResult@1")
+        || object.get("operation").and_then(Value::as_str)
+            != Some(forgecad_worker_protocol::RENDER_RASTER_ATTRIBUTION_OPERATION)
+        || object.get("width").and_then(Value::as_u64) != Some(512)
+        || object.get("height").and_then(Value::as_u64) != Some(512)
+        || object.get("raster_width").and_then(Value::as_u64) != Some(1024)
+        || object.get("raster_height").and_then(Value::as_u64) != Some(1024)
+        || object.get("renderer_revision").and_then(Value::as_str) != Some("forgecad-renderer-2")
+        || object.get("render_profile") != Some(&forgecad_worker_protocol::render_profile())
+        || object.get("triangle_id_encoding").and_then(Value::as_str)
+            != Some("little-endian-u32-background-max")
+        || object.get("triangle_id_count").and_then(Value::as_u64) != Some(512 * 512)
+        || object.get("runtime_write").and_then(Value::as_bool) != Some(false)
+        || object
+            .get("production_stage_advanced")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || object.get("candidate_confirmed").and_then(Value::as_bool) != Some(false)
+        || object.get("version_created").and_then(Value::as_bool) != Some(false)
+        || object.get("export_performed").and_then(Value::as_bool) != Some(false)
+    {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    let triangle_ids_le = object
+        .get("triangle_ids_base64")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .and_then(|value| {
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, value).ok()
+        })
+        .filter(|bytes| bytes.len() == 512 * 512 * 4)
+        .ok_or(GeometryWorkerError::Protocol)?;
+    let triangle_ids_sha256 = super::sha256_hex(&triangle_ids_le);
+    if object.get("triangle_ids_sha256").and_then(Value::as_str)
+        != Some(triangle_ids_sha256.as_str())
+    {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    let source_values = object
+        .get("sources")
+        .and_then(Value::as_array)
+        .filter(|values| !values.is_empty() && values.len() <= 1_000_000)
+        .ok_or(GeometryWorkerError::Protocol)?;
+    let source_table_sha256 = super::canonical_json_hash(&Value::Array(source_values.clone()));
+    if object.get("source_count").and_then(Value::as_u64) != Some(source_values.len() as u64)
+        || object.get("source_table_sha256").and_then(Value::as_str)
+            != Some(source_table_sha256.as_str())
+    {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    let mut sources = Vec::with_capacity(source_values.len());
+    for (expected_triangle_index, value) in source_values.iter().enumerate() {
+        let source = strict_object(value)?;
+        require_exact_keys(
+            source,
+            &[
+                "triangle_index",
+                "mesh_index",
+                "primitive_index",
+                "triangle_index_in_primitive",
+                "semantic_part_id",
+                "source_node_id",
+                "lineage_source_node_ids",
+                "material_zone_id",
+            ],
+        )?;
+        let number = |field: &str| {
+            source
+                .get(field)
+                .and_then(Value::as_u64)
+                .and_then(|value| u32::try_from(value).ok())
+                .ok_or(GeometryWorkerError::Protocol)
+        };
+        let text = |field: &str| {
+            source
+                .get(field)
+                .and_then(Value::as_str)
+                .filter(|value| forgecad_contracts::is_opaque_id(value))
+                .map(str::to_owned)
+                .ok_or(GeometryWorkerError::Protocol)
+        };
+        let triangle_index = number("triangle_index")?;
+        if triangle_index != expected_triangle_index as u32 {
+            return Err(GeometryWorkerError::Protocol);
+        }
+        let source_node_id = text("source_node_id")?;
+        let lineage_source_node_ids = source
+            .get("lineage_source_node_ids")
+            .and_then(Value::as_array)
+            .filter(|values| !values.is_empty() && values.len() <= 256)
+            .ok_or(GeometryWorkerError::Protocol)?
+            .iter()
+            .map(|value| {
+                value
+                    .as_str()
+                    .filter(|value| forgecad_contracts::is_opaque_id(value))
+                    .map(str::to_owned)
+                    .ok_or(GeometryWorkerError::Protocol)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if !lineage_source_node_ids.contains(&source_node_id)
+            || lineage_source_node_ids
+                .iter()
+                .collect::<BTreeSet<_>>()
+                .len()
+                != lineage_source_node_ids.len()
+        {
+            return Err(GeometryWorkerError::Protocol);
+        }
+        sources.push(RasterAttributionSource {
+            triangle_index,
+            mesh_index: number("mesh_index")?,
+            primitive_index: number("primitive_index")?,
+            triangle_index_in_primitive: number("triangle_index_in_primitive")?,
+            semantic_part_id: text("semantic_part_id")?,
+            source_node_id,
+            lineage_source_node_ids,
+            material_zone_id: text("material_zone_id")?,
+        });
+    }
+    for id in triangle_ids_le
+        .chunks_exact(4)
+        .map(|bytes| u32::from_le_bytes(bytes.try_into().expect("four-byte chunk")))
+    {
+        if id != u32::MAX && id as usize >= sources.len() {
+            return Err(GeometryWorkerError::Protocol);
+        }
+    }
+    Ok(RenderWorkerRasterAttribution {
+        width: 512,
+        height: 512,
+        raster_width: 1024,
+        raster_height: 1024,
+        triangle_ids_le,
+        triangle_ids_sha256,
+        source_table_sha256,
+        sources,
+        build_cohort_sha256: result.build_cohort_sha256,
+    })
 }
 
 /// Render one bounded GLB and retain the child Worker cohort for the

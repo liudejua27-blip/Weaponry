@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-formal-high-get-request.schema.json",
+  "title": "ProductionWeaponFormalHighGetRequest@1",
+  "description": "Closed exact read key for one Runtime-owned Formal High record. Lookup is constrained to project, session, High artifact and High candidate identities; no caller output hashes are accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "session_id",
+    "high_artifact_id",
+    "high_candidate_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormalHighGetRequest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "high_artifact_id": {"$ref": "#/$defs/id"},
+    "high_candidate_id": {"$ref": "#/$defs/id"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
+  }
+}

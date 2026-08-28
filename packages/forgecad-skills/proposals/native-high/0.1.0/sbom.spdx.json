@@ -1,0 +1,137 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "forgecad-skill-native-high-proposal",
+  "documentNamespace": "https://forgecad.local/sbom/skill/native-high/0.1.0",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package",
+      "name": "forgecad-skill-native-high",
+      "versionInfo": "0.1.0",
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "downloadLocation": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-WorkerSource",
+      "name": "forgecad-high-worker-source-prototype",
+      "versionInfo": "0.1.0",
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "downloadLocation": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-GlbSibling",
+      "name": "forgecad-high-worker-embedded-glb-sibling",
+      "versionInfo": "0.1.0",
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "downloadLocation": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-DurableGlbContracts",
+      "name": "forgecad-native-high-durable-glb-contracts",
+      "versionInfo": "1",
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "downloadLocation": "NOASSERTION"
+    }
+  ],
+  "files": [
+    {
+      "SPDXID": "SPDXRef-FileHighWorkerLib",
+      "fileName": "apps/high-worker/src/lib.rs",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "d5a88cc24a9024b3035317591c7e25151c397af89924672dc1e7e6b8624d1f11"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileHighWorkerGlb",
+      "fileName": "apps/high-worker/src/glb.rs",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "c8f206b592017a94d0fc4bc96bf6a462e49d0685ee44a16351845d9dd07a760e"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileHighWorkerMain",
+      "fileName": "apps/high-worker/src/main.rs",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "764710bad654a1f19885125a5d38347aee596164b014dede2dddd29d49d312be"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileWorkerProtocol",
+      "fileName": "apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "5d4f973c6a6e78f8af8fe5559a740e06c53fa56fa97ae09843e4ef55c7a3bce9"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileAuthoringCanonical",
+      "fileName": "schemas/authoring-mesh-canonical.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "e522a1edeadd1c598305ca09cd31a177d3c0cdd63f7c3b3a66fd4cbe04945350"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileDetailGraph",
+      "fileName": "schemas/detail-graph.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "7b93dd765c23e8ea85b3639d580b50f50379e273f53cbd792c40fc2b45cfa591"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileHighMeshRequest",
+      "fileName": "schemas/high-mesh-worker-request.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "21808db99ba044b04826db96abda655e7b376a67f2d1ae2764af81b7aaef7f17"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileHighMeshArtifact",
+      "fileName": "schemas/high-mesh-artifact.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "40ed2bc024f89e7dda07598eb091068cbce503a92d76f7b907c55be3a976e294"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileDurableGetRequest",
+      "fileName": "schemas/native-high-durable-get-request.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "71fa73da2854a5809df6d50534e9cd7ca51d744a83808fc67131d3f26feaee75"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileDurableGetResult",
+      "fileName": "schemas/native-high-durable-get-result.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "4fd787e8444932202b6567eb5d1d6e6f657bbfab8d49379648436bf18cf57762"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileDurableLink",
+      "fileName": "schemas/native-high-durable-link.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "b766c1d44a41c0e9440cb7d660c78190c156963c056fc249ebce856c05782f9e"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileDurablePrepareRequest",
+      "fileName": "schemas/native-high-durable-prepare-request.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "1516ecbcd132504e41e40f462aec32861b108693bd019819748c4ff497fd34f9"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileDurablePrepareResult",
+      "fileName": "schemas/native-high-durable-prepare-result.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "8b0c964e77e9824d2e1fba261aa433419a58ada7f375332ec186e7c8e9357a14"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileGlbRequest",
+      "fileName": "schemas/native-high-glb-materialize-request.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "b918dcfe2cba57340629074b2b4b7eeb32f4798781f98178601c5e1f2ba72cce"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    },
+    {
+      "SPDXID": "SPDXRef-FileGlbResult",
+      "fileName": "schemas/native-high-glb-materialize-result.schema.json",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "60538a78574046d482fdfaf506208c52d3764fdf30762c68d7b6d0812b41eacc"}],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY"
+    }
+  ],
+  "annotations": [
+    {
+      "annotationType": "OTHER",
+      "annotator": "Tool: forgecad-first-party-native-high-proposal",
+      "annotationDate": "2026-08-25T00:00:00Z",
+      "comment": "Embedded High/DetailGraph schemas, seven durable/GLB contracts, fixed High worker plus embedded-only GLB sibling. Source Runtime/MCP/durable CAS restart evidence passes, but no executable is bundled and packaged/commercial quality integration remains pending; registered=false and high_gate_status=NOT_PASSED."
+    }
+  ]
+}

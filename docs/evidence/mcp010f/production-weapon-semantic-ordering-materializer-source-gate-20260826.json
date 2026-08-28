@@ -1,0 +1,35 @@
+{
+  "schema_version": "ForgeCadEvidenceReceipt@1",
+  "receipt_id": "fps-form-04ae-semantic-ordering-materializer-source-20260826",
+  "task_id": "FPS-FORM-04AE",
+  "recorded_at": "2026-08-26",
+  "status": "PASS_SOURCE_COMPILE_ONLY",
+  "implementation": {
+    "file": "apps/desktop/src-tauri/crates/forgecad-runtime/src/multiview/camera_rig.rs",
+    "entrypoint": "materialize_production_weapon_semantic_landmark_ordering",
+    "source_truth": "candidate-owned GeometryProgram@2 exact PartOutput and source-node positions",
+    "closed_anchors": [
+      "muzzle",
+      "stock",
+      "side-left",
+      "side-right"
+    ],
+    "target_2d_landmarks_claimed": false,
+    "production_stage_advanced": false
+  },
+  "compile": {
+    "command": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-contracts -p forgecad-runtime -p forgecad-mcp",
+    "status": "PASS",
+    "warnings_only": true
+  },
+  "authoritative_state": {
+    "stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "authored_rear_three_quarter_orientation": "BLOCKED_REQUIRED",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "next_required_action": "Bind a dedicated user-authored rear-three-quarter orientation receipt, then persist the semantic ordering, authored orientation, and RegisteredCameraRigCalibration@2 as one additive CameraLock child lineage before one rear-stock proposal."
+}

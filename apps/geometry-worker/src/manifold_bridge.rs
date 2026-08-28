@@ -12,6 +12,80 @@ use std::os::raw::{c_int, c_void};
 
 const BOOLEAN_MAX_VERTICES: usize = 750_000;
 
+/// A copied, product-owned Boolean result for sibling evaluators.
+///
+/// The C ABI remains private to this crate.  This value intentionally carries
+/// no Manifold handle and no borrowed pointer, so a caller cannot retain or
+/// mutate third-party state after the bridge call returns.
+#[derive(Debug, Clone)]
+pub struct ManifoldBooleanOutput {
+    pub positions: Vec<[f32; 3]>,
+    pub indices: Vec<[u32; 3]>,
+    pub source_ids: Vec<u32>,
+    pub face_ids: Vec<u64>,
+    pub volume: f64,
+    pub surface_area: f64,
+    pub genus: i32,
+}
+
+/// Evaluate one bounded, typed Boolean through the accepted vendored Manifold
+/// C ABI.  The caller supplies only finite indexed triangle buffers; no JSON,
+/// path, callback, environment, or Runtime/CAS handle crosses this seam.
+///
+/// This helper is intentionally not used by the ordinary GeometryProgram
+/// compiler path.  It exists so a sibling High evaluator can opt into the
+/// same fixed C ABI behind an explicit Cargo feature while preserving the
+/// existing Worker boundary and fail-closed behavior.
+pub fn manifold_boolean_typed(
+    left_positions: &[[f32; 3]],
+    left_indices: &[[u32; 3]],
+    right_positions: &[[f32; 3]],
+    right_indices: &[[u32; 3]],
+    operation: &str,
+    max_triangles: u64,
+    max_runtime_ms: u64,
+) -> Result<ManifoldBooleanOutput, String> {
+    let left = PrimitiveNodeMesh {
+        operator_id: "forgecad.module.manifold.left@1".to_owned(),
+        lineage_source_node_ids: Vec::new(),
+        positions: left_positions.to_vec(),
+        normals: Vec::new(),
+        indices: left_indices
+            .iter()
+            .flat_map(|triangle| triangle.iter().copied())
+            .collect(),
+    };
+    let right = PrimitiveNodeMesh {
+        operator_id: "forgecad.module.manifold.right@1".to_owned(),
+        lineage_source_node_ids: Vec::new(),
+        positions: right_positions.to_vec(),
+        normals: Vec::new(),
+        indices: right_indices
+            .iter()
+            .flat_map(|triangle| triangle.iter().copied())
+            .collect(),
+    };
+    let result = execute_boolean(&left, &right, operation, max_triangles, max_runtime_ms)
+        .map_err(|error| error.to_string())?;
+    let indices = result
+        .indices
+        .chunks_exact(3)
+        .map(|triangle| [triangle[0], triangle[1], triangle[2]])
+        .collect::<Vec<_>>();
+    if indices.len() != result.source_ids.len() || indices.len() != result.face_ids.len() {
+        return Err("MANIFOLD_TYPED_RESULT_LINEAGE_LENGTH_MISMATCH".to_owned());
+    }
+    Ok(ManifoldBooleanOutput {
+        positions: result.positions,
+        indices,
+        source_ids: result.source_ids,
+        face_ids: result.face_ids,
+        volume: result.volume,
+        surface_area: result.surface_area,
+        genus: result.genus,
+    })
+}
+
 #[repr(C)]
 struct ForgeCADBooleanOutputV1 {
     status: i32,

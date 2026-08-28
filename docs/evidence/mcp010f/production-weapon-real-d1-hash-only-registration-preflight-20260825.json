@@ -1,0 +1,68 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04Y-REAL-D1-HASH-ONLY-REGISTRATION-PREFLIGHT",
+  "task_id": "FPS-FORM-04Y",
+  "recorded_at": "2026-08-25",
+  "aggregate_fixture_result": "OUTPUT_CAPTURED_BEFORE_AGGREGATE_TEST_INTERRUPTION",
+  "aggregate_test_exit_code": 130,
+  "focused_registration_tests": "PASS_3_OF_3",
+  "diagnostic_result": "CURRENT_UNIQUE_REGISTRATION_ELIGIBLE",
+  "policy": "owner-contour-projection-only@1",
+  "current_rotation_degrees": {
+    "left": 0.0,
+    "right": 0.0,
+    "rear-three-quarter": 180.0
+  },
+  "negative_fixture_rotation_degrees": {
+    "left": 0.0,
+    "right": 0.0,
+    "rear-three-quarter": 0.0
+  },
+  "current_unique_registration_identity_all_views": true,
+  "negative_fixture_improves": false,
+  "formal_owner_gate_all_views": false,
+  "views": {
+    "left": {
+      "status": "REGISTRATION_IDENTITY_UNIQUE",
+      "owner_intrusion_pixels": 302,
+      "owner_boundary_adjacency_pixels": 55,
+      "owner_boundary_adjacency_milli": 319,
+      "strict_owner_zero_intrusion": false
+    },
+    "right": {
+      "status": "REGISTRATION_IDENTITY_UNIQUE",
+      "owner_intrusion_pixels": 492,
+      "owner_boundary_adjacency_pixels": 67,
+      "owner_boundary_adjacency_milli": 343,
+      "strict_owner_zero_intrusion": false
+    },
+    "rear-three-quarter": {
+      "status": "REGISTRATION_IDENTITY_UNIQUE",
+      "owner_intrusion_pixels": 587,
+      "owner_boundary_adjacency_pixels": 72,
+      "owner_boundary_adjacency_milli": 248,
+      "strict_owner_zero_intrusion": false,
+      "negative_fixture_status": "REGISTRATION_NON_IDENTITY_UNIQUE"
+    }
+  },
+  "promotion": {
+    "registration_only": true,
+    "diagnostic_only": true,
+    "promotable": false,
+    "quality_status": "NOT_PROVEN",
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "candidate_created": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "render_performed": false,
+    "cas_write_performed": false,
+    "sqlite_write_performed": false,
+    "export_performed": false
+  },
+  "limitations": [
+    "Registration uniqueness is independent from strict owner-void acceptance.",
+    "The aggregate ignored fixture was intentionally interrupted after this diagnostic output was emitted; this receipt is not an aggregate test PASS.",
+    "Depth, six-view non-regression, commercial topology, material, engine and human review remain unproven or not run."
+  ]
+}

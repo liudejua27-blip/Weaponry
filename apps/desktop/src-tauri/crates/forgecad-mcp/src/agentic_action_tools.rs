@@ -769,12 +769,29 @@ fn repair_proposal_property() -> Value {
                         "required": ["schema_version", "strategy"],
                         "properties": {
                             "schema_version": {"const": "RuntimeParameterPatch@1"},
-                            "strategy": {"enum": ["primitive-dimensions-v1", "surface-control-points-v1", "hard-surface-finish-v1"]}
+                            "strategy": {"enum": ["primitive-dimensions-v1", "surface-control-points-v1", "hard-surface-finish-v1", "rear-stock-profile-reconstruction-v1"]}
                         },
                         "additionalProperties": false
                     },
                     "view_spec": {"type":"object"},
-                    "camera": {"type":"object"}
+                    "camera": {"type":"object"},
+                    "view_evaluations": {
+                        "type":"array",
+                        "minItems":2,
+                        "maxItems":8,
+                        "items": {
+                            "type":"object",
+                            "required":["view_id","reference_id","reference_sha256","view_spec","camera"],
+                            "properties": {
+                                "view_id": id_property(),
+                                "reference_id": id_property(),
+                                "reference_sha256": sha256_property(),
+                                "view_spec": {"type":"object"},
+                                "camera": {"type":"object"}
+                            },
+                            "additionalProperties": false
+                        }
+                    }
                 },
                 "additionalProperties": false
             }

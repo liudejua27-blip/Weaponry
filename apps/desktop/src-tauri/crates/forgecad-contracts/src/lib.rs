@@ -1,7 +1,36 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
+
+mod authoring_mesh_v2;
+mod fps_presentation_package_v2;
+mod fps_presentation_package_v2_candidate;
+mod low_quad_durable;
+mod production_weapon_form_art_baseline;
+mod production_weapon_formal_high;
+mod production_weapon_owner_reviewed_void_calibration;
+mod weapon_foundation_authoring_materialization;
+mod weapon_foundation_typed_importer;
+pub use authoring_mesh_v2::*;
+pub use fps_presentation_package_v2::*;
+pub use fps_presentation_package_v2_candidate::*;
+pub use low_quad_durable::*;
+pub use production_weapon_form_art_baseline::*;
+pub use production_weapon_formal_high::*;
+pub use production_weapon_owner_reviewed_void_calibration::*;
+pub use weapon_foundation_authoring_materialization::*;
+pub use weapon_foundation_typed_importer::*;
 
 pub const CONTRACT_SET: &str = "forgecad-runtime-contracts@1";
+pub const AUTHORING_MESH_EDIT_PREVIEW_REQUEST_SCHEMA_VERSION: &str =
+    "AuthoringMeshEditPreviewRequest@1";
+pub const AUTHORING_MESH_EDIT_PREVIEW_SCHEMA_VERSION: &str = "AuthoringMeshEditPreview@1";
+pub const AUTHORING_MESH_EDIT_PREPARE_REQUEST_SCHEMA_VERSION: &str =
+    "AuthoringMeshEditPrepareRequest@1";
+pub const AUTHORING_MESH_EDIT_PREPARE_SCHEMA_VERSION: &str = "AuthoringMeshEditPrepare@1";
+pub const AUTHORING_MESH_TOPOLOGY_EDIT_OPERATIONS: &[&str] =
+    &["split_edge", "collapse_edge", "dissolve_edge"];
+pub const AUTHORING_MESH_TOPOLOGY_CORRESPONDENCE_KINDS: &[&str] = &["one-to-many", "many-to-one"];
 pub const MCP_PROTOCOL_VERSION: &str = "2025-11-25";
 /// The canonical MCP revision for ForgeCAD. Codex currently opens configured
 /// stdio servers with the 2025-06-18 legacy revision, so that revision is an
@@ -158,6 +187,330 @@ impl Default for RuntimeCapabilities {
     }
 }
 
+pub const BLENDER_WORKER_CAPABILITY_SCHEMA_VERSION: &str = "BlenderWorkerCapability@1";
+pub const BLENDER_WORKER_CAPABILITY_GET_REQUEST_SCHEMA_VERSION: &str =
+    "BlenderWorkerCapabilityGetRequest@1";
+pub const BLENDER_WORKER_CAPABILITY_GET_RESULT_SCHEMA_VERSION: &str =
+    "BlenderWorkerCapabilityGetResult@1";
+pub const BLENDER_WORKER_CAPABILITY_ID: &str = "blender-headless-worker-evaluation";
+pub const BLENDER_WORKER_CAPABILITY_WORKER_ID: &str = "blender";
+pub const BLENDER_WORKER_CAPABILITY_WORKER_KIND: &str = "tool/worker";
+pub const BLENDER_WORKER_CAPABILITY_SOURCE_IDENTITY: &str = "official-reference-only-research";
+pub const BLENDER_WORKER_CAPABILITY_SOURCE_REVISION: &str =
+    "72ccdd6e96ca119a1ffa3372559cc5654343b477";
+pub const BLENDER_WORKER_CAPABILITY_ADOPTION_STATUS: &str = "approved-for-evaluation";
+pub const BLENDER_WORKER_CAPABILITY_LICENSE_SPDX: &str = "GPL-2.0-or-later";
+pub const BLENDER_WORKER_CAPABILITY_GATE_STATUSES: &[&str] =
+    &["not-run", "pending", "passed", "failed", "blocked"];
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BlenderWorkerCapability {
+    pub schema_version: String,
+    pub capability_id: String,
+    pub worker_id: String,
+    pub worker_kind: String,
+    pub source_identity: String,
+    pub source_revision: String,
+    pub adoption_status: String,
+    pub capability_status: String,
+    pub binary_status: String,
+    pub binary_sha256: Option<String>,
+    pub recipe_id: Option<String>,
+    pub recipe_version: Option<String>,
+    pub recipe_status: String,
+    pub recipe_sha256: Option<String>,
+    pub python_bundle_status: String,
+    pub python_bundle_sha256: Option<String>,
+    pub license_name: String,
+    pub license_spdx: String,
+    pub license_status: String,
+    pub license_file_sha256: Option<String>,
+    pub license_full_text_sha256: Option<String>,
+    pub sandbox_status: String,
+    pub sandbox_sha256: Option<String>,
+    pub determinism_status: String,
+    pub determinism_sha256: Option<String>,
+    pub package_gate_status: String,
+    pub package_sha256: Option<String>,
+    pub read_only: bool,
+    pub runtime_write_performed: bool,
+    pub worker_invoked: bool,
+    pub candidate_generated: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub limitations: Vec<String>,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BlenderWorkerCapabilityGetRequest {
+    pub schema_version: String,
+    pub capability_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BlenderWorkerCapabilityGetResult {
+    pub schema_version: String,
+    pub capability: BlenderWorkerCapability,
+    pub read_only: bool,
+    pub runtime_write_performed: bool,
+    pub worker_invoked: bool,
+    pub candidate_generated: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+/// Closed contracts for the approved-for-evaluation Blender headless Worker.
+/// These types describe a future `blender.render_fixed@1` transport only; they
+/// do not select a binary, launch a process, persist a CAS object, or advance a
+/// production stage. Runtime continues to own the fixed verified entrypoint.
+pub const BLENDER_TASK_REQUEST_SCHEMA_VERSION: &str = "BlenderTaskRequest@1";
+pub const BLENDER_TASK_RESULT_SCHEMA_VERSION: &str = "BlenderTaskResult@1";
+pub const BLENDER_TASK_ERROR_SCHEMA_VERSION: &str = "BlenderTaskError@1";
+pub const BLENDER_RENDER_FIXED_OPERATION: &str = "blender.render_fixed@1";
+pub const BLENDER_RENDER_FIXED_RECIPE_ID: &str = "forgecad-blender-render-fixed@1";
+pub const BLENDER_RENDER_FIXED_RECIPE_VERSION: &str = "1.0.0";
+pub const BLENDER_NETWORK_POLICY: &str = "disabled";
+pub const BLENDER_FILESYSTEM_POLICY: &str = "runtime_scratch_only";
+pub const BLENDER_SCRIPT_POLICY: &str = "frozen_bundle_only";
+pub const BLENDER_OUTPUT_POLICY: &str = "runtime_cas_after_readback";
+pub const BLENDER_ENVELOPE_MAX_BYTES: u64 = 100_663_296;
+pub const BLENDER_STDERR_MAX_BYTES: u64 = 65_536;
+pub const BLENDER_RENDER_MAX_RUNTIME_MS: u64 = 120_000;
+pub const BLENDER_RENDER_MAX_CPU_SECONDS: u64 = 120;
+pub const BLENDER_WORKER_MAX_MEMORY_BYTES: u64 = 536_870_912;
+pub const BLENDER_GPU_MAX_BYTES: u64 = 0;
+pub const BLENDER_MAX_TRIANGLES: u64 = 250_000;
+pub const BLENDER_MAX_TEXTURE_BYTES: u64 = 67_108_864;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BlenderInputKind {
+    Glb,
+    ReferenceImage,
+    MaterialProfile,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BlenderInputMime {
+    #[serde(rename = "model/gltf-binary")]
+    ModelGltfBinary,
+    #[serde(rename = "image/png")]
+    ImagePng,
+    #[serde(rename = "image/jpeg")]
+    ImageJpeg,
+    #[serde(rename = "application/json")]
+    ApplicationJson,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BlenderInputObject {
+    pub kind: BlenderInputKind,
+    pub sha256: String,
+    pub canonical_sha256: String,
+    pub byte_size: u64,
+    pub mime: BlenderInputMime,
+    pub bytes_base64: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BlenderTaskBudgets {
+    pub max_runtime_ms: u64,
+    pub max_cpu_seconds: u64,
+    pub max_memory_bytes: u64,
+    pub max_gpu_bytes: u64,
+    pub max_input_bytes: u64,
+    pub max_output_bytes: u64,
+    pub max_triangles: u64,
+    pub max_texture_bytes: u64,
+    pub max_stdout_bytes: u64,
+    pub max_stderr_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BlenderNetworkPolicy {
+    Disabled,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BlenderFilesystemPolicy {
+    RuntimeScratchOnly,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BlenderScriptPolicy {
+    FrozenBundleOnly,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BlenderOutputPolicy {
+    RuntimeCasAfterReadback,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BlenderTaskRequest {
+    pub schema_version: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub source_candidate_sha256: String,
+    pub recipe_id: String,
+    pub recipe_version: String,
+    pub recipe_sha256: String,
+    pub python_bundle_sha256: String,
+    pub input_objects: Vec<BlenderInputObject>,
+    pub camera_profile_sha256: String,
+    pub material_profile_sha256: String,
+    pub budgets: BlenderTaskBudgets,
+    pub network_policy: BlenderNetworkPolicy,
+    pub filesystem_policy: BlenderFilesystemPolicy,
+    pub script_policy: BlenderScriptPolicy,
+    pub output_policy: BlenderOutputPolicy,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum BlenderOutputKind {
+    Beauty,
+    Silhouette,
+    Depth,
+    Normal,
+    Ao,
+    PartId,
+    MaterialId,
+    Wireframe,
+    UvStretch,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BlenderOutputMime {
+    #[serde(rename = "image/png")]
+    ImagePng,
+    #[serde(rename = "model/gltf-binary")]
+    ModelGltfBinary,
+    #[serde(rename = "application/json")]
+    ApplicationJson,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BlenderTaskOutput {
+    pub kind: BlenderOutputKind,
+    pub mime: BlenderOutputMime,
+    pub byte_size: u64,
+    pub sha256: String,
+    pub canonical_sha256: String,
+    pub lineage_sha256: String,
+    /// Internal bounded transport only. Runtime must hash/read back before
+    /// adopting bytes into CAS; this field is not a public MCP result.
+    pub transport_bytes_base64: String,
+    pub cas_owner: BlenderCasOwner,
+    pub durability: BlenderOutputDurability,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum BlenderCasOwner {
+    Runtime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BlenderOutputDurability {
+    #[serde(rename = "pending_runtime_adoption")]
+    PendingRuntimeAdoption,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum BlenderCheckStatus {
+    Passed,
+    Failed,
+    NotRun,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BlenderTaskChecks {
+    pub validator_status: BlenderCheckStatus,
+    pub readback_status: BlenderCheckStatus,
+    pub deterministic_replay_status: BlenderCheckStatus,
+    pub stage_eligibility: BlenderStageEligibility,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BlenderStageEligibility {
+    #[serde(rename = "non-promoting")]
+    NonPromoting,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BlenderTaskResult {
+    pub schema_version: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub recipe_sha256: String,
+    pub python_bundle_sha256: String,
+    pub build_cohort_sha256: String,
+    pub input_canonical_sha256: String,
+    pub outputs: Vec<BlenderTaskOutput>,
+    pub checks: BlenderTaskChecks,
+    pub runtime_write: bool,
+    pub worker_started: bool,
+    pub stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BlenderTaskErrorCode {
+    #[serde(rename = "CAPABILITY_UNAVAILABLE")]
+    CapabilityUnavailable,
+    #[serde(rename = "WORKER_PROTOCOL")]
+    WorkerProtocol,
+    #[serde(rename = "WORKER_TIMEOUT")]
+    WorkerTimeout,
+    #[serde(rename = "WORKER_CRASHED")]
+    WorkerCrashed,
+    #[serde(rename = "WORKER_RESOURCE_LIMIT")]
+    WorkerResourceLimit,
+    #[serde(rename = "WORKER_HASH_MISMATCH")]
+    WorkerHashMismatch,
+    #[serde(rename = "WORKER_READBACK_REJECTED")]
+    WorkerReadbackRejected,
+    #[serde(rename = "WORKER_DETERMINISM_MISMATCH")]
+    WorkerDeterminismMismatch,
+    #[serde(rename = "WORKER_COHORT_MISMATCH")]
+    WorkerCohortMismatch,
+    #[serde(rename = "WORKER_SANDBOX_VIOLATION")]
+    WorkerSandboxViolation,
+    #[serde(rename = "WORKER_LICENSE_UNAVAILABLE")]
+    WorkerLicenseUnavailable,
+    #[serde(rename = "WORKER_PACKAGE_UNVERIFIED")]
+    WorkerPackageUnverified,
+}
+
+/// Strict nested error shape carried by the existing WorkerResponse@1.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BlenderTaskError {
+    pub code: BlenderTaskErrorCode,
+    pub message: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectSummary {
     pub project_id: String,
@@ -221,6 +574,59 @@ pub struct CandidateRecord {
     pub error_code: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// Closed correspondence emitted for one typed topology edit.  A generic
+/// mesh delta, script, selection history or command text is deliberately not
+/// representable here: the Runtime must state the exact authoring identities
+/// retired and created by the bounded operation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct AuthoringMeshTopologyCorrespondence {
+    pub kind: String,
+    pub parent_source_element_ids: Vec<String>,
+    pub child_source_element_ids: Vec<String>,
+    pub operation_lineage_sha256: String,
+    pub identity_namespace_status: String,
+}
+
+/// Closed monotonic tombstone carried by a typed topology edit binding.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct AuthoringMeshTopologyTombstone {
+    pub source_element_id: String,
+    pub element_kind: String,
+    pub retired_revision_index: u64,
+    pub operation_lineage_sha256: String,
+    pub reason: String,
+}
+
+/// Closed typed operation proof emitted in `edited_element_ids` for the three
+/// topology operations.  Its namespace is deliberately source-element-only;
+/// it is not an AuthoringMesh IdentityLineage materialization.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct AuthoringMeshTopologyOperationProof {
+    pub schema_version: String,
+    pub operation: String,
+    pub parent_revision: u64,
+    pub child_revision: u64,
+    pub operation_lineage_sha256: String,
+    pub source_vertex_ids: Vec<String>,
+    pub source_edge_ids: Vec<String>,
+    pub source_face_ids: Vec<String>,
+    pub generated_vertex_ids: Vec<String>,
+    pub generated_edge_ids: Vec<String>,
+    pub generated_loop_ids: Vec<String>,
+    pub generated_face_ids: Vec<String>,
+    pub retired_vertex_ids: Vec<String>,
+    pub retired_edge_ids: Vec<String>,
+    pub retired_loop_ids: Vec<String>,
+    pub retired_face_ids: Vec<String>,
+    pub tombstones: Vec<AuthoringMeshTopologyTombstone>,
+    pub correspondence: Vec<AuthoringMeshTopologyCorrespondence>,
+    pub identity_namespace_status: String,
+    pub canonical_sha256: String,
 }
 
 /// Durable production-pipeline transition receipt.  This is intentionally a
@@ -515,6 +921,3391 @@ pub struct ProductionStageTransitionV2GetResult {
     pub candidate_confirmed: bool,
     pub version_created: bool,
     pub export_performed: bool,
+}
+
+/// ProductionStage@3 is an additive, fine-grained production axis.  The
+/// historical V1/V2 stage enums remain frozen; Runtime/Store implementations
+/// must use these constants for the V3 closed set instead of widening the old
+/// contracts in place.
+pub const PRODUCTION_STAGE_V3_SCHEMA_VERSION: &str = "ProductionStageTransition@3";
+pub const PRODUCTION_STAGE_HEAD_V3_SCHEMA_VERSION: &str = "ProductionStageHead@3";
+pub const PRODUCTION_STAGE_COMPATIBILITY_PROJECTION_V3_SCHEMA_VERSION: &str =
+    "ProductionStageCompatibilityProjection@3";
+pub const PRODUCTION_STAGE_V3_PREPARE_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionStageTransitionPrepareRequest@3";
+pub const PRODUCTION_STAGE_V3_PREPARE_RESULT_SCHEMA_VERSION: &str =
+    "ProductionStageTransitionPrepareResult@3";
+pub const PRODUCTION_STAGE_V3_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionStageTransitionGetRequest@3";
+pub const PRODUCTION_STAGE_V3_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionStageTransitionGetResult@3";
+pub const PRODUCTION_STAGE_V3_FIRST_FROM_STAGE: &str = "reference-intake";
+pub const PRODUCTION_STAGE_V3_FIRST_TO_STAGE: &str = "reference-coverage-reviewed";
+pub const PRODUCTION_STAGE_V3_CAMERA_FROM_STAGE: &str = "reference-coverage-reviewed";
+pub const PRODUCTION_STAGE_V3_CAMERA_TO_STAGE: &str = "camera-calibrated";
+pub const PRODUCTION_STAGE_V3_FORM_EDGES: &[(&str, &str)] = &[
+    ("camera-calibrated", "blockout-reviewed"),
+    ("blockout-reviewed", "primary-form-approved"),
+    ("primary-form-approved", "secondary-form-approved"),
+];
+pub const PRODUCTION_STAGE_V3_FORM_QUALITY_RECEIPT_KIND: &str = "ProductionWeaponFormQuality@2";
+pub const PRODUCTION_STAGE_V3_FORM_ART_RECEIPT_KIND: &str = "ProductionWeaponFormArtEvidence@1";
+pub const PRODUCTION_STAGE_V3_CAMERA_LOCK_SCHEMA_VERSION: &str = "ProductionCameraLock@1";
+pub const PRODUCTION_STAGE_V3_CAMERA_LOCK_POLICY: &str =
+    "fps-weapon-reviewed-six-reference-seven-camera-lock@1";
+pub const PRODUCTION_STAGE_V3_CAMERA_BINDING_FIELDS: &[&str] = &[
+    "camera_lock_id",
+    "camera_lock_canonical_sha256",
+    "camera_rig_object_sha256",
+    "camera_rig_canonical_sha256",
+    "camera_lock_receipt_object_sha256",
+    "camera_lock_source_transition_id",
+    "camera_lock_source_transition_sha256",
+    "camera_lock_source_head_canonical_sha256",
+];
+pub const PRODUCTION_STAGE_V3_FIRST_EDGE_NULL_EVIDENCE_FIELDS: &[&str] = &[
+    "quality_report_object_sha256",
+    "comparison_report_object_sha256",
+    "visual_receipt_object_sha256",
+    "human_review_receipt_object_sha256",
+    "engine_validation_receipt_object_sha256",
+    "distribution_receipt_object_sha256",
+];
+
+/// Additive structural form-quality receipt for the three independent
+/// blockout/primary/secondary form gates.  The same contract is intentionally
+/// reused for each fine-grained Stage@3 edge; it never advances the stage head.
+pub const PRODUCTION_WEAPON_FORM_QUALITY_SCHEMA_VERSION: &str = "ProductionWeaponFormQuality@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_PREPARE_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityPrepareRequest@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_PREPARE_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityPrepareResult@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityGetRequest@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityGetResult@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_POLICY: &str =
+    "production-weapon-form-quality-six-view-no-regression@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_THRESHOLD_POLICY: &str =
+    "production-weapon-form-view-thresholds@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_FORM_STAGES: &[&str] =
+    &["blockout", "primary", "secondary"];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_SOURCE_STAGES: &[&str] = &[
+    "camera-calibrated",
+    "blockout-reviewed",
+    "primary-form-approved",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_TARGET_STAGES: &[&str] = &[
+    "blockout-reviewed",
+    "primary-form-approved",
+    "secondary-form-approved",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_REVIEWED_REFERENCE_VIEW_KINDS: &[&str] = &[
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "rear-three-quarter",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_FIXED_CAMERA_VIEW_KINDS: &[&str] = &[
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "bottom",
+    "rear-three-quarter",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_CAMERA_CALIBRATED_HEAD_FIELDS: &[&str] = &[
+    "camera_calibrated_head_transition_id",
+    "camera_calibrated_head_transition_sha256",
+    "camera_calibrated_head_canonical_sha256",
+    "camera_calibrated_head_candidate_id",
+    "camera_calibrated_head_candidate_state_sha256",
+    "camera_calibrated_head_artifact_id",
+    "camera_calibrated_head_artifact_sha256",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_CROSS_VIEW_EVIDENCE_FIELDS: &[&str] = &[
+    "cross_view_evidence_object_sha256",
+    "cross_view_evidence_canonical_sha256",
+    "cross_view_evidence_view_kinds",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_TYPED_EVIDENCE_FIELDS: &[&str] = &[
+    "form_evidence_object_sha256",
+    "form_evidence_canonical_sha256",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_EVIDENCE_SOURCE_KINDS: &[&str] =
+    &["cross-view-evidence-bundle", "design-spec", "not-proven"];
+
+/// Additive @2 form gate.  @1 remains the immutable legacy CrossView/metrics
+/// report; @2 consumes that report plus ProductionWeaponFormArtEvidence@1 and
+/// records only a passing, structure-only decision for one Stage@3 form edge.
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_SCHEMA_VERSION: &str = "ProductionWeaponFormQuality@2";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_VIEW_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityView@2";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_PREPARE_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityPrepareRequest@2";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_PREPARE_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityPrepareResult@2";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityGetRequest@2";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityGetResult@2";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_POLICY: &str =
+    "production-weapon-form-quality-six-view-art-evidence-gate@2";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_THRESHOLD_POLICY: &str =
+    "production-weapon-form-view-thresholds@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_FORM_STAGES: &[&str] =
+    &["blockout", "primary", "secondary"];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_SOURCE_STAGES: &[&str] = &[
+    "camera-calibrated",
+    "blockout-reviewed",
+    "primary-form-approved",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_TARGET_STAGES: &[&str] = &[
+    "blockout-reviewed",
+    "primary-form-approved",
+    "secondary-form-approved",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_VIEW_KINDS: &[&str] = &[
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "rear-three-quarter",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_FIXED_CAMERA_VIEW_KINDS: &[&str] = &[
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "bottom",
+    "rear-three-quarter",
+];
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_VALIDATOR_STATUS: &str = "passed";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_STRUCTURAL_STATUS: &str = "PASS_SOURCE_STRUCTURAL";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_VISUAL_STATUS: &str =
+    "PASS_STAGE_VISUAL_STRUCTURE_ONLY";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_HUMAN_STATUS: &str = "NOT_RUN";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_ENGINE_STATUS: &str = "NOT_RUN";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_DISTRIBUTION_STATUS: &str = "NOT_RUN";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_QUALITY_STATUS: &str = "PASS_FORM_GATE";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_PREFLIGHT_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityV2PreflightGetRequest@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_PREFLIGHT_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormQualityV2PreflightGetResult@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_PREFLIGHT_POLICY: &str =
+    "production-weapon-form-quality-v2-preflight-readiness-gate@1";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_PREFLIGHT_QUALITY_STATUS: &str = "NOT_PROVEN";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_PREFLIGHT_VISUAL_QUALITY_STATUS: &str = "NOT_PROVEN";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_PREFLIGHT_HUMAN_REVIEW_STATUS: &str = "NOT_RUN";
+pub const PRODUCTION_WEAPON_FORM_QUALITY_V2_PREFLIGHT_COMMERCIAL_ENGINE_STATUS: &str = "NOT_RUN";
+
+/// Runtime-owned per-view artistic evidence used by the non-promoting form
+/// quality receipt.  One parent contains exactly the six reviewed views and
+/// each child carries all three independent typed observations.  The parent
+/// and every child remain candidate/artifact/reference/camera/render-set
+/// bound; this contract never compiles geometry or advances ProductionStage.
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_SCHEMA_VERSION: &str = "ProductionWeaponFormEvidence@1";
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_VIEW_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormEvidenceView@1";
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_PREPARE_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormEvidencePrepareRequest@1";
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_PREPARE_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormEvidencePrepareResult@1";
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormEvidenceGetRequest@1";
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormEvidenceGetResult@1";
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_POLICY: &str =
+    "production-weapon-form-evidence-six-view-typed-observation@1";
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_VIEW_KINDS: &[&str] = &[
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "rear-three-quarter",
+];
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_KINDS: &[&str] =
+    &["part-id", "negative-space", "line-flow"];
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_OBSERVATION_STATUSES: &[&str] =
+    &["observed", "inferred", "unknown"];
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_QUALITY_STATUS: &str = "NOT_PROVEN";
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_PARENT_RECEIPT_KIND: &str =
+    "production-weapon-form-evidence-receipt";
+pub const PRODUCTION_WEAPON_FORM_EVIDENCE_VIEW_RECEIPT_KIND: &str =
+    "production-weapon-form-evidence-view-receipt";
+
+/// Additive Runtime-owned art-observation evidence for the six-view form
+/// gate.  This family intentionally does not change FormEvidence@1,
+/// FormQuality@1 or ProductionStage@3 semantics: it records the typed
+/// target/AOV comparison needed by a future quality consumer, while quality
+/// remains NOT_PROVEN and no stage side effect is permitted.
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormArtEvidence@1";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_VIEW_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormArtEvidenceView@1";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_PREPARE_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormArtEvidencePrepareRequest@1";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_PREPARE_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormArtEvidencePrepareResult@1";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormArtEvidenceGetRequest@1";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponFormArtEvidenceGetResult@1";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_POLICY: &str =
+    "production-weapon-form-art-evidence-six-view-typed-observation@1";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_VIEW_KINDS: &[&str] = &[
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "rear-three-quarter",
+];
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_QUALITY_STATUS: &str = "NOT_PROVEN";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_PARENT_RECEIPT_KIND: &str =
+    "production-weapon-form-art-evidence-receipt";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_VIEW_RECEIPT_KIND: &str =
+    "production-weapon-form-art-evidence-view-receipt";
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_VOID_IOU_MIN_MILLI: u64 = 850;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_VOID_BOUNDARY_F1_MIN_MILLI: u64 = 800;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_VOID_AREA_RATIO_MIN_MILLI: u64 = 850;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_VOID_AREA_RATIO_MAX_MILLI: u64 = 1150;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_VOID_CENTROID_MAX_MILLI: u64 = 3000;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_LINE_COVERAGE_MIN_MILLI: u64 = 900;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_LINE_CONTINUITY_MIN_MILLI: u64 = 900;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_LINE_CHAMFER_MAX_MILLI: u64 = 3000;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_LINE_DEVIATION_MAX_MILLI: u64 = 5000;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_LINE_DIRECTION_MIN_MILLI: u64 = 950;
+pub const PRODUCTION_WEAPON_FORM_ART_EVIDENCE_LINE_DUPLICATE_CROSSING_MAX: u64 = 0;
+
+/// Closed assembly-level decision vocabulary for the first art-decision
+/// projection.  The registry is deliberately smaller than the 23-part
+/// structural fixture: it names only the coupled form groups that can be
+/// searched without turning a single-Part optimizer into an implicit
+/// assembly editor.
+pub const PRODUCTION_WEAPON_ASSEMBLY_DECISION_REGISTRY_SCHEMA_VERSION: &str =
+    "ProductionWeaponAssemblyDecisionRegistry@1";
+pub const PRODUCTION_WEAPON_ASSEMBLY_DECISION_REGISTRY_POLICY: &str =
+    "fps-weapon-closed-assembly-form-decision-registry@1";
+pub const PRODUCTION_WEAPON_ASSEMBLY_DECISION_REGISTRY_PROFILE_ID: &str =
+    "fps-weapon-form-assembly@1";
+pub const PRODUCTION_WEAPON_ASSEMBLY_DECISION_REGISTRY_GROUP_IDS: &[&str] = &[
+    "receiver-envelope",
+    "muzzle-axis",
+    "stock-open-frame",
+    "trigger-void",
+    "rail-spine",
+];
+pub const PRODUCTION_WEAPON_ASSEMBLY_DECISION_REGISTRY_COUPLING_MODES: &[&str] =
+    &["independent", "linked", "mirror"];
+pub const PRODUCTION_WEAPON_ASSEMBLY_DECISION_REGISTRY_INVARIANTS: &[&str] = &[
+    "shared-axis",
+    "coaxial",
+    "mirror-symmetric",
+    "clearance-min",
+    "enclosed-void",
+    "continuous-spine",
+];
+pub const PRODUCTION_WEAPON_ASSEMBLY_DECISION_REGISTRY_VIEW_KINDS: &[&str] = &[
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "rear-three-quarter",
+];
+
+/// Runtime-owned, product-defined aggregate mutators for the first parameter
+/// sink slice.  These are identifiers for implemented typed Runtime code, not
+/// a user supplied path or executable descriptor.
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_SCHEMA_VERSION: &str =
+    "ProductionWeaponAssemblyParameterSinkRegistry@1";
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponAssemblyParameterSinkGetRequest@1";
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponAssemblyParameterSinkGetResult@1";
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_POLICY: &str =
+    "fps-weapon-product-owned-aggregate-parameter-sink-registry@1";
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_SUPPORTED_GROUP_IDS: &[&str] =
+    &["receiver-envelope", "muzzle-axis", "stock-open-frame"];
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_SUPPORTED_PARAMETER_IDS: &[&str] = &[
+    "receiver-envelope-width",
+    "receiver-envelope-height",
+    "receiver-envelope-shoulder",
+    "muzzle-axis-shroud-envelope",
+    "muzzle-axis-emitter-envelope",
+    "muzzle-axis-core-aperture",
+    "stock-open-frame-clearance",
+    "stock-open-frame-angle",
+];
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_UNAVAILABLE_PARAMETER_IDS: &[&str] = &[
+    "trigger-void-clearance",
+    "trigger-void-centroid",
+    "rail-spine-continuity",
+    "rail-spine-offset",
+];
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_MUTATOR_IDS: &[&str] = &[
+    "forgecad.assembly.mutator.receiver-envelope@1",
+    "forgecad.assembly.mutator.muzzle-axis@1",
+    "forgecad.assembly.mutator.stock-open-frame@1",
+];
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_STATUS: &[&str] =
+    &["PARTIAL_TYPED_SINKS", "READY"];
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_UNITS: &[&str] =
+    &["meter", "radian", "ratio"];
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_APPLICATION_STATUS: &str = "AVAILABLE";
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_REGISTRY_EVIDENCE_REQUIREMENTS: &[&str] = &[
+    "assembly-registry",
+    "geometry-program",
+    "operator-catalog",
+    "artifact-readback",
+    "candidate-state",
+];
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_STRUCTURAL_STATUS: &str = "structural_only";
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_VISUAL_STATUS: &str = "NOT_PROVEN";
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_HUMAN_STATUS: &str = "NOT_RUN";
+pub const PRODUCTION_WEAPON_ASSEMBLY_PARAMETER_SINK_ENGINE_STATUS: &str = "NOT_RUN";
+
+/// Read-only art-decision proposal projection.  The request is intentionally
+/// hash/id-only (apart from nullable first-person evidence); the result may
+/// explain blockers but cannot create geometry, invoke a Worker, or promote a
+/// candidate.  This is a proposal surface, not a Runtime mutation API.
+pub const PRODUCTION_WEAPON_ART_DECISION_PROPOSAL_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponArtDecisionProposalGetRequest@1";
+pub const PRODUCTION_WEAPON_ART_DECISION_PROPOSAL_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponArtDecisionProposalGetResult@1";
+pub const PRODUCTION_WEAPON_ART_DECISION_PROPOSAL_OBJECTIVE_POLICY: &str =
+    "assembly-form-search-negative-space-line-flow-first-person@1";
+pub const PRODUCTION_WEAPON_ART_DECISION_PROPOSAL_GATE_IDS: &[&str] = &[
+    "lineage",
+    "reference-annotation",
+    "camera",
+    "assembly-registry",
+    "parameter-sink",
+    "negative-space",
+    "line-flow",
+    "first-person-readability",
+    "candidate-search-critic",
+    "surface-scope",
+];
+pub const PRODUCTION_WEAPON_ART_DECISION_PROPOSAL_GATE_STATUSES: &[&str] =
+    &["PASS", "BLOCKED", "NOT_RUN", "LOCKED"];
+pub const PRODUCTION_WEAPON_ART_DECISION_PROPOSAL_STATUSES: &[&str] = &[
+    "READY_ASSEMBLY_FORM_SEARCH",
+    "BLOCKED_LINEAGE",
+    "BLOCKED_REFERENCE_ANNOTATION",
+    "BLOCKED_CAMERA",
+    "BLOCKED_NEGATIVE_SPACE",
+    "BLOCKED_LINE_FLOW",
+    "BLOCKED_FIRST_PERSON_PROFILE",
+    "BLOCKED_ASSEMBLY_REGISTRY",
+    "BLOCKED_PARAMETER_SINK",
+    "NO_STRICT_MULTI_VIEW_IMPROVEMENT",
+];
+pub const PRODUCTION_WEAPON_ART_DECISION_PROPOSAL_BLOCKER_CODES: &[&str] = &[
+    "BLOCKED_LINEAGE",
+    "BLOCKED_REFERENCE_ANNOTATION",
+    "BLOCKED_CAMERA",
+    "BLOCKED_NEGATIVE_SPACE",
+    "BLOCKED_LINE_FLOW",
+    "BLOCKED_FIRST_PERSON_PROFILE",
+    "BLOCKED_ASSEMBLY_REGISTRY",
+    "BLOCKED_PARAMETER_SINK",
+    "NO_STRICT_MULTI_VIEW_IMPROVEMENT",
+];
+
+pub const PRODUCTION_STAGE_V3_STAGES: &[&str] = &[
+    "reference-intake",
+    "reference-coverage-reviewed",
+    "camera-calibrated",
+    "blockout-reviewed",
+    "primary-form-approved",
+    "secondary-form-approved",
+    "high-poly-approved",
+    "low-poly-approved",
+    "uv-approved",
+    "cage-approved",
+    "bake-approved",
+    "material-approved",
+    "rig-socket-approved",
+    "animation-approved",
+    "vfx-approved",
+    "lod-collision-approved",
+    "hero-art-review-approved",
+    "engine-validated",
+    "export-confirmed",
+];
+
+pub const PRODUCTION_STAGE_V3_STRUCTURAL_STATUSES: &[&str] =
+    &["NOT_RUN", "BLOCKED", "PASS_SOURCE_STRUCTURAL"];
+pub const PRODUCTION_STAGE_V3_VISUAL_STATUSES: &[&str] = &[
+    "NOT_RUN",
+    "BLOCKED",
+    "QUALITY_TARGET_NOT_MET",
+    "PASS_STAGE_VISUAL",
+    "PASS_STAGE_VISUAL_STRUCTURE_ONLY",
+];
+pub const PRODUCTION_STAGE_V3_HUMAN_STATUSES: &[&str] =
+    &["NOT_RUN", "BLOCKED", "REJECTED", "PASS_HUMAN_ART_REVIEW"];
+pub const PRODUCTION_STAGE_V3_ENGINE_STATUSES: &[&str] =
+    &["NOT_RUN", "BLOCKED", "FAILED", "PASS_ENGINE_VALIDATION"];
+pub const PRODUCTION_STAGE_V3_DISTRIBUTION_STATUSES: &[&str] =
+    &["NOT_RUN", "BLOCKED", "FAILED", "PASS_DISTRIBUTION"];
+
+pub fn production_stage_v3_index(stage: &str) -> Option<usize> {
+    PRODUCTION_STAGE_V3_STAGES
+        .iter()
+        .position(|value| *value == stage)
+}
+
+pub fn is_production_stage_v3_stage(stage: &str) -> bool {
+    production_stage_v3_index(stage).is_some()
+}
+
+pub fn production_stage_v3_is_adjacent(from_stage: &str, to_stage: &str) -> bool {
+    matches!(
+        (production_stage_v3_index(from_stage), production_stage_v3_index(to_stage)),
+        (Some(from), Some(to)) if to == from + 1
+    )
+}
+
+pub fn production_stage_v3_is_first_public_edge(from_stage: &str, to_stage: &str) -> bool {
+    from_stage == PRODUCTION_STAGE_V3_FIRST_FROM_STAGE
+        && to_stage == PRODUCTION_STAGE_V3_FIRST_TO_STAGE
+}
+
+pub fn production_stage_v3_is_camera_calibration_edge(from_stage: &str, to_stage: &str) -> bool {
+    from_stage == PRODUCTION_STAGE_V3_CAMERA_FROM_STAGE
+        && to_stage == PRODUCTION_STAGE_V3_CAMERA_TO_STAGE
+}
+
+pub fn production_stage_v3_is_form_edge(from_stage: &str, to_stage: &str) -> bool {
+    PRODUCTION_STAGE_V3_FORM_EDGES
+        .iter()
+        .any(|(from, to)| *from == from_stage && *to == to_stage)
+}
+
+/// The V3 head is intentionally a projection object.  It records lossy
+/// coarse-stage views without mutating either historical V1 or dual-candidate
+/// V2 heads.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionStageCompatibilityProjectionV3 {
+    pub schema_version: String,
+    pub source_schema_version: String,
+    pub v3_stage: Option<String>,
+    pub v3_stage_complete: bool,
+    pub v1_projection_stage: Option<String>,
+    pub v1_projection_complete: bool,
+    pub v2_projection_stage: Option<String>,
+    pub v2_projection_complete: bool,
+    pub projection_status: String,
+    pub legacy_head_transition_id: Option<String>,
+    pub legacy_head_transition_sha256: Option<String>,
+    pub projection_policy_sha256: String,
+}
+
+/// Fine-grained immutable production transition.  The fields deliberately
+/// mirror the V2 lineage shape while adding the 19-stage edge, five status
+/// dimensions and receipt bindings.  `parent_transition_id` is nullable for
+/// the first executable edge; no synthetic seed transition is required.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionStageTransitionV3Record {
+    pub schema_version: String,
+    pub transition_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub root_candidate_id: String,
+    pub root_candidate_role: String,
+    pub root_candidate_state_sha256: String,
+    pub source_artifact_id: String,
+    pub root_artifact_sha256: String,
+    pub previous_head_candidate_id: String,
+    pub previous_head_candidate_role: String,
+    pub previous_head_candidate_state_sha256: String,
+    pub previous_head_artifact_id: String,
+    pub previous_head_artifact_sha256: String,
+    pub previous_head_stage: String,
+    pub head_candidate_id: String,
+    pub head_candidate_role: String,
+    pub head_candidate_state_sha256: String,
+    pub output_artifact_id: String,
+    pub head_artifact_sha256: String,
+    pub from_stage: String,
+    pub to_stage: String,
+    pub candidate_binding_status: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub camera_lock_id: Option<String>,
+    pub camera_lock_canonical_sha256: Option<String>,
+    pub camera_rig_object_sha256: Option<String>,
+    pub camera_rig_canonical_sha256: Option<String>,
+    pub camera_lock_receipt_object_sha256: Option<String>,
+    pub camera_lock_source_transition_id: Option<String>,
+    pub camera_lock_source_transition_sha256: Option<String>,
+    pub camera_lock_source_head_canonical_sha256: Option<String>,
+    pub evidence_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub quality_report_object_sha256: Option<String>,
+    pub comparison_report_object_sha256: Option<String>,
+    pub design_spec_object_sha256: String,
+    pub visual_receipt_object_sha256: Option<String>,
+    pub human_review_receipt_object_sha256: Option<String>,
+    pub engine_validation_receipt_object_sha256: Option<String>,
+    pub distribution_receipt_object_sha256: Option<String>,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub approval_receipt_id: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub approval_summary_sha256: String,
+    pub request_key_sha256: String,
+    pub parent_transition_id: Option<String>,
+    pub parent_transition_sha256: Option<String>,
+    pub parent_transition_schema_version: Option<String>,
+    pub gate_status: String,
+    pub status: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+/// Durable V3 head projection.  It is separate from the V1 single-candidate
+/// head and V2 topology/material-surface head; those records remain immutable
+/// and are exposed only through `compatibility_projection`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionStageHeadV3Record {
+    pub schema_version: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub root_candidate_id: String,
+    pub root_candidate_role: String,
+    pub root_candidate_state_sha256: String,
+    pub source_artifact_id: String,
+    pub root_artifact_sha256: String,
+    pub root_stage: String,
+    pub previous_head_candidate_id: String,
+    pub previous_head_candidate_role: String,
+    pub previous_head_candidate_state_sha256: String,
+    pub previous_head_artifact_id: String,
+    pub previous_head_artifact_sha256: String,
+    pub previous_head_stage: String,
+    pub head_candidate_id: String,
+    pub head_candidate_role: String,
+    pub head_candidate_state_sha256: String,
+    pub output_artifact_id: String,
+    pub head_artifact_sha256: String,
+    pub head_stage: String,
+    pub candidate_binding_status: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub camera_lock_id: Option<String>,
+    pub camera_lock_canonical_sha256: Option<String>,
+    pub camera_rig_object_sha256: Option<String>,
+    pub camera_rig_canonical_sha256: Option<String>,
+    pub camera_lock_receipt_object_sha256: Option<String>,
+    pub camera_lock_source_transition_id: Option<String>,
+    pub camera_lock_source_transition_sha256: Option<String>,
+    pub camera_lock_source_head_canonical_sha256: Option<String>,
+    pub evidence_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub quality_report_object_sha256: Option<String>,
+    pub comparison_report_object_sha256: Option<String>,
+    pub design_spec_object_sha256: String,
+    pub visual_receipt_object_sha256: Option<String>,
+    pub human_review_receipt_object_sha256: Option<String>,
+    pub engine_validation_receipt_object_sha256: Option<String>,
+    pub distribution_receipt_object_sha256: Option<String>,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub approval_receipt_id: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub approval_summary_sha256: String,
+    pub head_transition_id: String,
+    pub head_transition_sha256: String,
+    pub compatibility_projection: ProductionStageCompatibilityProjectionV3,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub materialization_status: String,
+    pub canonical_sha256: String,
+    pub payload_json: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionStageTransitionV3PrepareRequest {
+    pub schema_version: String,
+    pub transition_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub root_candidate_id: String,
+    pub root_candidate_role: String,
+    pub root_candidate_state_sha256: String,
+    pub source_artifact_id: String,
+    pub root_artifact_sha256: String,
+    pub previous_head_candidate_id: String,
+    pub previous_head_candidate_role: String,
+    pub previous_head_candidate_state_sha256: String,
+    pub previous_head_artifact_id: String,
+    pub previous_head_artifact_sha256: String,
+    pub previous_head_stage: String,
+    pub head_candidate_id: String,
+    pub head_candidate_role: String,
+    pub head_candidate_state_sha256: String,
+    pub output_artifact_id: String,
+    pub head_artifact_sha256: String,
+    pub from_stage: String,
+    pub to_stage: String,
+    pub candidate_binding_status: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub camera_lock_id: Option<String>,
+    pub camera_lock_canonical_sha256: Option<String>,
+    pub camera_rig_object_sha256: Option<String>,
+    pub camera_rig_canonical_sha256: Option<String>,
+    pub camera_lock_receipt_object_sha256: Option<String>,
+    pub camera_lock_source_transition_id: Option<String>,
+    pub camera_lock_source_transition_sha256: Option<String>,
+    pub camera_lock_source_head_canonical_sha256: Option<String>,
+    pub evidence_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub quality_report_object_sha256: Option<String>,
+    pub comparison_report_object_sha256: Option<String>,
+    pub design_spec_object_sha256: String,
+    pub visual_receipt_object_sha256: Option<String>,
+    pub human_review_receipt_object_sha256: Option<String>,
+    pub engine_validation_receipt_object_sha256: Option<String>,
+    pub distribution_receipt_object_sha256: Option<String>,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub approval_receipt_id: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub parent_transition_id: Option<String>,
+    pub parent_transition_sha256: Option<String>,
+    pub parent_transition_schema_version: Option<String>,
+    pub input_sha256: String,
+    pub approved: bool,
+    pub approval_summary: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionStageTransitionV3PrepareResult {
+    pub schema_version: String,
+    pub transition: ProductionStageTransitionV3Record,
+    pub production_stage_head: ProductionStageHeadV3Record,
+    pub compatibility_projection: ProductionStageCompatibilityProjectionV3,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionStageTransitionV3GetRequest {
+    pub schema_version: String,
+    pub transition_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub root_candidate_id: String,
+    pub head_candidate_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionStageTransitionV3GetResult {
+    pub schema_version: String,
+    pub transition: ProductionStageTransitionV3Record,
+    pub production_stage_head: ProductionStageHeadV3Record,
+    pub compatibility_projection: ProductionStageCompatibilityProjectionV3,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+/// ProductionCameraLock@1 is an independent, candidate-bound prerequisite
+/// for the V3 `reference-coverage-reviewed -> camera-calibrated` edge.  It
+/// records reviewed reference coverage and the complete calibration rig, but
+/// deliberately never advances the ProductionStage head.
+pub const PRODUCTION_CAMERA_LOCK_SCHEMA_VERSION: &str = "ProductionCameraLock@1";
+pub const PRODUCTION_CAMERA_LOCK_PREPARE_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionCameraLockPrepareRequest@1";
+pub const PRODUCTION_CAMERA_LOCK_PREPARE_RESULT_SCHEMA_VERSION: &str =
+    "ProductionCameraLockPrepareResult@1";
+pub const PRODUCTION_CAMERA_LOCK_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionCameraLockGetRequest@1";
+pub const PRODUCTION_CAMERA_LOCK_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionCameraLockGetResult@1";
+pub const PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS: &[&str] = &[
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "rear-three-quarter",
+];
+pub const PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS: &[&str] = &[
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "bottom",
+    "rear-three-quarter",
+];
+pub const PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND: &str = "left";
+pub const PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY: &str =
+    "fps-weapon-reviewed-six-reference-seven-camera-lock@1";
+pub const PRODUCTION_CAMERA_LOCK_REVIEW_STATUS: &str = "user-approved-reference-coverage";
+pub const PRODUCTION_CAMERA_LOCK_CALIBRATION_STATUS: &str = "passed";
+pub const PRODUCTION_CAMERA_LOCK_STRUCTURAL_STATUS: &str = "PASS_SOURCE_STRUCTURAL";
+pub const PRODUCTION_CAMERA_LOCK_VISUAL_STATUS: &str = "QUALITY_TARGET_NOT_MET";
+pub const PRODUCTION_CAMERA_LOCK_HUMAN_STATUS: &str = "NOT_RUN";
+pub const PRODUCTION_CAMERA_LOCK_ENGINE_STATUS: &str = "NOT_RUN";
+pub const PRODUCTION_CAMERA_LOCK_DISTRIBUTION_STATUS: &str = "NOT_RUN";
+
+/// Closed public lineage contracts for mapping one canonical subject-space
+/// camera rig onto a GeometryProgram whose exact semantic anchor frame may
+/// predate SubjectCoordinateFrame@1.  The registered rig remains read-only
+/// and carries no quality, stage, confirmation, version or export authority.
+pub const PRODUCTION_WEAPON_SUBJECT_FRAME_REGISTRATION_SCHEMA_VERSION: &str =
+    "ProductionWeaponSubjectFrameRegistration@1";
+pub const REGISTERED_CAMERA_RIG_CALIBRATION_SCHEMA_VERSION: &str =
+    "RegisteredCameraRigCalibration@1";
+pub const PRODUCTION_WEAPON_SEMANTIC_LANDMARK_ORDERING_SCHEMA_VERSION: &str =
+    "ProductionWeaponSemanticLandmarkOrdering@1";
+pub const PRODUCTION_WEAPON_AUTHORED_VIEW_ORIENTATION_SCHEMA_VERSION: &str =
+    "ProductionWeaponAuthoredViewOrientation@1";
+pub const REGISTERED_CAMERA_RIG_CALIBRATION_V2_SCHEMA_VERSION: &str =
+    "RegisteredCameraRigCalibration@2";
+pub const PRODUCTION_WEAPON_SUBJECT_FRAME_REGISTRATION_POLICY: &str =
+    "exact-semantic-anchor-axis-registration@1";
+pub const REGISTERED_CAMERA_RIG_QUALITY_STATUS: &str = "NOT_EVALUATED";
+pub const PRODUCTION_WEAPON_SEMANTIC_ORDERING_POLICY: &str =
+    "exact-subject-axis-source-order-no-2d-landmarks@1";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionWeaponSubjectFrameRegistrationRecord {
+    pub schema_version: String,
+    pub registration_id: String,
+    pub geometry_program_sha256: String,
+    pub subject_coordinate_frame_sha256: String,
+    pub derivation_policy: String,
+    pub geometry_semantic_axes: Value,
+    pub subject_semantic_axes: Value,
+    pub anchor_evidence: Value,
+    pub transform: Value,
+    pub read_only: bool,
+    pub geometry_program_modified: bool,
+    pub depth_modified: bool,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RegisteredCameraRigCalibrationRecord {
+    pub schema_version: String,
+    pub registered_rig_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub geometry_program_object_sha256: String,
+    pub geometry_program_sha256: String,
+    pub operator_catalog_sha256: String,
+    pub subject_camera_rig: Value,
+    pub subject_camera_rig_object_sha256: String,
+    pub subject_camera_rig_canonical_sha256: String,
+    pub subject_frame_registration: ProductionWeaponSubjectFrameRegistrationRecord,
+    pub subject_frame_registration_canonical_sha256: String,
+    pub renderer_views: Vec<Value>,
+    pub read_only: bool,
+    pub runtime_write: bool,
+    pub depth_status: String,
+    pub quality_status: String,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionWeaponSemanticLandmarkOrderingRecord {
+    pub schema_version: String,
+    pub ordering_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_sha256: String,
+    pub subject_camera_rig_object_sha256: String,
+    pub subject_camera_rig_canonical_sha256: String,
+    pub registered_camera_rig_canonical_sha256: String,
+    pub ordering_policy: String,
+    pub identity_view_kinds: Vec<String>,
+    pub camera_view_kinds: Vec<String>,
+    pub primary_view_kind: String,
+    pub subject_longitudinal_order: Vec<String>,
+    pub anchors: Vec<Value>,
+    pub target_landmark_arrays_present: bool,
+    pub target_landmark_metrics_status: String,
+    pub ordering_status: String,
+    pub authored_orientation_status: String,
+    pub read_only: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionWeaponAuthoredViewOrientationRecord {
+    pub schema_version: String,
+    pub orientation_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub view_kind: String,
+    pub source_view: String,
+    pub reference_view_spec_canonical_sha256: String,
+    pub source_crop: Value,
+    pub reference_to_subject_view: Value,
+    pub post_render_transform: String,
+    pub target_landmark_status: String,
+    pub orientation_provenance: Value,
+    pub status: String,
+    pub promotable: bool,
+    pub read_only: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RegisteredCameraRigCalibrationV2Record {
+    pub schema_version: String,
+    pub registered_rig_v2_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub registered_rig_v1: RegisteredCameraRigCalibrationRecord,
+    pub registered_rig_v1_canonical_sha256: String,
+    pub semantic_landmark_ordering: ProductionWeaponSemanticLandmarkOrderingRecord,
+    pub semantic_landmark_ordering_object_sha256: String,
+    pub semantic_landmark_ordering_canonical_sha256: String,
+    pub rear_three_quarter_authored_orientation: ProductionWeaponAuthoredViewOrientationRecord,
+    pub rear_three_quarter_authored_orientation_object_sha256: String,
+    pub rear_three_quarter_authored_orientation_canonical_sha256: String,
+    pub renderer_views: Vec<Value>,
+    pub read_only: bool,
+    pub runtime_write: bool,
+    pub depth_status: String,
+    pub quality_status: String,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionCameraLockRecord {
+    pub schema_version: String,
+    pub camera_lock_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub source_transition_id: String,
+    pub source_transition_sha256: String,
+    pub source_head_canonical_sha256: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_object_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub camera_rig_object_sha256: String,
+    pub camera_rig_canonical_sha256: String,
+    pub required_reference_view_kinds: Vec<String>,
+    pub required_camera_view_kinds: Vec<String>,
+    pub primary_view_kind: String,
+    pub calibration_policy: String,
+    pub review_status: String,
+    pub calibration_status: String,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub approval_receipt_id: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub approval_summary_sha256: String,
+    pub input_sha256: String,
+    pub request_key_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionCameraLockPrepareRequest {
+    pub schema_version: String,
+    pub camera_lock_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub source_transition_id: String,
+    pub source_transition_sha256: String,
+    pub source_head_canonical_sha256: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub required_reference_view_kinds: Vec<String>,
+    pub required_camera_view_kinds: Vec<String>,
+    pub primary_view_kind: String,
+    pub calibration_policy: String,
+    pub input_sha256: String,
+    pub approved: bool,
+    pub camera_rig: Value,
+    pub approval_receipt_id: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub approval_summary: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionCameraLockPrepareResult {
+    pub schema_version: String,
+    pub camera_lock: ProductionCameraLockRecord,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub restart_hash_verified: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionCameraLockGetRequest {
+    pub schema_version: String,
+    pub camera_lock_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionCameraLockGetResult {
+    pub schema_version: String,
+    pub camera_lock: ProductionCameraLockRecord,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub restart_hash_verified: bool,
+}
+
+/// A success-only additive child of ProductionCameraLock@1.  This compact
+/// lineage binds the exact source objects needed for registered semantic
+/// camera materialization without copying or upgrading the legacy CameraLock
+/// record.  A diagnostic or blocked authored orientation is intentionally not
+/// representable as a successful lineage.
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_SCHEMA_VERSION: &str =
+    "ProductionCameraLockRegistrationLineage@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREPARE_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionCameraLockRegistrationLineagePrepareRequest@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREPARE_RESULT_SCHEMA_VERSION: &str =
+    "ProductionCameraLockRegistrationLineagePrepareResult@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionCameraLockRegistrationLineageGetRequest@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionCameraLockRegistrationLineageGetResult@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREFLIGHT_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionCameraLockRegistrationLineagePreflightGetRequest@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREFLIGHT_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionCameraLockRegistrationLineagePreflightGetResult@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREFLIGHT_PROJECTION_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionCameraLockRegistrationLineagePreflightProjectionGetRequest@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREFLIGHT_PROJECTION_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionCameraLockRegistrationLineagePreflightProjectionGetResult@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREPARE_OPERATION: &str =
+    "forgecad.production.camera-lock-registration-lineage-prepare@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_OPERATION: &str =
+    "forgecad.production.camera-lock-registration-lineage-get@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREFLIGHT_GET_OPERATION: &str =
+    "forgecad.production.camera-lock-registration-lineage-preflight-get@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREFLIGHT_PROJECTION_GET_OPERATION: &str =
+    "forgecad.production.camera-lock-registration-lineage-preflight-projection-get@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_POLICY: &str =
+    "camera-lock-promotable-authored-orientation-lineage@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREFLIGHT_POLICY: &str =
+    "camera-lock-user-authority-preflight@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREFLIGHT_PROJECTION_POLICY: &str =
+    "runtime-derived-semantic-camera-preflight-projection@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_CANONICALIZATION_POLICY: &str =
+    "canonical-json-sha256-excluding-canonical-sha256@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_WRITER_POLICY: &str =
+    "forgecad-runtime-only-state-writer@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GEOMETRY_PROGRAM_SCHEMA_VERSION: &str =
+    "GeometryProgram@2";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_SEMANTIC_ORDERING_SCHEMA_VERSION: &str =
+    "ProductionWeaponSemanticLandmarkOrdering@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_AUTHORED_ORIENTATION_SCHEMA_VERSION: &str =
+    "ProductionWeaponAuthoredViewOrientation@1";
+pub const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_REGISTERED_RIG_V2_SCHEMA_VERSION: &str =
+    "RegisteredCameraRigCalibration@2";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineageRecord {
+    pub schema_version: String,
+    pub registration_lineage_id: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub camera_lock_receipt_object_sha256: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub source_transition_id: String,
+    pub source_transition_sha256: String,
+    pub source_head_canonical_sha256: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_object_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub subject_camera_rig_object_sha256: String,
+    pub subject_camera_rig_canonical_sha256: String,
+    pub geometry_program_object_sha256: String,
+    pub geometry_program_sha256: String,
+    pub semantic_landmark_ordering_object_sha256: String,
+    pub semantic_landmark_ordering_canonical_sha256: String,
+    pub authored_orientation_object_sha256: String,
+    pub authored_orientation_canonical_sha256: String,
+    pub authored_orientation_approval_receipt_object_sha256: Option<String>,
+    pub registered_rig_v2_object_sha256: String,
+    pub registered_rig_v2_canonical_sha256: String,
+    pub lineage_policy: String,
+    pub promotable: bool,
+    pub input_sha256: String,
+    pub request_key_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+/// Alias without the Rust implementation suffix for callers that use the
+/// contract title as the record type name.
+pub type ProductionCameraLockRegistrationLineage = ProductionCameraLockRegistrationLineageRecord;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineagePrepareRequest {
+    pub schema_version: String,
+    pub operation: String,
+    pub registration_lineage_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub semantic_landmark_ordering_id: String,
+    pub authored_orientation_id: String,
+    pub registered_rig_v2_id: String,
+    pub rear_three_quarter_rotation_degrees: i64,
+    pub rear_three_quarter_subject_screen_order: String,
+    pub rear_three_quarter_camera_orbit_degrees: i64,
+    pub approval_receipt_id: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub approval_summary: String,
+    pub approved: bool,
+    pub idempotency_key: String,
+    pub input_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineagePrepareResult {
+    pub schema_version: String,
+    pub operation: String,
+    pub registration_lineage_id: String,
+    pub registration_lineage: ProductionCameraLockRegistrationLineageRecord,
+    pub session_id: String,
+    pub project_id: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub camera_lock_receipt_object_sha256: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub geometry_program_object_sha256: String,
+    pub geometry_program_sha256: String,
+    pub semantic_landmark_ordering_id: String,
+    pub semantic_landmark_ordering_object_sha256: String,
+    pub semantic_landmark_ordering_canonical_sha256: String,
+    pub authored_orientation_id: String,
+    pub authored_orientation_object_sha256: String,
+    pub authored_orientation_canonical_sha256: String,
+    pub authored_orientation_approval_receipt_object_sha256: Option<String>,
+    pub authored_orientation_status: String,
+    pub registered_rig_v2_id: String,
+    pub registered_rig_v2_object_sha256: String,
+    pub registered_rig_v2_canonical_sha256: String,
+    pub lineage_policy: String,
+    pub promotable: bool,
+    pub request_sha256: String,
+    pub request_input_sha256: String,
+    pub input_sha256: String,
+    pub request_key_sha256: String,
+    pub receipt_object_sha256: String,
+    pub idempotency_key: String,
+    pub replayed: bool,
+    pub restart_hash_verified: bool,
+    pub writer_policy: String,
+    pub runtime_write_performed: bool,
+    pub persistent_user_data_touched: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub quality_status: String,
+    pub depth_status: String,
+    pub canonicalization_policy: String,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineageGetRequest {
+    pub schema_version: String,
+    pub operation: String,
+    pub registration_lineage_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub max_response_bytes: u64,
+    pub writer_policy: String,
+    pub input_sha256: String,
+    pub runtime_write_performed: bool,
+    pub persistent_user_data_touched: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineageGetResult {
+    pub schema_version: String,
+    pub operation: String,
+    pub registration_lineage_id: String,
+    pub registration_lineage: ProductionCameraLockRegistrationLineageRecord,
+    pub session_id: String,
+    pub project_id: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub camera_lock_receipt_object_sha256: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub geometry_program_object_sha256: String,
+    pub geometry_program_sha256: String,
+    pub semantic_landmark_ordering_id: String,
+    pub semantic_landmark_ordering_object_sha256: String,
+    pub semantic_landmark_ordering_canonical_sha256: String,
+    pub authored_orientation_id: String,
+    pub authored_orientation_object_sha256: String,
+    pub authored_orientation_canonical_sha256: String,
+    pub authored_orientation_approval_receipt_object_sha256: Option<String>,
+    pub authored_orientation_status: String,
+    pub registered_rig_v2_id: String,
+    pub registered_rig_v2_object_sha256: String,
+    pub registered_rig_v2_canonical_sha256: String,
+    pub lineage_policy: String,
+    pub promotable: bool,
+    pub request_sha256: String,
+    pub request_input_sha256: String,
+    pub input_sha256: String,
+    pub request_key_sha256: String,
+    pub receipt_object_sha256: String,
+    pub replayed: bool,
+    pub restart_hash_verified: bool,
+    pub writer_policy: String,
+    pub runtime_write_performed: bool,
+    pub persistent_user_data_touched: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub quality_status: String,
+    pub depth_status: String,
+    pub canonicalization_policy: String,
+    pub canonical_sha256: String,
+}
+
+/// Read-only authority preflight for the success-only registration child.
+/// `diagnostic_inferred_rotation_degrees` is deliberately caller-labelled
+/// diagnostic input; it is never an approval receipt and cannot make the
+/// lineage promotable.  A durable child is the only source this preflight
+/// treats as a prior user-approved orientation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineagePreflightGetRequest {
+    pub schema_version: String,
+    pub operation: String,
+    pub preflight_id: String,
+    pub registration_lineage_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub diagnostic_inferred_rotation_degrees: i64,
+    pub max_response_bytes: u64,
+    pub writer_policy: String,
+    pub runtime_write_performed: bool,
+    pub persistent_user_data_touched: bool,
+    pub input_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineagePreflightGetResult {
+    pub schema_version: String,
+    pub operation: String,
+    pub preflight_id: String,
+    pub registration_lineage_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub parent_camera_lock_status: String,
+    pub parent_camera_lock_receipt_object_sha256: Option<String>,
+    pub durable_lineage_status: String,
+    pub existing_promotable_lineage_present: bool,
+    pub user_approved_orientation_present: bool,
+    pub user_approved_orientation_source: String,
+    pub diagnostic_inferred_orientation_present: bool,
+    pub diagnostic_inferred_rotation_degrees: i64,
+    pub diagnostic_orientation_source: String,
+    pub orientation_authority_status: String,
+    pub ready_for_promotable_lineage: bool,
+    pub blocking_reasons: Vec<String>,
+    pub policy: String,
+    pub writer_policy: String,
+    pub runtime_write: bool,
+    pub persistent_user_data_touched: bool,
+    pub worker_started: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub restart_hash_verified: bool,
+    pub readiness_sha256: String,
+}
+
+/// Successor read-only projection used to review the exact semantic camera
+/// before an approval receipt exists. The caller supplies no camera orbit,
+/// camera matrix, semantic anchors or geometry; Runtime derives all of them
+/// from the immutable CameraLock and candidate-owned source truth.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineagePreflightProjectionGetRequest {
+    pub schema_version: String,
+    pub operation: String,
+    pub preflight_id: String,
+    pub registration_lineage_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub proposed_board_rotation_degrees: i64,
+    pub proposed_subject_screen_order: String,
+    pub max_response_bytes: u64,
+    pub writer_policy: String,
+    pub runtime_write_performed: bool,
+    pub persistent_user_data_touched: bool,
+    pub input_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineagePreflightProjectionProof {
+    pub policy: String,
+    pub camera_hash: String,
+    pub expected_subject_screen_order: String,
+    pub projected_subject_screen_order: String,
+    pub stock_minus_muzzle_screen_x_milli: i64,
+    pub world_y_screen_up_dot_milli: i64,
+    pub screen_up: String,
+    pub passed: bool,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionCameraLockRegistrationLineagePreflightProjectionGetResult {
+    pub schema_version: String,
+    pub operation: String,
+    pub preflight_id: String,
+    pub registration_lineage_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub parent_camera_lock_status: String,
+    pub parent_camera_lock_receipt_object_sha256: Option<String>,
+    pub proposed_board_rotation_degrees: i64,
+    pub proposed_subject_screen_order: String,
+    pub derived_camera_orbit_degrees: Option<i64>,
+    pub derived_camera_hash: Option<String>,
+    pub derived_camera_canonical_sha256: Option<String>,
+    pub upright_proof: Option<ProductionCameraLockRegistrationLineagePreflightProjectionProof>,
+    pub projection_status: String,
+    pub projection_input_sha256: Option<String>,
+    pub projection_ready_for_user_review: bool,
+    pub existing_lineage_status: String,
+    pub existing_promotable_lineage_present: bool,
+    pub existing_lineage_matches_proposal: bool,
+    pub orientation_authority_status: String,
+    pub ready_for_promotable_lineage: bool,
+    pub blocking_reasons: Vec<String>,
+    pub policy: String,
+    pub writer_policy: String,
+    pub runtime_write: bool,
+    pub persistent_user_data_touched: bool,
+    pub worker_started: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub readiness_sha256: String,
+}
+
+/// A source binding for one independently persisted per-view observation.  It
+/// is deliberately narrower than a quality gate: the producer may report an
+/// observed, inferred or unknown observation, but the quality status remains
+/// NOT_PROVEN until a later FORM gate consumes the evidence.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidenceObservation {
+    pub evidence_kind: String,
+    pub observation_status: String,
+    pub quality_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidencePartId {
+    pub observation: ProductionWeaponFormEvidenceObservation,
+    pub expected_part_ids: Vec<String>,
+    pub observed_part_ids: Vec<String>,
+    pub missing_part_ids: Vec<String>,
+    pub unexpected_part_ids: Vec<String>,
+    pub coverage_milli: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidenceNegativeSpace {
+    pub observation: ProductionWeaponFormEvidenceObservation,
+    pub expected_count: u64,
+    pub observed_count: u64,
+    pub missing_count: u64,
+    pub sealed_count: u64,
+    pub coverage_milli: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidenceLineFlow {
+    pub observation: ProductionWeaponFormEvidenceObservation,
+    pub expected_count: u64,
+    pub observed_count: u64,
+    pub coverage_milli: u64,
+    pub continuity_milli: u64,
+    pub deviation_milli: u64,
+}
+
+/// Input binding for one of the six reviewed views.  The Runtime derives the
+/// three observations from this already-existing RenderSet and never accepts
+/// geometry, image bytes, paths or an externally supplied quality PASS.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidenceViewInput {
+    pub view_kind: String,
+    pub view_id: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub camera_canonical_sha256: String,
+    pub render_set_object_sha256: String,
+    pub render_set_canonical_sha256: String,
+    pub render_set_view_id: String,
+}
+
+/// One independently persisted child projection.  It repeats the candidate
+/// and source hashes intentionally so a Store child row is auditable without
+/// trusting an array position or a parent-only payload projection.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidenceViewRecord {
+    pub schema_version: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub view_kind: String,
+    pub view_id: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub camera_canonical_sha256: String,
+    pub render_set_object_sha256: String,
+    pub render_set_canonical_sha256: String,
+    pub render_set_view_id: String,
+    pub part_id_evidence: ProductionWeaponFormEvidencePartId,
+    pub negative_space_evidence: ProductionWeaponFormEvidenceNegativeSpace,
+    pub line_flow_evidence: ProductionWeaponFormEvidenceLineFlow,
+    pub view_observation_status: String,
+    pub quality_status: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+/// Immutable parent for exactly six independently persisted per-view
+/// Part-ID/negative-space/line-flow evidence children.  This is evidence only:
+/// it cannot create a candidate, advance a stage, confirm, version or export.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidenceRecord {
+    pub schema_version: String,
+    pub form_evidence_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_object_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub camera_rig_object_sha256: String,
+    pub camera_rig_canonical_sha256: String,
+    pub camera_lock_receipt_object_sha256: String,
+    pub camera_lock_source_transition_id: String,
+    pub camera_lock_source_transition_sha256: String,
+    pub camera_lock_source_head_canonical_sha256: String,
+    pub view_kinds: Vec<String>,
+    pub views: Vec<ProductionWeaponFormEvidenceViewRecord>,
+    pub evidence_policy: String,
+    pub evidence_policy_sha256: String,
+    pub quality_status: String,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidencePrepareRequest {
+    pub schema_version: String,
+    pub form_evidence_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_object_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub camera_rig_object_sha256: String,
+    pub camera_rig_canonical_sha256: String,
+    pub camera_lock_receipt_object_sha256: String,
+    pub camera_lock_source_transition_id: String,
+    pub camera_lock_source_transition_sha256: String,
+    pub camera_lock_source_head_canonical_sha256: String,
+    pub view_kinds: Vec<String>,
+    pub views: Vec<ProductionWeaponFormEvidenceViewInput>,
+    pub evidence_policy: String,
+    pub evidence_policy_sha256: String,
+    pub input_sha256: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidencePrepareResult {
+    pub schema_version: String,
+    pub form_evidence: ProductionWeaponFormEvidenceRecord,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidenceGetRequest {
+    pub schema_version: String,
+    pub form_evidence_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormEvidenceGetResult {
+    pub schema_version: String,
+    pub form_evidence: ProductionWeaponFormEvidenceRecord,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub restart_hash_verified: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormArtEvidencePartIdAggregate {
+    pub status: String,
+    pub expected_count: u64,
+    pub observed_count: u64,
+    pub missing_count: u64,
+    pub unexpected_count: u64,
+    pub coverage_milli: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormArtEvidenceNegativeSpaceRow {
+    pub structure_id: String,
+    pub expected_region_canonical_sha256: String,
+    pub iou_milli: u64,
+    pub boundary_f1_milli: u64,
+    pub area_ratio_milli: u64,
+    pub centroid_error_milli: u64,
+    pub sealed: bool,
+    pub missing: bool,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormArtEvidenceLineFlowRow {
+    pub line_flow_id: String,
+    pub expected_line_canonical_sha256: String,
+    pub coverage_milli: u64,
+    pub continuity_milli: u64,
+    pub symmetric_chamfer_milli: u64,
+    pub max_deviation_milli: u64,
+    pub direction_order_milli: u64,
+    pub duplicate_crossing_count: u64,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormArtEvidenceViewRecord {
+    pub schema_version: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub view_kind: String,
+    pub view_id: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub camera_canonical_sha256: String,
+    pub form_evidence_view_receipt_object_sha256: String,
+    pub form_evidence_view_receipt_canonical_sha256: String,
+    pub target_object_sha256: String,
+    pub target_canonical_sha256: String,
+    pub visual_structure_canonical_sha256: String,
+    pub visual_structure_review_status: String,
+    pub silhouette_pass_object_sha256: String,
+    pub part_id_pass_object_sha256: String,
+    pub depth_pass_object_sha256: String,
+    pub normal_pass_object_sha256: String,
+    pub part_id_status: String,
+    pub part_id_expected_count: u64,
+    pub part_id_observed_count: u64,
+    pub part_id_missing_count: u64,
+    pub part_id_unexpected_count: u64,
+    pub part_id_coverage_milli: u64,
+    pub negative_space_status: String,
+    pub negative_space_rows: Vec<ProductionWeaponFormArtEvidenceNegativeSpaceRow>,
+    pub line_flow_status: String,
+    pub line_flow_rows: Vec<ProductionWeaponFormArtEvidenceLineFlowRow>,
+    pub view_observation_status: String,
+    pub quality_status: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormArtEvidenceRecord {
+    pub schema_version: String,
+    pub art_evidence_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_object_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub camera_rig_object_sha256: String,
+    pub camera_rig_canonical_sha256: String,
+    pub camera_lock_receipt_object_sha256: String,
+    pub camera_lock_source_transition_id: String,
+    pub camera_lock_source_transition_sha256: String,
+    pub camera_lock_source_head_canonical_sha256: String,
+    pub form_evidence_object_sha256: String,
+    pub form_evidence_canonical_sha256: String,
+    pub view_kinds: Vec<String>,
+    pub views: Vec<ProductionWeaponFormArtEvidenceViewRecord>,
+    pub part_id_aggregate: ProductionWeaponFormArtEvidencePartIdAggregate,
+    pub art_evidence_policy: String,
+    pub art_evidence_policy_sha256: String,
+    pub quality_status: String,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormArtEvidencePrepareRequest {
+    pub schema_version: String,
+    pub art_evidence_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub form_evidence_object_sha256: String,
+    pub form_evidence_canonical_sha256: String,
+    pub art_evidence_policy: String,
+    pub art_evidence_policy_sha256: String,
+    pub input_sha256: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormArtEvidencePrepareResult {
+    pub schema_version: String,
+    pub art_evidence: ProductionWeaponFormArtEvidenceRecord,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormArtEvidenceGetRequest {
+    pub schema_version: String,
+    pub art_evidence_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormArtEvidenceGetResult {
+    pub schema_version: String,
+    pub art_evidence: ProductionWeaponFormArtEvidenceRecord,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub restart_hash_verified: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponAssemblyDecisionRegistryGroup {
+    pub group_id: String,
+    pub intent_kind: String,
+    pub part_ids: Vec<String>,
+    pub source_node_ids: Vec<String>,
+    pub parameter_ids: Vec<String>,
+    pub allowed_operator_ids: Vec<String>,
+    pub coupling_mode: String,
+    pub invariants: Vec<String>,
+    pub affected_view_kinds: Vec<String>,
+    pub priority: u64,
+}
+
+/// Immutable, closed assembly vocabulary consumed by the read-only art
+/// decision projection.  It is not a GeometryProgram and does not itself
+/// authorize a Worker or a Runtime write.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponAssemblyDecisionRegistry {
+    pub schema_version: String,
+    pub registry_id: String,
+    pub profile_id: String,
+    pub operator_catalog_sha256: String,
+    pub registry_policy: String,
+    pub groups: Vec<ProductionWeaponAssemblyDecisionRegistryGroup>,
+    pub canonical_sha256: String,
+}
+
+/// A single Runtime-owned aggregate parameter sink.  The target is expressed
+/// only through a product-owned mutator ID plus verified Part/node/operator
+/// bindings; callers never provide JSON pointers, parameter keys, components,
+/// expressions, or scripts. Unavailable parameters are kept in the registry's
+/// closed `unavailable_parameter_ids` list rather than faked as sink rows.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponAssemblyParameterSink {
+    pub parameter_id: String,
+    pub group_id: String,
+    pub mutator_id: String,
+    pub current: f64,
+    pub min: f64,
+    pub max: f64,
+    pub step: f64,
+    pub unit: String,
+    pub application_status: String,
+    pub blocker_codes: Vec<String>,
+    pub target_part_ids: Vec<String>,
+    pub source_node_ids: Vec<String>,
+    pub operator_ids: Vec<String>,
+    pub evidence_requirements: Vec<String>,
+}
+
+/// Read-only diagnostic projection of the typed assembly parameter sink. The
+/// The current slice emits only real AVAILABLE receiver/muzzle/open-stock
+/// rows. Its status is `PARTIAL_TYPED_SINKS` when fewer than eight are
+/// available; the closed unavailable list carries trigger/rail plus any
+/// missing supported IDs and prevents a false twelve-parameter claim.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponAssemblyParameterSinkRegistry {
+    pub schema_version: String,
+    pub sink_registry_id: String,
+    pub profile_id: String,
+    pub sink_policy: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub geometry_program_sha256: String,
+    pub geometry_program_canonical_sha256: String,
+    pub operator_catalog_sha256: String,
+    pub assembly_registry_id: String,
+    pub assembly_registry_canonical_sha256: String,
+    pub supported_group_ids: Vec<String>,
+    pub sinks: Vec<ProductionWeaponAssemblyParameterSink>,
+    pub unavailable_parameter_ids: Vec<String>,
+    pub status: String,
+    pub read_only: bool,
+    pub runtime_write_performed: bool,
+    pub worker_invoked: bool,
+    pub candidate_generated: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponAssemblyParameterSinkGetRequest {
+    pub schema_version: String,
+    pub sink_registry_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub geometry_program_sha256: String,
+    pub geometry_program_canonical_sha256: String,
+    pub operator_catalog_sha256: String,
+    pub assembly_registry_id: String,
+    pub assembly_registry_canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponAssemblyParameterSinkGetResult {
+    pub schema_version: String,
+    pub registry: ProductionWeaponAssemblyParameterSinkRegistry,
+    pub registry_canonical_sha256: String,
+    pub recomputed: bool,
+    pub restart_hash_verified: bool,
+    pub read_only: bool,
+    pub structural_status: String,
+    pub quality_status: String,
+    pub visual_quality_status: String,
+    pub human_review_status: String,
+    pub commercial_engine_status: String,
+    pub runtime_write_performed: bool,
+    pub worker_invoked: bool,
+    pub candidate_generated: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponArtDecisionProposalViewBinding {
+    pub view_kind: String,
+    pub view_id: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub camera_canonical_sha256: String,
+    pub render_set_object_sha256: String,
+    pub render_set_canonical_sha256: String,
+    pub form_evidence_view_receipt_object_sha256: String,
+    pub form_evidence_view_receipt_canonical_sha256: String,
+    pub form_art_evidence_view_receipt_object_sha256: String,
+    pub form_art_evidence_view_receipt_canonical_sha256: String,
+    pub target_sha256: String,
+    pub visual_structure_canonical_sha256: String,
+    pub part_id_status: String,
+    pub negative_space_status: String,
+    pub line_flow_status: String,
+    pub view_observation_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponArtDecisionProposalAssemblyGroupDecision {
+    pub group_id: String,
+    pub status: String,
+    pub part_ids: Vec<String>,
+    pub source_node_ids: Vec<String>,
+    pub parameter_ids: Vec<String>,
+    pub allowed_operator_ids: Vec<String>,
+    pub coupling_mode: String,
+    pub invariants: Vec<String>,
+    pub affected_view_kinds: Vec<String>,
+    pub blocker_codes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponArtDecisionProposalGateResult {
+    pub gate_id: String,
+    pub status: String,
+    pub evidence_sha256: Option<String>,
+    pub blocker_codes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponArtDecisionProposalBlocker {
+    pub blocker_code: String,
+    pub scope: String,
+    pub group_id: Option<String>,
+    pub view_kind: Option<String>,
+    pub evidence_sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponArtDecisionProposalGetRequest {
+    pub schema_version: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub geometry_program_sha256: String,
+    pub geometry_program_canonical_sha256: String,
+    pub operator_catalog_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub form_evidence_id: String,
+    pub form_evidence_object_sha256: String,
+    pub form_evidence_canonical_sha256: String,
+    pub form_art_evidence_id: String,
+    pub form_art_evidence_object_sha256: String,
+    pub form_art_evidence_canonical_sha256: String,
+    pub first_person_profile_id: Option<String>,
+    pub first_person_profile_sha256: Option<String>,
+}
+
+/// Read-only proposal result.  Blockers are first-class output so the current
+/// real six-view fixture can be projected without pretending that unknown
+/// negative-space/line-flow or absent first-person evidence has passed.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponArtDecisionProposalGetResult {
+    pub schema_version: String,
+    pub proposal_projection_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub geometry_program_sha256: String,
+    pub geometry_program_canonical_sha256: String,
+    pub operator_catalog_sha256: String,
+    pub assembly_registry_id: String,
+    pub assembly_registry_canonical_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub form_evidence_id: String,
+    pub form_evidence_object_sha256: String,
+    pub form_evidence_canonical_sha256: String,
+    pub form_art_evidence_id: String,
+    pub form_art_evidence_object_sha256: String,
+    pub form_art_evidence_canonical_sha256: String,
+    pub first_person_profile_id: Option<String>,
+    pub first_person_profile_sha256: Option<String>,
+    pub view_bindings: Vec<ProductionWeaponArtDecisionProposalViewBinding>,
+    pub assembly_group_decisions: Vec<ProductionWeaponArtDecisionProposalAssemblyGroupDecision>,
+    pub objective_policy: String,
+    pub gate_results: Vec<ProductionWeaponArtDecisionProposalGateResult>,
+    pub blockers: Vec<ProductionWeaponArtDecisionProposalBlocker>,
+    pub proposal_status: String,
+    pub read_only: bool,
+    pub runtime_write_performed: bool,
+    pub worker_invoked: bool,
+    pub candidate_generated: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub replayed: bool,
+    pub restart_hash_verified: bool,
+    pub canonical_sha256: String,
+}
+
+/// The CrossViewEvidenceBundle owns every RenderSet, ComparisonReport and
+/// QualityReport hash plus the per-view metrics/no-regression result.  Form
+/// quality binds that immutable parent object instead of accepting a caller
+/// supplied copy of those values.  These three evidence records are the only
+/// form-stage-specific artistic projections; their source must be a Runtime-
+/// verified bundle/design-spec object or remain NOT_PROVEN.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityEvidenceBinding {
+    pub source_kind: String,
+    pub source_object_sha256: Option<String>,
+    pub evidence_object_sha256: Option<String>,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityPartIdEvidence {
+    pub source: ProductionWeaponFormQualityEvidenceBinding,
+    pub expected_part_ids: Vec<String>,
+    pub observed_part_ids: Vec<String>,
+    pub missing_part_ids: Vec<String>,
+    pub unexpected_part_ids: Vec<String>,
+    pub coverage_milli: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityNegativeSpaceEvidence {
+    pub source: ProductionWeaponFormQualityEvidenceBinding,
+    pub expected_count: u64,
+    pub observed_count: u64,
+    pub missing_count: u64,
+    pub sealed_count: u64,
+    pub coverage_milli: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityLineFlowEvidence {
+    pub source: ProductionWeaponFormQualityEvidenceBinding,
+    pub expected_count: u64,
+    pub observed_count: u64,
+    pub coverage_milli: u64,
+    pub continuity_milli: u64,
+    pub deviation_milli: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityNoRegression {
+    pub status: String,
+    pub metrics_not_regressed: bool,
+    pub part_id_not_regressed: bool,
+    pub negative_space_not_regressed: bool,
+    pub line_flow_not_regressed: bool,
+}
+
+/// One SQL-child-like projection of a CrossViewEvidenceBundle view.  The
+/// `view_id` must resolve to the parent bundle; RenderSet/ComparisonReport/
+/// QualityReport hashes and metrics are intentionally not copied here.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityViewRecord {
+    pub view_kind: String,
+    pub view_id: String,
+    pub part_id_evidence: ProductionWeaponFormQualityPartIdEvidence,
+    pub negative_space_evidence: ProductionWeaponFormQualityNegativeSpaceEvidence,
+    pub line_flow_evidence: ProductionWeaponFormQualityLineFlowEvidence,
+    pub no_regression: ProductionWeaponFormQualityNoRegression,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityHardGate {
+    pub stage_head_binding: bool,
+    pub camera_lock_binding: bool,
+    pub same_candidate_artifact: bool,
+    pub reviewed_reference_views: bool,
+    pub fixed_camera_views: bool,
+    pub cross_view_evidence_binding: bool,
+    pub form_view_evaluations: bool,
+    pub part_id_evidence: bool,
+    pub negative_space_evidence: bool,
+    pub line_flow_evidence: bool,
+    pub threshold_policy_binding: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityFormGate {
+    pub layer_status: String,
+    pub all_view_thresholds: bool,
+    pub all_view_no_regression: bool,
+    pub previous_form_quality_binding: bool,
+}
+
+/// Immutable structural form evidence. One record is produced for exactly
+/// one form edge (blockout, primary or secondary); later edges bind the
+/// previous record instead of compensating for a failed earlier layer.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityRecord {
+    pub schema_version: String,
+    pub form_quality_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub form_stage: String,
+    pub source_stage: String,
+    pub target_stage: String,
+    pub camera_calibrated_head_transition_id: String,
+    pub camera_calibrated_head_transition_sha256: String,
+    pub camera_calibrated_head_canonical_sha256: String,
+    pub camera_calibrated_head_candidate_id: String,
+    pub camera_calibrated_head_candidate_state_sha256: String,
+    pub camera_calibrated_head_artifact_id: String,
+    pub camera_calibrated_head_artifact_sha256: String,
+    pub camera_calibrated_head_stage: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_object_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub camera_rig_object_sha256: String,
+    pub camera_rig_canonical_sha256: String,
+    pub camera_lock_receipt_object_sha256: String,
+    pub camera_lock_source_transition_id: String,
+    pub camera_lock_source_transition_sha256: String,
+    pub camera_lock_source_head_canonical_sha256: String,
+    pub reviewed_reference_view_kinds: Vec<String>,
+    pub fixed_camera_view_kinds: Vec<String>,
+    pub cross_view_evidence_object_sha256: String,
+    pub cross_view_evidence_canonical_sha256: String,
+    pub cross_view_evidence_view_kinds: Vec<String>,
+    pub form_evidence_object_sha256: String,
+    pub form_evidence_canonical_sha256: String,
+    pub form_view_evaluations: Vec<ProductionWeaponFormQualityViewRecord>,
+    pub previous_form_quality_id: Option<String>,
+    pub previous_form_quality_report_object_sha256: Option<String>,
+    pub previous_form_quality_canonical_sha256: Option<String>,
+    pub form_quality_policy: String,
+    pub form_quality_policy_sha256: String,
+    pub threshold_policy: String,
+    pub threshold_policy_sha256: String,
+    pub layer_status: String,
+    pub hard_gate: ProductionWeaponFormQualityHardGate,
+    pub hard_gate_passed: bool,
+    pub form_gate: ProductionWeaponFormQualityFormGate,
+    pub form_gate_passed: bool,
+    pub validator_status: String,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub quality_status: String,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityPrepareRequest {
+    pub schema_version: String,
+    pub form_quality_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub form_stage: String,
+    pub source_stage: String,
+    pub target_stage: String,
+    pub camera_calibrated_head_transition_id: String,
+    pub camera_calibrated_head_transition_sha256: String,
+    pub camera_calibrated_head_canonical_sha256: String,
+    pub camera_calibrated_head_candidate_id: String,
+    pub camera_calibrated_head_candidate_state_sha256: String,
+    pub camera_calibrated_head_artifact_id: String,
+    pub camera_calibrated_head_artifact_sha256: String,
+    pub camera_calibrated_head_stage: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_object_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub camera_rig_object_sha256: String,
+    pub camera_rig_canonical_sha256: String,
+    pub camera_lock_receipt_object_sha256: String,
+    pub camera_lock_source_transition_id: String,
+    pub camera_lock_source_transition_sha256: String,
+    pub camera_lock_source_head_canonical_sha256: String,
+    pub reviewed_reference_view_kinds: Vec<String>,
+    pub fixed_camera_view_kinds: Vec<String>,
+    pub cross_view_evidence_object_sha256: String,
+    pub cross_view_evidence_canonical_sha256: String,
+    pub cross_view_evidence_view_kinds: Vec<String>,
+    pub form_evidence_object_sha256: String,
+    pub form_evidence_canonical_sha256: String,
+    pub form_view_evaluations: Vec<ProductionWeaponFormQualityViewRecord>,
+    pub previous_form_quality_id: Option<String>,
+    pub previous_form_quality_report_object_sha256: Option<String>,
+    pub previous_form_quality_canonical_sha256: Option<String>,
+    pub form_quality_policy: String,
+    pub form_quality_policy_sha256: String,
+    pub threshold_policy: String,
+    pub threshold_policy_sha256: String,
+    pub input_sha256: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityPrepareResult {
+    pub schema_version: String,
+    pub form_quality: ProductionWeaponFormQualityRecord,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityGetRequest {
+    pub schema_version: String,
+    pub form_quality_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub form_stage: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityGetResult {
+    pub schema_version: String,
+    pub form_quality: ProductionWeaponFormQualityRecord,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2ViewDecision {
+    pub view_kind: String,
+    pub legacy_form_quality_view_id: String,
+    pub legacy_form_quality_view_canonical_sha256: String,
+    pub form_art_view_id: String,
+    pub form_art_view_canonical_sha256: String,
+    pub form_art_view_receipt_object_sha256: String,
+    pub target_object_sha256: String,
+    pub target_canonical_sha256: String,
+    pub silhouette_pass_object_sha256: String,
+    pub part_id_pass_object_sha256: String,
+    pub depth_pass_object_sha256: String,
+    pub normal_pass_object_sha256: String,
+    pub cross_view_thresholds_passed: bool,
+    pub no_regression_passed: bool,
+    pub part_id_passed: bool,
+    pub negative_space_passed: bool,
+    pub line_flow_passed: bool,
+    pub view_passed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2Aggregate {
+    pub view_count: u64,
+    pub all_cross_view_thresholds_passed: bool,
+    pub all_no_regression_passed: bool,
+    pub all_part_id_passed: bool,
+    pub all_negative_space_passed: bool,
+    pub all_line_flow_passed: bool,
+    pub all_view_passed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2Record {
+    pub schema_version: String,
+    pub form_quality_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub form_stage: String,
+    pub source_stage: String,
+    pub target_stage: String,
+    pub current_source_head_transition_id: String,
+    pub current_source_head_transition_sha256: String,
+    pub current_source_head_canonical_sha256: String,
+    pub current_source_head_stage: String,
+    pub current_source_head_candidate_id: String,
+    pub current_source_head_candidate_state_sha256: String,
+    pub current_source_head_artifact_id: String,
+    pub current_source_head_artifact_sha256: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub reference_canvas_object_sha256: String,
+    pub reference_canvas_canonical_sha256: String,
+    pub design_spec_object_sha256: String,
+    pub design_spec_canonical_sha256: String,
+    pub camera_hash: String,
+    /// `legacy-source` keeps historical FormQuality/FormArt joins readable;
+    /// `fresh-baseline-proposal` requires every source/proposal scope below.
+    pub evidence_source_kind: String,
+    pub source_candidate_id: Option<String>,
+    pub source_candidate_state_sha256: Option<String>,
+    pub source_artifact_id: Option<String>,
+    pub source_artifact_sha256: Option<String>,
+    pub source_fresh_baseline_id: Option<String>,
+    pub source_fresh_baseline_canonical_sha256: Option<String>,
+    pub source_fresh_baseline_receipt_object_sha256: Option<String>,
+    pub source_registration_lineage_id: Option<String>,
+    pub source_registration_lineage_canonical_sha256: Option<String>,
+    pub source_registration_lineage_receipt_object_sha256: Option<String>,
+    pub source_registered_rig_v2_id: Option<String>,
+    pub source_registered_rig_v2_object_sha256: Option<String>,
+    pub source_registered_rig_v2_canonical_sha256: Option<String>,
+    pub source_runtime_build_cohort_sha256: Option<String>,
+    pub proposal_candidate_id: Option<String>,
+    pub proposal_candidate_state_sha256: Option<String>,
+    pub proposal_artifact_id: Option<String>,
+    pub proposal_artifact_sha256: Option<String>,
+    pub proposal_artifact_readback_sha256: Option<String>,
+    pub proposal_worker_build_cohort_sha256: Option<String>,
+    pub cross_view_evidence_bundle_sha256: Option<String>,
+    pub proposal_form_art_evidence_id: Option<String>,
+    pub proposal_form_art_evidence_object_sha256: Option<String>,
+    pub proposal_form_art_evidence_canonical_sha256: Option<String>,
+    pub proposal_part_id_evidence_sha256: Option<String>,
+    pub proposal_negative_space_evidence_sha256: Option<String>,
+    pub proposal_line_flow_evidence_sha256: Option<String>,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub camera_rig_object_sha256: String,
+    pub camera_rig_canonical_sha256: String,
+    pub camera_lock_receipt_object_sha256: String,
+    pub camera_lock_source_transition_id: String,
+    pub camera_lock_source_transition_sha256: String,
+    pub camera_lock_source_head_canonical_sha256: String,
+    pub reviewed_reference_view_kinds: Vec<String>,
+    pub fixed_camera_view_kinds: Vec<String>,
+    pub legacy_form_quality_object_sha256: String,
+    pub legacy_form_quality_canonical_sha256: String,
+    pub form_art_evidence_object_sha256: String,
+    pub form_art_evidence_canonical_sha256: String,
+    pub view_decisions: Vec<ProductionWeaponFormQualityV2ViewDecision>,
+    pub aggregate: ProductionWeaponFormQualityV2Aggregate,
+    pub previous_form_quality_id: Option<String>,
+    pub previous_form_quality_report_object_sha256: Option<String>,
+    pub previous_form_quality_canonical_sha256: Option<String>,
+    pub form_quality_policy: String,
+    pub form_quality_policy_sha256: String,
+    pub threshold_policy: String,
+    pub threshold_policy_sha256: String,
+    pub hard_gate_passed: bool,
+    pub form_gate_passed: bool,
+    pub validator_status: String,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub quality_status: String,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2PrepareRequest {
+    pub schema_version: String,
+    pub form_quality_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub form_stage: String,
+    pub source_stage: String,
+    pub target_stage: String,
+    pub legacy_form_quality_object_sha256: String,
+    pub legacy_form_quality_canonical_sha256: String,
+    pub form_art_evidence_object_sha256: String,
+    pub form_art_evidence_canonical_sha256: String,
+    pub evidence_source_kind: String,
+    pub source_candidate_id: Option<String>,
+    pub source_candidate_state_sha256: Option<String>,
+    pub source_artifact_id: Option<String>,
+    pub source_artifact_sha256: Option<String>,
+    pub source_fresh_baseline_id: Option<String>,
+    pub source_fresh_baseline_canonical_sha256: Option<String>,
+    pub source_fresh_baseline_receipt_object_sha256: Option<String>,
+    pub source_registration_lineage_id: Option<String>,
+    pub source_registration_lineage_canonical_sha256: Option<String>,
+    pub source_registration_lineage_receipt_object_sha256: Option<String>,
+    pub source_registered_rig_v2_id: Option<String>,
+    pub source_registered_rig_v2_object_sha256: Option<String>,
+    pub source_registered_rig_v2_canonical_sha256: Option<String>,
+    pub source_runtime_build_cohort_sha256: Option<String>,
+    pub proposal_candidate_id: Option<String>,
+    pub proposal_candidate_state_sha256: Option<String>,
+    pub proposal_artifact_id: Option<String>,
+    pub proposal_artifact_sha256: Option<String>,
+    pub proposal_artifact_readback_sha256: Option<String>,
+    pub proposal_worker_build_cohort_sha256: Option<String>,
+    pub cross_view_evidence_bundle_sha256: Option<String>,
+    pub proposal_form_art_evidence_id: Option<String>,
+    pub proposal_form_art_evidence_object_sha256: Option<String>,
+    pub proposal_form_art_evidence_canonical_sha256: Option<String>,
+    pub proposal_part_id_evidence_sha256: Option<String>,
+    pub proposal_negative_space_evidence_sha256: Option<String>,
+    pub proposal_line_flow_evidence_sha256: Option<String>,
+    pub current_source_head_transition_id: String,
+    pub current_source_head_transition_sha256: String,
+    pub current_source_head_canonical_sha256: String,
+    pub previous_form_quality_id: Option<String>,
+    pub previous_form_quality_report_object_sha256: Option<String>,
+    pub previous_form_quality_canonical_sha256: Option<String>,
+    pub form_quality_policy: String,
+    pub form_quality_policy_sha256: String,
+    pub threshold_policy: String,
+    pub threshold_policy_sha256: String,
+    pub input_sha256: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2PrepareResult {
+    pub schema_version: String,
+    pub form_quality: ProductionWeaponFormQualityV2Record,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2GetRequest {
+    pub schema_version: String,
+    pub form_quality_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub form_stage: String,
+    pub evidence_source_kind: String,
+    pub source_candidate_id: Option<String>,
+    pub source_candidate_state_sha256: Option<String>,
+    pub source_artifact_id: Option<String>,
+    pub source_artifact_sha256: Option<String>,
+    pub source_fresh_baseline_id: Option<String>,
+    pub source_fresh_baseline_canonical_sha256: Option<String>,
+    pub source_fresh_baseline_receipt_object_sha256: Option<String>,
+    pub source_registration_lineage_id: Option<String>,
+    pub source_registration_lineage_canonical_sha256: Option<String>,
+    pub source_registration_lineage_receipt_object_sha256: Option<String>,
+    pub source_registered_rig_v2_id: Option<String>,
+    pub source_registered_rig_v2_object_sha256: Option<String>,
+    pub source_registered_rig_v2_canonical_sha256: Option<String>,
+    pub source_runtime_build_cohort_sha256: Option<String>,
+    pub proposal_candidate_id: Option<String>,
+    pub proposal_candidate_state_sha256: Option<String>,
+    pub proposal_artifact_id: Option<String>,
+    pub proposal_artifact_sha256: Option<String>,
+    pub proposal_artifact_readback_sha256: Option<String>,
+    pub proposal_worker_build_cohort_sha256: Option<String>,
+    pub cross_view_evidence_bundle_sha256: Option<String>,
+    pub proposal_form_art_evidence_id: Option<String>,
+    pub proposal_form_art_evidence_object_sha256: Option<String>,
+    pub proposal_form_art_evidence_canonical_sha256: Option<String>,
+    pub proposal_part_id_evidence_sha256: Option<String>,
+    pub proposal_negative_space_evidence_sha256: Option<String>,
+    pub proposal_line_flow_evidence_sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2GetResult {
+    pub schema_version: String,
+    pub form_quality: ProductionWeaponFormQualityV2Record,
+    pub replayed: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub restart_hash_verified: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2PreflightCheck {
+    pub status: String,
+    pub reason_code: String,
+    pub object_sha256: Option<String>,
+    pub canonical_sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2PreflightGetRequest {
+    pub schema_version: String,
+    pub preflight_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub form_stage: String,
+    pub legacy_form_quality_object_sha256: String,
+    pub legacy_form_quality_canonical_sha256: String,
+    pub form_art_evidence_object_sha256: String,
+    pub form_art_evidence_canonical_sha256: String,
+    pub current_source_head_transition_id: String,
+    pub current_source_head_transition_sha256: String,
+    pub current_source_head_canonical_sha256: String,
+    pub input_sha256: String,
+    pub evidence_source_kind: String,
+    pub source_candidate_id: Option<String>,
+    pub source_candidate_state_sha256: Option<String>,
+    pub source_artifact_id: Option<String>,
+    pub source_artifact_sha256: Option<String>,
+    pub source_fresh_baseline_id: Option<String>,
+    pub source_fresh_baseline_canonical_sha256: Option<String>,
+    pub source_fresh_baseline_receipt_object_sha256: Option<String>,
+    pub source_registration_lineage_id: Option<String>,
+    pub source_registration_lineage_canonical_sha256: Option<String>,
+    pub source_registration_lineage_receipt_object_sha256: Option<String>,
+    pub source_registered_rig_v2_id: Option<String>,
+    pub source_registered_rig_v2_object_sha256: Option<String>,
+    pub source_registered_rig_v2_canonical_sha256: Option<String>,
+    pub source_runtime_build_cohort_sha256: Option<String>,
+    pub proposal_candidate_id: Option<String>,
+    pub proposal_candidate_state_sha256: Option<String>,
+    pub proposal_artifact_id: Option<String>,
+    pub proposal_artifact_sha256: Option<String>,
+    pub proposal_artifact_readback_sha256: Option<String>,
+    pub proposal_worker_build_cohort_sha256: Option<String>,
+    pub cross_view_evidence_bundle_sha256: Option<String>,
+    pub proposal_form_art_evidence_id: Option<String>,
+    pub proposal_form_art_evidence_object_sha256: Option<String>,
+    pub proposal_form_art_evidence_canonical_sha256: Option<String>,
+    pub proposal_part_id_evidence_sha256: Option<String>,
+    pub proposal_negative_space_evidence_sha256: Option<String>,
+    pub proposal_line_flow_evidence_sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponFormQualityV2PreflightGetResult {
+    pub schema_version: String,
+    pub preflight_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub form_stage: String,
+    pub evidence_source_kind: String,
+    pub source_candidate_id: Option<String>,
+    pub source_candidate_state_sha256: Option<String>,
+    pub source_artifact_id: Option<String>,
+    pub source_artifact_sha256: Option<String>,
+    pub source_fresh_baseline_id: Option<String>,
+    pub source_fresh_baseline_canonical_sha256: Option<String>,
+    pub source_fresh_baseline_receipt_object_sha256: Option<String>,
+    pub source_registration_lineage_id: Option<String>,
+    pub source_registration_lineage_canonical_sha256: Option<String>,
+    pub source_registration_lineage_receipt_object_sha256: Option<String>,
+    pub source_registered_rig_v2_id: Option<String>,
+    pub source_registered_rig_v2_object_sha256: Option<String>,
+    pub source_registered_rig_v2_canonical_sha256: Option<String>,
+    pub source_runtime_build_cohort_sha256: Option<String>,
+    pub proposal_candidate_id: Option<String>,
+    pub proposal_candidate_state_sha256: Option<String>,
+    pub proposal_artifact_id: Option<String>,
+    pub proposal_artifact_sha256: Option<String>,
+    pub proposal_artifact_readback_sha256: Option<String>,
+    pub proposal_worker_build_cohort_sha256: Option<String>,
+    pub cross_view_evidence_bundle_sha256: Option<String>,
+    pub proposal_form_art_evidence_id: Option<String>,
+    pub proposal_form_art_evidence_object_sha256: Option<String>,
+    pub proposal_form_art_evidence_canonical_sha256: Option<String>,
+    pub proposal_part_id_evidence_sha256: Option<String>,
+    pub proposal_negative_space_evidence_sha256: Option<String>,
+    pub proposal_line_flow_evidence_sha256: Option<String>,
+    pub checks: BTreeMap<String, ProductionWeaponFormQualityV2PreflightCheck>,
+    pub ready_for_v2_prepare: bool,
+    pub blocking_reasons: Vec<String>,
+    pub quality_status: String,
+    pub visual_quality_status: String,
+    pub human_review_status: String,
+    pub commercial_engine_status: String,
+    pub runtime_write: bool,
+    pub worker_started: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub restart_hash_verified: bool,
+    pub readiness_sha256: String,
+}
+
+// FPS-HIGH-LOW-CAGE-05 is intentionally additive.  These contracts describe
+// independent high, low and cage artifacts plus correspondence and bounded
+// ray diagnostics; they do not widen CandidateSurfaceBake@1 or any historical
+// LOD receipt, and they never advance ProductionStage@3 by themselves.
+pub const PRODUCTION_WEAPON_HIGH_ARTIFACT_SCHEMA_VERSION: &str = "ProductionWeaponHighArtifact@1";
+pub const PRODUCTION_WEAPON_LOW_ARTIFACT_SCHEMA_VERSION: &str = "ProductionWeaponLowArtifact@1";
+pub const PRODUCTION_WEAPON_CAGE_ARTIFACT_SCHEMA_VERSION: &str = "ProductionWeaponCageArtifact@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_CORRESPONDENCE_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowCorrespondence@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_PLAN_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowBakePlan@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_DIAGNOSTIC_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowDiagnostic@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_RECEIPT_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowBakeReceipt@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_PREPARE_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowBakePrepareRequest@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_PREPARE_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowBakePrepareResult@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowBakeGetRequest@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowBakeGetResult@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_PREFLIGHT_GET_REQUEST_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowBakePreflightGetRequest@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_PREFLIGHT_GET_RESULT_SCHEMA_VERSION: &str =
+    "ProductionWeaponHighLowBakePreflightGetResult@1";
+
+pub const PRODUCTION_WEAPON_HIGH_ARTIFACT_POLICY: &str =
+    "production-weapon-independent-high-detail-graph@1";
+pub const PRODUCTION_WEAPON_LOW_ARTIFACT_POLICY: &str =
+    "production-weapon-independent-low-retopology@1";
+pub const PRODUCTION_WEAPON_CAGE_ARTIFACT_POLICY: &str =
+    "production-weapon-low-bound-cage-offset-field@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_CORRESPONDENCE_POLICY: &str =
+    "production-weapon-high-low-cage-part-face-corner-correspondence@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_PLAN_POLICY: &str =
+    "production-weapon-high-low-cage-ray-diagnostic-plan@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_DIAGNOSTIC_POLICY: &str =
+    "production-weapon-high-low-cage-ray-diagnostic@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_POLICY: &str =
+    "production-weapon-high-low-cage-bake-gate@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_MODE: &str = "independent-high-low-cage-ray-bake@1";
+pub const PRODUCTION_WEAPON_HIGH_LOW_NORMAL_CONVENTION: &str = "OpenGL+Y";
+
+pub const PRODUCTION_WEAPON_HIGH_ARTIFACT_KIND: &str = "production-weapon-high-artifact-glb";
+pub const PRODUCTION_WEAPON_LOW_ARTIFACT_KIND: &str = "production-weapon-low-artifact-glb";
+pub const PRODUCTION_WEAPON_CAGE_ARTIFACT_KIND: &str = "production-weapon-cage-artifact-glb";
+pub const PRODUCTION_WEAPON_HIGH_ARTIFACT_RECEIPT_KIND: &str =
+    "production-weapon-high-artifact-receipt";
+pub const PRODUCTION_WEAPON_LOW_ARTIFACT_RECEIPT_KIND: &str =
+    "production-weapon-low-artifact-receipt";
+pub const PRODUCTION_WEAPON_CAGE_ARTIFACT_RECEIPT_KIND: &str =
+    "production-weapon-cage-artifact-receipt";
+pub const PRODUCTION_WEAPON_HIGH_LOW_CORRESPONDENCE_KIND: &str =
+    "production-weapon-high-low-correspondence";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_PLAN_KIND: &str = "production-weapon-high-low-bake-plan";
+pub const PRODUCTION_WEAPON_HIGH_LOW_DIAGNOSTIC_KIND: &str =
+    "production-weapon-high-low-diagnostic";
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_RECEIPT_KIND: &str =
+    "production-weapon-high-low-bake-receipt";
+
+pub const PRODUCTION_WEAPON_HIGH_LOW_STRUCTURAL_STATUSES: &[&str] =
+    &["NOT_RUN", "BLOCKED", "PASS_SOURCE_STRUCTURAL"];
+pub const PRODUCTION_WEAPON_HIGH_LOW_VISUAL_STATUSES: &[&str] =
+    &["NOT_RUN", "BLOCKED", "QUALITY_TARGET_NOT_MET", "NOT_PROVEN"];
+pub const PRODUCTION_WEAPON_HIGH_LOW_HUMAN_STATUSES: &[&str] =
+    &["NOT_RUN", "BLOCKED", "REJECTED", "PASS_HUMAN_ART_REVIEW"];
+pub const PRODUCTION_WEAPON_HIGH_LOW_ENGINE_STATUSES: &[&str] =
+    &["NOT_RUN", "BLOCKED", "FAILED", "PASS_ENGINE_VALIDATION"];
+pub const PRODUCTION_WEAPON_HIGH_LOW_DISTRIBUTION_STATUSES: &[&str] =
+    &["NOT_RUN", "BLOCKED", "FAILED", "PASS_DISTRIBUTION"];
+pub const PRODUCTION_WEAPON_HIGH_LOW_BAKE_STATUSES: &[&str] = &[
+    "NOT_HIGH_LOW_BAKE",
+    "DIAGNOSTIC_ONLY",
+    "PASS_SOURCE_STRUCTURAL",
+];
+pub const PRODUCTION_WEAPON_HIGH_LOW_GATE_SCOPES: &[&str] = &[
+    "high-artifact",
+    "low-artifact",
+    "cage-artifact",
+    "high-low-bake",
+];
+pub const PRODUCTION_WEAPON_HIGH_LOW_SOURCE_STAGES: &[&str] = &[
+    "secondary-form-approved",
+    "high-poly-approved",
+    "low-poly-approved",
+    "cage-approved",
+];
+pub const PRODUCTION_WEAPON_HIGH_LOW_TARGET_STAGES: &[&str] = &[
+    "high-poly-approved",
+    "low-poly-approved",
+    "cage-approved",
+    "bake-approved",
+];
+pub const PRODUCTION_WEAPON_HIGH_LOW_OUTPUT_SEMANTICS: &[&str] = &[
+    "tangent-normal",
+    "ao",
+    "curvature",
+    "thickness",
+    "position",
+    "object-id",
+    "material-id",
+    "part-id",
+];
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponHighArtifactRecord {
+    pub schema_version: String,
+    pub high_artifact_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub source_stage_head_transition_id: String,
+    pub source_stage_head_transition_sha256: String,
+    pub source_stage_head_canonical_sha256: String,
+    pub source_stage_head_stage: String,
+    pub source_candidate_id: String,
+    pub source_candidate_state_sha256: String,
+    pub source_artifact_id: String,
+    pub source_artifact_sha256: String,
+    pub source_artifact_readback_sha256: String,
+    pub high_candidate_id: String,
+    pub high_candidate_state_sha256: String,
+    pub high_artifact_sha256: String,
+    pub high_artifact_readback_sha256: String,
+    pub high_artifact_readback_object_sha256: String,
+    pub high_geometry_program_sha256: String,
+    pub high_geometry_program_object_sha256: String,
+    pub high_geometry_candidate_evidence_sha256: String,
+    pub high_detail_graph_object_sha256: String,
+    pub high_detail_graph_canonical_sha256: String,
+    pub high_part_inventory_sha256: String,
+    pub high_part_ids: Vec<String>,
+    pub high_material_zone_ids: Vec<String>,
+    pub high_policy: String,
+    pub high_policy_sha256: String,
+    pub high_artifact_kind: String,
+    pub high_mime: String,
+    pub high_size_bytes: u64,
+    pub high_worker_algorithm_sha256: String,
+    pub high_worker_build_cohort_sha256: String,
+    pub high_worker_replay_count: u64,
+    pub high_replay_byte_exact: bool,
+    pub high_topology_status: String,
+    pub high_authoring_topology_status: String,
+    pub high_uv_status: String,
+    pub high_tangent_status: String,
+    pub validator_status: String,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub quality_status: String,
+    pub hard_gate_passed: bool,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponLowArtifactRecord {
+    pub schema_version: String,
+    pub low_artifact_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub source_stage_head_transition_id: String,
+    pub source_stage_head_transition_sha256: String,
+    pub source_stage_head_canonical_sha256: String,
+    pub source_stage_head_stage: String,
+    pub source_high_candidate_id: String,
+    pub source_high_candidate_state_sha256: String,
+    pub source_high_artifact_id: String,
+    pub source_high_artifact_sha256: String,
+    pub source_high_artifact_readback_sha256: String,
+    pub low_candidate_id: String,
+    pub low_candidate_state_sha256: String,
+    pub low_artifact_sha256: String,
+    pub low_artifact_readback_sha256: String,
+    pub low_artifact_readback_object_sha256: String,
+    pub low_geometry_program_sha256: String,
+    pub low_geometry_program_object_sha256: String,
+    pub low_geometry_candidate_evidence_sha256: String,
+    pub low_part_inventory_sha256: String,
+    pub low_part_ids: Vec<String>,
+    pub low_material_zone_ids: Vec<String>,
+    pub low_retopology_policy: String,
+    pub low_retopology_policy_sha256: String,
+    pub low_triangle_budget_sha256: String,
+    pub low_triangle_count: u64,
+    pub low_part_triangle_counts_sha256: String,
+    pub low_authoring_topology_status: String,
+    pub low_authoring_topology_object_sha256: String,
+    pub low_authoring_topology_canonical_sha256: String,
+    pub low_uv_binding_sha256: String,
+    pub low_tangent_input_sha256: String,
+    pub low_artifact_kind: String,
+    pub low_mime: String,
+    pub low_size_bytes: u64,
+    pub low_worker_algorithm_sha256: String,
+    pub low_worker_build_cohort_sha256: String,
+    pub low_worker_replay_count: u64,
+    pub low_replay_byte_exact: bool,
+    pub low_topology_status: String,
+    pub low_uv_status: String,
+    pub low_tangent_status: String,
+    pub validator_status: String,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub quality_status: String,
+    pub hard_gate_passed: bool,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponCageArtifactRecord {
+    pub schema_version: String,
+    pub cage_artifact_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub source_stage_head_transition_id: String,
+    pub source_stage_head_transition_sha256: String,
+    pub source_stage_head_canonical_sha256: String,
+    pub source_stage_head_stage: String,
+    pub source_high_candidate_id: String,
+    pub source_high_candidate_state_sha256: String,
+    pub source_high_artifact_id: String,
+    pub source_high_artifact_sha256: String,
+    pub source_high_artifact_readback_sha256: String,
+    pub source_low_candidate_id: String,
+    pub source_low_candidate_state_sha256: String,
+    pub source_low_artifact_id: String,
+    pub source_low_artifact_sha256: String,
+    pub source_low_artifact_readback_sha256: String,
+    pub cage_artifact_sha256: String,
+    pub cage_artifact_readback_sha256: String,
+    pub cage_artifact_readback_object_sha256: String,
+    pub cage_geometry_program_sha256: String,
+    pub cage_geometry_program_object_sha256: String,
+    pub cage_geometry_candidate_evidence_sha256: String,
+    pub cage_part_inventory_sha256: String,
+    pub cage_part_ids: Vec<String>,
+    pub cage_material_zone_ids: Vec<String>,
+    pub cage_policy: String,
+    pub cage_policy_sha256: String,
+    pub cage_topology_correspondence_sha256: String,
+    pub cage_offset_field_object_sha256: String,
+    pub cage_offset_field_canonical_sha256: String,
+    pub cage_offset_min_m: f64,
+    pub cage_offset_max_m: f64,
+    pub cage_offset_space: String,
+    pub cage_artifact_kind: String,
+    pub cage_mime: String,
+    pub cage_size_bytes: u64,
+    pub cage_self_intersection_count: u64,
+    pub cage_cross_part_count: u64,
+    pub cage_out_of_range_count: u64,
+    pub cage_skew_count: u64,
+    pub cage_worker_algorithm_sha256: String,
+    pub cage_worker_build_cohort_sha256: String,
+    pub cage_worker_replay_count: u64,
+    pub cage_replay_byte_exact: bool,
+    pub cage_topology_status: String,
+    pub validator_status: String,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub quality_status: String,
+    pub hard_gate_passed: bool,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponHighLowPartPair {
+    pub part_id: String,
+    pub high_part_id: String,
+    pub low_part_id: String,
+    pub cage_part_id: String,
+    pub material_zone_id: String,
+    pub high_source_node_id: String,
+    pub low_source_node_id: String,
+    pub cage_source_node_id: String,
+    pub high_face_count: u64,
+    pub low_face_count: u64,
+    pub cage_face_count: u64,
+    pub vertex_map_sha256: String,
+    pub face_map_sha256: String,
+    pub mapping_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponHighLowCorrespondenceRecord {
+    pub schema_version: String,
+    pub correspondence_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub high_candidate_id: String,
+    pub high_candidate_state_sha256: String,
+    pub high_artifact_id: String,
+    pub high_artifact_sha256: String,
+    pub high_artifact_readback_sha256: String,
+    pub low_candidate_id: String,
+    pub low_candidate_state_sha256: String,
+    pub low_artifact_id: String,
+    pub low_artifact_sha256: String,
+    pub low_artifact_readback_sha256: String,
+    pub cage_artifact_id: String,
+    pub cage_artifact_sha256: String,
+    pub cage_artifact_readback_sha256: String,
+    pub part_inventory_sha256: String,
+    pub part_ids: Vec<String>,
+    pub material_zone_ids: Vec<String>,
+    pub correspondence_policy: String,
+    pub correspondence_policy_sha256: String,
+    pub part_pairs: Vec<ProductionWeaponHighLowPartPair>,
+    pub mapping_object_sha256: String,
+    pub mapping_canonical_sha256: String,
+    pub unmapped_count: u64,
+    pub ambiguous_count: u64,
+    pub cross_part_count: u64,
+    pub cross_material_zone_count: u64,
+    pub stable_identity_policy: String,
+    pub worker_algorithm_sha256: String,
+    pub worker_build_cohort_sha256: String,
+    pub worker_replay_count: u64,
+    pub replay_byte_exact: bool,
+    pub mapping_status: String,
+    pub validator_status: String,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub quality_status: String,
+    pub hard_gate_passed: bool,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponHighLowBakePlanRecord {
+    pub schema_version: String,
+    pub bake_plan_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub source_stage_head_transition_id: String,
+    pub source_stage_head_transition_sha256: String,
+    pub source_stage_head_canonical_sha256: String,
+    pub source_stage_head_stage: String,
+    pub high_candidate_id: String,
+    pub high_candidate_state_sha256: String,
+    pub high_artifact_id: String,
+    pub high_artifact_sha256: String,
+    pub high_artifact_readback_sha256: String,
+    pub low_candidate_id: String,
+    pub low_candidate_state_sha256: String,
+    pub low_artifact_id: String,
+    pub low_artifact_sha256: String,
+    pub low_artifact_readback_sha256: String,
+    pub cage_artifact_id: String,
+    pub cage_artifact_sha256: String,
+    pub cage_artifact_readback_sha256: String,
+    pub correspondence_id: String,
+    pub correspondence_object_sha256: String,
+    pub correspondence_canonical_sha256: String,
+    pub low_uv_binding_sha256: String,
+    pub low_tangent_binding_sha256: String,
+    pub material_zone_binding_sha256: String,
+    pub normal_convention: String,
+    pub ray_origin_policy: String,
+    pub ray_direction_policy: String,
+    pub ray_distance_policy: String,
+    pub front_back_policy: String,
+    pub per_part_isolation_policy: String,
+    pub anti_cross_hit_policy: String,
+    pub max_ray_distance_m: f64,
+    pub output_semantics: Vec<String>,
+    pub diagnostic_required: bool,
+    pub surface_bake_reuse_allowed: bool,
+    pub bake_mode: String,
+    pub bake_policy: String,
+    pub bake_policy_sha256: String,
+    pub worker_build_cohort_sha256: String,
+    pub worker_replay_count: u64,
+    pub replay_byte_exact: bool,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponHighLowDiagnosticRecord {
+    pub schema_version: String,
+    pub diagnostic_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub source_stage_head_transition_id: String,
+    pub source_stage_head_transition_sha256: String,
+    pub source_stage_head_canonical_sha256: String,
+    pub source_stage_head_stage: String,
+    pub high_artifact_id: String,
+    pub high_artifact_sha256: String,
+    pub high_artifact_readback_sha256: String,
+    pub low_artifact_id: String,
+    pub low_artifact_sha256: String,
+    pub low_artifact_readback_sha256: String,
+    pub cage_artifact_id: String,
+    pub cage_artifact_sha256: String,
+    pub cage_artifact_readback_sha256: String,
+    pub correspondence_id: String,
+    pub correspondence_object_sha256: String,
+    pub correspondence_canonical_sha256: String,
+    pub bake_plan_id: String,
+    pub bake_plan_object_sha256: String,
+    pub bake_plan_canonical_sha256: String,
+    pub low_uv_binding_sha256: String,
+    pub low_tangent_binding_sha256: String,
+    pub material_zone_binding_sha256: String,
+    pub normal_convention: String,
+    pub ray_origin_policy: String,
+    pub ray_direction_policy: String,
+    pub ray_distance_policy: String,
+    pub front_back_policy: String,
+    pub per_part_isolation_policy: String,
+    pub anti_cross_hit_policy: String,
+    pub max_ray_distance_m: f64,
+    pub max_observed_distance_m: f64,
+    pub ray_sample_count: u64,
+    pub ray_hit_count: u64,
+    pub ray_miss_count: u64,
+    pub backface_hit_count: u64,
+    pub skew_count: u64,
+    pub cross_part_hit_count: u64,
+    pub cage_intersection_count: u64,
+    pub overlap_count: u64,
+    pub out_of_range_count: u64,
+    pub distance_histogram_object_sha256: String,
+    pub distance_histogram_canonical_sha256: String,
+    pub diagnostic_heatmap_object_sha256: String,
+    pub diagnostic_heatmap_canonical_sha256: String,
+    pub diagnostic_policy: String,
+    pub diagnostic_policy_sha256: String,
+    pub bake_mode: String,
+    pub surface_bake_reuse_allowed: bool,
+    pub diagnostic_status: String,
+    pub high_low_bake_status: String,
+    pub worker_algorithm_sha256: String,
+    pub worker_build_cohort_sha256: String,
+    pub worker_replay_count: u64,
+    pub replay_byte_exact: bool,
+    pub validator_status: String,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub quality_status: String,
+    pub hard_gate_passed: bool,
+    pub runtime_write_performed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponHighLowHardGate {
+    pub distinct_high_low_cage_bindings: bool,
+    pub high_readback_verified: bool,
+    pub low_readback_verified: bool,
+    pub cage_readback_verified: bool,
+    pub low_authoring_topology_verified: bool,
+    pub correspondence_verified: bool,
+    pub uv_tangent_binding_verified: bool,
+    pub ray_diagnostic_verified: bool,
+    pub no_candidate_surface_bake_reuse: bool,
+    pub same_cohort_replay_verified: bool,
+    pub output_byte_exact: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponHighLowBakeReceiptRecord {
+    pub schema_version: String,
+    pub bake_receipt_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub gate_scope: String,
+    pub source_stage: String,
+    pub target_stage: String,
+    pub source_stage_head_transition_id: String,
+    pub source_stage_head_transition_sha256: String,
+    pub source_stage_head_canonical_sha256: String,
+    pub source_stage_head_stage: String,
+    pub high_candidate_id: String,
+    pub high_candidate_state_sha256: String,
+    pub high_artifact_id: String,
+    pub high_artifact_sha256: String,
+    pub high_artifact_readback_sha256: String,
+    pub low_candidate_id: String,
+    pub low_candidate_state_sha256: String,
+    pub low_artifact_id: String,
+    pub low_artifact_sha256: String,
+    pub low_artifact_readback_sha256: String,
+    pub cage_artifact_id: String,
+    pub cage_artifact_sha256: String,
+    pub cage_artifact_readback_sha256: String,
+    pub correspondence_id: String,
+    pub correspondence_object_sha256: String,
+    pub correspondence_canonical_sha256: String,
+    pub bake_plan_id: String,
+    pub bake_plan_object_sha256: String,
+    pub bake_plan_canonical_sha256: String,
+    pub diagnostic_id: String,
+    pub diagnostic_object_sha256: String,
+    pub diagnostic_canonical_sha256: String,
+    pub bake_policy: String,
+    pub bake_policy_sha256: String,
+    pub high_status: String,
+    pub low_status: String,
+    pub cage_status: String,
+    pub correspondence_status: String,
+    pub diagnostic_status: String,
+    pub high_low_bake_status: String,
+    pub bake_output_object_sha256s: Vec<String>,
+    pub hard_gate: ProductionWeaponHighLowHardGate,
+    pub hard_gate_passed: bool,
+    pub validator_status: String,
+    pub structural_status: String,
+    pub visual_status: String,
+    pub human_status: String,
+    pub engine_status: String,
+    pub distribution_status: String,
+    pub quality_status: String,
+    pub runtime_write_performed: bool,
+    pub stage_advance_allowed: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub limitations: Vec<String>,
+    pub request_sha256: String,
+    pub input_sha256: String,
+    pub receipt_object_sha256: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponHighLowBakePrepareRequest {
+    pub schema_version: String,
+    pub bake_receipt_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub gate_scope: String,
+    pub source_stage: String,
+    pub target_stage: String,
+    pub source_stage_head_transition_id: String,
+    pub source_stage_head_transition_sha256: String,
+    pub source_stage_head_canonical_sha256: String,
+    pub source_stage_head_stage: String,
+    pub high_candidate_id: String,
+    pub high_candidate_state_sha256: String,
+    pub high_artifact_id: String,
+    pub high_artifact_sha256: String,
+    pub high_artifact_readback_sha256: String,
+    pub low_candidate_id: String,
+    pub low_candidate_state_sha256: String,
+    pub low_artifact_id: String,
+    pub low_artifact_sha256: String,
+    pub low_artifact_readback_sha256: String,
+    pub cage_artifact_id: String,
+    pub cage_artifact_sha256: String,
+    pub cage_artifact_readback_sha256: String,
+    pub correspondence_id: String,
+    pub correspondence_object_sha256: String,
+    pub correspondence_canonical_sha256: String,
+    pub bake_plan_id: String,
+    pub bake_plan_object_sha256: String,
+    pub bake_plan_canonical_sha256: String,
+    pub bake_policy: String,
+    pub bake_policy_sha256: String,
+    pub input_sha256: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponHighLowBakePrepareResult {
+    pub schema_version: String,
+    pub bake_receipt_id: String,
+    pub bake_receipt_object_sha256: String,
+    pub bake_receipt: ProductionWeaponHighLowBakeReceiptRecord,
+    pub replayed: bool,
+    pub restart_hash_verified: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponHighLowBakeGetRequest {
+    pub schema_version: String,
+    pub bake_receipt_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub gate_scope: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductionWeaponHighLowBakeGetResult {
+    pub schema_version: String,
+    pub bake_receipt_id: String,
+    pub bake_receipt_object_sha256: String,
+    pub bake_receipt: ProductionWeaponHighLowBakeReceiptRecord,
+    pub replayed: bool,
+    pub restart_hash_verified: bool,
+    pub runtime_write: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponHighLowBakePreflightCheck {
+    pub status: String,
+    pub reason_code: String,
+    pub object_sha256: Option<String>,
+    pub canonical_sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponHighLowBakePreflightGetRequest {
+    pub schema_version: String,
+    pub preflight_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub expected_head_stage: String,
+    pub expected_head_transition_id: String,
+    pub expected_head_transition_sha256: String,
+    pub expected_head_canonical_sha256: String,
+    pub input_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProductionWeaponHighLowBakePreflightGetResult {
+    pub schema_version: String,
+    pub preflight_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub expected_head_stage: String,
+    pub observed_head_stage: Option<String>,
+    pub observed_head_transition_id: Option<String>,
+    pub observed_head_transition_sha256: Option<String>,
+    pub observed_head_canonical_sha256: Option<String>,
+    pub checks: BTreeMap<String, ProductionWeaponHighLowBakePreflightCheck>,
+    pub ready_for_formal_bake: bool,
+    pub blocking_reasons: Vec<String>,
+    pub quality_status: String,
+    pub visual_quality_status: String,
+    pub human_review_status: String,
+    pub commercial_engine_status: String,
+    pub distribution_status: String,
+    pub runtime_write: bool,
+    pub worker_started: bool,
+    pub production_stage_advanced: bool,
+    pub candidate_confirmed: bool,
+    pub version_created: bool,
+    pub export_performed: bool,
+    pub restart_hash_verified: bool,
+    pub readiness_sha256: String,
 }
 
 /// Short aliases make the V2 head/transition records convenient for the
@@ -5050,6 +8841,57 @@ pub struct ApprovalReceiptRecord {
     pub expires_at: String,
     pub session_id: String,
     pub created_at: String,
+    /// Optional typed context carried by ApprovalReceipt@1.  Existing
+    /// approval flows omit this field; the production CameraLock lineage
+    /// uses it to bind the exact authored orientation to its scope and the
+    /// Runtime-derived camera proof without adding another top-level receipt
+    /// contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approval_context: Option<ApprovalReceiptContextRecord>,
+}
+
+/// Closed ApprovalReceipt@1 context for the production CameraLock authored
+/// orientation gate.  This is intentionally nested under the existing
+/// receipt contract so generic approvals keep their historical wire shape.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ApprovalReceiptContextRecord {
+    pub schema_version: String,
+    pub policy: String,
+    pub scope: ApprovalReceiptContextScope,
+    pub orientation: ApprovalReceiptOrientation,
+    pub binding_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ApprovalReceiptContextScope {
+    pub project_id: String,
+    pub session_id: String,
+    pub candidate_id: String,
+    pub candidate_state_sha256: String,
+    pub artifact_id: String,
+    pub artifact_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub registration_lineage_id: String,
+    pub camera_lock_id: String,
+    pub camera_lock_canonical_sha256: String,
+    pub authored_orientation_id: String,
+    pub registered_rig_v2_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ApprovalReceiptOrientation {
+    pub rotation_degrees: i64,
+    pub subject_screen_order: String,
+    pub upright: bool,
+    pub screen_up: String,
+    pub derived_camera_orbit_degrees: i64,
+    pub derived_camera_hash: String,
+    pub derived_camera_canonical_sha256: String,
+    pub semantic_orientation_proof_sha256: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,0 +1,98 @@
+{
+  "schema_version": "ForgeCADFoundationAuthoringMeshV2MaterializationRuntimeGate@1",
+  "task_id": "FGC-MCP010F",
+  "stage_id": "FPS-FOUNDATION-AUTHORING-MATERIALIZATION-02",
+  "recorded_at": "2026-08-27T00:00:00+08:00",
+  "status": "PASS_SOURCE_RUNTIME_ATOMIC_PART_BOUNDED_AUTHORING_MESH_V2",
+  "scope": "closed embedded foundation import to ForgeCAD-owned AuthoringMeshV2 genesis",
+  "architecture": {
+    "runtime_sole_writer": true,
+    "mcp_database_access": false,
+    "arbitrary_path_url_bytes_or_script_accepted": false,
+    "full_topology_location": "RUNTIME_CAS_ONLY",
+    "public_response_shape": "HASH_AND_COUNT_ONLY_UNDER_1_MIB",
+    "atomicity": "ALL_PART_REVISIONS_AND_AGGREGATE_IN_ONE_SQLITE_TRANSACTION",
+    "candidate_created": false,
+    "version_created": false,
+    "export_performed": false,
+    "promotion_eligible": false
+  },
+  "contracts": {
+    "schema_count": 553,
+    "new_schema_count": 7,
+    "source_binding": "AuthoringMeshV2FoundationSourceBinding@1",
+    "prepare_request": "WeaponFoundationAuthoringMaterializationPrepareRequest@1",
+    "prepare_result": "WeaponFoundationAuthoringMaterializationPrepareResult@1",
+    "get_request": "WeaponFoundationAuthoringMaterializationGetRequest@1",
+    "get_result": "WeaponFoundationAuthoringMaterializationGetResult@1",
+    "record": "WeaponFoundationAuthoringMaterializationRecord@1",
+    "descriptor": "WeaponFoundationAuthoringMaterializationDescriptor@1"
+  },
+  "mcp_manifest": {
+    "read_count": 120,
+    "write_count": 90,
+    "total_count": 210,
+    "read_tool": "weapon_foundation_authoring_materialization_get",
+    "write_tool": "weapon_foundation_authoring_materialization_prepare",
+    "summary_canonical_sha256": "1435a304672a599dae75264e4035a150863f8a63995e2187720b59a75e560e9b"
+  },
+  "runtime_probes": [
+    {
+      "asset_id": "pichuliru-weapon-west",
+      "part_count": 1,
+      "vertex_count": 8045,
+      "face_count": 4352,
+      "descriptor_sha256": "9e165494942e6e3c8a862d80745b15147d56218d701ad1257a3f69f4f2f13fb5",
+      "prepare_response_bytes": 6610,
+      "restart_get_response_bytes": 6558,
+      "first_replayed": false,
+      "second_replayed": true,
+      "restart_hash_verified": true
+    },
+    {
+      "asset_id": "wrad-arms",
+      "part_count": 1,
+      "vertex_count": 872,
+      "face_count": 1196,
+      "descriptor_sha256": "ab975681518ec9a3456b38fe3b03b211880ad921579fcb0b3bc8ad88395baffd",
+      "prepare_response_bytes": 6505,
+      "restart_get_response_bytes": 6453,
+      "first_replayed": false,
+      "second_replayed": true,
+      "restart_hash_verified": true
+    },
+    {
+      "asset_id": "lightning-low-pbr",
+      "part_count": 1,
+      "vertex_count": 2332,
+      "face_count": 3042,
+      "descriptor_sha256": "80cb3ce85158eb1b0f3dcbb262325dcfc7899eaa463791eb7847492837d43eb0",
+      "prepare_response_bytes": 6577,
+      "restart_get_response_bytes": 6525,
+      "first_replayed": false,
+      "second_replayed": true,
+      "restart_hash_verified": true
+    }
+  ],
+  "source_hashes": {
+    "contracts_rust": "3ee6d4fa9d8543dff28f3cedd7b39a463c2d626be556ae302490ca51906a1118",
+    "runtime_materializer": "7d660ddab4814f526492c910a75386eacef560652de0328e8f6c63d80aab4c0d",
+    "authoring_mesh_kernel": "f9e431fbe7cac2ac2927698fdd6fdadfe308ba40c7054626a4d1940db6140f3e",
+    "store_atomic_materialization": "87046bdc06bbab74e50866f1cb4b1e7d332bd7839aa8a14429c5029098b3fac8",
+    "mcp_tools": "5a682c90c167f00e4d4829485a1bd460538a4f9933f412625e34a9f53ffe64ad",
+    "contract_manifest": "9e2bd3ed6bfd3176ad4495f00207d3535f3097e8daec4a2fe65dd866dbc05bb7",
+    "tool_manifest_receipt": "0ef31ac5ea45609f833f355c13facb8802f4d9a6bddb9900c711a369cd6e29fb"
+  },
+  "quality_truth": {
+    "status": "structural_only",
+    "review_status": "DRAFT_UNREVIEWED",
+    "commercial_fps_quality": "NOT_PROVEN",
+    "visual_likeness": "NOT_RUN",
+    "high_low_uv_bake_loop": "NOT_RUN_FOR_MATERIALIZED_FOUNDATION",
+    "engine_roundtrip": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "next_stage": "bind the separately materialized weapon, first-person arms, sockets, rig and animation clips into one editable composite FpsPresentationPackage successor without mutating the immutable foundation imports",
+  "canonical_sha256": "c8306138193771b6b0f6add00f28bffbbf6581c1bbde855d3d293d4dda2d752b"
+}

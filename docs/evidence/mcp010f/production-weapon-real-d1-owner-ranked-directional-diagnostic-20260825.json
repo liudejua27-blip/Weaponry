@@ -1,0 +1,76 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04M-REAL-D1-OWNER-RANKED-DIRECTIONAL-DIAGNOSTIC",
+  "task_id": "FPS-FORM-04M",
+  "recorded_at": "2026-08-25",
+  "status": "BLOCKED_OWNER_VOID_ACCEPTANCE",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 477.36,
+  "fixture_log_filename": "forgecad-d1-04m-owner-ranked-20260825.log",
+  "fixture_log_sha256": "00364b78921b8b9779e920b8f0b9dd8fb5a5270a888d49a5086738e838f789ca",
+  "strict_policy": "registered-camera-direct-part-id-owner-void-zero-intrusion@1",
+  "binding_rule": {
+    "discovery_eligibility_is_acceptance_uniqueness": false,
+    "requires_unique_ranked_candidate": true,
+    "requires_ranked_transform": "identity",
+    "requires_selected_transform_match": true,
+    "requires_raw_owner_void_intrusion_pixels": 0,
+    "requires_owner_boundary_adjacency_milli_min": 250
+  },
+  "baseline_registered_camera_views": {
+    "left": {
+      "selected_transform": "identity",
+      "owner_intrusion_pixels": 302,
+      "owner_boundary_adjacency_milli": 319,
+      "expected_void_bbox_px": [380, 261, 457, 280],
+      "owner_bbox_px": [423, 268, 502, 336],
+      "owner_minus_expected_void_bbox_edge_delta_px": [43, 7, 45, 56],
+      "owner_minus_expected_void_centroid_delta_milli_px": [45751, 27080],
+      "status": "BLOCKED_STRICT_THRESHOLDS"
+    },
+    "right": {
+      "selected_transform": "identity",
+      "owner_intrusion_pixels": 560,
+      "owner_boundary_adjacency_milli": 420,
+      "expected_void_bbox_px": [51, 260, 139, 284],
+      "owner_bbox_px": [9, 262, 88, 331],
+      "owner_minus_expected_void_bbox_edge_delta_px": [-42, 2, -51, 47],
+      "owner_minus_expected_void_centroid_delta_milli_px": [-46387, 19873],
+      "status": "BLOCKED_STRICT_THRESHOLDS"
+    },
+    "rear-three-quarter": {
+      "selected_transform": "identity",
+      "owner_intrusion_pixels": 587,
+      "owner_boundary_adjacency_milli": 248,
+      "expected_void_bbox_px": [343, 113, 385, 245],
+      "owner_bbox_px": [334, 211, 449, 314],
+      "owner_minus_expected_void_bbox_edge_delta_px": [-9, 98, 64, 69],
+      "owner_minus_expected_void_centroid_delta_milli_px": [17179, 74833],
+      "status": "BLOCKED_STRICT_THRESHOLDS"
+    }
+  },
+  "directional_conclusion": {
+    "world_longitudinal_sign_proven": false,
+    "reason": "left and right image-space offsets are mirrored while the registered yaw and camera right-vectors prevent inferring world-X sign from image-X alone",
+    "next_private_trial_parameter": "stock-plane-position",
+    "next_private_trial_values_m": [-0.1, 0.1],
+    "public_sink_available": false
+  },
+  "lineage": {
+    "same_candidate": true,
+    "registered_camera_rig_unchanged": true,
+    "subject_frame_registration_unchanged": true,
+    "reference_lineage_unchanged": true,
+    "worker_cohort_unchanged": true
+  },
+  "promotion": {
+    "promotable": false,
+    "quality_status": "NOT_PROVEN",
+    "depth_status": "UNKNOWN",
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  }
+}

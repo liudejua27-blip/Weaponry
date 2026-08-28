@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/low-quad-draft-worker-request.schema.json",
+  "title": "LowQuadDraftWorkerRequest@1",
+  "description": "Closed Worker request for an explicit, source-only quad retopology draft. The draft is supplied by the caller as editable AuthoringMesh data; this contract does not auto-retopologize or claim artist approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "preview_only",
+    "project_id",
+    "source_high_artifact_sha256",
+    "source_high_artifact_readback_sha256",
+    "source_high_part_id",
+    "source_high_node_id",
+    "source_high_material_zone_id",
+    "draft",
+    "max_vertices",
+    "max_edges",
+    "max_faces",
+    "low_retopology_policy",
+    "algorithm",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "LowQuadDraftWorkerRequest@1"},
+    "preview_only": {"const": true},
+    "project_id": {"$ref": "#/$defs/id"},
+    "source_high_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "source_high_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "source_high_part_id": {"$ref": "#/$defs/id"},
+    "source_high_node_id": {"$ref": "#/$defs/id"},
+    "source_high_material_zone_id": {"$ref": "#/$defs/id"},
+    "draft": {"$ref": "#/$defs/draft"},
+    "max_vertices": {"$ref": "#/$defs/budget"},
+    "max_edges": {"$ref": "#/$defs/budget"},
+    "max_faces": {"$ref": "#/$defs/budget"},
+    "low_retopology_policy": {"const": "explicit-artist-editable-quad-draft-source-only@1"},
+    "algorithm": {"const": "deterministic-explicit-quad-compile-edge-flow@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "budget": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8192
+    },
+    "position": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"type": "number", "minimum": -10, "maximum": 10}
+    },
+    "vertex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element_id", "position_m"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/id"},
+        "position_m": {"$ref": "#/$defs/position"}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element_id", "vertex_ids"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/id"},
+        "vertex_ids": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"$ref": "#/$defs/id"}
+        }
+      }
+    },
+    "loop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element_id", "face_id", "ordinal", "vertex_id", "edge_id", "edge_forward"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/id"},
+        "face_id": {"$ref": "#/$defs/id"},
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 3},
+        "vertex_id": {"$ref": "#/$defs/id"},
+        "edge_id": {"$ref": "#/$defs/id"},
+        "edge_forward": {"type": "boolean"}
+      }
+    },
+    "face": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element_id", "loop_ids"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/id"},
+        "loop_ids": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        }
+      }
+    },
+    "authoring_mesh": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "topology_policy", "vertices", "edges", "loops", "faces", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "authoring-mesh"},
+        "topology_policy": {"const": "triangle-quad-manifold-with-boundary@1"},
+        "vertices": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8192,
+          "items": {"$ref": "#/$defs/vertex"}
+        },
+        "edges": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16384,
+          "items": {"$ref": "#/$defs/edge"}
+        },
+        "loops": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 32768,
+          "items": {"$ref": "#/$defs/loop"}
+        },
+        "faces": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8192,
+          "items": {"$ref": "#/$defs/face"}
+        },
+        "position_m": {"$ref": "#/$defs/position"},
+        "rotation_rad": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {"type": "number", "minimum": -6.283185307179586, "maximum": 6.283185307179586}
+        }
+      }
+    },
+    "draft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "source_lineage", "authoring_mesh"],
+      "properties": {
+        "schema_version": {"const": "LowQuadRetopologyDraft@1"},
+        "source_lineage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source_high_artifact_sha256", "source_high_artifact_readback_sha256", "source_high_part_id", "source_high_node_id", "source_high_material_zone_id"],
+          "properties": {
+            "source_high_artifact_sha256": {"$ref": "#/$defs/sha256"},
+            "source_high_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+            "source_high_part_id": {"$ref": "#/$defs/id"},
+            "source_high_node_id": {"$ref": "#/$defs/id"},
+            "source_high_material_zone_id": {"$ref": "#/$defs/id"}
+          }
+        },
+        "authoring_mesh": {"$ref": "#/$defs/authoring_mesh"}
+      }
+    }
+  }
+}

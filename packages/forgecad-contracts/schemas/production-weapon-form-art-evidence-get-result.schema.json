@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-evidence-get-result.schema.json",
+  "title": "ProductionWeaponFormArtEvidenceGetResult@1",
+  "description": "Read-only restart-hash-verified result for additive form art evidence. It cannot advance a stage or perform a write.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "art_evidence", "replayed", "runtime_write", "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed", "restart_hash_verified"],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtEvidenceGetResult@1"},
+    "art_evidence": {"$ref": "https://forgecad.local/contracts/production-weapon-form-art-evidence.schema.json"},
+    "replayed": {"type": "boolean"}, "runtime_write": {"const": false},
+    "production_stage_advanced": {"const": false}, "candidate_confirmed": {"const": false},
+    "version_created": {"const": false}, "export_performed": {"const": false},
+    "restart_hash_verified": {"const": true},
+    "raster_source_attribution_diagnostic": {"$ref": "#/$defs/rasterAttributionResult"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "u64": {"type": "integer", "minimum": 0},
+    "sourceRow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["semantic_part_id", "source_node_id", "lineage_source_node_ids", "material_zone_ids", "mesh_indices", "primitive_indices", "triangle_count", "visible_pixel_count", "reviewed_region_pixel_count", "expected_void_pixel_count", "owner_changed_pixel_count"],
+      "properties": {
+        "semantic_part_id": {"$ref": "#/$defs/id"}, "source_node_id": {"$ref": "#/$defs/id"},
+        "lineage_source_node_ids": {"type": "array", "minItems": 1, "maxItems": 256, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "material_zone_ids": {"type": "array", "minItems": 1, "maxItems": 256, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "mesh_indices": {"type": "array", "minItems": 1, "maxItems": 1000000, "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 4294967295}},
+        "primitive_indices": {"type": "array", "minItems": 1, "maxItems": 1000000, "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 4294967295}},
+        "triangle_count": {"$ref": "#/$defs/u64"}, "visible_pixel_count": {"$ref": "#/$defs/u64"},
+        "reviewed_region_pixel_count": {"$ref": "#/$defs/u64"}, "expected_void_pixel_count": {"$ref": "#/$defs/u64"},
+        "owner_changed_pixel_count": {"$ref": "#/$defs/u64"}
+      }
+    },
+    "diagnostic": {
+      "type": "object", "additionalProperties": false,
+      "required": ["width", "height", "visible_pixel_count", "background_pixel_count", "reviewed_region_attributed_pixel_count", "expected_void_attributed_pixel_count", "owner_changed_attributed_pixel_count", "triangle_ids_sha256", "source_table_sha256", "sources", "highest_impact_source", "highest_impact_basis", "highest_impact_pixel_count", "expected_semantic_part_ids", "highest_impact_semantic_match", "repair_target_status", "render_worker_build_cohort_sha256", "status", "diagnostic_only", "promotable", "runtime_write", "production_stage_advanced"],
+      "properties": {
+        "width": {"const": 512}, "height": {"const": 512},
+        "visible_pixel_count": {"$ref": "#/$defs/u64"}, "background_pixel_count": {"$ref": "#/$defs/u64"},
+        "reviewed_region_attributed_pixel_count": {"$ref": "#/$defs/u64"},
+        "expected_void_attributed_pixel_count": {"$ref": "#/$defs/u64"},
+        "owner_changed_attributed_pixel_count": {"const": 0},
+        "triangle_ids_sha256": {"$ref": "#/$defs/sha256"}, "source_table_sha256": {"$ref": "#/$defs/sha256"},
+        "sources": {"type": "array", "maxItems": 1000000, "items": {"$ref": "#/$defs/sourceRow"}},
+        "highest_impact_source": {"$ref": "#/$defs/sourceRow"},
+        "highest_impact_basis": {"enum": ["owner-changed-pixels", "expected-void-pixels"]},
+        "highest_impact_pixel_count": {"type": "integer", "minimum": 1},
+        "expected_semantic_part_ids": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "highest_impact_semantic_match": {"type": "boolean"},
+        "repair_target_status": {"enum": ["UNIQUE_HIGHEST_IMPACT_SOURCE_OBSERVED", "BLOCKED_REVIEW_REGION_SEMANTIC_MISMATCH"]},
+        "render_worker_build_cohort_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "status": {"const": "TRANSIENT_SOURCE_ATTRIBUTION_OBSERVED"}, "diagnostic_only": {"const": true},
+        "promotable": {"const": false}, "runtime_write": {"const": false}, "production_stage_advanced": {"const": false}
+      }
+    },
+    "rasterAttributionResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "diagnostic_id", "session_id", "project_id", "candidate_id", "candidate_state_sha256", "artifact_id", "artifact_sha256", "artifact_readback_canonical_sha256", "reference_id", "reference_sha256", "view_kind", "view_id", "camera_hash", "camera_canonical_sha256", "camera_object_sha256", "camera_rig_object_sha256", "camera_rig_canonical_sha256", "form_art_evidence_object_sha256", "form_art_evidence_canonical_sha256", "form_art_view_receipt_object_sha256", "form_art_view_receipt_canonical_sha256", "target_object_sha256", "target_canonical_sha256", "target_mask_source_sha256", "projected_target_mask_sha256", "reviewed_region_mask_sha256", "expected_void_mask_sha256", "render_set_object_sha256", "render_set_canonical_sha256", "reviewed_region_structure_id", "reviewed_region_canonical_sha256", "owner_changed_status", "policy", "diagnostic", "quality_status", "runtime_write", "worker_started", "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed", "input_sha256", "diagnostic_canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "ProductionWeaponRasterSourceAttributionDiagnosticGetResult@1"},
+        "diagnostic_id": {"$ref": "#/$defs/id"}, "session_id": {"$ref": "#/$defs/id"}, "project_id": {"$ref": "#/$defs/id"}, "candidate_id": {"$ref": "#/$defs/id"},
+        "candidate_state_sha256": {"$ref": "#/$defs/sha256"}, "artifact_id": {"$ref": "#/$defs/id"}, "artifact_sha256": {"$ref": "#/$defs/sha256"}, "artifact_readback_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_id": {"$ref": "#/$defs/id"}, "reference_sha256": {"$ref": "#/$defs/sha256"}, "view_kind": {"enum": ["left", "right", "rear-three-quarter"]}, "view_id": {"$ref": "#/$defs/id"},
+        "camera_hash": {"$ref": "#/$defs/sha256"}, "camera_canonical_sha256": {"$ref": "#/$defs/sha256"}, "camera_object_sha256": {"$ref": "#/$defs/sha256"}, "camera_rig_object_sha256": {"$ref": "#/$defs/sha256"}, "camera_rig_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "form_art_evidence_object_sha256": {"$ref": "#/$defs/sha256"}, "form_art_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"}, "form_art_view_receipt_object_sha256": {"$ref": "#/$defs/sha256"}, "form_art_view_receipt_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "target_object_sha256": {"$ref": "#/$defs/sha256"}, "target_canonical_sha256": {"$ref": "#/$defs/sha256"}, "target_mask_source_sha256": {"$ref": "#/$defs/sha256"}, "projected_target_mask_sha256": {"$ref": "#/$defs/sha256"}, "reviewed_region_mask_sha256": {"$ref": "#/$defs/sha256"}, "expected_void_mask_sha256": {"$ref": "#/$defs/sha256"},
+        "render_set_object_sha256": {"$ref": "#/$defs/sha256"}, "render_set_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "reviewed_region_structure_id": {"enum": ["left.open-stock-void", "right.open-stock-void", "rear3q.open-stock-void"]}, "reviewed_region_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "owner_changed_status": {"const": "NOT_APPLICABLE_SINGLE_CANDIDATE"}, "policy": {"const": "production-weapon-raster-source-attribution-single-candidate-diagnostic@1"},
+        "diagnostic": {"$ref": "#/$defs/diagnostic"}, "quality_status": {"const": "NOT_PROVEN"},
+        "runtime_write": {"const": false}, "worker_started": {"const": true}, "production_stage_advanced": {"const": false}, "candidate_confirmed": {"const": false}, "version_created": {"const": false}, "export_performed": {"const": false},
+        "input_sha256": {"$ref": "#/$defs/sha256"}, "diagnostic_canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

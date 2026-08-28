@@ -1,0 +1,50 @@
+{
+  "schema_version": "ForgeCADMCP010FSourceGateReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "atomic_slice": "FPS-FORM-EVIDENCE-04AS",
+  "recorded_on": "2026-08-27",
+  "status": "PASS_SOURCE_COMPILE_DUAL_SCOPE_ADAPTER",
+  "scope": {
+    "source_scope": "current Stage head, CameraLock, fresh same-cohort FormArt baseline and RegisteredCameraRigCalibration@2",
+    "evaluation_scope": "distinct derived proposal candidate, proposal CrossView bundle and proposal-side Part-ID, negative-space and line-flow evidence",
+    "writer": "forgecad-runtime",
+    "arbitrary_script_execution": false
+  },
+  "implementation": {
+    "runtime_adapter": "PASS",
+    "runtime_derived_request_binding": "PASS",
+    "store_dual_scope_validation": "PASS",
+    "mcp_closed_input_validation": "PASS",
+    "json_schema_contracts": "PASS",
+    "legacy_mode_fail_closed_scope": "PASS",
+    "proposal_candidate_confirmed": false,
+    "production_stage_advanced": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "verification": {
+    "contract_schema_count": 538,
+    "contract_schema_content_set_sha256": "bc674917b045194e121f344bba412802d33b8efad84f22c9e7011901c56ba675",
+    "contract_checker": "PASS",
+    "cargo_check_contracts_store_runtime_mcp": "PASS",
+    "git_diff_check": "PASS",
+    "build_cohort_sha256": "acf10c3bebcbd9e465e0864301d55135e57d0dca9dd7f91bacf605d37fbd3173",
+    "runtime_build_identity": "PASS_SAME_COHORT",
+    "mcp_build_identity": "PASS_SAME_COHORT",
+    "geometry_worker_build_identity": "PASS_SAME_COHORT",
+    "render_worker_build_identity": "PASS_SAME_COHORT"
+  },
+  "real_d1_truth": {
+    "approved_rear3q_camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb",
+    "fresh_baseline_id": "fps-form-04a-fresh-baseline-55c50e-v1",
+    "current_rear_stock_proposal": "candidate-91271488624940c194324793fc3fdc8b",
+    "current_rear_stock_proposal_decision": "REJECTED_REGRESSION",
+    "form_quality_v2_fresh_runtime_execution": "NOT_RUN",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "current_stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "hq_360_status": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "next_atomic_task": "Create a new bounded rear-stock art-shape proposal against the approved rear-three-quarter camera, require READY proposal evidence, then run the fresh FormQualityV2 adapter before any Stage promotion.",
+  "canonical_sha256": "808005dcc956440fd55ab6d826938caa2df33de0c4f5693e930d2c9d44e0b31d"
+}

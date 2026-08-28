@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-quality-get-request.schema.json",
+  "title": "ProductionWeaponFormQualityGetRequest@1",
+  "description": "Read-only lookup for one immutable ProductionWeaponFormQuality@1 record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "form_quality_id", "session_id", "project_id", "candidate_id", "form_stage"],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormQualityGetRequest@1"},
+    "form_quality_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "form_stage": {"enum": ["blockout", "primary", "secondary"]}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
+  }
+}

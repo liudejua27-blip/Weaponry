@@ -1,0 +1,64 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04P-REAL-D1-PRIVATE-STOCK-UPPER-INNER-SPAN-SCREEN",
+  "task_id": "FPS-FORM-04P",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 545.10,
+  "fixture_log_filename": "forgecad-d1-04p-stock-upper-inner-span-20260825.log",
+  "fixture_log_sha256": "2b6129f34a71418247944a084276b17de83323baf0b6938377235266bc0d9b70",
+  "parameter_id": "stock-upper-inner-span",
+  "parameter_scope": "private-diagnostic-only",
+  "public_sink_available": false,
+  "baseline_owner_intrusion_pixels": [302, 560, 587],
+  "trials": [
+    {
+      "target_span_m": 0.85,
+      "owner_intrusion_pixels": [191, 390, 428],
+      "owner_boundary_adjacency_milli": [267, 358, 213],
+      "selected_discovery_transforms": ["identity", "identity", "vertical-flip"],
+      "exact_upper_x_only": true,
+      "cap_facing_endpoint_exact": true,
+      "part_source_bindings_unchanged": true,
+      "rear_cap_binding_unchanged": true,
+      "lineage_unchanged": true,
+      "owner_screen_pass": false,
+      "six_view_non_regression": "NOT_RUN",
+      "status": "BLOCKED_OWNER_SCREEN"
+    },
+    {
+      "target_span_m": 0.75,
+      "owner_intrusion_pixels": [117, 246, 250],
+      "owner_boundary_adjacency_milli": [209, 266, 151],
+      "selected_discovery_transforms": ["identity", "identity", "vertical-flip"],
+      "exact_upper_x_only": true,
+      "cap_facing_endpoint_exact": true,
+      "part_source_bindings_unchanged": true,
+      "rear_cap_binding_unchanged": true,
+      "lineage_unchanged": true,
+      "owner_screen_pass": false,
+      "six_view_non_regression": "NOT_RUN",
+      "status": "BLOCKED_OWNER_SCREEN"
+    }
+  ],
+  "conclusion": {
+    "intrusion_reduced_monotonically": true,
+    "boundary_adjacency_preserved": false,
+    "rear_three_quarter_identity_preserved": false,
+    "continue_single_axis_inner_span_search": false,
+    "next_action": "CLOSED_UPPER_FRAME_2D_PROFILE_DESIGN",
+    "promote_to_public_sink": false,
+    "advance_candidate_to_six_view": false
+  },
+  "promotion": {
+    "diagnostic_only": true,
+    "promotable": false,
+    "quality_status": "NOT_PROVEN",
+    "depth_status": "UNKNOWN",
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  }
+}

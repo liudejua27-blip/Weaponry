@@ -1,7 +1,9 @@
 # ForgeCAD 灾难恢复
 
-版本：2026-08-09
+版本：2026-08-25
 状态：MCP002 已验证 focused backup/restore；完整故障注入与升级恢复在 MCP011/013
+
+商业资产路线补充：恢复集合还必须覆盖 durable AuthoringMesh revision/element lineage、High/Low/UV/Cage/Bake/Material/LOD artifacts、逐贴图 CAS、ProductionStage head、engine/human receipts 和最终 export hash。目标对象尚未实现时必须记录 unavailable，不能由 evaluated triangle GLB、Viewer 缓存或外部 DCC 文件重建为权威真值。
 
 ## 1. 保护对象
 
@@ -33,3 +35,9 @@ Alpha 阶段先测量再承诺。每次 confirmed version transaction 后 WAL/CA
 ## 5. 旧数据
 
 重置前必须保存 dirty diff、untracked archive 和旧 Library manifest，并在临时目录证明可读。旧数据删除永远需要用户单独明确授权，不包含在产品代码硬切中。
+
+## 6. 商业资产恢复合同（future / queued）
+
+商业模块一旦进入 accepted package，备份 manifest 必须按同一 candidate/export hash 保存 `AuthoringMesh` identity lineage、High/Low/UV/Cage/Bake/Surface/LOD artifacts、EngineValidationReceipt@1、HeroArtReviewReceipt@1、module/contract/worker cohort hashes、LICENSE/NOTICE/SBOM/provenance/signature refs 以及每个 CAS root 的 reachability class。恢复后必须重新做 canonical/hash、strict readback、budget/fixture receipt 和 module signature 校验；不能从 evaluated GLB、Viewer cache、外部 DCC 工程或截图重建 authoring truth。
+
+目标 `ForgeCadModule@1` 的正/负/损坏/超预算/replay fixture 和 removal plan 也属于恢复集合，但在模块仍为 `queued`、Engine/Hero Review `NOT_RUN` 时不产生伪造 receipt。当前 Hero UV 四个 CAS roots 的 linked/GC 与 prepare/replay/drop-reopen/get 1/1 只证明 structural/source recovery slice，不代表商业恢复或 export/restart hash 已通过；RPO/RTO 继续保持未实测。

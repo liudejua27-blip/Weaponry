@@ -8,10 +8,11 @@ use super::{CasError, Runtime, RuntimeError, StoreError};
 
 const MAX_IPC_MESSAGE_BYTES: usize = 8 * 1024 * 1024;
 const IPC_AUTHENTICATION_TIMEOUT: Duration = Duration::from_millis(500);
-// Codex tools have a 60 second outer timeout. Keep local transport bounded
-// below that ceiling while leaving ample room for the 10 second geometry
-// worker budget and response serialization.
-const IPC_REQUEST_TIMEOUT: Duration = Duration::from_secs(55);
+// A six-view production comparison may legitimately serialize several fixed
+// renders in one Runtime-owned transaction. Keep the authenticated transport
+// bounded, but do not sever a healthy transaction at the former single-view
+// 55 second ceiling. The ActionRun itself remains durable and idempotent.
+const IPC_REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
 
 #[derive(Debug, thiserror::Error)]
 pub enum IpcError {
@@ -668,6 +669,12 @@ fn runtime_error_code(error: &RuntimeError) -> String {
                     || value.starts_with("VISUAL_")
                     || value.starts_with("QUALITY_")
                     || value.starts_with("ARTIFACT_")
+                    // Formal High public adapters expose a bounded, typed
+                    // invalid-input family. Preserve that code across the
+                    // authenticated IPC boundary so the raw MCP path does
+                    // not collapse source-lineage failures into generic
+                    // INVALID_INPUT.
+                    || value.starts_with("PRODUCTION_WEAPON_FORMAL_HIGH_")
                     || value.starts_with("PROJECT_SCOPE_")
                     || *value == "NOT_FOUND"
                     || value.starts_with("CANDIDATE_ARTIFACT_UNAVAILABLE")
@@ -836,6 +843,12 @@ mod tests {
                 "SILHOUETTE_FIT_INVALID: optimizer.step_fraction is outside (0,0.5]".to_owned(),
             )),
             "SILHOUETTE_FIT_INVALID_OPTIMIZER"
+        );
+        assert_eq!(
+            runtime_error_code(&RuntimeError::InvalidInput(
+                "PRODUCTION_WEAPON_FORMAL_HIGH_PUBLIC_INVALID: PRODUCTION_WEAPON_FORMAL_HIGH_SOURCE_TRANSITION_MISSING".to_owned(),
+            )),
+            "PRODUCTION_WEAPON_FORMAL_HIGH_PUBLIC_INVALID"
         );
     }
 

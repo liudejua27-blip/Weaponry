@@ -1,10 +1,93 @@
 # ForgeCAD Runtime Viewer
 
+> 2026-08-28 `FPS-FORM-04BE-F` Viewer 真值：只允许展示只读 failure diagnostic 的 exact parent hashes、六点 delta、left/right/rear3q owner delta、side trigger sealed 状态、line-flow 独立失败和 `NO_GEOMETRY_REPAIR_AUTHORIZED`。不得把 owner bbox 不变显示成“几何未变化”，也不得出现新 repair、confirm、secondary 或 High→Low→UV→Bake 控制。
+
+> 2026-08-28 `FPS-FORM-04BE-D` Viewer 真值：可只读显示 repair plan canonical、exact parent evidence、current→target 五站 profile、四个 failure issues、mandatory revalidation gates 与 restart/zero-logical-write 状态。必须显式显示 `repair_execution_status=NOT_RUN / QUALITY_TARGET_NOT_MET`；不得把 half-Y/flat-Z target profile预览成已物化网格，不得显示 secondary、confirm、High→Low→UV→Bake 或商业通过控制。
+
+> 2026-08-28 `FPS-FORM-04BE-C` Viewer 真值：允许只读显示 composite evidence receipt/restart equality、6×9 AOV 完整性、六视图 CrossView 逐项结果与 proposal FormArt owner-void/Part-ID blocker。当前必须显示 `rejected-regression / BLOCKED_PROPOSAL_FORM_ART_EVIDENCE / QUALITY_TARGET_NOT_MET`；尤其 left boundary 小幅回退与 rear-three-quarter owner pixels=0 不得隐藏。FormQualityV2 未创建，Viewer 不得出现 confirm、Stage advance、secondary、High→Low→UV→Bake 或商业通过控制。
+
+> 2026-08-28 `FPS-FORM-04BE-B` Viewer 真值：只允许显示 composite candidate=`candidate-f4a7d…06fa` 的 original/current/final lineage、23-Part strict readback、durable receipt/restart 状态以及 `PREPARED_REVIEWABLE_CANDIDATE_AWAITING_SIX_VIEW`。六视图 54 AOV、FormArt、visual/human/engine 尚未运行时必须显示 `QUALITY_TARGET_NOT_MET / NOT_RUN`，不得出现 confirm、Stage advance、secondary 或商业通过控制。
+
+> 2026-08-27 `FPS-FORM-04AL` 当前增量：Runtime-owned durable fresh six-view baseline producer 已接通合同、Store、Runtime 与 MCP `prepare/get`；每个视图绑定 approved registration lineage / RigV2、fresh same-cohort 512×512 九 AOV、camera/mask/compare/quality 与完整 CAS reachability，并以单事务持久化。精确状态为 `PASS_SOURCE_COMPILE_DURABLE_PRODUCER_NOT_RUN_REAL_D1`；真实 D1、orientation approval、fresh baseline、notch、secondary、Stage/confirm/version/export 均未执行。当前公共面 **538 schemas / 118 read + 88 opt-in write = 206 tools**，视觉仍 `QUALITY_TARGET_NOT_MET`。
+
+> 2026-08-27 `04AK` Viewer 真值：Viewer 只能只读显示 `production_weapon_form_art_baseline_preflight_get` 的 lineage/RigV2/six-view readiness 与 `FRESH_BASELINE_MATERIALIZER_UNAVAILABLE` blocker，不能显示 fresh baseline ready，也不能增加 approval、Stage 或写入伪控制。当前公共面 **533 schemas / 117 read + 87 write = 204 tools**。
+
+> 2026-08-26 Viewer 应将当前 Z taper 显示为“总体改善、局部回退、可审阅权衡、owner evidence blocked”，并展开六视图 per-metric PPM delta、legacy strict-Pareto 结论与 fresh FormArt 阻断原因。Viewer 仍只读；不能把 Pareto review 写成 secondary approval。商业工作台仍需增加 AuthoringMesh 选择/网格编辑证据、High/Low/UV/Cage/Bake/Material 审查，hip/ADS/inspect/reload/recoil 与 Unreal/Unity round-trip 证据面板。
+
+> 2026-08-26 `04AF` Viewer 真值：应显示 real D1 proposal 的六视图对比、三个 regressing views 和 `rejected-regression`，同时将 `AuthoringMesh@2` 标为 structural-only。第一人称 hip/ADS/inspect/reload/recoil、screen occupancy、safe region、VFX/audio timeline 与 engine round-trip 仍是未实现的 Art Director 工作台主缺口，不得用转台 beauty 代替。
+
+> 2026-08-26 source 历史快照：**527 schemas / 115 read + 87 write = 202 tools**；当前已由 04AK 更新为 533/117+87=204。Viewer 仍只读；真实 D1 proposal 只能显示 `REVIEWABLE_TRADEOFF / BLOCKED_FORMART_OWNER_EVIDENCE` 及六视图 PPM delta。Native High、editable Low、Hero UV、Cage/Bake、Material evaluator、FPS presentation 和 engine round-trip 没有正向资产证据时必须显示 unavailable/not-run。
+
+> 2026-08-26 Art Director 目标：Viewer 必须把 topology/UV/cage/bake/material 与 hip/ADS/inspect/equip/reload/recoil、third-person、ground pickup、socket、VFX/audio timeline、safe zone、engine parity 同屏审查；turntable beauty 不能替代 FPS/DPT。详见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。
+
+> 2026-08-26 `FPS-FORM-04AD` 权威增量：当前合同面为 **518 schemas / 111 read + 83 opt-in write = 194 tools**。新增 `ProductionWeaponSemanticLandmarkOrdering@1` 只表达 Runtime-derived 的 3D source/subject-axis 顺序，明确 `target_landmark_arrays_present=false / metrics=NOT_PRESENT`，不得冒充 2D landmark；`ProductionWeaponAuthoredViewOrientation@1` 将诊断变换与用户方向回执分开；`RegisteredCameraRigCalibration@2` 只有绑定 promotable authored rear3q receipt 才能物化。定向 Contracts/Runtime/MCP compile 与 518-schema checker PASS。真实 D1 尚无 orientation-specific user receipt，因此保持 `BLOCKED_AUTHORED_REAR_THREE_QUARTER_ORIENTATION`、Stage=`camera-calibrated`、secondary=`NOT_CREATED`、quality=`QUALITY_TARGET_NOT_MET`，不 confirm/version/export。旧 `@1` 保持历史真值；durable 落点采用 CameraLock 的 additive child lineage，不复制/自动升级整张旧记录。
+
+2026-08-26 FormArt attribution 同步：Runtime/MCP 已能在现有只读 FormArt get 上返回 exact hash-bound pixel→triangle→source summary，包含 Part/source lineage/material zone/mesh/primitive 与 reviewed/expected-void 计数；Viewer 尚未新增该诊断的专用可视化或交互。即使 read model 可用，也只能显示 `SOURCE_HASH_BOUND / REAL_D1_NOT_RUN / NOT_PROVEN`，不得据此修改候选、推进 Stage或宣称视觉通过。
+
+2026-08-26 Viewer 同步：Formal High public MCP surface 已存在，但 Viewer 仍不新增写能力。没有合法 positive durable receipt 时只读状态必须显示 `SOURCE_EXPOSED/POSITIVE_NOT_PROVEN`，不得从 518 schemas/194 tools 推导 High、Cage/Bake 或商业质量 PASS。
+
+> 2026-08-26 最新权威 source 口径（取代下方 2026-08-25 的“最新/当前”计数）：**518 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 MCP tools**。Low quad draft 已接入 Contracts、Store、Runtime 与公共 `low_quad_draft_durable_get/prepare`，并保留 candidate-bound current Low provenance；仍为 `DRAFT_UNREVIEWED / structural_only / promotion_eligible=false`。同键 prepare replay → Runtime drop/reopen → get 当前 cohort **1/1 PASS**，六个 Low durable CAS roots 已纳入 linked/GC 判定。Hero UV 现已接入 Store、Runtime 与 MCP public `hero_uv_durable_get/prepare`，四个 Hero UV CAS roots 已纳入 linked/GC；仅为 structural/source，artist UV review 与 packaged same-cohort 仍 `NOT_RUN`，visual/human/engine/commercial 仍 `NOT_RUN/NOT_PROVEN`。以上均不推进 Stage、confirm、version 或 export；`FPS-HIGH-05=NOT_PASSED`、Stage=`camera-calibrated`、`secondary-form-approved=NOT_CREATED`、visual=`QUALITY_TARGET_NOT_MET`、`HQ360=BLOCKED_REFERENCE_COVERAGE`、proposal=`registered=false`。证据：`docs/evidence/mcp010f/commercial-weapon-hero-uv-durable-restart-source-gate-20260826.json`；`FGC-MCP010F` 是唯一 `in_progress`。
+
+> 2026-08-25 历史快照（已由上方 2026-08-26 权威口径取代）—数值口径为 **499 schemas / 28 operator entries / 107 read + 79 opt-in write = 186 tools**。Viewer Inspector 的“检查”页现已加入 Art Director 只读生产链矩阵，按 Runtime 证据分别显示 reference、AuthoringMesh、High、Low、UV、Cage/Bake、Material、FPS、LOD、visual/human/engine/distribution 的 ready/blocked/not-run；它不写 Runtime、不推断质量、也不提供 Stage 控件。
+
+> 2026-08-25 Viewer 目标补充：当前矩阵解决“生产链状态可见”，尚未完成 brief/reference/candidate 深度联审、固定 world/first-person cameras、UV density/seam/cage/ray-miss/cross-part 热图、material-layer decomposition 或商业引擎/人审同 hash 展示。Viewer 截图仍不能推进 Stage。详见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+| Art Director panel | 只读数据来源 | 当前状态 |
+|---|---|---|
+| Brief / reference / art decision | target Brief、ReferenceViewSet、ArtDecision read model | target / unavailable |
+| Form / negative space | CameraLock、FormEvidence、FormArt、FormQuality | partial；当前质量 blocked |
+| Topology | Authoring topology、High/Low correspondence、wireframe/edge flow | partial structural；AuthoringMesh 只读 source card/typecheck PASS，无编辑器、High/Low correspondence 或商业 quad-flow Gate |
+| UV / tangent | Hero UV、density、seam、stretch、overlap、padding | public `hero_uv_durable_get/prepare` source surface PASS；仍 structural/source，artist UV review、packaged same-cohort、engine/commercial Gate `NOT_RUN/NOT_PROVEN` |
+| Cage / Bake | cage offset、ray miss/cross-hit/skew、8-map decomposition、receipt identity | formal get/read model 可投影；当前 D1 无正向 receipt，只能显示 producer unavailable 与旧失败诊断 |
+| Material response | layer/mask/generator/decal/wear/microdetail + AOV | fixed-formula/AOV preview only |
+| FPS review | hip/ADS/inspect/equip/reload/recoil、animation/VFX/audio timing | partial fragments / commercial review unavailable |
+| LOD / collision / sockets | delivery read model 与 per-LOD diff | partial structural |
+| Engine / human / release | immutable export hash、engine receipt、independent review | `NOT_RUN` / unavailable |
+
+Viewer 只展示 Runtime 已验证的 read model；不得生成 mesh、重算 Bake、批准人审、写 Stage、confirm、version 或 export。
+
+## 商业级 11 组只读投影
+
+### Art Director / 第一人称工作台目标面
+
+Viewer 必须从“GLB 查看器”升级为同候选的生产诊断台，但继续只读。目标固定包含：
+
+- AuthoringMesh original/evaluated、stable V/E/H/C/F、loop/ring/boundary、selection/constraint、mutation history；
+- High/Low 叠加、High↔Low correspondence、support flow、bevel/highlight/curvature；
+- Hero UV density/seam/stretch/overlap/OOB/mip padding、Cage offset/intersection、Bake miss/fallback/cross-Part/skew heatmap；
+- MaterialLayerGraph stack、mask/generator/anchor/decal/wear、channel solo、roughness/specular/normal response；
+- 固定 `hip / ADS / inspect_start / inspect_peak / inspect_end / equip / reload / recoil / third-person / ground-pickup` shots；
+- synchronized animation timeline 与 GameplayBeat/VFXCue/AudioCue marker、reticle/muzzle safe region、screen occupancy、穿插/遮挡诊断；
+- LOD screen-size preview、collision/socket overlay、ForgeCAD/Unreal/Unity fixed-shot 并排、performance receipt 摘要；
+- 匿名 A/B blind-review 模式和修订清单，但 Reviewer/用户批准只能经 Runtime/MCP receipt 写入。
+
+每个 shot 必须绑定 candidate/export/camera/profile/time/hash、FOV/aspect/resolution、weapon root、lighting/exposure/color pipeline。Viewer 不能通过改变相机、后处理、灯光或本地状态让失败候选看似通过。
+
+Viewer 的 Art Director 面必须按同一 `candidate_hash → export_hash` 展示下列顺序；它只投影 Runtime 已验证的状态，不提供阶段推进按钮：
+
+`Art Direction/ReferenceViewSet → AuthoringMesh → High → Low → UV → Cage/Bake → Material → LOD → Viewer/animation/VFX/audio validation → Engine → independent Hero Art Review`
+
+Viewer 可按这 11 组展示商业验收缺口，但不能把它们当成第二套 Stage 顺序或据此写状态。唯一晋级顺序来自 Runtime 的 19 个 `ProductionStage@3` 值，且 `hero-art-review-approved → engine-validated → export-confirmed`；Viewer 只读显示两门的独立状态与同 hash 绑定。
+
+1. Art Direction/ReferenceViewSet：Brief、五核心视图/CameraLock、silhouette/negative-space/landmark；当前 CrossView=`QUALITY_TARGET_NOT_MET`、`secondary-form-approved=NOT_CREATED`。
+2. AuthoringMesh：original/evaluated、稳定 V/E/H/C/F/loop/ring/boundary 与 correspondence；split/collapse/dissolve **3/3 PASS** 仍只为结构。
+3. High：DetailGraph/High artifact 与严格回读；当前 source-only，`FPS-HIGH-05=NOT_PASSED`。
+4. Low：artist-authored quad 与 bake-ready correspondence；当前 `DRAFT_UNREVIEWED / structural_only / promotion_eligible=false`，durable **1/1 PASS** 不等于商业通过。
+5. UV：density/seam/stretch/overlap/OOB/padding、UV0/UV1/tangent；7 contracts 与 public get/prepare **1/1 PASS**、4 CAS roots linked/GC，artist review/package/engine `NOT_RUN/NOT_PROVEN`。
+6. Cage/Bake：cage/ray miss/fallback/cross-part/skew 与 8-map 分解；Viewer 可读取 formal receipt，但当前 D1 没有正向 receipt，必须显示 `PRODUCER_UNAVAILABLE / NOT_PASSED`；旧失败指标只能显示为历史诊断。
+7. Material：Layer/Mask/Generator/Decal/Wear/Microdetail 与材质 AOV；当前仅 **4 MaterialZones / 6 formula textures**，fixed-formula preview。
+8. LOD：LOD0/1/2、collision/socket、平台预算；commercial `NOT_RUN`。
+9. Viewer/animation/VFX/audio validation：同 hash 的 first/third-person、动画/VFX/audio/accessibility；Three.js 仅结构消费，animation/VFX/audio/VoiceOver/human viewing `NOT_RUN`。
+10. Engine：Unreal/Unity importer、材质、切线、LOD、碰撞、socket、animation 回读与预算；**Unreal/Unity 均未运行**，Three.js 不能替代引擎验收。
+11. Independent Hero Art Review：独立真人审阅、修订闭合和同 hash export/restart；human=`NOT_RUN`，无 `PASS_HUMAN_ART_REVIEW`。
+
+当前 source 面 **518 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 MCP tools** 以及 Viewer/Three.js smoke 都只支持结构投影。缺失或失败门必须显示 `NOT_RUN`、`NOT_PROVEN`、`BLOCKED` 或 `NOT_PASSED`；Viewer 不得把这些状态推导为质量 PASS、confirm、version 或 export。
+
 2026-08-22 `CandidateMaterialSurfaceQuality@1` public positive fixture：`Geometry → CandidateTopologyQuality@1 → AppearanceProgram@3 → TextureBuild@2 → SurfaceBake@1 → AppearanceSourceLineage@1 → CandidateMaterialSurfaceQuality@1` 的 `prepare → same-key replay → get → Runtime drop/reopen → restart get` 通过 **1/1（111.72s）**；Runtime focused **5/5**、Store full **74/74**、Contracts **350**。CAS inventory unchanged；stable `artifact_id` 与 GLB object SHA-256、MaterialPack CAS kind 精确区分，合法 UV/tangent rebuild 不计入 geometry-preservation 漂移。该结果仅为 `structural_only`；V2 animated-socket-particles 仍无完整 public `prepare → Store → restart get`，durable end-to-end=`NOT_RUN`/`BLOCKED_FIXTURE_CHAIN`；visual/commercial=`NOT_PROVEN`，human/engine=`NOT_RUN`，stage/confirm/version/export=false。证据：`docs/evidence/mcp010f/candidate-material-surface-quality-public-positive-source-gate-20260822.json`。
 
 最终同 cohort 修订口径：强制 build cohort `724278fe8f6777c8b3d07bc5058208aee90aa5c700db5f9284d6297126fa79f6` 下 material focused **5/5（112.63s）**；Runtime full **310 passed / 0 failed / 20 ignored**（330 total，201.91s），且 public material fixture 明确在该 full run 内执行。此前 **111.72s** 仅为 public fixture 单测时长；两者都只支持 `structural_only`，不提升 visual/commercial、human/engine 或 stage/confirm/version/export 状态。
 
-数值口径：当前 source 为 **375 schemas / 26/26 active operators / 85 read + 64 write = 149 tools**；本文的 291/118、284/116、271/112、264/110、257/108、231/100、229/99、227/98、221/96、215/94、210/92、204/91、201/90、197/90、195/90、193/90、191/90、187/89、177/84、175/83、173/82、170/80、168/79、166/78、164/78、162/77、160/76 仅作 historical prior slice 保留。
+数值口径：当前 source 为 **518 schemas / 28 operator catalog entries / 111 read + 83 opt-in write = 194 tools**。Viewer仍只读；Hero UV/Low durable 状态只作为 Runtime read model 展示，不提供编辑或 Stage 控件。
 
 2026-08-22 `FictionalEnergyVfxAnimatedSocketParticlesSequence@2` 双候选 source slice：Contracts **350**；Store V2 focused **2/2**、Store full **74/74**；Runtime V2 仅低层 focused **6/6**、cargo check **PASS**；MCP V2 **3/3**；同 cohort `724278fe8f6777c8b3d07bc5058208aee90aa5c700db5f9284d6297126fa79f6` Runtime full **309 passed / 0 failed / 20 ignored**（191.06s）、MCP full **128 passed / 0 failed / 0 ignored**（1.93s），这些是全量回归，不是 V2 public `prepare → Store → restart get` 正向 fixture。V1/V2 隔离；V2 仅证明 1..16 frame、geometry/appearance 双 candidate/delivery/AnchorSet bridge 以及 Store FK/reachability/idempotence/conflict/rollback 的结构面。完整双候选 public Runtime `prepare → Store → restart get` 正向 fixture 尚不存在，durable end-to-end=`NOT_RUN` / `BLOCKED_FIXTURE_CHAIN`，不能声称正向 durable。该 slice 为 `structural_only`；visual/commercial=`NOT_PROVEN`，human/engine=`NOT_RUN`，stage/confirm/version/export=false。证据：`docs/evidence/mcp010f/fictional-energy-vfx-animated-socket-particles-v2-dual-candidate-source-gate-20260822.json`。
 
@@ -36,12 +119,13 @@
 
 2026-08-17 历史 Stage 0 覆盖为 138 Schema；该阶段随后达到 144 Schema、41 read + 33 opt-in write = 74 tools；Viewer 仍只读。`repair_intent_run_prepare` 为 Codex/Runtime 的 CAS-bound staged-run source slice，Viewer 不调用它，也不提供 Repair apply/confirm。
 
-版本：2026-08-17
-状态：当前源码口径为 290 Schema、26/26 active operators、69 read + 49 opt-in write = 118；MCP010F source Viewer 在原有九 AOV、reference compare、Part/MaterialZone、explosion、diff/contour 和 mechanical clip inspector 之上，新增 candidate-state-bound Provenance Graph。图以紧凑纵向树显示 GeometryProgram/Operator DAG/ArtifactReadback/GeometryQuality，并且只在 Runtime 完整验证后显示 visual 与 animation 分支；不加入任何写按钮。唯一 `in_progress` 仍为 `FGC-MCP010F`；本轮 package/live UI E2E、正式 VoiceOver、真人/PBR/export-restart/360 仍 `NOT_RUN/BLOCKED`，Viewer 不提供 durable 写入。
+版本：2026-08-26
+状态：当前源码口径为 515 Schema、28 operator entries、111 read + 83 opt-in write = 194；MCP010F source Viewer 在九 AOV、reference compare、Part/MaterialZone、explosion、diff/contour、mechanical clip inspector与 Provenance Graph之上，新增 Art Director只读生产链矩阵。它只在 Runtime证据存在时显示 ready/blocked/not-run，不加入写按钮。唯一`in_progress`仍为`FGC-MCP010F`；artist UV review、packaged same-cohort、正式VoiceOver、真人/PBR/export-restart/360仍`NOT_RUN/BLOCKED`，commercial engine 仍`NOT_PROVEN`。
 
 Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；现有 packaged Viewer receipt 又来自不同 cohort/artifact，未绑定 attempt35。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
 
-<!-- forgecad-stage0: schemas=411 schema_set_sha256=b8fb7befc5870a51fe3919767c8953065e4e0da718c6eed1eda2d1c858a45f30 read_tools=91 write_tools=69 total_tools=160 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 ## 1. 产品角色
 

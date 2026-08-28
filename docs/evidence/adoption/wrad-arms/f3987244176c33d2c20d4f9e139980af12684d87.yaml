@@ -1,0 +1,29 @@
+project: wrad-arms
+source_url: https://github.com/wwwriks/wrad-arms
+revision: f3987244176c33d2c20d4f9e139980af12684d87
+retrieved_at: 2026-08-27
+license_spdx: CC0-1.0
+license_file_git_blob: 0e259d42c996742e9e3cba14c677129b2c1b6311
+research_status: accepted-evaluation-asset
+observed_structure:
+  nodes: 52
+  meshes: 1
+  skins: 1
+  animations: 0
+  required_nodes_present: [root, socket.l, socket.r, wrist_ik.l, wrist_ik.r, arm_target.l, arm_target.r]
+selected_files:
+  - {path: assets/wrad/arms.glb, sha256: 580efbb0852bf0b41f82dd3e17eafec86b3d2a48f4a7acaa7e64d60e850f565d}
+  - {path: assets/wrad/arm-albedo-dark.png, sha256: 10683441d56b2d06d7ed0cc5cd9f9d18b216b255494007c5fe1e2271cccef5d1}
+  - {path: assets/wrad/arm-albedo-pale.png, sha256: a856d5dab7d1da5b7c00faf12efd53cd41f3bf59b586679d444c341c6dc81a9d}
+accepted_scope:
+  - first-person-armature-source
+  - ik-and-grip-socket-vocabulary
+  - typed-rest-pose-normalization-fixture
+denied_capabilities:
+  - upstream_blend_as_runtime_truth
+  - source_dimensions_as_truth
+  - complete_fps_animation_package
+  - commercial_quality_claim
+package: packages/forgecad-assets/forgecad-fps-production-foundation/0.1.0-proposal
+runtime_allowlist_changed: false
+fallback_or_removal_plan: Remove the selected GLB/textures and this receipt; ForgeCAD-owned contracts remain independent.

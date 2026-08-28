@@ -60,8 +60,8 @@
     "preview_input_sha256": {"$ref": "#/$defs/sha256"},
     "expected_preview_canonical_sha256": {"$ref": "#/$defs/sha256"},
     "preview_canonical_sha256": {"$ref": "#/$defs/sha256"},
-    "operation": {"enum": ["translate_vertices", "single_face_extrude"]},
-    "edit_policy_sha256": {"const": "1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae"},
+    "operation": {"enum": ["translate_vertices", "single_face_extrude", "split_edge", "collapse_edge", "dissolve_edge"]},
+    "edit_policy_sha256": {"const": "fc76c6dffef2a41c05ff0a65ff160c8fce5eb37d312a3ef7f78043ef92539144"},
     "edited_element_ids": {"$ref": "https://forgecad.local/contracts/authoring-mesh-edit-preview.schema.json#/$defs/edited_ids"},
     "edit_lineage_sha256": {"$ref": "#/$defs/sha256"},
     "source_topology_sha256": {"$ref": "#/$defs/sha256"},
@@ -86,21 +86,25 @@
     "max_response_bytes": {"const": 1048576},
     "validator_status": {"const": "passed"},
     "quality_status": {"const": "structural_only"},
-    "limitations": {
-      "const": [
+    "limitations": {"const": [
         "STAGED_CANDIDATE_REQUIRES_USER_APPROVAL_BEFORE_CONFIRM",
         "NO_VERSION_CREATED_UNTIL_CONFIRM",
         "NO_EXPORT_BEFORE_CONFIRM",
-        "TRANSLATE_VERTICES_OR_SINGLE_FACE_EXTRUDE_ONLY",
+        "TRANSLATE_VERTICES_SINGLE_FACE_EXTRUDE_OR_TYPED_TOPOLOGY_OPERATION",
         "GENERATED_IDS_STABLE_ONLY_FOR_EXACT_SOURCE_AND_EDIT",
         "NO_CROSS_VERSION_STABLE_ELEMENT_ID_PROMISE",
         "NO_SELECTION_HISTORY_OR_UNDO_BLOB_IN_GEOMETRY_TRUTH",
         "NO_BLENDER_BMESH_PYTHON_OR_PLUGIN_RUNTIME",
         "STRUCTURAL_READBACK_DOES_NOT_PROVE_VISUAL_QUALITY"
-      ]
-    },
+      ]},
     "canonical_sha256": {"$ref": "#/$defs/sha256"}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"operation": {"enum": ["split_edge", "collapse_edge", "dissolve_edge"]}}},
+      "then": {"properties": {"edited_element_ids": {"required": ["typed_operation_proof"]}}}
+    }
+  ],
   "$defs": {
     "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
     "nullable_identifier": {

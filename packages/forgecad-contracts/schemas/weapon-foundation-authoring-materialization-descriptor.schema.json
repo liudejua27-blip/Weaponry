@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weapon-foundation-authoring-materialization-descriptor.schema.json",
+  "title": "WeaponFoundationAuthoringMaterializationDescriptor@1",
+  "description": "Compact CAS root for the complete Part-bounded AuthoringMeshV2 revision set. It contains identities, hashes and counts only; topology remains in the listed revision objects.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "foundation_request_id", "foundation_request_sha256",
+    "foundation_result_object_sha256", "foundation_topology_object_sha256",
+    "foundation_socket_map_object_sha256", "foundation_rig_map_object_sha256",
+    "foundation_fps_presentation_package_object_sha256", "part_revisions",
+    "part_revision_summary_sha256", "part_count", "vertex_count", "face_count",
+    "status", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponFoundationAuthoringMaterializationDescriptor@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "foundation_request_id": {"$ref": "#/$defs/id"},
+    "foundation_request_sha256": {"$ref": "#/$defs/sha256"},
+    "foundation_result_object_sha256": {"$ref": "#/$defs/sha256"},
+    "foundation_topology_object_sha256": {"$ref": "#/$defs/sha256"},
+    "foundation_socket_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "foundation_rig_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "foundation_fps_presentation_package_object_sha256": {"$ref": "#/$defs/sha256"},
+    "part_revisions": {
+      "type": "array", "minItems": 1, "maxItems": 128,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["part_id", "mesh_id", "lineage_id", "revision_id", "idempotency_key", "revision_object_sha256", "revision_sha256", "vertex_count", "face_count"],
+        "properties": {
+          "part_id": {"$ref": "#/$defs/id"},
+          "mesh_id": {"$ref": "#/$defs/id"},
+          "lineage_id": {"$ref": "#/$defs/id"},
+          "revision_id": {"$ref": "#/$defs/id"},
+          "idempotency_key": {"$ref": "#/$defs/id"},
+          "revision_object_sha256": {"$ref": "#/$defs/sha256"},
+          "revision_sha256": {"$ref": "#/$defs/sha256"},
+          "vertex_count": {"type": "integer", "minimum": 0, "maximum": 10000000},
+          "face_count": {"type": "integer", "minimum": 0, "maximum": 10000000}
+        }
+      }
+    },
+    "part_revision_summary_sha256": {"$ref": "#/$defs/sha256"},
+    "part_count": {"type": "integer", "minimum": 1, "maximum": 128},
+    "vertex_count": {"type": "integer", "minimum": 0, "maximum": 1280000000},
+    "face_count": {"type": "integer", "minimum": 0, "maximum": 1280000000},
+    "status": {"const": "runtime-owned-durable-authoring-mesh-v2-foundation@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

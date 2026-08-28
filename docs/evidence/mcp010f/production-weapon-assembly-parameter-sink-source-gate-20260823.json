@@ -1,0 +1,223 @@
+{
+  "schema_version": "ProductionWeaponAssemblyParameterSinkSourceGateReceipt@1",
+  "task_id": "FPS-ASSEMBLY-SINK-04C",
+  "recorded_at": "2026-08-24",
+  "status": "PASS_SOURCE_PURE_TYPED_PROJECTION_AND_REAL_D1_READ_ONLY_RESTART",
+  "scope": {
+    "asset_scope": "fictional-nonfunctional-fps-weapon-visual-asset-only",
+    "projection": "Runtime-owned read-only product-owned aggregate parameter sink",
+    "supported_group_ids": ["receiver-envelope", "muzzle-axis", "stock-open-frame"],
+    "available_parameter_ids": [
+      "receiver-envelope-width",
+      "receiver-envelope-height",
+      "receiver-envelope-shoulder",
+      "muzzle-axis-shroud-envelope",
+      "muzzle-axis-emitter-envelope",
+      "muzzle-axis-core-aperture",
+      "stock-open-frame-clearance",
+      "stock-open-frame-angle"
+    ],
+    "always_unavailable_parameter_ids": [
+      "trigger-void-clearance",
+      "trigger-void-centroid",
+      "rail-spine-continuity",
+      "rail-spine-offset"
+    ]
+  },
+  "contract_surface": {
+    "schema_count": 472,
+    "contract_checker": "PASS_472_SCHEMAS",
+    "registry_schema_version": "ProductionWeaponAssemblyParameterSinkRegistry@1",
+    "get_request_schema_version": "ProductionWeaponAssemblyParameterSinkGetRequest@1",
+    "get_result_schema_version": "ProductionWeaponAssemblyParameterSinkGetResult@1",
+    "available_sink_count": 8,
+    "sink_fields": [
+      "parameter_id",
+      "group_id",
+      "mutator_id",
+      "current",
+      "min",
+      "max",
+      "step",
+      "unit",
+      "application_status",
+      "blocker_codes",
+      "target_part_ids",
+      "source_node_ids",
+      "operator_ids",
+      "evidence_requirements"
+    ],
+    "get_request_field_count": 13,
+    "closed_additional_properties": true,
+    "arbitrary_json_pointer_path_script_expression": false,
+    "available_rows_only": true,
+    "read_only": true,
+    "runtime_write_performed": false,
+    "worker_invoked": false,
+    "candidate_generated": false,
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "runtime_surface": {
+    "runtime_module": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_assembly_parameter_sink.rs",
+    "mutator_module": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_assembly_parameter_mutator.rs",
+    "getter": "production_weapon_assembly_parameter_sink_get",
+    "projection_kind": "pure_read_only_recompute_from_bound_geometry_program_and_assembly_registry",
+    "runtime_focused": "PASS_12_OF_12",
+    "descriptor_shape": "PASS_EXACTLY_EIGHT_TYPED_AVAILABLE_SINKS",
+    "registry_status_shape": ["PARTIAL_TYPED_SINKS", "READY"],
+    "registry_canonical_recomputed": true,
+    "cas_write": false,
+    "sqlite_write": false,
+    "worker_invoked": false,
+    "candidate_generated": false,
+    "stage_advanced": false,
+    "d1_real_fixture": "PASS_1_OF_1_355_28_SECONDS",
+    "d1_real_restart": "PASS_EQUAL_READ_ONLY_PROJECTION",
+    "d1_real_sink_projection": "PASS_7_TYPED_5_UNAVAILABLE"
+  },
+  "art_decision_surface": {
+    "resolver": "typed_product_owned_parameter_descriptor_resolver",
+    "runtime_art_decision_source_sha256": "9adc42e3509a410eded9bbe1be5808650ccf02d34e2d06aa64f9a6e8e6b41d7e",
+    "focused_source_tests": "PASS_4_OF_4",
+    "ready_for_search_group_ids": ["receiver-envelope", "muzzle-axis", "stock-open-frame"],
+    "blocked_parameter_sink_group_ids": ["trigger-void", "rail-spine"],
+    "parameter_sink_gate_status": "BLOCKED",
+    "negative_space_gate_status": "BLOCKED_NEGATIVE_SPACE",
+    "line_flow_gate_status": "BLOCKED_LINE_FLOW",
+    "first_person_gate_status": "BLOCKED_FIRST_PERSON_PROFILE",
+    "overall_04b_status": "BLOCKED_PARAMETER_SINK",
+    "negative_space_source_policy": {
+      "required_views": ["left", "right", "rear-three-quarter"],
+      "required_rows_per_view": ["trigger-void", "open-stock-void"],
+      "row_requirements": [
+        "status=observed",
+        "sealed=false",
+        "missing=false",
+        "iou_milli>=850",
+        "boundary_f1_milli>=800",
+        "area_ratio_milli in 850..1150",
+        "centroid_error_milli<=3000"
+      ],
+      "front_back_top": "user_confirmed + not-applicable + empty rows",
+      "current_real_04a_status": "confirmed_polygons_projected_but_negative_space_threshold_or_binding_still_failed"
+    }
+  },
+  "mcp_surface": {
+    "tool_name": "production_weapon_assembly_parameter_sink_get",
+    "focused": "PASS_2_OF_2",
+    "read_only_tool": true,
+    "write_tool": false,
+    "request_schema_closed": true,
+    "response_schema_closed": true,
+    "request_field_count": 13,
+    "runtime_method_wired": true,
+    "arbitrary_media_path_url_script_secret_rejected": true
+  },
+  "adversarial_p1_surface": {
+    "candidate_manifest_hash_nullable": "PASS_PREPARED_OBJECT_SHA256_AUTHORITY",
+    "candidate_manifest_hash_if_present": "PASS_MUST_MATCH_PREPARED_OBJECT_SHA256",
+    "accepted_candidate_states": ["reviewable", "confirmed"],
+    "artifact_readback_geometry_evidence": "PASS_DURABLE_READBACK_CAS_EXACT_VALUE_COMPARISON",
+    "artifact_readback_binding": "PASS_PROGRAM_CATALOG_CONFIG_VALIDATOR_PASSED_HARD_GATE_TRUE",
+    "muzzle_axis_typed_validation": "PASS_LEGACY_LOFT_PROFILE_OR_CLOSED_BOX_CYLINDER_CYLINDER_D1_AXIS_AND_CLEARANCE",
+    "focused_sink_mutator": "PASS_9_OF_9",
+    "focused_sink_projection": "PASS_3_OF_3",
+    "real_d1_fixture": "PASS_7_TYPED_5_UNAVAILABLE_RESTART_EQUAL_ZERO_WRITE"
+  },
+  "tool_and_contract_truth": {
+    "compiled_tool_summary_schema_version": "ForgeCADMcpToolManifestSummary@1",
+    "compiled_schema_count": 472,
+    "compiled_read_count": 103,
+    "compiled_write_count": 76,
+    "compiled_total_count": 179,
+    "compiled_summary_canonical_sha256": "190e3ef306db127993d027cc7a1a7000ccd88baad8e14d25cf6dd31a744b28a7",
+    "compiled_read_manifest_sha256": "ca80ff799ea295a7b79102e331d270801aee09b8e99602ace5114d18433c14bf",
+    "compiled_write_enabled_manifest_sha256": "913fb14b2d7cad45e4c4dcf8fca2874c7fae8f7a25927c3416ef74661de43a4b",
+    "source_name_projection_canonical_sha256": "79270c24126e9511cd2e0339215d5c5e292dce63889029c2ee38e08e7b97f5e5",
+    "source_name_projection_read_manifest_sha256": "6f4372b92814069254cfbdfd2b4c1374ea37d5de57f1a4871507c873eda4b448",
+    "source_name_projection_write_enabled_manifest_sha256": "6d021caacaf9c3ac87d07594b4c730161312fbebb2d706fce7684251cbdcb0d7"
+  },
+  "verification": [
+    {
+      "command": "python3 scripts/check_forgecad_contracts.py",
+      "result": "PASS_472_SCHEMAS"
+    },
+    {
+      "command": "cargo fmt --manifest-path apps/desktop/src-tauri/crates/forgecad-contracts/Cargo.toml -- --check",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo check --manifest-path apps/desktop/src-tauri/crates/forgecad-contracts/Cargo.toml",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo check --manifest-path apps/desktop/src-tauri/crates/forgecad-runtime/Cargo.toml",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo check --manifest-path apps/desktop/src-tauri/crates/forgecad-mcp/Cargo.toml",
+      "result": "PASS"
+    },
+    {
+      "command": "Runtime assembly parameter sink focused source tests",
+      "result": "PASS_12_OF_12"
+    },
+    {
+      "command": "MCP assembly parameter sink focused source tests",
+      "result": "PASS_2_OF_2"
+    },
+    {
+      "command": "real D1 sink fixture and restart execution",
+      "result": "PASS_1_OF_1_355_28_SECONDS_7_TYPED_5_UNAVAILABLE_RESTART_EQUAL_ZERO_WRITE"
+    }
+  ],
+  "source_hashes": {
+    "contracts_manifest_sha256": "2a6e6e1efbe8d21a9be29c91bc1fcb35b88f13dbfe335bc33c6bec717081a8fd",
+    "contracts_rust_sha256": "f8b8f213726d620c461f156611224ba08184998d6608ca90be598cbf92d01b97",
+    "sink_get_request_schema_sha256": "52faaa65cf615bd31cddbeab8a2a71ae89a4636fccd5fffdfea6d75b17808fc2",
+    "sink_get_result_schema_sha256": "286929c4515ef1b8669722b6f0e5ff6ce215b2c29a1f231770e5f88febccac6a",
+    "sink_registry_schema_sha256": "1a0c9f424025e41d17dc19de7d921836eed0f091e0b771179a9da3ee6d63f1b3",
+    "runtime_mutator_source_sha256": "b0f2dc3910bf6c98ec4fc88e9507570cb4ebba5d59588dc9f0feb5136243a525",
+    "runtime_sink_source_sha256": "d019962e631c4258c1ed08eb607580b712017cba4f988f8d4ceb316ab374777e",
+    "runtime_art_decision_source_sha256": "9adc42e3509a410eded9bbe1be5808650ccf02d34e2d06aa64f9a6e8e6b41d7e",
+    "runtime_lib_source_sha256": "682c28c4154c247304bb8ec92ccda68ee1ed0026b0bff41dac33c2a258f0e50e",
+    "runtime_agentic_session_source_sha256": "c0fa28aec23729b1fc4ea896da571f85e448bedaa1cf02e8e9d8686fed26c827",
+    "mcp_agentic_write_source_sha256": "a57bd0afad19291bc56f6aac13edbce6ad93160e7f970a713424357d05640ed1",
+    "mcp_main_source_sha256": "038944aba2ea6856e3ac707db317ec1eca6e2e8024b07bb4d7da4fafbc1531b2",
+    "tool_summary_receipt_sha256": "d3583c4fc509a01aa806215c03f0cca212e9f9d7adf74181bab548740a73af81"
+  },
+  "truth_boundaries": {
+    "source_only": false,
+    "pure_projection_only": true,
+    "real_d1_fixture": "PASS_READ_ONLY_PROJECTION_7_TYPED_5_UNAVAILABLE",
+    "real_restart": "PASS_EQUAL",
+    "runtime_write": false,
+    "worker_invoked": false,
+    "candidate_generated": false,
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "structural_status": "structural_only",
+    "quality_status": "NOT_PROVEN",
+    "visual_quality_status": "NOT_PROVEN",
+    "human_review": "NOT_RUN",
+    "commercial_engine": "NOT_RUN",
+    "twelve_of_twelve_parameter_sink_ready": "NOT_CLAIMED",
+    "d1_restart_hash": "PASS"
+  },
+  "limitations": [
+    "This receipt proves the closed Contracts, Runtime pure typed projection, MCP read-only surface and the real D1 read-only projection/restart path; it does not prove visual quality.",
+    "The real D1 mixed loft-box, box-cylinder-cylinder and open-stock GeometryProgram resolves seven exact sinks and five unavailable IDs. Replay and fresh Runtime projection are equal with no new CAS objects or SQLite rows.",
+    "Available-only sink rows are product-owned typed mutator bindings. Unavailable parameter IDs remain explicit and are not fabricated as executable sink rows.",
+    "The adversarial P1 boundary is closed: nullable Candidate@1 manifest_hash uses prepared_object_sha256 as authority and, when present, must match; sinks accept only reviewable or confirmed candidates; ArtifactReadback@2 is compared against durable CAS and requires exact program/catalog/config plus validator=passed and hard_gate=true; muzzle-axis accepts only the legacy loft profile or the closed real D1 box-cylinder-cylinder axis and clearance profile.",
+    "The ArtDecision typed resolver reports receiver-envelope, muzzle-axis and stock-open-frame READY_FOR_SEARCH, while trigger-void and rail-spine remain BLOCKED_PARAMETER_SINK; the overall parameter-sink gate remains BLOCKED. Confirmed negative-space polygons now project into the required views, but the target-observation thresholds or binding still fail, so negative-space remains BLOCKED_NEGATIVE_SPACE.",
+    "The product-owned stock-open-frame clearance and planar-angle mutators are depth-preserving and do not modify the rear cap. The real clearance=0.22 m frozen-camera trial improved no view and regressed left, right and rear-three-quarter outer silhouette IoU, so it was rejected without stage, confirmation, version or export.",
+    "This slice does not generate a candidate, invoke a Worker, advance ProductionStage@3, confirm, create a version or export.",
+    "Visual likeness, PBR, human review, commercial-engine validation and HQ360 remain NOT_PROVEN or NOT_RUN."
+  ],
+  "canonical_sha256": "cc89e983a8f18c81ac8210dd91c611d80a0545783261b9209abaa18b3a01b787"
+}

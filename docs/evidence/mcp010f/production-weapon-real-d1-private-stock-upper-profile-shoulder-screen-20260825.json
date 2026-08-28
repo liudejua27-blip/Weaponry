@@ -1,0 +1,68 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04S-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-SHOULDER-SCREEN",
+  "task_id": "FPS-FORM-04S",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 621.10,
+  "fixture_log_filename": "forgecad-d1-04s-stock-upper-profile-shoulder-20260825.log",
+  "fixture_log_sha256": "3d48df270631f6cd5d3e0a3dd936f35ecf51fbd8e54a1aa697f605a0416b103c",
+  "operator_id": "forgecad.geometry.profile-loft@2",
+  "variant_scope": "private-complete-shoulder-variant-only",
+  "fixed_inner_span_m": 0.85,
+  "fixed_lip_y_m": -0.055,
+  "public_sink_available": false,
+  "baseline_04q_085_owner_intrusion_pixels": [302, 492, 587],
+  "trials": [
+    {
+      "shoulder_y_m": -0.085,
+      "owner_intrusion_pixels": [302, 488, 587],
+      "owner_boundary_adjacency_pixels": [55, 65, 72],
+      "owner_boundary_adjacency_milli": [319, 333, 248],
+      "selected_discovery_transforms": ["identity", "identity", "identity"],
+      "directional_axis_pass": false,
+      "owner_screen_pass": false,
+      "stable_part_source_identity_unchanged": true,
+      "rear_cap_binding_unchanged": true,
+      "lineage_unchanged": true,
+      "six_view_non_regression": "NOT_RUN",
+      "status": "BLOCKED_OWNER_SCREEN"
+    },
+    {
+      "shoulder_y_m": -0.065,
+      "owner_intrusion_pixels": [302, 486, 587],
+      "owner_boundary_adjacency_pixels": [55, 65, 72],
+      "owner_boundary_adjacency_milli": [319, 333, 248],
+      "selected_discovery_transforms": ["identity", "identity", "identity"],
+      "directional_axis_pass": false,
+      "owner_screen_pass": false,
+      "stable_part_source_identity_unchanged": true,
+      "rear_cap_binding_unchanged": true,
+      "lineage_unchanged": true,
+      "six_view_non_regression": "NOT_RUN",
+      "status": "BLOCKED_OWNER_SCREEN"
+    }
+  ],
+  "conclusion": {
+    "profile_shoulder_runtime_and_readback_passed": true,
+    "identity_preserved_all_views": true,
+    "left_intrusion_improved": false,
+    "right_intrusion_improved": true,
+    "rear_three_quarter_intrusion_improved": false,
+    "continue_shoulder_first_coordinate_search": false,
+    "next_action": "AUDIT_PROFILE_COORDINATE_AXIS_FOR_LEFT_AND_REAR_THREE_QUARTER",
+    "promote_to_public_sink": false,
+    "advance_candidate_to_six_view": false
+  },
+  "promotion": {
+    "diagnostic_only": true,
+    "promotable": false,
+    "quality_status": "NOT_PROVEN",
+    "depth_status": "UNKNOWN",
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  }
+}

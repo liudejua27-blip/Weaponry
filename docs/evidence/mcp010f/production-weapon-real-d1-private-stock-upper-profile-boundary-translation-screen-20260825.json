@@ -1,0 +1,110 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04X-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-BOUNDARY-TRANSLATION",
+  "task_id": "FPS-FORM-04X",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 780.85,
+  "fixture_log_filename": "forgecad-d1-04x-stock-upper-profile-boundary-translation-20260825.log",
+  "fixture_log_sha256": "19f4935b4a1078cb435773740455ac997bc92679494986a2c219b529e21082fb",
+  "screen_execution_status": "PASS",
+  "geometry_direction_status": "STOPPED",
+  "screen_scope": "private_diagnostic_only",
+  "parameter_id": "stock-upper-profile-boundary-translation",
+  "parameter_contract": {
+    "baseline_variant": "04Q@0.85",
+    "delta_x_variants_m": [0.02, 0.04],
+    "mutator": "profiles[0/1].points[0..3][0] += delta_x_m",
+    "locked_fields": [
+      "profiles[0/1].points[4..7]",
+      "all_profile_second_coordinates",
+      "profile_station_positions",
+      "pose",
+      "lower_stock",
+      "rear_cap",
+      "depth_fields",
+      "camera_and_registered_lineage"
+    ],
+    "public_sink_available": false
+  },
+  "views": ["left", "right", "rear-three-quarter"],
+  "baseline": {
+    "variant": "04Q@0.85",
+    "owner_intrusion_pixels": [302, 492, 587],
+    "owner_boundary_adjacency_milli": [319, 420, 248],
+    "selected_transform_identity_all_views": true
+  },
+  "formal_owner_gate_policy": {
+    "selected_transform_identity_all_views": true,
+    "identity_owner_intrusion_pixels_all_views": 0,
+    "boundary_adjacency_pixels_min": 32,
+    "boundary_adjacency_milli_min": 250
+  },
+  "trials": [
+    {
+      "variant": "04X@+0.020",
+      "delta_x_m": 0.02,
+      "owner_intrusion_pixels": [302, 472, 587],
+      "owner_boundary_adjacency_milli": [319, 317, 248],
+      "selected_transform_identity_all_views": true,
+      "formal_owner_gate_pass": false,
+      "stop_boundary_translation": true,
+      "status": "STOP_04X_BOUNDARY_TRANSLATION",
+      "stop_reason_codes": [
+        "NONZERO_OWNER_INTRUSION",
+        "REAR3Q_ADJACENCY_MILLI_BELOW_250"
+      ],
+      "six_view_non_regression": "NOT_RUN",
+      "depth_status": "UNKNOWN_OR_OBSERVED_ONLY",
+      "diagnostic_only": true,
+      "promotable": false
+    },
+    {
+      "variant": "04X@+0.040",
+      "delta_x_m": 0.04,
+      "owner_intrusion_pixels": [296, 416, 587],
+      "owner_boundary_adjacency_milli": [319, 307, 248],
+      "selected_transform_identity_all_views": true,
+      "formal_owner_gate_pass": false,
+      "stop_boundary_translation": true,
+      "status": "STOP_04X_BOUNDARY_TRANSLATION",
+      "stop_reason_codes": [
+        "NONZERO_OWNER_INTRUSION",
+        "REAR3Q_ADJACENCY_MILLI_BELOW_250"
+      ],
+      "six_view_non_regression": "NOT_RUN",
+      "depth_status": "UNKNOWN_OR_OBSERVED_ONLY",
+      "diagnostic_only": true,
+      "promotable": false
+    }
+  ],
+  "triangle_attribution": "UNAVAILABLE_CURRENT_RENDER_RASTERHIT",
+  "conclusion": {
+    "screen_execution_status": "PASS",
+    "geometry_direction_status": "STOPPED",
+    "intrusion_zero_gate_passed": false,
+    "adjacency_floor_all_views_passed": false,
+    "stop_boundary_translation": true,
+    "continue_positive_boundary_translation": false,
+    "advance_candidate_to_six_view": false,
+    "reason": "Both identity trials retain nonzero owner intrusion and rear-three-quarter adjacency of 248 milli, below the 250 milli floor."
+  },
+  "promotion": {
+    "diagnostic_only": true,
+    "promotable": false,
+    "quality_status": "NOT_PROVEN",
+    "quality_gate_status": "BLOCKED",
+    "secondary_form_status": "BLOCKED",
+    "depth_status": "UNKNOWN_OR_OBSERVED_ONLY",
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "evidence_binding": {
+    "binding_scope": "fixture_log_hash_and_reported_screen_metrics_only",
+    "raw_image_bytes_included": false,
+    "absolute_paths_included": false
+  }
+}

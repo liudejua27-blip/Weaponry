@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-failure-diagnostic-get-request.schema.json",
+  "title": "ProductionWeaponFormArtFailureDiagnosticGetRequest@1",
+  "description": "Closed read-only request for Runtime diagnosis of one exact rejected composite FormArt repair. The caller supplies durable identities and hashes only; it cannot supply geometry, masks, AOV bytes, camera data, scripts, paths or URLs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "diagnostic_id", "composite_evidence_id", "proposal_id",
+    "session_id", "project_id", "composite_evidence_record_canonical_sha256",
+    "composite_evidence_receipt_object_sha256", "cross_view_evidence_bundle_sha256",
+    "proposal_form_art_evidence_receipt_object_sha256", "max_response_bytes",
+    "runtime_write_performed", "persistent_user_data_touched", "diagnostic_policy",
+    "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtFailureDiagnosticGetRequest@1"},
+    "operation": {"const": "forgecad.production.weapon.form-art-failure-diagnostic-get@1"},
+    "diagnostic_id": {"$ref": "#/$defs/id"},
+    "composite_evidence_id": {"$ref": "#/$defs/id"},
+    "proposal_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "composite_evidence_record_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "composite_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "cross_view_evidence_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_form_art_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "diagnostic_policy": {"const": "exact-parent-proposal-cross-view-form-art-delta-diagnostic@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

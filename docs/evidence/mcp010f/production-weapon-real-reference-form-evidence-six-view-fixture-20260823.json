@@ -1,0 +1,237 @@
+{
+  "schema_version": "ProductionWeaponRealReferenceFormEvidenceFixtureReceipt@1",
+  "task_id": "FPS-FORM-EVIDENCE-04A",
+  "recorded_at": "2026-08-24",
+  "status": "PASS_REAL_REFERENCE_DURABLE_REPLAY_WITH_FORM_QUALITY_V2_PREFLIGHT_BLOCKED_ZERO_WRITE",
+  "build_cohort_sha256": null,
+  "source": {
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "width_px": 1491,
+    "height_px": 1055,
+    "contact_sheet_import_count": 1,
+    "geometry_program_source_sha256": "f9b007d5753daf1f96645c8a5a0d4f0f9e105ae41070a91319c4674e025dc505",
+    "reviewed_contour_fixture": "embedded-reviewed-contour-fixture",
+    "external_review_proposal_bound": true,
+    "external_review_proposal_file_sha256": "e830696e1f1b0c95eb709ef2a23defc9edc50c06d81480119a8b03c7c47b5680",
+    "external_review_contour_bundle_sha256": "b7411cbe0ade06a3c0c655a8d81243f86af59e10f1cd5fb3ce3df70e76cbe431",
+    "external_review_overlay_bound": true,
+    "external_review_overlay_sha256": "830a8b92df3d4b0d06899be5cdaeeae065256733e01ce010692e62155355abdd",
+    "external_review_base_overlay_sha256": "d170909899b1ced7d7b97ad454fe895a386ccf5464429e98bdd06bb1b9f88648",
+    "reviewed_visual_structure_view_count": 6,
+    "reviewed_visual_structure_status": "USER_CONFIRMED_OBSERVED_BOUNDARIES_DEPTH_UNKNOWN"
+  },
+  "reference_crops_px": [
+    {
+      "view_kind": "front",
+      "x": 1072,
+      "y": 56,
+      "width": 141,
+      "height": 374,
+      "identity_view": true
+    },
+    {
+      "view_kind": "back",
+      "x": 1296,
+      "y": 56,
+      "width": 134,
+      "height": 375,
+      "identity_view": true
+    },
+    {
+      "view_kind": "left",
+      "x": 44,
+      "y": 50,
+      "width": 961,
+      "height": 186,
+      "identity_view": true
+    },
+    {
+      "view_kind": "right",
+      "x": 53,
+      "y": 265,
+      "width": 964,
+      "height": 205,
+      "identity_view": true
+    },
+    {
+      "view_kind": "top",
+      "x": 46,
+      "y": 484,
+      "width": 826,
+      "height": 100,
+      "identity_view": true
+    },
+    {
+      "view_kind": "rear-three-quarter",
+      "x": 883,
+      "y": 676,
+      "width": 577,
+      "height": 160,
+      "identity_view": true
+    },
+    {
+      "view_kind": "bottom",
+      "x": 45,
+      "y": 623,
+      "width": 827,
+      "height": 93,
+      "identity_view": false,
+      "camera_only": true
+    }
+  ],
+  "fixture": {
+    "project_id": "project-06e7a65c211641a1896c117a297cb997",
+    "candidate_id": "candidate-d14341126ebc41e0a0adbd085be290a1",
+    "candidate_state_sha256": "59d590e41a8a5dac83baa3062c99e92024cfcd1230733ae9794fe864a1ae1627",
+    "artifact_sha256": "233a77129a862306562a0058fb6aa93796232b2d64e8651a37f5efac31ce818f",
+    "operator_catalog_sha256": "860f24812e651cbb7cded0d4058a354aabf231fc0ace73e4a4b06f6408a485d6",
+    "part_count": 23,
+    "part_ids": [
+      "receiver-main",
+      "receiver-upper",
+      "receiver-lower",
+      "rear-stock",
+      "rear-cap",
+      "grip",
+      "trigger-guard",
+      "underbrace",
+      "top-fin",
+      "top-rail",
+      "bottom-rail",
+      "side-light-left",
+      "side-light-right",
+      "muzzle-shroud",
+      "muzzle-emitter",
+      "muzzle-core",
+      "energy-ring",
+      "energy-core",
+      "core-housing",
+      "side-panel-a",
+      "side-panel-b",
+      "magazine",
+      "rear-light"
+    ],
+    "open_stock_part_ids": [
+      "rear-stock",
+      "rear-cap"
+    ],
+    "open_stock_source_node_ids": [
+      "rear-stock",
+      "rear-stock-lower-beam",
+      "rear-cap"
+    ],
+    "identity_view_kinds": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "top",
+      "rear-three-quarter"
+    ],
+    "camera_lock_id": "fps-form-04a-camera-lock",
+    "camera_lock_canonical_sha256": "ad9457be418812e05674ac9f8fdbe5ab46e9c73f8a15fc9c01aa6f63c2285f27",
+    "camera_lock_restart_get_hash_verified": true,
+    "camera_transition_id": "fps-form-04a-camera-calibrated-transition",
+    "camera_transition_canonical_sha256": "ffabe25601669079ac4858a7a7237a0d0a42610cc7528a0eff901cde4c8f72fb",
+    "camera_calibrated_head_canonical_sha256": "4558e99a71f1d24b7c363d46c3db5d473576de05d38398cd26a8d7c03fab7c67",
+    "form_evidence_id": "fps-form-04a-form-evidence",
+    "form_evidence_canonical_sha256": "4e841530dd653f2e924ad05f05326cb634b6f0dd065a44c5ecf614dbb45fe502",
+    "form_evidence_receipt_object_sha256": "92d2af8eeefe7be9c08419d487fba1846b8dad102b2f6046b8f2e188b758ac9c",
+    "form_art_id": "fps-form-04a-form-art",
+    "form_art_canonical_sha256": "38f781c48c2c7a55c8eaa2806b48715ad9b18cb3f82bcdf0a2eeb3a2979be7d2",
+    "form_art_receipt_object_sha256": "a9b7de77f992e77934919deecc13996ba574f20d56242e3b2c03b438875a883c",
+    "form_art_quality_status": "NOT_PROVEN",
+    "render_set_object_sha256s": [
+      "8dd04fe00dd25ae41be27b9b81cfac2bcadf5df920633cef2a194731b3f2ceb2",
+      "0dd31ee9d257cf6eac7582ee1bc6d8f1ef0cc6c244c3a9b89a98e1f0e8eb64ff",
+      "c96a371213cdf267c7c172d3c48af21c8fb491c973aa406bb11517c4106988ba",
+      "c7b6d407aa1b25d6531f8a06607afb1e47949cb074db40c0700f1182b5e2e9ef",
+      "e7e3ca3c4b62e9a505b865abb64c54f9a86b2acc14f5d4f5b5c6b663d2d49479",
+      "7b78186b13793207301629ed4e2d4d2522b0cf01e3567345c983633912af4845"
+    ],
+    "render_set_count": 6,
+    "aov_pass_count": 54,
+    "owned_receipt_object_count": 7,
+    "same_key_replay_zero_new_objects": true,
+    "restart_get_hash_verified": true,
+    "cross_view_retarget_zero_write_rejected": true,
+    "form_quality_v2_preflight_zero_write_verified": true,
+    "assembly_parameter_sink_status": "PARTIAL_TYPED_SINKS",
+    "assembly_parameter_sink_count": 5,
+    "assembly_parameter_sink_unavailable_count": 7,
+    "assembly_parameter_sink_ids": [
+      "receiver-envelope-width",
+      "receiver-envelope-height",
+      "muzzle-axis-shroud-envelope",
+      "muzzle-axis-emitter-envelope",
+      "muzzle-axis-core-aperture"
+    ],
+    "assembly_parameter_sink_unavailable_ids": [
+      "stock-open-frame-clearance",
+      "stock-open-frame-angle",
+      "trigger-void-clearance",
+      "trigger-void-centroid",
+      "rail-spine-continuity",
+      "rail-spine-offset",
+      "receiver-envelope-shoulder"
+    ],
+    "cross_view_evidence_object_sha256": "20c482304b8c25f3bcd8e75f461bc8bc3cb966c57220647db4360a1b9a390ea2",
+    "cross_view_aggregate_status": "QUALITY_TARGET_NOT_MET",
+    "cross_view_hard_gate_passed": false,
+    "cross_view_non_regressing": true,
+    "cross_view_strict_improvement": false,
+    "cross_view_restart_hash_verified": true,
+    "legacy_form_quality_status": "DURABLE_STRUCTURAL_ONLY_QUALITY_TARGET_NOT_MET",
+    "legacy_form_quality_canonical_sha256": "264312b44ee03396b889cf7a8759e5cab847633280cc7030331fcdaba91c028b",
+    "legacy_form_quality_receipt_object_sha256": "738f57407662b9d1923120c6f6332b0e61c1200a3f4f7fc64ff0f3e70b93af88",
+    "legacy_form_quality_hard_gate_passed": false,
+    "legacy_form_quality_same_key_replay_zero_new_objects": true,
+    "legacy_form_quality_restart_hash_verified": true,
+    "form_quality_v2_preflight_readiness_sha256": "a9ed2ccbf5e953c8fbf264b49d8995cc887e64f299fbd4a690d069ddd41bb96c",
+    "form_quality_v2_preflight_restart_hash_verified": true,
+    "form_quality_v2_preflight_blocking_reasons": [
+      "cross_view_evidence:CROSS_VIEW_EVIDENCE_BLOCKED",
+      "form_art_target_observation:FORM_ART_TARGET_OBSERVATION_BLOCKED"
+    ],
+    "form_quality_v2_preflight_ready_checks": [
+      "legacy_form_quality",
+      "form_art_evidence",
+      "camera_lock_stage",
+      "reference_authoring",
+      "candidate_artifact"
+    ]
+  },
+  "stage_boundary": {
+    "reference_coverage_stage_advanced": true,
+    "reference_coverage_transition": "reference-intake-to-reference-coverage-reviewed",
+    "form_evidence_stage_advanced": false,
+    "camera_calibrated_stage_created": true,
+    "current_stage_head": "camera-calibrated",
+    "form_art_status": "NOT_PROVEN_DURABLE_REPLAY",
+    "form_quality_status": "BLOCKED_CROSS_VIEW_QUALITY_TARGET_NOT_MET",
+    "form_quality_v2_status": "PREFLIGHT_BLOCKED_ZERO_WRITE",
+    "secondary_form_approved_status": "NOT_CREATED",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "quality_boundary": {
+    "quality_status": "NOT_PROVEN",
+    "overall_status": "QUALITY_TARGET_NOT_MET",
+    "visual_quality_status": "NOT_PROVEN",
+    "human_hero_art_review_status": "NOT_RUN",
+    "commercial_engine_status": "NOT_RUN",
+    "high_low_status": "NOT_RUN",
+    "hero_uv_status": "NOT_RUN",
+    "bake_status": "NOT_RUN"
+  },
+  "limitations": [
+    "This receipt proves a real user-supplied contact-sheet hash, six reviewed identity contours, seven fixed camera crops, six Runtime-owned user-confirmed visual structures with unknown depth, a recompiled typed candidate, 54 AOV objects, durable CameraLock, camera-calibrated Stage@3, durable FormEvidence and durable FormArt replay/restart integrity.",
+    "The D1 source GeometryProgram retains a placeholder representation-plan hash and therefore is not production lineage for a final asset.",
+    "The immutable external proposal, source contour bundle, review overlay and base overlay hashes are bound as review evidence; free-form proposal labels are mapped only into the closed ReferenceVisualStructure role and line-kind enums.",
+    "Left/right/rear-three-quarter open-stock and trigger annotations are observed bounding regions, not exact subtract contours, so negative-space status remains unknown; line-flow expectations are durable but D1 matching is not promoted to a pass.",
+    "The read-only typed sink registry exposes five executable bindings for the actual loft-box and box-cylinder-cylinder D1 program; receiver-envelope-shoulder plus six stock, trigger and rail fields remain unavailable rather than guessed.",
+    "CrossView is same-candidate, restart-safe and non-regressing but remains QUALITY_TARGET_NOT_MET with no strict improvement. The legacy FormQuality parent is now durable, replay-safe and structural-only with hard_gate_passed=false. FormArt is durable but remains NOT_PROVEN. FormQuality@2 preflight is fail-closed with zero new CAS/SQLite because CrossView hard_gate=false and the FormArt target observation remains blocked; blockout, primary-form-approved and secondary-form-approved heads were not created.",
+    "High/Low, topology-correspondent Cage, Hero UV, formal bake, PBR, human Hero Art Review, commercial engine import and final export remain NOT_RUN."
+  ]
+}

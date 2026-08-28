@@ -1,11 +1,17 @@
 # ForgeCAD 发布维护
 
-版本：2026-08-09
+> 2026-08-26 商业维护补充：每个 accepted 第三方组件、engine profile、texture encoder 和 optimization allowlist 都必须锁 revision/cohort、LICENSE/NOTICE/SBOM、可重放 recipe 和退出方案。升级必须对 canonical source GLB、decoded mip chain、engine imported projection 与固定 FPS shots 做 semantic/visual diff；压缩 bytes 因平台不同可另存，但逻辑材质与 decoded content 必须保持约定一致。
+
+版本：2026-08-25
 状态：MCP013 后的目标流程；不阻塞开发 MVP
+
+商业资产路线补充：release cohort 必须同时固定 Authoring Mesh Kernel、High、Low/Retopo、UV、Cage/Bake、Surface/Texture、LOD/Collision、Render/AOV 和 GLB/Engine Validator 的 module/version/binary/schema/canonical hashes。缺少任一模块或出现 cohort 漂移时，相关写路径与 Stage transition 必须关闭；不得静默回退到 Blender、用户本机 DCC、脚本插件或联网服务。
+
+第三方依赖状态必须写入 release manifest：`accepted` 必须绑定固定 revision、LICENSE/NOTICE、transitive SBOM、module/binary hash、签名、资源与 removal receipt；`research-authorized` 和 `snapshot-blocked` 必须明确 `NOT_IN_RELEASE`。当前只有 bounded Manifold Worker slice 与 `mikktspace@0.3.0` restricted slice 可按各自 scope 进入依赖账本；OpenSubdiv、QuadriFlow、xatlas、Embree、MaterialX、OIIO、OCIO、meshoptimizer 与 glTF Validator 都不是 active release dependency。外部 glTF Validator 只是未来条件性 adapter，当前 Runtime strict readback 仍为格式权威，商业 EngineValidation 仍需真实 Unreal/Unity receipt。
 
 ## 1. 版本集合
 
-每次 release 固定 Viewer、Runtime、MCP、workers、contracts、DB schema、Skills 和 asset packs 的版本/hash。release manifest 是分发真值；单独替换组件会关闭写路径。
+每次 release 固定 Viewer、Runtime、MCP、workers、contracts、DB schema、Skills、asset packs 和 accepted ForgeCAD modules 的版本/hash。release manifest 是分发真值；单独替换组件会关闭写路径。结构性模块就绪不等于商业质量通过；视觉、人评、引擎和分发状态必须分别维护。
 
 ## 2. 发布分支
 

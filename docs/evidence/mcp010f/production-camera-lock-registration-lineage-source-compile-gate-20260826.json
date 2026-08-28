@@ -1,0 +1,47 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FPS-FORM-04AE",
+  "status": "PASS_SOURCE_COMPILE_ONLY",
+  "scope": "additive Runtime-owned ProductionCameraLockRegistrationLineage@1 source vertical slice",
+  "implemented": {
+    "contracts": 5,
+    "contract_manifest_schema_count": 523,
+    "store": "SQLite/CAS immutable child row with replay, conflict, restart readback and GC roots",
+    "runtime": "exact parent/program/canvas replay; Runtime-derived semantic ordering, crop hashes, authored rotation matrix and RegisteredCameraRigCalibration@2",
+    "mcp": "get is default read-only; prepare requires explicit write opt-in",
+    "caller_injection_policy": "request accepts only scope/output identities, one rear-three-quarter rotation decision and independent approval primitives",
+    "legacy_parent_policy": "ProductionCameraLock@1 remains immutable",
+    "failure_policy": "blocked or non-promotable orientation creates no success row",
+    "geometry_program_policy": "canonical CAS bytes omit self-referential canonical_sha256 and are verified by exact object hash"
+  },
+  "source_sha256": {
+    "lineage_schema": "11cd2fc45e08a6ad743455c51383a0a391b8113466e066194f20772c43942a10",
+    "prepare_request_schema": "0fe3a4f61fce958511f1db1ee4f5f562fc44c969535ce8cde1bebc293dcc3e5c",
+    "contracts_rust": "64a8ded33d6bc86966533fde681b022edca0cf3937c9c9a73fdc0a88185f3dfd",
+    "store": "9a328a1131b6c3325b0dfbdf251775d095852b66f486f1139e449b163198269b",
+    "runtime_session": "1ee19eaaa224a5837884d59455aea3763de8ac12199a940c75b6cb8fa1128ca6",
+    "runtime_camera_rig": "ea3f833a6022c04c7a6143660072c7ccd2acd482fbc2acf4e05c57ae590b9e3c",
+    "runtime_dispatch": "073e7939d15c798390069742dddc137102a5a6fb1c2ece53ccf959d402e13744",
+    "mcp_tools": "856a2f367adb5eae4b3d6f9c3196efe56bc745401a3d0ee7472013c170b75807",
+    "mcp_main": "414960f3f83796781191dfac841d9f4d93ba62d26387479d90cc844357dd1f23",
+    "manifest": "994210d2a92f2b53262b72fdf4d9b124b34e6622cee3b568ee611ae777ec0807"
+  },
+  "verification": {
+    "command": "cargo check -p forgecad-contracts -p forgecad-store -p forgecad-runtime -p forgecad-mcp",
+    "result": "PASS_WITH_PREEXISTING_DEAD_CODE_WARNINGS",
+    "long_test_suite_run": false,
+    "real_d1_prepare_run": false,
+    "restart_probe_run": false
+  },
+  "unchanged_truth": {
+    "rear_three_quarter_orientation_specific_user_approval": "BLOCKED_REQUIRED",
+    "durable_lineage_instance": "NOT_CREATED",
+    "production_stage": "camera-calibrated",
+    "secondary_form": "NOT_CREATED",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "next_required_action": "Obtain the user's explicit rear-three-quarter orientation decision, execute one real D1 prepare/get restart readback, then generate exactly one rear-stock-profile-reconstruction-v1 proposal and fresh six-view FormArt evidence."
+}

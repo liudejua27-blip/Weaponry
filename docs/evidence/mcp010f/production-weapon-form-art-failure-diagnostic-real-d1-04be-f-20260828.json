@@ -1,0 +1,1140 @@
+{
+  "build": {
+    "build_cohort_sha256": "9fbc16ac0e968f94db7845a5bd661b07497845b628b15877ffb78b198540558c",
+    "mcp_identity": {
+      "build_cohort_sha256": "9fbc16ac0e968f94db7845a5bd661b07497845b628b15877ffb78b198540558c",
+      "component": "forgecad-mcp",
+      "schema_version": "ForgeCADDevBuildIdentity@1"
+    },
+    "runtime_identity": {
+      "build_cohort_sha256": "9fbc16ac0e968f94db7845a5bd661b07497845b628b15877ffb78b198540558c",
+      "component": "forgecad-runtime",
+      "schema_version": "ForgeCADDevBuildIdentity@1"
+    }
+  },
+  "diagnostic": {
+    "candidate_confirm_allowed": false,
+    "candidate_confirmed": false,
+    "canonical_sha256": "68e838cebbabccec0fa042d59c5f9d4685b727216dc5a45171282cf957f16fa3",
+    "composite_evidence_id": "fps-form-04be-e-owner-void-half-y-evidence-v1",
+    "composite_evidence_receipt_object_sha256": "350555facd3ea2ca5fe994652f56603c9b73c65842152afbbad91102c8cdb33e",
+    "composite_evidence_record_canonical_sha256": "8f03de05bd08af1c54e62cfaad603204cef72f224ed47c12eabd8ec391eacd88",
+    "cross_view_canonical_sha256": "a0a5218eb2e6fb9a12dbe3ed3d8fd581b0171b4857aeee299525d14f6289733d",
+    "cross_view_delta": {
+      "baseline_score": 3.087599431383167,
+      "hard_gate_passed": false,
+      "left_boundary_f1_4px_after": 0.166863905325,
+      "left_boundary_f1_4px_before": 0.176477603396,
+      "left_boundary_f1_4px_delta": -0.009613698070999988,
+      "non_regressing": false,
+      "promotion_status": "rejected-regression",
+      "proposal_score": 3.087045988458
+    },
+    "cross_view_evidence_bundle_sha256": "64eb80b5866b32e7d08e1484edf9f036ee20b0cdc4ab9da409f953bacdd043ea",
+    "current_base_candidate_id": "candidate-f4a7d01ea8174dd4821c21fcd8ff06fa",
+    "current_base_candidate_state_sha256": "da53deaadbbc74e1c859f9c0d4b1c85427a8b2dcfa9f9bb6748c07bd6da354aa",
+    "current_base_form_art_evidence_canonical_sha256": "85b84f7859f710bbba685d8b2e7b85fc46a2fc79da18a07c22e013d65bc53a19",
+    "current_base_form_art_evidence_receipt_object_sha256": "e1240c5f175569b029341638218788197d0bff5dc7e88f85f586912dae54247e",
+    "current_base_geometry_program_sha256": "ca7db8dae76a8ccb885756a871def18dbe795057a8775f5b53ae1cf18b852386",
+    "diagnoses": [
+      {
+        "diagnosis_id": "rear-stock-negative-y-profile-effect",
+        "next_geometry_repair_allowed": false,
+        "status": "REJECTED_LEFT_BOUNDARY_REGRESSION_NO_LEFT_OWNER_BBOX_EFFECT_RIGHT_OWNER_INTRUSION_INCREASED"
+      },
+      {
+        "diagnosis_id": "rear-three-quarter-owner-attribution",
+        "next_geometry_repair_allowed": false,
+        "status": "ATTRIBUTION_CALIBRATION_CONFLICT_GEOMETRY_VOID_OBSERVED_OWNER_REGION_ZERO_VERTICAL_FLIP"
+      },
+      {
+        "diagnosis_id": "side-trigger-aperture-visibility",
+        "next_geometry_repair_allowed": false,
+        "status": "SEALED_IN_LEFT_RIGHT_OBSERVED_IN_REAR_THREE_QUARTER"
+      },
+      {
+        "diagnosis_id": "line-flow-separability",
+        "next_geometry_repair_allowed": false,
+        "status": "INDEPENDENTLY_UNRESOLVED_NOT_REPAIRABLE_BY_REAR_STOCK_PROFILE"
+      }
+    ],
+    "diagnostic_id": "fps-form-04be-f-failure-diagnostic-v1",
+    "diagnostic_policy": "exact-parent-proposal-cross-view-form-art-delta-diagnostic@1",
+    "diagnostic_status": "FAILURE_ROOT_CAUSES_SEPARATED_NO_GEOMETRY_REPAIR_AUTHORIZED",
+    "export_performed": false,
+    "form_quality_v2_status": "NOT_CREATED",
+    "geometry_delta": {
+      "changed_vertex_count": 6,
+      "changed_vertices": [
+        {
+          "after_position_m": [
+            0.23749999999999993,
+            -0.116,
+            -0.43
+          ],
+          "before_position_m": [
+            0.23749999999999993,
+            -0.113,
+            -0.43
+          ],
+          "delta_m": [
+            0.0,
+            -0.0030000000000000027,
+            0.0
+          ],
+          "element_id": "v-0b5816d146481be57c54d448977b09517ec6aad9b445e5cb8b60fb3f"
+        },
+        {
+          "after_position_m": [
+            -0.2375,
+            -0.116,
+            -0.43
+          ],
+          "before_position_m": [
+            -0.2375,
+            -0.113,
+            -0.43
+          ],
+          "delta_m": [
+            0.0,
+            -0.0030000000000000027,
+            0.0
+          ],
+          "element_id": "v-13588df49b84d491627ea5b8b507f4f1f3ab0d444d90271577b4ad96"
+        },
+        {
+          "after_position_m": [
+            0.23749999999999993,
+            -0.116,
+            0.43
+          ],
+          "before_position_m": [
+            0.23749999999999993,
+            -0.113,
+            0.43
+          ],
+          "delta_m": [
+            0.0,
+            -0.0030000000000000027,
+            0.0
+          ],
+          "element_id": "v-35fe449914cfdac5bd483fb071fbb8bae7c051020b7c31dd0ceb1062"
+        },
+        {
+          "after_position_m": [
+            0.0,
+            -0.119,
+            0.43
+          ],
+          "before_position_m": [
+            0.0,
+            -0.1145,
+            0.43
+          ],
+          "delta_m": [
+            0.0,
+            -0.00449999999999999,
+            0.0
+          ],
+          "element_id": "v-44c59c80442c7c8c42f163c842db5b1c0c945f6c852373eb10cb9dc5"
+        },
+        {
+          "after_position_m": [
+            0.0,
+            -0.119,
+            -0.43
+          ],
+          "before_position_m": [
+            0.0,
+            -0.1145,
+            -0.43
+          ],
+          "delta_m": [
+            0.0,
+            -0.00449999999999999,
+            0.0
+          ],
+          "element_id": "v-cea545bb67b72b1c6485cbcc17a7465be6e4d891ee74dca507ae3a1e"
+        },
+        {
+          "after_position_m": [
+            -0.2375,
+            -0.116,
+            0.43
+          ],
+          "before_position_m": [
+            -0.2375,
+            -0.113,
+            0.43
+          ],
+          "delta_m": [
+            0.0,
+            -0.0030000000000000027,
+            0.0
+          ],
+          "element_id": "v-db24f746f02ace20afeafa3f6b54d208a60de982279faa54d7eb28ed"
+        }
+      ],
+      "coordinate_space": "source-local",
+      "stable_vertex_ids_preserved": true,
+      "target_part_id": "rear-stock",
+      "topology_preserved": true,
+      "x_unchanged": true,
+      "y_delta_direction": "negative",
+      "z_unchanged": true
+    },
+    "line_flow_views": [
+      {
+        "inferred_count": 2,
+        "observed_count": 0,
+        "row_count": 2,
+        "status": "inferred",
+        "unknown_count": 0,
+        "view_kind": "front"
+      },
+      {
+        "inferred_count": 0,
+        "observed_count": 0,
+        "row_count": 1,
+        "status": "unknown",
+        "unknown_count": 1,
+        "view_kind": "back"
+      },
+      {
+        "inferred_count": 3,
+        "observed_count": 1,
+        "row_count": 6,
+        "status": "unknown",
+        "unknown_count": 2,
+        "view_kind": "left"
+      },
+      {
+        "inferred_count": 3,
+        "observed_count": 2,
+        "row_count": 6,
+        "status": "unknown",
+        "unknown_count": 1,
+        "view_kind": "right"
+      },
+      {
+        "inferred_count": 4,
+        "observed_count": 0,
+        "row_count": 4,
+        "status": "inferred",
+        "unknown_count": 0,
+        "view_kind": "top"
+      },
+      {
+        "inferred_count": 4,
+        "observed_count": 2,
+        "row_count": 6,
+        "status": "inferred",
+        "unknown_count": 0,
+        "view_kind": "rear-three-quarter"
+      }
+    ],
+    "next_atomic_action": "RUN_HASH_BOUND_OWNER_ATTRIBUTION_AND_SIDE_APERTURE_VISIBILITY_CALIBRATION_BEFORE_ANY_NEW_REGISTERED_GEOMETRY_PROFILE",
+    "operation": "forgecad.production.weapon.form-art-failure-diagnostic-get@1",
+    "owner_deltas": [
+      {
+        "after": {
+          "expected_void_bbox_px": [
+            380,
+            261,
+            457,
+            280
+          ],
+          "owner_bbox_px": [
+            404,
+            268,
+            483,
+            336
+          ],
+          "owner_boundary_adjacency_milli": 441,
+          "owner_expected_void_overlap_milli": 538,
+          "owner_region_pixel_count": 589,
+          "ranked_transform": "identity"
+        },
+        "before": {
+          "expected_void_bbox_px": [
+            380,
+            261,
+            457,
+            280
+          ],
+          "owner_bbox_px": [
+            404,
+            268,
+            483,
+            336
+          ],
+          "owner_boundary_adjacency_milli": 441,
+          "owner_expected_void_overlap_milli": 538,
+          "owner_region_pixel_count": 589,
+          "ranked_transform": "identity"
+        },
+        "owner_adjacency_delta_milli": 0,
+        "owner_bbox_changed": false,
+        "owner_overlap_delta_milli": 0,
+        "owner_region_pixel_delta": 0,
+        "view_kind": "left"
+      },
+      {
+        "after": {
+          "expected_void_bbox_px": [
+            51,
+            260,
+            139,
+            284
+          ],
+          "owner_bbox_px": [
+            28,
+            262,
+            107,
+            331
+          ],
+          "owner_boundary_adjacency_milli": 548,
+          "owner_expected_void_overlap_milli": 579,
+          "owner_region_pixel_count": 970,
+          "ranked_transform": "identity"
+        },
+        "before": {
+          "expected_void_bbox_px": [
+            51,
+            260,
+            139,
+            284
+          ],
+          "owner_bbox_px": [
+            28,
+            262,
+            107,
+            331
+          ],
+          "owner_boundary_adjacency_milli": 548,
+          "owner_expected_void_overlap_milli": 573,
+          "owner_region_pixel_count": 961,
+          "ranked_transform": "identity"
+        },
+        "owner_adjacency_delta_milli": 0,
+        "owner_bbox_changed": false,
+        "owner_overlap_delta_milli": 6,
+        "owner_region_pixel_delta": 9,
+        "view_kind": "right"
+      },
+      {
+        "after": {
+          "expected_void_bbox_px": [
+            126,
+            266,
+            168,
+            398
+          ],
+          "owner_bbox_px": [
+            89,
+            147,
+            161,
+            222
+          ],
+          "owner_boundary_adjacency_milli": 0,
+          "owner_expected_void_overlap_milli": 0,
+          "owner_region_pixel_count": 0,
+          "ranked_transform": "vertical-flip"
+        },
+        "before": {
+          "expected_void_bbox_px": [
+            126,
+            266,
+            168,
+            398
+          ],
+          "owner_bbox_px": [
+            89,
+            147,
+            161,
+            222
+          ],
+          "owner_boundary_adjacency_milli": 0,
+          "owner_expected_void_overlap_milli": 0,
+          "owner_region_pixel_count": 0,
+          "ranked_transform": "vertical-flip"
+        },
+        "owner_adjacency_delta_milli": 0,
+        "owner_bbox_changed": false,
+        "owner_overlap_delta_milli": 0,
+        "owner_region_pixel_delta": 0,
+        "view_kind": "rear-three-quarter"
+      }
+    ],
+    "persistent_user_data_touched": false,
+    "production_stage_advanced": false,
+    "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+    "proposal_candidate_id": "candidate-6f6ddeff15b94d5db9eb74d6c639cf8a",
+    "proposal_candidate_state_sha256": "1a0bf325f55d2cffa6924d35dbbfa46c8d1142e35fad4850ac6e2c3d56f260d2",
+    "proposal_form_art_evidence_canonical_sha256": "58515006b8a0da3dee0a48ccb2afee320e42dac250fee30dadb418739f6cbe3b",
+    "proposal_form_art_evidence_receipt_object_sha256": "0af3ded026923d2612560ba3e446e8c777887a3a4c2436385e83e8a110d15bff",
+    "proposal_geometry_program_sha256": "a9d447e51ddc510541568a3fa1aed86b052514f459b50168c455ca4fe38e7f11",
+    "proposal_id": "fps-form-04be-e-owner-void-half-y-v1",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "rear_three_quarter_negative_space": [
+      {
+        "boundary_f1_milli": 929,
+        "centroid_error_milli": 419,
+        "iou_milli": 940,
+        "missing": false,
+        "sealed": false,
+        "status": "observed",
+        "structure_id": "rear3q.open-stock-void",
+        "view_kind": "rear-three-quarter"
+      },
+      {
+        "boundary_f1_milli": 1000,
+        "centroid_error_milli": 23,
+        "iou_milli": 907,
+        "missing": false,
+        "sealed": false,
+        "status": "observed",
+        "structure_id": "rear3q.trigger-void",
+        "view_kind": "rear-three-quarter"
+      }
+    ],
+    "runtime_write_performed": false,
+    "schema_version": "ProductionWeaponFormArtFailureDiagnosticGetResult@1",
+    "secondary_form_approved": "NOT_CREATED",
+    "session_id": "fps-form-04a-session",
+    "side_trigger_visibility": [
+      {
+        "boundary_f1_milli": 0,
+        "centroid_error_milli": 100000,
+        "iou_milli": 0,
+        "missing": false,
+        "sealed": true,
+        "status": "unknown",
+        "structure_id": "left.trigger-void",
+        "view_kind": "left"
+      },
+      {
+        "boundary_f1_milli": 0,
+        "centroid_error_milli": 100000,
+        "iou_milli": 0,
+        "missing": false,
+        "sealed": true,
+        "status": "unknown",
+        "structure_id": "right.trigger-void",
+        "view_kind": "right"
+      }
+    ],
+    "version_created": false,
+    "worker_started": false
+  },
+  "mandatory_ponytail_preflight": "PASS_EACH_RUNTIME_SESSION",
+  "non_promotion_boundary": {
+    "candidate_confirm_allowed": false,
+    "candidate_confirmed": false,
+    "commercial_quality": "NOT_PROVEN",
+    "engine_validation": "NOT_RUN",
+    "export_performed": false,
+    "form_quality_v2_status": "NOT_CREATED",
+    "high_low_uv_bake_started": false,
+    "human_review": "NOT_RUN",
+    "production_stage_advanced": false,
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "secondary_form_approved": "NOT_CREATED",
+    "version_created": false
+  },
+  "read_only_integrity": {
+    "cas_after": {
+      "object_count": 1742,
+      "path_size_index_sha256": "0b0122fbb4ceeea69c6691520ac439503c5a1392c3c5eaaa271b61bfffca644d"
+    },
+    "cas_before": {
+      "object_count": 1742,
+      "path_size_index_sha256": "0b0122fbb4ceeea69c6691520ac439503c5a1392c3c5eaaa271b61bfffca644d"
+    },
+    "cas_unchanged": true,
+    "sqlite_after": {
+      "row_counts": {
+        "agentic_action_runs": 0,
+        "agentic_design_checkpoints": 0,
+        "agentic_design_sessions": 1,
+        "agentic_production_camera_lock_registration_lineages": 1,
+        "agentic_production_camera_locks": 1,
+        "agentic_production_stage_heads": 0,
+        "agentic_production_stage_heads_v2": 0,
+        "agentic_production_stage_heads_v3": 1,
+        "agentic_production_stage_transitions": 0,
+        "agentic_production_stage_transitions_v2": 0,
+        "agentic_production_stage_transitions_v3": 2,
+        "appearance_source_lineage_links": 0,
+        "approval_receipts": 0,
+        "artifact_manifests": 0,
+        "audit_events": 35,
+        "authoring_mesh_durable_records": 0,
+        "authoring_mesh_identity_lineage_durable_records": 0,
+        "authoring_mesh_projection_indexes": 0,
+        "authoring_mesh_v2_durable_records": 3,
+        "candidate_animation_vfx_quality_links": 0,
+        "candidate_animation_vfx_quality_particle_history": 0,
+        "candidate_animation_vfx_quality_v2_links": 0,
+        "candidate_material_surface_quality_links": 0,
+        "candidate_topology_quality_links": 0,
+        "candidates": 34,
+        "cross_view_evidence": 5,
+        "cross_view_evidence_cas_refs": 185,
+        "design_asset_versions": 0,
+        "export_manifests": 0,
+        "fictional_energy_vfx_animated_socket_attachment_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_links": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v2_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v2_links": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v3_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v3_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_frame_history": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_frame_history": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_bloom_frame_links": 0,
+        "fictional_energy_vfx_frame_links": 0,
+        "fictional_energy_vfx_links": 0,
+        "fictional_energy_vfx_particles_frame_links": 0,
+        "fictional_energy_vfx_sequence_links": 0,
+        "fictional_energy_vfx_trails_bloom_frame_links": 0,
+        "fictional_energy_vfx_trails_frame_links": 0,
+        "foundation_authoring_mesh_v2_materializations": 0,
+        "fps_presentation_package_v2_candidates": 0,
+        "fps_presentation_packages_v2": 0,
+        "game_asset_delivery_links": 0,
+        "game_weapon_anchor_links": 0,
+        "game_weapon_animated_glb_socket_materialization_links": 0,
+        "game_weapon_animated_glb_socket_materialization_v2_links": 0,
+        "game_weapon_animated_glb_socket_transform_projection_frames": 0,
+        "game_weapon_animated_glb_socket_transform_projection_links": 0,
+        "game_weapon_animated_glb_socket_transform_projection_v2_frames": 0,
+        "game_weapon_animated_glb_socket_transform_projection_v2_links": 0,
+        "game_weapon_glb_socket_materialization_links": 0,
+        "game_weapon_glb_socket_materialization_lods": 0,
+        "geometry_candidate_evidence": 34,
+        "hero_uv_durable_links": 0,
+        "low_quad_draft_durable_links": 0,
+        "mechanical_animation_clip_links": 0,
+        "mechanical_animation_clip_v2_links": 0,
+        "mechanical_animation_glb_v2_links": 0,
+        "native_high_durable_links": 0,
+        "objects": 1742,
+        "production_weapon_form_art_baseline_cas_batch_objects": 290,
+        "production_weapon_form_art_baseline_cas_batches": 11,
+        "production_weapon_form_art_baselines": 11,
+        "production_weapon_form_art_composite_evidence_links": 2,
+        "production_weapon_form_art_composite_proposal_links": 2,
+        "production_weapon_form_art_evidence_links": 1,
+        "production_weapon_form_art_evidence_views": 6,
+        "production_weapon_form_art_proposal_evidence_links": 4,
+        "production_weapon_form_evidence_links": 1,
+        "production_weapon_form_evidence_views": 6,
+        "production_weapon_form_quality_cas_refs": 120,
+        "production_weapon_form_quality_links": 1,
+        "production_weapon_form_quality_v2_links": 0,
+        "production_weapon_form_quality_v2_views": 0,
+        "production_weapon_form_quality_views": 6,
+        "production_weapon_formal_high_links": 0,
+        "production_weapon_high_low_bake_cage": 0,
+        "production_weapon_high_low_bake_correspondence": 0,
+        "production_weapon_high_low_bake_diagnostic": 0,
+        "production_weapon_high_low_bake_high": 0,
+        "production_weapon_high_low_bake_links": 0,
+        "production_weapon_high_low_bake_low": 0,
+        "production_weapon_high_low_bake_plan": 0,
+        "production_weapon_high_low_bake_receipts": 0,
+        "production_weapon_retopology_cage_source_bundle_links": 0,
+        "projects": 1,
+        "reference_evidence": 1,
+        "runtime_job_checkpoints": 0,
+        "runtime_job_events": 34,
+        "runtime_jobs": 34,
+        "schema_meta": 1,
+        "snapshots": 0,
+        "subdivision_artifact_lineage_links": 0,
+        "visual_evidence": 30,
+        "visual_evidence_views": 114,
+        "weapon_foundation_imports": 0,
+        "write_idempotency": 4
+      },
+      "table_count": 116
+    },
+    "sqlite_before": {
+      "row_counts": {
+        "agentic_action_runs": 0,
+        "agentic_design_checkpoints": 0,
+        "agentic_design_sessions": 1,
+        "agentic_production_camera_lock_registration_lineages": 1,
+        "agentic_production_camera_locks": 1,
+        "agentic_production_stage_heads": 0,
+        "agentic_production_stage_heads_v2": 0,
+        "agentic_production_stage_heads_v3": 1,
+        "agentic_production_stage_transitions": 0,
+        "agentic_production_stage_transitions_v2": 0,
+        "agentic_production_stage_transitions_v3": 2,
+        "appearance_source_lineage_links": 0,
+        "approval_receipts": 0,
+        "artifact_manifests": 0,
+        "audit_events": 35,
+        "authoring_mesh_durable_records": 0,
+        "authoring_mesh_identity_lineage_durable_records": 0,
+        "authoring_mesh_projection_indexes": 0,
+        "authoring_mesh_v2_durable_records": 3,
+        "candidate_animation_vfx_quality_links": 0,
+        "candidate_animation_vfx_quality_particle_history": 0,
+        "candidate_animation_vfx_quality_v2_links": 0,
+        "candidate_material_surface_quality_links": 0,
+        "candidate_topology_quality_links": 0,
+        "candidates": 34,
+        "cross_view_evidence": 5,
+        "cross_view_evidence_cas_refs": 185,
+        "design_asset_versions": 0,
+        "export_manifests": 0,
+        "fictional_energy_vfx_animated_socket_attachment_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_links": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v2_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v2_links": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v3_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v3_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_frame_history": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_frame_history": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_bloom_frame_links": 0,
+        "fictional_energy_vfx_frame_links": 0,
+        "fictional_energy_vfx_links": 0,
+        "fictional_energy_vfx_particles_frame_links": 0,
+        "fictional_energy_vfx_sequence_links": 0,
+        "fictional_energy_vfx_trails_bloom_frame_links": 0,
+        "fictional_energy_vfx_trails_frame_links": 0,
+        "foundation_authoring_mesh_v2_materializations": 0,
+        "fps_presentation_package_v2_candidates": 0,
+        "fps_presentation_packages_v2": 0,
+        "game_asset_delivery_links": 0,
+        "game_weapon_anchor_links": 0,
+        "game_weapon_animated_glb_socket_materialization_links": 0,
+        "game_weapon_animated_glb_socket_materialization_v2_links": 0,
+        "game_weapon_animated_glb_socket_transform_projection_frames": 0,
+        "game_weapon_animated_glb_socket_transform_projection_links": 0,
+        "game_weapon_animated_glb_socket_transform_projection_v2_frames": 0,
+        "game_weapon_animated_glb_socket_transform_projection_v2_links": 0,
+        "game_weapon_glb_socket_materialization_links": 0,
+        "game_weapon_glb_socket_materialization_lods": 0,
+        "geometry_candidate_evidence": 34,
+        "hero_uv_durable_links": 0,
+        "low_quad_draft_durable_links": 0,
+        "mechanical_animation_clip_links": 0,
+        "mechanical_animation_clip_v2_links": 0,
+        "mechanical_animation_glb_v2_links": 0,
+        "native_high_durable_links": 0,
+        "objects": 1742,
+        "production_weapon_form_art_baseline_cas_batch_objects": 290,
+        "production_weapon_form_art_baseline_cas_batches": 11,
+        "production_weapon_form_art_baselines": 11,
+        "production_weapon_form_art_composite_evidence_links": 2,
+        "production_weapon_form_art_composite_proposal_links": 2,
+        "production_weapon_form_art_evidence_links": 1,
+        "production_weapon_form_art_evidence_views": 6,
+        "production_weapon_form_art_proposal_evidence_links": 4,
+        "production_weapon_form_evidence_links": 1,
+        "production_weapon_form_evidence_views": 6,
+        "production_weapon_form_quality_cas_refs": 120,
+        "production_weapon_form_quality_links": 1,
+        "production_weapon_form_quality_v2_links": 0,
+        "production_weapon_form_quality_v2_views": 0,
+        "production_weapon_form_quality_views": 6,
+        "production_weapon_formal_high_links": 0,
+        "production_weapon_high_low_bake_cage": 0,
+        "production_weapon_high_low_bake_correspondence": 0,
+        "production_weapon_high_low_bake_diagnostic": 0,
+        "production_weapon_high_low_bake_high": 0,
+        "production_weapon_high_low_bake_links": 0,
+        "production_weapon_high_low_bake_low": 0,
+        "production_weapon_high_low_bake_plan": 0,
+        "production_weapon_high_low_bake_receipts": 0,
+        "production_weapon_retopology_cage_source_bundle_links": 0,
+        "projects": 1,
+        "reference_evidence": 1,
+        "runtime_job_checkpoints": 0,
+        "runtime_job_events": 34,
+        "runtime_jobs": 34,
+        "schema_meta": 1,
+        "snapshots": 0,
+        "subdivision_artifact_lineage_links": 0,
+        "visual_evidence": 30,
+        "visual_evidence_views": 114,
+        "weapon_foundation_imports": 0,
+        "write_idempotency": 4
+      },
+      "table_count": 116
+    },
+    "sqlite_unchanged": true
+  },
+  "recorded_on": "2026-08-28",
+  "request": {
+    "canonicalization_policy": "canonical-json-sha256-excluding-input-sha256@1",
+    "composite_evidence_id": "fps-form-04be-e-owner-void-half-y-evidence-v1",
+    "composite_evidence_receipt_object_sha256": "350555facd3ea2ca5fe994652f56603c9b73c65842152afbbad91102c8cdb33e",
+    "composite_evidence_record_canonical_sha256": "8f03de05bd08af1c54e62cfaad603204cef72f224ed47c12eabd8ec391eacd88",
+    "cross_view_evidence_bundle_sha256": "64eb80b5866b32e7d08e1484edf9f036ee20b0cdc4ab9da409f953bacdd043ea",
+    "diagnostic_id": "fps-form-04be-f-failure-diagnostic-v1",
+    "diagnostic_policy": "exact-parent-proposal-cross-view-form-art-delta-diagnostic@1",
+    "input_sha256": "68eb8b43eea57e9918a68788414d9a1945db0c50da629731b7c301063b5aa5a2",
+    "max_response_bytes": 1048576,
+    "operation": "forgecad.production.weapon.form-art-failure-diagnostic-get@1",
+    "persistent_user_data_touched": false,
+    "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+    "proposal_form_art_evidence_receipt_object_sha256": "0af3ded026923d2612560ba3e446e8c777887a3a4c2436385e83e8a110d15bff",
+    "proposal_id": "fps-form-04be-e-owner-void-half-y-v1",
+    "runtime_write_performed": false,
+    "schema_version": "ProductionWeaponFormArtFailureDiagnosticGetRequest@1",
+    "session_id": "fps-form-04a-session"
+  },
+  "restart_readback": {
+    "canonical_hash_equal": true,
+    "diagnostic": {
+      "candidate_confirm_allowed": false,
+      "candidate_confirmed": false,
+      "canonical_sha256": "68e838cebbabccec0fa042d59c5f9d4685b727216dc5a45171282cf957f16fa3",
+      "composite_evidence_id": "fps-form-04be-e-owner-void-half-y-evidence-v1",
+      "composite_evidence_receipt_object_sha256": "350555facd3ea2ca5fe994652f56603c9b73c65842152afbbad91102c8cdb33e",
+      "composite_evidence_record_canonical_sha256": "8f03de05bd08af1c54e62cfaad603204cef72f224ed47c12eabd8ec391eacd88",
+      "cross_view_canonical_sha256": "a0a5218eb2e6fb9a12dbe3ed3d8fd581b0171b4857aeee299525d14f6289733d",
+      "cross_view_delta": {
+        "baseline_score": 3.087599431383167,
+        "hard_gate_passed": false,
+        "left_boundary_f1_4px_after": 0.166863905325,
+        "left_boundary_f1_4px_before": 0.176477603396,
+        "left_boundary_f1_4px_delta": -0.009613698070999988,
+        "non_regressing": false,
+        "promotion_status": "rejected-regression",
+        "proposal_score": 3.087045988458
+      },
+      "cross_view_evidence_bundle_sha256": "64eb80b5866b32e7d08e1484edf9f036ee20b0cdc4ab9da409f953bacdd043ea",
+      "current_base_candidate_id": "candidate-f4a7d01ea8174dd4821c21fcd8ff06fa",
+      "current_base_candidate_state_sha256": "da53deaadbbc74e1c859f9c0d4b1c85427a8b2dcfa9f9bb6748c07bd6da354aa",
+      "current_base_form_art_evidence_canonical_sha256": "85b84f7859f710bbba685d8b2e7b85fc46a2fc79da18a07c22e013d65bc53a19",
+      "current_base_form_art_evidence_receipt_object_sha256": "e1240c5f175569b029341638218788197d0bff5dc7e88f85f586912dae54247e",
+      "current_base_geometry_program_sha256": "ca7db8dae76a8ccb885756a871def18dbe795057a8775f5b53ae1cf18b852386",
+      "diagnoses": [
+        {
+          "diagnosis_id": "rear-stock-negative-y-profile-effect",
+          "next_geometry_repair_allowed": false,
+          "status": "REJECTED_LEFT_BOUNDARY_REGRESSION_NO_LEFT_OWNER_BBOX_EFFECT_RIGHT_OWNER_INTRUSION_INCREASED"
+        },
+        {
+          "diagnosis_id": "rear-three-quarter-owner-attribution",
+          "next_geometry_repair_allowed": false,
+          "status": "ATTRIBUTION_CALIBRATION_CONFLICT_GEOMETRY_VOID_OBSERVED_OWNER_REGION_ZERO_VERTICAL_FLIP"
+        },
+        {
+          "diagnosis_id": "side-trigger-aperture-visibility",
+          "next_geometry_repair_allowed": false,
+          "status": "SEALED_IN_LEFT_RIGHT_OBSERVED_IN_REAR_THREE_QUARTER"
+        },
+        {
+          "diagnosis_id": "line-flow-separability",
+          "next_geometry_repair_allowed": false,
+          "status": "INDEPENDENTLY_UNRESOLVED_NOT_REPAIRABLE_BY_REAR_STOCK_PROFILE"
+        }
+      ],
+      "diagnostic_id": "fps-form-04be-f-failure-diagnostic-v1",
+      "diagnostic_policy": "exact-parent-proposal-cross-view-form-art-delta-diagnostic@1",
+      "diagnostic_status": "FAILURE_ROOT_CAUSES_SEPARATED_NO_GEOMETRY_REPAIR_AUTHORIZED",
+      "export_performed": false,
+      "form_quality_v2_status": "NOT_CREATED",
+      "geometry_delta": {
+        "changed_vertex_count": 6,
+        "changed_vertices": [
+          {
+            "after_position_m": [
+              0.23749999999999993,
+              -0.116,
+              -0.43
+            ],
+            "before_position_m": [
+              0.23749999999999993,
+              -0.113,
+              -0.43
+            ],
+            "delta_m": [
+              0.0,
+              -0.0030000000000000027,
+              0.0
+            ],
+            "element_id": "v-0b5816d146481be57c54d448977b09517ec6aad9b445e5cb8b60fb3f"
+          },
+          {
+            "after_position_m": [
+              -0.2375,
+              -0.116,
+              -0.43
+            ],
+            "before_position_m": [
+              -0.2375,
+              -0.113,
+              -0.43
+            ],
+            "delta_m": [
+              0.0,
+              -0.0030000000000000027,
+              0.0
+            ],
+            "element_id": "v-13588df49b84d491627ea5b8b507f4f1f3ab0d444d90271577b4ad96"
+          },
+          {
+            "after_position_m": [
+              0.23749999999999993,
+              -0.116,
+              0.43
+            ],
+            "before_position_m": [
+              0.23749999999999993,
+              -0.113,
+              0.43
+            ],
+            "delta_m": [
+              0.0,
+              -0.0030000000000000027,
+              0.0
+            ],
+            "element_id": "v-35fe449914cfdac5bd483fb071fbb8bae7c051020b7c31dd0ceb1062"
+          },
+          {
+            "after_position_m": [
+              0.0,
+              -0.119,
+              0.43
+            ],
+            "before_position_m": [
+              0.0,
+              -0.1145,
+              0.43
+            ],
+            "delta_m": [
+              0.0,
+              -0.00449999999999999,
+              0.0
+            ],
+            "element_id": "v-44c59c80442c7c8c42f163c842db5b1c0c945f6c852373eb10cb9dc5"
+          },
+          {
+            "after_position_m": [
+              0.0,
+              -0.119,
+              -0.43
+            ],
+            "before_position_m": [
+              0.0,
+              -0.1145,
+              -0.43
+            ],
+            "delta_m": [
+              0.0,
+              -0.00449999999999999,
+              0.0
+            ],
+            "element_id": "v-cea545bb67b72b1c6485cbcc17a7465be6e4d891ee74dca507ae3a1e"
+          },
+          {
+            "after_position_m": [
+              -0.2375,
+              -0.116,
+              0.43
+            ],
+            "before_position_m": [
+              -0.2375,
+              -0.113,
+              0.43
+            ],
+            "delta_m": [
+              0.0,
+              -0.0030000000000000027,
+              0.0
+            ],
+            "element_id": "v-db24f746f02ace20afeafa3f6b54d208a60de982279faa54d7eb28ed"
+          }
+        ],
+        "coordinate_space": "source-local",
+        "stable_vertex_ids_preserved": true,
+        "target_part_id": "rear-stock",
+        "topology_preserved": true,
+        "x_unchanged": true,
+        "y_delta_direction": "negative",
+        "z_unchanged": true
+      },
+      "line_flow_views": [
+        {
+          "inferred_count": 2,
+          "observed_count": 0,
+          "row_count": 2,
+          "status": "inferred",
+          "unknown_count": 0,
+          "view_kind": "front"
+        },
+        {
+          "inferred_count": 0,
+          "observed_count": 0,
+          "row_count": 1,
+          "status": "unknown",
+          "unknown_count": 1,
+          "view_kind": "back"
+        },
+        {
+          "inferred_count": 3,
+          "observed_count": 1,
+          "row_count": 6,
+          "status": "unknown",
+          "unknown_count": 2,
+          "view_kind": "left"
+        },
+        {
+          "inferred_count": 3,
+          "observed_count": 2,
+          "row_count": 6,
+          "status": "unknown",
+          "unknown_count": 1,
+          "view_kind": "right"
+        },
+        {
+          "inferred_count": 4,
+          "observed_count": 0,
+          "row_count": 4,
+          "status": "inferred",
+          "unknown_count": 0,
+          "view_kind": "top"
+        },
+        {
+          "inferred_count": 4,
+          "observed_count": 2,
+          "row_count": 6,
+          "status": "inferred",
+          "unknown_count": 0,
+          "view_kind": "rear-three-quarter"
+        }
+      ],
+      "next_atomic_action": "RUN_HASH_BOUND_OWNER_ATTRIBUTION_AND_SIDE_APERTURE_VISIBILITY_CALIBRATION_BEFORE_ANY_NEW_REGISTERED_GEOMETRY_PROFILE",
+      "operation": "forgecad.production.weapon.form-art-failure-diagnostic-get@1",
+      "owner_deltas": [
+        {
+          "after": {
+            "expected_void_bbox_px": [
+              380,
+              261,
+              457,
+              280
+            ],
+            "owner_bbox_px": [
+              404,
+              268,
+              483,
+              336
+            ],
+            "owner_boundary_adjacency_milli": 441,
+            "owner_expected_void_overlap_milli": 538,
+            "owner_region_pixel_count": 589,
+            "ranked_transform": "identity"
+          },
+          "before": {
+            "expected_void_bbox_px": [
+              380,
+              261,
+              457,
+              280
+            ],
+            "owner_bbox_px": [
+              404,
+              268,
+              483,
+              336
+            ],
+            "owner_boundary_adjacency_milli": 441,
+            "owner_expected_void_overlap_milli": 538,
+            "owner_region_pixel_count": 589,
+            "ranked_transform": "identity"
+          },
+          "owner_adjacency_delta_milli": 0,
+          "owner_bbox_changed": false,
+          "owner_overlap_delta_milli": 0,
+          "owner_region_pixel_delta": 0,
+          "view_kind": "left"
+        },
+        {
+          "after": {
+            "expected_void_bbox_px": [
+              51,
+              260,
+              139,
+              284
+            ],
+            "owner_bbox_px": [
+              28,
+              262,
+              107,
+              331
+            ],
+            "owner_boundary_adjacency_milli": 548,
+            "owner_expected_void_overlap_milli": 579,
+            "owner_region_pixel_count": 970,
+            "ranked_transform": "identity"
+          },
+          "before": {
+            "expected_void_bbox_px": [
+              51,
+              260,
+              139,
+              284
+            ],
+            "owner_bbox_px": [
+              28,
+              262,
+              107,
+              331
+            ],
+            "owner_boundary_adjacency_milli": 548,
+            "owner_expected_void_overlap_milli": 573,
+            "owner_region_pixel_count": 961,
+            "ranked_transform": "identity"
+          },
+          "owner_adjacency_delta_milli": 0,
+          "owner_bbox_changed": false,
+          "owner_overlap_delta_milli": 6,
+          "owner_region_pixel_delta": 9,
+          "view_kind": "right"
+        },
+        {
+          "after": {
+            "expected_void_bbox_px": [
+              126,
+              266,
+              168,
+              398
+            ],
+            "owner_bbox_px": [
+              89,
+              147,
+              161,
+              222
+            ],
+            "owner_boundary_adjacency_milli": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_region_pixel_count": 0,
+            "ranked_transform": "vertical-flip"
+          },
+          "before": {
+            "expected_void_bbox_px": [
+              126,
+              266,
+              168,
+              398
+            ],
+            "owner_bbox_px": [
+              89,
+              147,
+              161,
+              222
+            ],
+            "owner_boundary_adjacency_milli": 0,
+            "owner_expected_void_overlap_milli": 0,
+            "owner_region_pixel_count": 0,
+            "ranked_transform": "vertical-flip"
+          },
+          "owner_adjacency_delta_milli": 0,
+          "owner_bbox_changed": false,
+          "owner_overlap_delta_milli": 0,
+          "owner_region_pixel_delta": 0,
+          "view_kind": "rear-three-quarter"
+        }
+      ],
+      "persistent_user_data_touched": false,
+      "production_stage_advanced": false,
+      "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+      "proposal_candidate_id": "candidate-6f6ddeff15b94d5db9eb74d6c639cf8a",
+      "proposal_candidate_state_sha256": "1a0bf325f55d2cffa6924d35dbbfa46c8d1142e35fad4850ac6e2c3d56f260d2",
+      "proposal_form_art_evidence_canonical_sha256": "58515006b8a0da3dee0a48ccb2afee320e42dac250fee30dadb418739f6cbe3b",
+      "proposal_form_art_evidence_receipt_object_sha256": "0af3ded026923d2612560ba3e446e8c777887a3a4c2436385e83e8a110d15bff",
+      "proposal_geometry_program_sha256": "a9d447e51ddc510541568a3fa1aed86b052514f459b50168c455ca4fe38e7f11",
+      "proposal_id": "fps-form-04be-e-owner-void-half-y-v1",
+      "quality_status": "QUALITY_TARGET_NOT_MET",
+      "rear_three_quarter_negative_space": [
+        {
+          "boundary_f1_milli": 929,
+          "centroid_error_milli": 419,
+          "iou_milli": 940,
+          "missing": false,
+          "sealed": false,
+          "status": "observed",
+          "structure_id": "rear3q.open-stock-void",
+          "view_kind": "rear-three-quarter"
+        },
+        {
+          "boundary_f1_milli": 1000,
+          "centroid_error_milli": 23,
+          "iou_milli": 907,
+          "missing": false,
+          "sealed": false,
+          "status": "observed",
+          "structure_id": "rear3q.trigger-void",
+          "view_kind": "rear-three-quarter"
+        }
+      ],
+      "runtime_write_performed": false,
+      "schema_version": "ProductionWeaponFormArtFailureDiagnosticGetResult@1",
+      "secondary_form_approved": "NOT_CREATED",
+      "session_id": "fps-form-04a-session",
+      "side_trigger_visibility": [
+        {
+          "boundary_f1_milli": 0,
+          "centroid_error_milli": 100000,
+          "iou_milli": 0,
+          "missing": false,
+          "sealed": true,
+          "status": "unknown",
+          "structure_id": "left.trigger-void",
+          "view_kind": "left"
+        },
+        {
+          "boundary_f1_milli": 0,
+          "centroid_error_milli": 100000,
+          "iou_milli": 0,
+          "missing": false,
+          "sealed": true,
+          "status": "unknown",
+          "structure_id": "right.trigger-void",
+          "view_kind": "right"
+        }
+      ],
+      "version_created": false,
+      "worker_started": false
+    }
+  },
+  "schema_version": "ForgeCADProductionWeaponFormArtFailureDiagnosticRealD1Gate@1",
+  "status": "PASS_READ_ONLY_FAILURE_ROOT_CAUSES_SEPARATED",
+  "task_id": "FPS-FORM-04BE-F"
+}

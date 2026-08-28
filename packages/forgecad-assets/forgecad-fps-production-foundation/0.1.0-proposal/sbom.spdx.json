@@ -1,0 +1,25 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "forgecad-fps-production-foundation-0.1.0-proposal",
+  "documentNamespace": "https://forgecad.local/spdx/forgecad-fps-production-foundation/0.1.0-proposal",
+  "creationInfo": {
+    "created": "2026-08-27T00:00:00Z",
+    "creators": ["Organization: forgecad-first-party"]
+  },
+  "packages": [
+    {"name":"Kenney Blaster Kit","SPDXID":"SPDXRef-Package-KenneyBlasterKit","versionInfo":"2.1","downloadLocation":"https://kenney.nl/assets/blaster-kit","filesAnalyzed":false,"licenseConcluded":"CC0-1.0","licenseDeclared":"CC0-1.0","copyrightText":"NOASSERTION"},
+    {"name":"Quaternius Sci-Fi Modular Gun Pack","SPDXID":"SPDXRef-Package-QuaterniusModularGuns","versionInfo":"official-drive-snapshot-2021-11","downloadLocation":"https://quaternius.com/packs/scifimodularguns.html","filesAnalyzed":false,"licenseConcluded":"CC0-1.0","licenseDeclared":"CC0-1.0","copyrightText":"NOASSERTION"},
+    {"name":"Pichuliru Flat Guns and Attachments","SPDXID":"SPDXRef-Package-PichuliruFlatGuns","versionInfo":"official-opengameart-snapshot-2022","downloadLocation":"https://opengameart.org/content/cc0-flat-guns-west","filesAnalyzed":false,"licenseConcluded":"CC0-1.0","licenseDeclared":"CC0-1.0","copyrightText":"NOASSERTION"},
+    {"name":"Lightning Pump Action Rifle","SPDXID":"SPDXRef-Package-LightningPumpAction","versionInfo":"official-opengameart-snapshot-2025-03","downloadLocation":"https://opengameart.org/content/lightning-pump-action-rifle","filesAnalyzed":false,"licenseConcluded":"CC0-1.0","licenseDeclared":"CC0-1.0","copyrightText":"NOASSERTION"},
+    {"name":"WRAD ARMS","SPDXID":"SPDXRef-Package-WradArms","versionInfo":"f3987244176c33d2c20d4f9e139980af12684d87","downloadLocation":"https://github.com/wwwriks/wrad-arms","filesAnalyzed":false,"licenseConcluded":"CC0-1.0","licenseDeclared":"CC0-1.0","copyrightText":"NOASSERTION"}
+  ],
+  "relationships": [
+    {"spdxElementId":"SPDXRef-DOCUMENT","relationshipType":"DESCRIBES","relatedSpdxElement":"SPDXRef-Package-KenneyBlasterKit"},
+    {"spdxElementId":"SPDXRef-DOCUMENT","relationshipType":"DESCRIBES","relatedSpdxElement":"SPDXRef-Package-QuaterniusModularGuns"},
+    {"spdxElementId":"SPDXRef-DOCUMENT","relationshipType":"DESCRIBES","relatedSpdxElement":"SPDXRef-Package-PichuliruFlatGuns"},
+    {"spdxElementId":"SPDXRef-DOCUMENT","relationshipType":"DESCRIBES","relatedSpdxElement":"SPDXRef-Package-LightningPumpAction"},
+    {"spdxElementId":"SPDXRef-DOCUMENT","relationshipType":"DESCRIBES","relatedSpdxElement":"SPDXRef-Package-WradArms"}
+  ]
+}

@@ -1,5 +1,7 @@
 # ForgeCAD 单参考轮廓优先工作流
 
+> 2026-08-25 范围说明：轮廓拟合是 Form 的前置质量环，不是完整资产生产。只有 silhouette、negative-space、primary/secondary planes 和 fixed first-person readability 通过后，才允许进入 AuthoringMesh/High/Low/UV/Cage/Bake；材质与灯光不得补偿轮廓失败。完整生产链见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
 版本：2026-08-13 · 任务：FGC-MCP010F contour-first slice
 
 ## 目的

@@ -1,0 +1,30 @@
+{
+  "schema_version": "NativeHighBenchmarkFixture@1",
+  "fixture_id": "native-high-double-replay-source",
+  "request_schema": "HighMeshWorkerRequest@1",
+  "artifact_schema": "HighMeshArtifact@1",
+  "detail_graph_schema": "DetailGraph@1",
+  "glb_request_schema": "NativeHighGlbMaterializeRequest@1",
+  "glb_result_schema": "NativeHighGlbMaterializeResult@1",
+  "durable_glb_contracts": [
+    "NativeHighDurableGetRequest@1",
+    "NativeHighDurableGetResult@1",
+    "NativeHighDurableLink@1",
+    "NativeHighDurablePrepareRequest@1",
+    "NativeHighDurablePrepareResult@1",
+    "NativeHighGlbMaterializeRequest@1",
+    "NativeHighGlbMaterializeResult@1"
+  ],
+  "worker_lock": "workers/high-worker.lock.json",
+  "expected": {
+    "replay_count": 2,
+    "replay_byte_exact": true,
+    "glb_replay_byte_exact": true,
+    "glb_strict_readback": true,
+    "glb_runtime_write_performed": false,
+    "base_preserved": true,
+    "runtime_write_performed": false,
+    "production_stage_advanced": false,
+    "high_gate_passed": false
+  }
+}

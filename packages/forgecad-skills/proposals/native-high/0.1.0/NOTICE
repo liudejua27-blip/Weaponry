@@ -1,0 +1,9 @@
+ForgeCAD first-party Native High Skill proposal. No executable, model weight, texture,
+third-party source, commercial asset, remote asset, or external download is bundled.
+Bundle: native-high@0.1.0 (unregistered target-design proposal).
+Related active declaration: hard-surface-detail@0.2.0.
+The fixed source lock covers the High worker and its embedded-only GLB sibling plus
+seven durable/GLB typed contracts. Worker High/GLB replay and strict readback are
+source evidence only. Runtime/MCP/durable CAS restart evidence passes in the source
+cohort; packaged integration remains pending. `registered=false` and
+`high_gate_status=NOT_PASSED` remain authoritative.

@@ -1,7 +1,11 @@
 # Codex / Luna `GeometryProgram@2` 操作工作流
 
+> 2026-08-26 04AE：GeometryProgram CAS 仍以无自引用 `canonical_sha256` 的 canonical bytes/object hash 为真值；AuthoringMesh V2 revision/operation IDs 与 Native High replay hash 遵循相同确定性原则。现行公共面 **525 schemas / 196 tools**。
+
 版本：2026-08-09
 状态：`FGC-MCP010B structural source Gate PASS；Darwin OS memory hard cap deferred/NOT_RUN`；本文件是 V2 调用和审计指引，不代表 C 的视觉质量或 360°通过
+
+2026-08-25 路线边界：`GeometryProgram@2` 与 strict GLB readback 是编译层，不是商业 authoring mesh。商业生产必须继续经过 approved Form、durable `AuthoringMesh`、Native High、editable Low/Retopo、Hero UV、Cage/Bake、Material Layer Graph、FPS/LOD、engine 与 human Gate；当前只读 `authoring_mesh_get` 不能被本工作流扩写为跨版本稳定编辑器或 Hero topology PASS。完整顺序见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
 
 当前 B 源码 reconciliation 已通过 source-focused Gate：B subtotal 为 52 contracts（44 历史 + 8 MCP010B，新增 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`）、MCP006 Skill integrity、isolated Worker/raw V2、V2 restore hardening 与 closed GLB profile。这里的 52 是 B scope subtotal；当前全仓源合同以权威账本顶部的 136 为准。本文件只描述 B authoring/readback，Agentic durable session/checkpoint/RepairIntent 另见 `docs/ADR/0026-agentic-design-runtime.md`。3c/f488/bfa56/d9 Dev.app/CLI evidence 是历史或结构 cohort；本工作流不宣称 PBR、reference similarity、human review 或 360°。
 
@@ -262,3 +266,11 @@ V1 transition used? yes/no, with reason
 ```
 
 上述 contracts、negative fixture、worker、Runtime/MCP focused 和适用 aggregate Gate 已形成 B structural source Gate；Darwin OS memory hard cap仍 deferred/NOT_RUN，故 B 以 `blocked/deferred` 留账，不把受限预算写成硬上限。MCP010C 已由独立 Goal 领取；本文件不改变 C 的视觉质量或 360°能力状态。
+
+## 9. 商业扩展排队（不属于 MCP010B）
+
+`GeometryProgram@2` 只负责 typed geometry compile/readback。Codex 发现商业模块时必须停止在当前已通过的门，按下列目标顺序读取 live capability：`AuthoringMesh@1` → Native High → editable Retopology/Low → Hero UV → Cage/Bake → Surface → LOD/Collision/Socket → `EngineValidationReceipt@1` → `HeroArtReviewReceipt@1`。当前 AuthoringMesh 仍 partial structural，Native High proposal `registered=false`，Low `DRAFT_UNREVIEWED`，Hero UV durable 仅 structural/source 1/1；Cage/Bake quality failed，其余商业模块 `NOT_RUN/NOT_PROVEN`。
+
+后续 Worker 不得从 Codex 接收脚本、Python、路径、URL 或外部 DCC 状态。每个 Worker 必须由 `ForgeCadModule@1` 绑定 schema/operator refs、有限 budget、deterministic fixtures、LICENSE/NOTICE/SBOM、source/build provenance、signature 与 module/contract/input/output hashes，并由 Runtime 进行同 candidate/hash/lineage readback。缺少模块 receipt 时，V2 workflow 只能返回 `CAPABILITY_UNAVAILABLE`/`queued`，不能调用 confirm、version 或 export。
+
+Manifold、OpenSubdiv、QuadriFlow、xatlas、Embree、MaterialX、OIIO、OCIO、meshoptimizer、glTF Validator 只可在审计后作为 ForgeCAD-owned、离线、签名、确定性 Worker 的实现输入；Blender、Substance、Maya 和任意 DCC 仍是 reference-only/unavailable-for-product。当前 source 口径保持 **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 tools**，不因目标模块清单改变。

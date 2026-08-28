@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-stage-transition-v3-prepare-request.schema.json",
+  "title": "ProductionStageTransitionPrepareRequest@3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transition_id",
+    "session_id",
+    "project_id",
+    "root_candidate_id",
+    "root_candidate_role",
+    "root_candidate_state_sha256",
+    "source_artifact_id",
+    "root_artifact_sha256",
+    "previous_head_candidate_id",
+    "previous_head_candidate_role",
+    "previous_head_candidate_state_sha256",
+    "previous_head_artifact_id",
+    "previous_head_artifact_sha256",
+    "previous_head_stage",
+    "head_candidate_id",
+    "head_candidate_role",
+    "head_candidate_state_sha256",
+    "output_artifact_id",
+    "head_artifact_sha256",
+    "from_stage",
+    "to_stage",
+    "candidate_binding_status",
+    "reference_id",
+    "reference_sha256",
+    "camera_hash",
+    "camera_lock_id",
+    "camera_lock_canonical_sha256",
+    "camera_rig_object_sha256",
+    "camera_rig_canonical_sha256",
+    "camera_lock_receipt_object_sha256",
+    "camera_lock_source_transition_id",
+    "camera_lock_source_transition_sha256",
+    "camera_lock_source_head_canonical_sha256",
+    "evidence_sha256",
+    "reference_canvas_object_sha256",
+    "quality_report_object_sha256",
+    "comparison_report_object_sha256",
+    "design_spec_object_sha256",
+    "visual_receipt_object_sha256",
+    "human_review_receipt_object_sha256",
+    "engine_validation_receipt_object_sha256",
+    "distribution_receipt_object_sha256",
+    "structural_status",
+    "visual_status",
+    "human_status",
+    "engine_status",
+    "distribution_status",
+    "approval_receipt_id",
+    "approval_session_id",
+    "approval_expires_at",
+    "parent_transition_id",
+    "parent_transition_sha256",
+    "parent_transition_schema_version",
+    "input_sha256",
+    "approved",
+    "approval_summary",
+    "idempotency_key"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionStageTransitionPrepareRequest@3"},
+    "transition_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "root_candidate_id": {"$ref": "#/$defs/id"},
+    "root_candidate_role": {"$ref": "#/$defs/id"},
+    "root_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_id": {"$ref": "#/$defs/id"},
+    "root_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "previous_head_candidate_id": {"$ref": "#/$defs/id"},
+    "previous_head_candidate_role": {"$ref": "#/$defs/id"},
+    "previous_head_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "previous_head_artifact_id": {"$ref": "#/$defs/id"},
+    "previous_head_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "previous_head_stage": {"$ref": "#/$defs/stage"},
+    "head_candidate_id": {"$ref": "#/$defs/id"},
+    "head_candidate_role": {"$ref": "#/$defs/id"},
+    "head_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "output_artifact_id": {"$ref": "#/$defs/id"},
+    "head_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "from_stage": {"$ref": "#/$defs/stage"},
+    "to_stage": {"$ref": "#/$defs/stage"},
+    "candidate_binding_status": {"$ref": "#/$defs/candidate_binding_status"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "camera_lock_id": {"$ref": "#/$defs/nullable_id"},
+    "camera_lock_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_rig_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_rig_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_lock_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_lock_source_transition_id": {"$ref": "#/$defs/nullable_id"},
+    "camera_lock_source_transition_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "camera_lock_source_head_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_canvas_object_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "comparison_report_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "design_spec_object_sha256": {"$ref": "#/$defs/sha256"},
+    "visual_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "human_review_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "engine_validation_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "distribution_receipt_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "structural_status": {"$ref": "#/$defs/structural_status"},
+    "visual_status": {"$ref": "#/$defs/visual_status"},
+    "human_status": {"$ref": "#/$defs/human_status"},
+    "engine_status": {"$ref": "#/$defs/engine_status"},
+    "distribution_status": {"$ref": "#/$defs/distribution_status"},
+    "approval_receipt_id": {"$ref": "#/$defs/id"},
+    "approval_session_id": {"$ref": "#/$defs/id"},
+    "approval_expires_at": {"$ref": "#/$defs/epoch"},
+    "parent_transition_id": {"$ref": "#/$defs/nullable_id"},
+    "parent_transition_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "parent_transition_schema_version": {"$ref": "#/$defs/nullable_parent_schema_version"},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "approved": {"const": true},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "idempotency_key": {"$ref": "#/$defs/id"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"from_stage": {"const": "reference-intake"}}, "required": ["from_stage"]},
+      "then": {
+        "properties": {
+          "to_stage": {"const": "reference-coverage-reviewed"},
+          "camera_lock_id": {"const": null},
+          "camera_lock_canonical_sha256": {"const": null},
+          "camera_rig_object_sha256": {"const": null},
+          "camera_rig_canonical_sha256": {"const": null},
+          "camera_lock_receipt_object_sha256": {"const": null},
+          "camera_lock_source_transition_id": {"const": null},
+          "camera_lock_source_transition_sha256": {"const": null},
+          "camera_lock_source_head_canonical_sha256": {"const": null}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"from_stage": {"const": "reference-coverage-reviewed"}},
+        "required": ["from_stage"]
+      },
+      "then": {
+        "properties": {
+          "to_stage": {"const": "camera-calibrated"},
+          "camera_lock_id": {"$ref": "#/$defs/id"},
+          "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_rig_object_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_rig_canonical_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_lock_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_lock_source_transition_id": {"$ref": "#/$defs/id"},
+          "camera_lock_source_transition_sha256": {"$ref": "#/$defs/sha256"},
+          "camera_lock_source_head_canonical_sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"from_stage": {"const": "camera-calibrated"}}, "required": ["from_stage"]},
+      "then": {
+        "properties": {
+          "to_stage": {"const": "blockout-reviewed"}, "previous_head_stage": {"const": "camera-calibrated"}, "candidate_binding_status": {"const": "same-candidate-evidence"},
+          "camera_lock_id": {"$ref": "#/$defs/id"}, "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"}, "camera_rig_object_sha256": {"$ref": "#/$defs/sha256"}, "camera_rig_canonical_sha256": {"$ref": "#/$defs/sha256"}, "camera_lock_receipt_object_sha256": {"$ref": "#/$defs/sha256"}, "camera_lock_source_transition_id": {"$ref": "#/$defs/id"}, "camera_lock_source_transition_sha256": {"$ref": "#/$defs/sha256"}, "camera_lock_source_head_canonical_sha256": {"$ref": "#/$defs/sha256"},
+          "quality_report_object_sha256": {"$ref": "#/$defs/sha256"}, "visual_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+          "structural_status": {"const": "PASS_SOURCE_STRUCTURAL"}, "visual_status": {"const": "PASS_STAGE_VISUAL_STRUCTURE_ONLY"},
+          "human_status": {"const": "NOT_RUN"}, "engine_status": {"const": "NOT_RUN"}, "distribution_status": {"const": "NOT_RUN"}
+        },
+        "x-forgecad-receipt-kinds": {"quality_report_object_sha256": "ProductionWeaponFormQuality@2", "visual_receipt_object_sha256": "ProductionWeaponFormArtEvidence@1"}
+      }
+    },
+    {
+      "if": {"properties": {"from_stage": {"const": "blockout-reviewed"}}, "required": ["from_stage"]},
+      "then": {
+        "properties": {
+          "to_stage": {"const": "primary-form-approved"}, "previous_head_stage": {"const": "blockout-reviewed"}, "candidate_binding_status": {"const": "same-candidate-evidence"},
+          "camera_lock_id": {"$ref": "#/$defs/id"}, "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"}, "camera_rig_object_sha256": {"$ref": "#/$defs/sha256"}, "camera_rig_canonical_sha256": {"$ref": "#/$defs/sha256"}, "camera_lock_receipt_object_sha256": {"$ref": "#/$defs/sha256"}, "camera_lock_source_transition_id": {"$ref": "#/$defs/id"}, "camera_lock_source_transition_sha256": {"$ref": "#/$defs/sha256"}, "camera_lock_source_head_canonical_sha256": {"$ref": "#/$defs/sha256"},
+          "quality_report_object_sha256": {"$ref": "#/$defs/sha256"}, "visual_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+          "structural_status": {"const": "PASS_SOURCE_STRUCTURAL"}, "visual_status": {"const": "PASS_STAGE_VISUAL_STRUCTURE_ONLY"},
+          "human_status": {"const": "NOT_RUN"}, "engine_status": {"const": "NOT_RUN"}, "distribution_status": {"const": "NOT_RUN"}
+        },
+        "x-forgecad-receipt-kinds": {"quality_report_object_sha256": "ProductionWeaponFormQuality@2", "visual_receipt_object_sha256": "ProductionWeaponFormArtEvidence@1"}
+      }
+    },
+    {
+      "if": {"properties": {"from_stage": {"const": "primary-form-approved"}}, "required": ["from_stage"]},
+      "then": {
+        "properties": {
+          "to_stage": {"const": "secondary-form-approved"}, "previous_head_stage": {"const": "primary-form-approved"}, "candidate_binding_status": {"const": "same-candidate-evidence"},
+          "camera_lock_id": {"$ref": "#/$defs/id"}, "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"}, "camera_rig_object_sha256": {"$ref": "#/$defs/sha256"}, "camera_rig_canonical_sha256": {"$ref": "#/$defs/sha256"}, "camera_lock_receipt_object_sha256": {"$ref": "#/$defs/sha256"}, "camera_lock_source_transition_id": {"$ref": "#/$defs/id"}, "camera_lock_source_transition_sha256": {"$ref": "#/$defs/sha256"}, "camera_lock_source_head_canonical_sha256": {"$ref": "#/$defs/sha256"},
+          "quality_report_object_sha256": {"$ref": "#/$defs/sha256"}, "visual_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+          "structural_status": {"const": "PASS_SOURCE_STRUCTURAL"}, "visual_status": {"const": "PASS_STAGE_VISUAL_STRUCTURE_ONLY"},
+          "human_status": {"const": "NOT_RUN"}, "engine_status": {"const": "NOT_RUN"}, "distribution_status": {"const": "NOT_RUN"}
+        },
+        "x-forgecad-receipt-kinds": {"quality_report_object_sha256": "ProductionWeaponFormQuality@2", "visual_receipt_object_sha256": "ProductionWeaponFormArtEvidence@1"}
+      }
+    },
+    {
+      "if": {"properties": {"parent_transition_id": {"const": null}}, "required": ["parent_transition_id"]},
+      "then": {
+        "properties": {
+          "parent_transition_sha256": {"const": null},
+          "parent_transition_schema_version": {"const": null}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"parent_transition_id": {"type": "string"}}, "required": ["parent_transition_id"]},
+      "then": {
+        "properties": {
+          "parent_transition_sha256": {"$ref": "#/$defs/sha256"},
+          "parent_transition_schema_version": {"const": "ProductionStageTransition@3"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "nullable_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "epoch": {"type": "string", "pattern": "^[0-9]{1,10}$"},
+    "stage": {
+      "enum": [
+        "reference-intake", "reference-coverage-reviewed", "camera-calibrated", "blockout-reviewed",
+        "primary-form-approved", "secondary-form-approved", "high-poly-approved", "low-poly-approved",
+        "uv-approved", "cage-approved", "bake-approved", "material-approved", "rig-socket-approved",
+        "animation-approved", "vfx-approved", "lod-collision-approved", "hero-art-review-approved",
+        "engine-validated", "export-confirmed"
+      ]
+    },
+    "candidate_binding_status": {
+      "enum": ["same-candidate-evidence", "distinct-candidate-stage-output"]
+    },
+    "structural_status": {"enum": ["NOT_RUN", "BLOCKED", "PASS_SOURCE_STRUCTURAL"]},
+    "visual_status": {"enum": ["NOT_RUN", "BLOCKED", "QUALITY_TARGET_NOT_MET", "PASS_STAGE_VISUAL", "PASS_STAGE_VISUAL_STRUCTURE_ONLY"]},
+    "human_status": {"enum": ["NOT_RUN", "BLOCKED", "REJECTED", "PASS_HUMAN_ART_REVIEW"]},
+    "engine_status": {"enum": ["NOT_RUN", "BLOCKED", "FAILED", "PASS_ENGINE_VALIDATION"]},
+    "distribution_status": {"enum": ["NOT_RUN", "BLOCKED", "FAILED", "PASS_DISTRIBUTION"]},
+    "nullable_parent_schema_version": {
+      "type": ["string", "null"],
+      "pattern": "^ProductionStageTransition@[0-9]+$"
+    }
+  }
+}

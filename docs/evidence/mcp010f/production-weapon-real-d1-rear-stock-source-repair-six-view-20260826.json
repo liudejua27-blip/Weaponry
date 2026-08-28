@@ -1,0 +1,58 @@
+{
+  "schema_version": "ForgeCADRealD1RearStockSourceRepairEvidence@1",
+  "recorded_on": "2026-08-26",
+  "task_id": "FPS-FORM-04AF",
+  "scope": "fictional_nonfunctional_game_weapon_visual_asset",
+  "build_cohort_sha256": "2026082620260826202608262026082620260826202608262026082620260826",
+  "source": {
+    "project_id": "project-318e4de6aa4d4f33b2f740988fed6fa1",
+    "candidate_id": "candidate-8b35615c93e34775a7ca0d5418272adb",
+    "candidate_state_sha256": "47f7d2117a88beabc38d4cb123e694dbc425608a8aa43a5af40d10040c82ea67",
+    "artifact_sha256": "fa5d81fd9d219eaf85f7bb9094adb7d89338b3395f6263443b1159918418368e",
+    "geometry_program_sha256": "d154ae2982de2aac2b09b80741b8dd2eaa26ceee6745642c0b87b8537d01b6d4",
+    "reference_id": "reference-f99a466ac6f7490da6af3106cefcefba",
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+  },
+  "action_run": {
+    "session_id": "fps-form-04af-source-repair-session",
+    "run_id": "fps-form-04af-rear-stock-source-repair-run-v5",
+    "canonical_sha256": "4cd973001d0d4eaf1a826bcf53054aac429e2d89461593a66d0971f519a0364a",
+    "strategy": "rear-stock-profile-reconstruction-v1",
+    "mutable_source_nodes": [
+      "rear-stock"
+    ],
+    "status": "completed",
+    "completed_stage": "evaluate",
+    "failed_gate": "visible-view"
+  },
+  "proposal": {
+    "candidate_id": "candidate-4610f3220929444f8cdea2d35332712d",
+    "candidate_state_sha256": "300739c8e3c3656c02d8db41a2ed30487a4f379de4d7cde9c73b1806a3746ba0",
+    "artifact_sha256": "75ac5c6cd35f386052b3ee5755374de9f0bcdfab3a675d9cb9077022fbb785d9",
+    "geometry_program_sha256": "b472bea5c65912d264014dc5b2f6fb6d805ea1b2fb2a8acb7072ded77571fc51",
+    "cross_view_bundle_sha256": "683dbe99495ff5f8636775a6a35510cea307c7dc908e109af3a3d12ca4c4b28c",
+    "quality_report_sha256": "9b2955ee4dafa007f9c65f2a78da638ebe42c0f7eb13bdc586d64dbf1f206044",
+    "render_set_sha256": "a258ba9bc2bc63649c3899a0b44ddda08862f1e9d678281e0340698467e468d0"
+  },
+  "six_view_silhouette_iou": {
+    "front": {"baseline": 0.437904269082, "proposal": 0.437904269082, "non_regressing": true},
+    "back": {"baseline": 0.434916095386, "proposal": 0.434916095386, "non_regressing": true},
+    "left": {"baseline": 0.208937260363, "proposal": 0.201937804395, "non_regressing": false},
+    "right": {"baseline": 0.201394281376, "proposal": 0.198104544588, "non_regressing": false},
+    "top": {"baseline": 0.428448254, "proposal": 0.428448254, "non_regressing": true},
+    "rear-three-quarter": {"baseline": 0.276737731058, "proposal": 0.275342526428, "non_regressing": false}
+  },
+  "decision": {
+    "aggregate_status": "QUALITY_TARGET_NOT_MET",
+    "baseline_score": 3.095222022337167,
+    "proposal_score": 3.094936632841667,
+    "non_regressing": false,
+    "strict_improvement": false,
+    "promotion": "rejected-regression",
+    "confirm_allowed": false,
+    "confirm_performed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "truth_boundary": "The Runtime-owned source repair compiled, read back, rendered and evaluated in six views. It regressed three views and was correctly rejected. This is not secondary-form approval or commercial visual quality."
+}

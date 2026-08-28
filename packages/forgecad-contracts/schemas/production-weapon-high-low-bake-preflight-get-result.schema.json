@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-high-low-bake-preflight-get-result.schema.json",
+  "title": "ProductionWeaponHighLowBakePreflightGetResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "preflight_id", "session_id", "project_id", "candidate_id",
+    "expected_head_stage", "observed_head_stage", "observed_head_transition_id",
+    "observed_head_transition_sha256", "observed_head_canonical_sha256", "checks",
+    "ready_for_formal_bake", "blocking_reasons", "quality_status",
+    "visual_quality_status", "human_review_status", "commercial_engine_status",
+    "distribution_status", "runtime_write", "worker_started", "production_stage_advanced",
+    "candidate_confirmed", "version_created", "export_performed",
+    "restart_hash_verified", "readiness_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponHighLowBakePreflightGetResult@1"},
+    "preflight_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "expected_head_stage": {"type": "string", "minLength": 1, "maxLength": 64},
+    "observed_head_stage": {"anyOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 64}]},
+    "observed_head_transition_id": {"$ref": "#/$defs/nullable_id"},
+    "observed_head_transition_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "observed_head_canonical_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secondary_form_head", "formal_high_artifact", "authoring_low_topology", "hero_uv_layout", "formal_cage_artifact", "high_low_correspondence", "ray_diagnostic", "formal_bake"],
+      "properties": {
+        "secondary_form_head": {"$ref": "#/$defs/head_check"},
+        "formal_high_artifact": {"$ref": "#/$defs/unverified_check"},
+        "authoring_low_topology": {"$ref": "#/$defs/unverified_check"},
+        "hero_uv_layout": {"$ref": "#/$defs/unverified_check"},
+        "formal_cage_artifact": {"$ref": "#/$defs/unverified_check"},
+        "high_low_correspondence": {"$ref": "#/$defs/unverified_check"},
+        "ray_diagnostic": {"$ref": "#/$defs/unverified_check"},
+        "formal_bake": {"$ref": "#/$defs/unverified_check"}
+      }
+    },
+    "ready_for_formal_bake": {"type": "boolean"},
+    "blocking_reasons": {"type": "array", "minItems": 0, "maxItems": 16, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z0-9_]{1,128}$"}},
+    "quality_status": {"const": "structural_only"},
+    "visual_quality_status": {"const": "NOT_PROVEN"},
+    "human_review_status": {"const": "NOT_RUN"},
+    "commercial_engine_status": {"const": "NOT_RUN"},
+    "distribution_status": {"const": "NOT_RUN"},
+    "runtime_write": {"const": false},
+    "worker_started": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "restart_hash_verified": {"const": true},
+    "readiness_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_id": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/id"}]},
+    "nullable_sha256": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]},
+    "head_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason_code", "object_sha256", "canonical_sha256"],
+      "properties": {
+        "status": {"enum": ["passed", "blocked", "missing", "failed"]},
+        "reason_code": {"type": "string", "pattern": "^[A-Z0-9_]{1,128}$"},
+        "object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/nullable_sha256"}
+      }
+    },
+    "unverified_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason_code", "object_sha256", "canonical_sha256"],
+      "properties": {
+        "status": {"enum": ["blocked", "missing", "failed"]},
+        "reason_code": {"type": "string", "pattern": "^[A-Z0-9_]{1,128}$"},
+        "object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/nullable_sha256"}
+      }
+    }
+  }
+}

@@ -1,9 +1,44 @@
 # ForgeCAD MVP 与生产发布清单
 
-版本：2026-08-11
+> 2026-08-26 现行 source：**527 schemas / 115 read + 87 write = 202 tools**。真实 D1 网格编辑纵切仍为 owner-evidence-blocked reviewable tradeoff，不勾选任何 commercial release 项；完整 High/Low/UV/Bake、Material evaluator、FPS、Engine 与独立 Hero Art Review 均未通过。
+
+> 商业 FPS 发布新增硬门：canonical/optimized semantic diff、KTX2 decode hash、LOD/collision/socket/animation readback、Unreal clean import/reimport/restart/packaged run、Unity second profile、target-hardware p50/p95/p99、DPT 和 independent Hero Art Review。详见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。
+
+> 2026-08-26 商业发布硬门：至少一个同 hash Hero candidate 必须依次通过静态源资产、FPS presentation、LOD/collision/socket、canonical/optimized package semantic diff、clean-project import、packaged target build、frame-time `p50/p95/p99`/memory/streaming、独立 Hero Art Review、user confirm 与 restart/export readback。Three.js、glTF Validator、source compile 或转台 beauty 均不能代替。
+
+2026-08-26 发布阻断补充：Formal High public MCP surface 与 Store scoped idempotency 已 source/focused PASS；positive/restart/cleanup、真实 D1、visual/human/engine/package 仍未通过。因此 515 schemas/194 tools 仍不能勾选 Formal High、Hero Asset 或商业发布项。
+
+版本：2026-08-25
 MVP 结论：**功能核心 PASS；参考图真人验收/packaged release BLOCKED 或 NOT_RUN**
 MCP010 结论：**FGC-MCP010A done；FGC-MCP010B structural source Gate PASS（Darwin OS memory hard cap deferred/NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；MCP010D source-focused Operator/Skill + bounded Manifold Boolean Worker/raw structural PASS（current packaged rebuild/视觉子门 NOT_RUN）；MCP010E source-focused AssetPack/UV/PBR/MikkTSpace + packaged structural PASS（xatlas/Validator/视觉子门 NOT_RUN）；MCP010F BLOCKED**
 生产发布结论：**BLOCKED，不可外部分发**
+
+商业 Hero Asset 发布结论：**BLOCKED**。AuthoringMesh、Low 与 Hero UV 已有各自窄幅 durable/source receipt；Formal High factory/Store/internal materializer 及 Cage/Bake fixed Worker、七记录 atomic Store/MCP seam 也只有 source/compile/focused PASS。该证据仍不包含完整 cross-version editor、artist Low/UV review、Formal High 完整正向 restart/public surface、当前 D1 正向 Bake receipt或商业视觉验收。FormQuality/secondary-form、正式 High/Low/UV/Cage/Bake、Material Layer Graph、FPS presentation、LOD/collision/socket、commercial engine、独立人审、same-hash export 均未形成完整同候选证据。详细退出门见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+## 商业 Hero Weapon 11 阶段发布清单（唯一顺序）
+
+同一 `candidate_hash → export_hash` 必须按以下顺序逐项关闭；任一项不是 `PASS`，发布状态继续 `BLOCKED`：
+
+- [ ] 1. `Art Direction/ReferenceViewSet`：`WeaponArtBrief@1`、五核心视图/CameraLock、silhouette/negative-space/landmark、授权与预算；当前 CrossView=`QUALITY_TARGET_NOT_MET`、`secondary-form-approved=NOT_CREATED`、`HQ360=BLOCKED_REFERENCE_COVERAGE`。
+- [ ] 2. `AuthoringMesh`：original/evaluated、稳定 V/E/H/C/F/loop/ring/boundary、可编辑历史与 High↔Low correspondence；split/collapse/dissolve **3/3 PASS** 仍仅结构。
+- [ ] 3. `High`：非破坏 High/DetailGraph、support/crease/weighted normal/Subdivision、strict GLB readback；source-only，`FPS-HIGH-05=NOT_PASSED`、proposal=`registered=false`。
+- [ ] 4. `Low`：artist-authored quad、hard-edge/seam/Part 边界、bake-ready correspondence；`DRAFT_UNREVIEWED / structural_only / promotion_eligible=false`，durable **1/1 PASS** 不等于商业通过。
+- [ ] 5. `UV`：2K/4K density、seam/stretch/overlap/OOB/padding、UV0/UV1、tangent/Mikk；Hero UV 7 contracts/public **1/1 PASS**、4 CAS roots linked/GC 仍 structural/source。
+- [ ] 6. `Cage/Bake`：对应 Cage、per-Part ray、miss/fallback/cross-part/skew 与 8 类 maps；Worker/public persistence seam source PASS 不可勾选本项，Formal High 完整正向 restart/public surface 与 current-D1 positive receipt 缺失，正式门未通过。
+- [ ] 7. `Material`：`MaterialLayerGraph@1` 与 Layer/Mask/Generator/Decal/Wear/Microdetail；当前 **4 MaterialZones / 6 formula textures**，commercial PBR=`NOT_PROVEN`。
+- [ ] 8. `LOD`：authored LOD0/1/2、collision/socket、误差与平台预算；commercial LOD/performance=`NOT_RUN`。
+- [ ] 9. `Viewer/animation/VFX/audio validation`：同 hash read model、第一/第三人称、动画/VFX/audio、无障碍与可读性；Three.js 仅结构消费，仍 `NOT_RUN`。
+- [ ] 10. `Engine`：Unreal 或 Unity importer/material/tangent/LOD/collision/socket/animation round-trip 与预算；**Unreal/Unity 均未运行**。
+- [ ] 11. `Independent Hero Art Review`：独立资深艺术家盲审/修订闭合、同 hash confirm/version/export/restart；human=`NOT_RUN`，无 `PASS_HUMAN_ART_REVIEW`。
+
+当前源面 **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 MCP tools**、Three.js smoke 和旧 bake 诊断都不能勾选上述发布项。未全部通过前不得生成 `HERO_ASSET_APPROVED`、外部分发包或发布说明。
+
+发布包不得包含或依赖 Blender、Substance、Maya、BlenderMCP、任意 Python/JavaScript/shell 插件、远程 image-to-3D 或运行时联网素材服务。经 accepted adoption 的算法必须作为固定 ForgeCAD module/typed Worker 随 App 分发，并进入 release manifest、SBOM、NOTICE、签名、资源和移除回执。
+
+- [ ] 依赖 scope 复核：Manifold 只允许 bounded same-Part accepted slice；`mikktspace@0.3.0` 只允许 restricted tangent slice。
+- [ ] 候选模块排除：OpenSubdiv、QuadriFlow、xatlas、Embree、MaterialX、OIIO、OCIO、meshoptimizer、glTF Validator 均为 `NOT_IN_RELEASE`，除非各自新增 accepted receipt。
+- [ ] Validator 复核：外部 glTF Validator 当前 `NOT_RUN`；不得用 Runtime strict readback 或 Three.js smoke勾选外部 Validator/Engine Gate。
+- [ ] 每个 accepted module 均具备固定 revision、LICENSE/NOTICE、transitive SBOM、module/binary hash、签名、资源上限与 removal receipt。
 
 ## 1. 已完成基座
 

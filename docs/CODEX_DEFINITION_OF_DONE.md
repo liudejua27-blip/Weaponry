@@ -1,6 +1,40 @@
 # ForgeCAD 完成定义
 
-版本：2026-08-13
+> 2026-08-26 现行 source 为 **527 schemas / 115 read + 87 write = 202 tools**。真实 D1 已有一条 `MoveVertices` 资产纵切，但仍是 `REVIEWABLE_TRADEOFF + BLOCKED_FORMART_OWNER_EVIDENCE`；没有完成同 lineage High→editable Low→Hero UV→Cage/Bake→Material→FPS→Engine→Human 证据时不得记 done。
+
+> 商业武器完成只接受同一 candidate/export hash 的 Form、Authoring、High、Low、UV、Cage/Bake、Material、FPS、Engine 和 independent Human 全门 PASS；source compile、Schema 数量、GLB 可打开、Three.js 或 Codex 自评均不是完成。详见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。
+
+> 2026-08-26 商业 DoD：`PASS_COMPILE` 与 `PASS_SOURCE` 只证明实现存在；`PASS_ASSET` 要求同一真实候选通过该阶段；最终必须再有 `PASS_ENGINE` 和 `PASS_HUMAN_ART_REVIEW`。静态 Hero Source 可独立批准，但缺少 inspect/equip/reload/recoil、VFX、audio 和 gameplay beats 时不得称为完整 premium FPS experience。
+
+> 2026-08-26 Formal High DoD 补充：public contracts/MCP/Runtime 与 Store idempotency 已 source/focused PASS，但 DoD 还要求合法 source lineage、positive/replay/tamper/cleanup/restart、raw transport、High GLB identity 语义和独立视觉/人审；这些仍未闭合，因此 `FPS-HIGH-05=NOT_PASSED`。
+
+> 2026-08-25 Hero Weapon DoD 补充：只有同一 export hash 同时具有 approved form、editable AuthoringMesh、independent High/Low/Cage、Hero UV、diagnostic bake、PBR material layers、FPS/LOD/collision/socket、commercial engine round-trip、independent human art review 和 restart readback，才能写 `HERO_ASSET_APPROVED`。任意 source/transport/Viewer/Three.js/Codex review PASS 都不能代替缺失轴。完整定义见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+## 商业 Hero Weapon 的 11 组 DoD
+
+同一 `candidate_hash → export_hash` 必须逐门通过：
+
+`Art Direction/ReferenceViewSet → AuthoringMesh → High → Low → UV → Cage/Bake → Material → LOD → Viewer/animation/VFX/audio validation → Engine → independent Hero Art Review`
+
+11 组是 DoD 检查清单，不改变 Runtime 的 19 状态 `ProductionStage@3`；真实晋级仍要求 `hero-art-review-approved → engine-validated → export-confirmed`。两套表只允许映射，不允许各自写状态。
+
+1. Art Direction/ReferenceViewSet：`WeaponArtBrief@1`、五视图/CameraLock、silhouette/negative-space/landmark、授权与预算。
+2. AuthoringMesh：original/evaluated 分离、稳定 V/E/H/C/F/loop/ring/boundary、可编辑历史与 High↔Low correspondence。
+3. High：非破坏 High/DetailGraph、细节与高光连续、strict GLB readback。
+4. Low：artist-authored editable quad、hard-edge/seam/Part 约束、bake-ready correspondence。
+5. UV：2K/4K density、seam/stretch/overlap/OOB/padding、UV0/UV1、tangent/Mikk。
+6. Cage/Bake：对应 Cage、per-Part ray、miss/fallback/cross-part/skew 为零或在批准阈值内，并完成 Tangent Normal/AO/Curvature/Thickness/Position/Object/Material/Part ID 八类 maps、dilation 与重启回读。
+7. Material：`MaterialLayerGraph@1`、Layer/Mask/Generator/Decal/Wear/Microdetail、roughness/color-space/provenance。
+8. LOD：authored LOD0/1/2、collision/socket、误差与平台预算。
+9. Viewer/animation/VFX/audio validation：同 hash 的 Viewer/read model、第一/第三人称相机、动画/VFX/audio 可读性与无障碍。
+10. Engine：Unreal 或 Unity importer/material/tangent/LOD/collision/socket/animation round-trip 与性能预算。
+11. Independent Hero Art Review：独立资深艺术家盲审、修订闭合、同 hash restart/export readback。
+
+当前 DoD 账本：source 面为 **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 MCP tools**。Formal High public surface 与 Store idempotency只达到 source/compile/focused；完整 positive restart/cleanup 与 current-D1 positive receipt 缺失，D1 prepare仍应零写失败。旧 bake 指标只作失败诊断，正式 Cage/Bake未通过；Unreal/Unity 和 independent human review均 `NOT_RUN`。任一前门未通过，不得 confirm/version/export或 `HERO_ASSET_APPROVED`。
+
+Cage/Bake DoD 固定字段：`source_seam=PASS_SOURCE`、`producer_status=UNAVAILABLE`、`formal_positive_receipt=NOT_RUN`、`quality_gate=NOT_PASSED`、`restart_readback=NOT_RUN`。只有后四项变为同候选 PASS 才能勾选第 6 阶段。
+
+版本：2026-08-26
 适用：所有 `FGC-MCPxxx` 任务
 
 ## 1. 原子任务 Done

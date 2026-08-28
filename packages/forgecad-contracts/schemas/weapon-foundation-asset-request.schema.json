@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weapon-foundation-asset-request.schema.json",
+  "title": "WeaponFoundationAssetRequest@1",
+  "description": "Closed typed-import request for one byte-identified asset from the frozen evaluation foundation pack. The request selects an allowlisted asset by identity and never carries external references or mesh payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "foundation_pack_id",
+    "foundation_pack_version",
+    "foundation_manifest_sha256",
+    "asset_id",
+    "asset_sha256",
+    "asset_role",
+    "source_format",
+    "coordinate_spec_sha256",
+    "coordinate_frame",
+    "units",
+    "source_to_target",
+    "import_profile",
+    "strict_readback_policy",
+    "degenerate_face_policy",
+    "budgets",
+    "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponFoundationAssetRequest@1"},
+    "request_id": {"$ref": "#/$defs/id"},
+    "foundation_pack_id": {"const": "forgecad-fps-production-foundation"},
+    "foundation_pack_version": {"const": "0.1.0-proposal"},
+    "foundation_manifest_sha256": {"const": "cc7dccca305a1d9bbaf1df80e78e9cab6b2ee39f12de7ffc88d5cf52194330cb"},
+    "asset_id": {"$ref": "#/$defs/asset_id"},
+    "asset_sha256": {"$ref": "#/$defs/sha256"},
+    "asset_role": {"enum": ["rigged-weapon-semantic-source", "high-low-bake-pbr-animation-benchmark", "first-person-armature-source"]},
+    "source_format": {"enum": ["glb", "gltf"]},
+    "coordinate_spec_sha256": {"$ref": "#/$defs/sha256"},
+    "coordinate_frame": {"const": "weapon-right-handed-x-muzzle-y-up-z-right"},
+    "units": {"const": "meter"},
+    "source_to_target": {"$ref": "#/$defs/source_to_target"},
+    "import_profile": {"const": "forgecad-foundation-typed-import@1"},
+    "strict_readback_policy": {"const": "glb-gltf-embedded-resource-strict-readback-no-external-reference@1"},
+    "degenerate_face_policy": {"$ref": "#/$defs/degenerate_face_policy"},
+    "budgets": {"$ref": "#/$defs/budgets"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {"if": {"properties": {"asset_id": {"const": "pichuliru-weapon-west"}}, "required": ["asset_id"]}, "then": {"properties": {"asset_sha256": {"const": "0d80dd2118c884172a856455968be14eadc97f041d27d52bfa75fedb708fa486"}, "asset_role": {"const": "rigged-weapon-semantic-source"}, "source_format": {"const": "glb"}, "source_to_target": {"properties": {"mapping_evidence": {"const": "PROVEN"}, "axis_mapping": {"const": ["-Z", "+Y", "+X"]}, "matrix_row_major": {"const": [[0, 0, -1], [0, 1, 0], [1, 0, 0]]}}}}}},
+    {"if": {"properties": {"asset_id": {"enum": ["lightning-low-pbr", "wrad-arms"]}}, "required": ["asset_id"]}, "then": {"properties": {"source_to_target": {"properties": {"mapping_evidence": {"const": "PENDING_SOURCE_VERIFICATION"}, "axis_mapping": {"const": ["+Z", "+Y", "-X"]}, "matrix_row_major": {"const": [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]}}}}}}
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "asset_id": {
+      "type": "string",
+      "enum": [
+        "pichuliru-weapon-west",
+        "lightning-low-pbr",
+        "wrad-arms"
+      ]
+    },
+    "source_to_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mapping_evidence", "axis_mapping", "matrix_row_major", "translation_m", "scale_xyz"],
+      "properties": {
+        "mapping_evidence": {"enum": ["PROVEN", "PENDING_SOURCE_VERIFICATION"]},
+        "axis_mapping": {"enum": [["-Z", "+Y", "+X"], ["+Z", "+Y", "-X"]]},
+        "matrix_row_major": {"enum": [[[0, 0, -1], [0, 1, 0], [1, 0, 0]], [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]]},
+        "translation_m": {"const": [0.0, 0.0, 0.0]},
+        "scale_xyz": {"const": [1.0, 1.0, 1.0]}
+      }
+    },
+    "degenerate_face_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "test", "area_epsilon_m2", "area_comparison", "ordering", "reindexing"],
+      "properties": {
+        "policy": {"const": "drop-degenerate-faces-deterministic-source-order@1"},
+        "test": {"const": "non-finite-or-area-less-than-threshold-after-source-to-target-transform@1"},
+        "area_epsilon_m2": {"const": 1e-12},
+        "area_comparison": {"const": "strict-less-than"},
+        "ordering": {"const": "source-primitive-index-then-face-index@1"},
+        "reindexing": {"const": "stable-first-pass-compaction@1"}
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_source_nodes", "max_source_meshes", "max_source_triangles", "max_cas_objects", "max_wire_size"],
+      "properties": {
+        "max_source_nodes": {"const": 512},
+        "max_source_meshes": {"const": 128},
+        "max_source_triangles": {"const": 250000},
+        "max_cas_objects": {"const": 32},
+        "max_wire_size": {"const": 1048576}
+      }
+    }
+  }
+}

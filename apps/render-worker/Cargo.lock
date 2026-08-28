@@ -127,6 +127,7 @@ dependencies = [
  "forgecad-render-core",
  "forgecad-worker-protocol",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

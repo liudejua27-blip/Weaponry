@@ -1,0 +1,30 @@
+project: quaternius-sci-fi-modular-guns
+source_url: https://quaternius.com/packs/scifimodularguns.html
+revision: official-drive-snapshot-2021-11
+retrieved_at: 2026-08-27
+license_spdx: CC0-1.0
+license_sha256: 83d8959f9fc56353ed571fbe2dc52e4bcd64508e2399501cd45ac2ce3df0bf8c
+research_status: accepted-evaluation-asset
+source_inventory: 50-official-gltf-or-glb-files-downloaded-to-isolated-adoption-cache
+selected_files:
+  - path: assets/quaternius/body-ar-1.gltf
+    sha256: 7d0854e5aee2453efd47cf3a80495cc96b1da8f6476a590d68488beacd86c97c
+  - path: assets/quaternius/barrel-ar-1.glb
+    sha256: be9309266e448a755c5c35853c82d79fc68633e9e6655f68122f93b55a3a091c
+  - path: assets/quaternius/grip-ar-1.gltf
+    sha256: 81e4c666a5891762012d0e76f24abfe09b0ec6fb4c508f9fbf1b67630fc33564
+  - path: assets/quaternius/magazine-ar.gltf
+    sha256: e7cc5615a292cacec7d8a6b487b0b8f233a712e643210e622c7c846cfd3677af
+  - path: assets/quaternius/stock-2.gltf
+    sha256: e2d9d4ac7da3c9a079d6cb60d30fb22d946aa63b212df118bc803af5df3480ef
+accepted_scope:
+  - modular-part-vocabulary
+  - silhouette-combination-reference
+denied_capabilities:
+  - runtime_network
+  - direct_runtime_state_write
+  - hero_topology_truth
+  - commercial_quality_claim
+package: packages/forgecad-assets/forgecad-fps-production-foundation/0.1.0-proposal
+runtime_allowlist_changed: false
+fallback_or_removal_plan: Remove the five selected files and this receipt; retain the ForgeCAD-owned typed part vocabulary.

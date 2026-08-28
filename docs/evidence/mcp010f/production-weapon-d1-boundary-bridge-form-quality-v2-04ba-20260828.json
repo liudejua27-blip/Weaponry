@@ -1,0 +1,120 @@
+{
+  "schema_version": "ForgeCADRealD1BoundaryBridgeFormQualityV2Receipt@1",
+  "task_id": "FPS-FORM-04BA",
+  "recorded_on": "2026-08-28",
+  "status": "BLOCKED_PROPOSAL_FORM_ART_EVIDENCE",
+  "route_changed": false,
+  "scope": "Consume the exact FPS-FORM-04AZ fresh baseline through one Runtime-owned rear-stock open-void boundary repair proposal and its six-view gate. No parameter sweep, camera change, confirmation, stage promotion, version or export is authorized.",
+  "source_binding": {
+    "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+    "session_id": "fps-form-04a-session",
+    "candidate_id": "candidate-86f6ed6ac95c413d9280c1061b33ee72",
+    "candidate_state_sha256": "dd1fdcf09aa62c6a0f5e84424ebbea2314f386d12785d1b758f37a5bef97a160",
+    "artifact_sha256": "87ca869f14f2ff5cd301886181974512b11916339587a34fd780b1bb9ee29c55",
+    "fresh_baseline_id": "fps-form-04az-fresh-baseline-v1",
+    "fresh_baseline_canonical_sha256": "93a53f186f34b1b38de2a0e132d44465cf80f03086ba8bfa739ab204a3b98860",
+    "registration_lineage_id": "fps-form-04az-camera-lineage-v2",
+    "rear_three_quarter_camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb",
+    "runtime_build_cohort_sha256": "367956245f14b5bd9730c88ff46d2541a25abe7ccc1788b4bde2323e7df43e5d"
+  },
+  "typed_repair": {
+    "schema_version": "AuthoringMeshRearStockVoidBoundaryBridge@1",
+    "operation": "rear_stock_void_boundary_bridge",
+    "part_id": "rear-stock",
+    "source_node_id": "rear-stock",
+    "coordinate_space": "source-local",
+    "selection_policy": "runtime-derived-rear-stock-void-boundary-bridge@1",
+    "profile_id": "registered-void-boundary-depth-wedge-5@1",
+    "station_count": 5,
+    "maximum_y_offset_m": 0.018,
+    "maximum_z_wedge_m": 0.009,
+    "preserved": [
+      "existing endpoints",
+      "rear-stock-lower-beam",
+      "rear-cap",
+      "outer envelope",
+      "camera and material state"
+    ]
+  },
+  "materialized_proposal": {
+    "child_revision_id": "amrev-4b0217d82cdd93aa99a6dae7622dc53eaa53d0924008ac62a0f899f1",
+    "child_revision_sha256": "a38b1a9bbe1571459e656846e5a9e9355e40212ff55cdb2f2b7005ba9ec4e6bc",
+    "candidate_id": "candidate-da695338b86445068fc88aa674b389f3",
+    "candidate_state": "reviewable",
+    "candidate_state_sha256": "35e9b05b020a84fca880ae213516e889a05fe0756aa207e8633e7740014925ce",
+    "artifact_sha256": "18f92e53687e84df5aeab1266310fede9de12456f3dc7e65c24be442761ed89c",
+    "artifact_readback_sha256": "1e080c73a377f2fee39ad3d9ff3321d50393af55ebc50dfba986deec764d60b7",
+    "triangle_count": 1900,
+    "cross_view_evidence_bundle_sha256": "866cb442c14d91c56088f74b21a32d056ca3cb5cac4a9efa52764711fa8ab5ab",
+    "proposal_form_art_evidence_object_sha256": "2f46679944dc7c34e65a344306e90668eb1155c74c02b97877f9f79f790a6f34",
+    "proposal_form_art_evidence_canonical_sha256": "5b10dcf5af61d0a59e28f63e54c8825dbd1928146e2c1e715a3df1ebd37ec3e8"
+  },
+  "six_view_gate": {
+    "aggregate_status": "QUALITY_TARGET_NOT_MET",
+    "aggregate_improved": true,
+    "aggregate_improvement_ppm": 457,
+    "non_regressing": false,
+    "strict_improvement": false,
+    "proposal_form_art_evidence_ready": false,
+    "secondary_form_eligibility": "REJECTED_REGRESSION",
+    "candidate_confirm_allowed": false,
+    "blocking_reasons": [
+      "PROPOSAL_SIDE_SIX_VIEW_FORMART_EVIDENCE_NOT_READY",
+      "left.boundary_f1_4px regressed by 3067 ppm",
+      "top.centroid_error regressed by 561 ppm",
+      "top.silhouette_iou regressed by 683 ppm"
+    ],
+    "material_improvements": [
+      "left.silhouette_iou improved by 1221 ppm",
+      "right.silhouette_iou improved by 1090 ppm",
+      "right.boundary_f1_4px improved by 4566 ppm"
+    ],
+    "unchanged_views": [
+      "front",
+      "back",
+      "rear-three-quarter"
+    ]
+  },
+  "form_quality_v2": {
+    "adapter_scope_fix": "Historical FormArt supplies reviewed semantic targets while the exact 04AZ fresh baseline and RigV2 supply evaluated view and camera scope.",
+    "prepare_called": false,
+    "durable_row_count": 0,
+    "status": "BLOCKED_PROPOSAL_FORM_ART_EVIDENCE"
+  },
+  "durable_store": {
+    "sqlite_integrity_check": "ok",
+    "database_sha256_after_probe": "b438deb8a8ae7c7cf950cda035802e95e66855772f3f05c55cfe050fa222d6c9",
+    "cas_object_count": 1331,
+    "authoring_mesh_v2_record_count": 2,
+    "proposal_evidence_row_count": 1,
+    "stage_head": "camera-calibrated",
+    "stage_head_canonical_sha256": "526fab549a955bef9e9cba917995897fe6221a0ca18683d8c7080323a721cbc6",
+    "candidate_confirmed": false,
+    "version_count": 0,
+    "export_count": 0,
+    "idempotent_replay_cas_object_delta": 0
+  },
+  "verification": {
+    "runtime_compile": "PASS_WITH_EXISTING_WARNINGS",
+    "same_cohort_geometry_worker_build": "PASS",
+    "same_cohort_render_worker_build": "PASS",
+    "focused_real_probe": "PASS_1_OF_1",
+    "focused_real_probe_seconds": 25.78,
+    "source_artifact_readback_binding": "PASS",
+    "proposal_geometry_and_six_view_materialization": "PASS",
+    "fail_closed_before_form_quality_v2_write": "PASS"
+  },
+  "final_state": {
+    "production_stage": "camera-calibrated",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "secondary_form_approved": "NOT_CREATED",
+    "high_low_uv_bake": "NOT_RUN",
+    "formal_human_review": "NOT_RUN",
+    "commercial_engine_validation": "NOT_RUN",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "commercial_quality": "NOT_PROVEN"
+  },
+  "next_atomic_action": "Reject this regressing boundary-bridge proposal as a promotion candidate. Diagnose the left boundary and top silhouette regressions from the exact proposal AOVs, then prepare one smaller typed rear-stock curve repair under the same 04AZ camera and baseline bindings."
+}

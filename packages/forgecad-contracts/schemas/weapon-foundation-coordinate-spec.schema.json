@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weapon-foundation-coordinate-spec.schema.json",
+  "title": "WeaponFoundationCoordinateSpec@1",
+  "description": "The fixed ForgeCAD coordinate and unit contract used when normalizing an allowlisted FPS foundation asset. It is a semantic specification, not a mesh payload.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_asset_id",
+    "coordinate_frame",
+    "handedness",
+    "units",
+    "forward_axis",
+    "up_axis",
+    "right_axis",
+    "source_to_target",
+    "transform_convention",
+    "finite_value_policy",
+    "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponFoundationCoordinateSpec@1"},
+    "source_asset_id": {"enum": ["pichuliru-weapon-west", "lightning-low-pbr", "wrad-arms"]},
+    "coordinate_frame": {"const": "weapon-right-handed-x-muzzle-y-up-z-right"},
+    "handedness": {"const": "right-handed"},
+    "units": {"const": "meter"},
+    "forward_axis": {"const": "+X"},
+    "up_axis": {"const": "+Y"},
+    "right_axis": {"const": "+Z"},
+    "source_to_target": {"$ref": "#/$defs/source_to_target"},
+    "transform_convention": {"const": "column-vector-affine-axis-remap-no-shear@1"},
+    "finite_value_policy": {"const": "reject-non-finite-and-non-positive-scale@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"source_asset_id": {"const": "pichuliru-weapon-west"}}, "required": ["source_asset_id"]},
+      "then": {"properties": {"source_to_target": {"properties": {"mapping_evidence": {"const": "PROVEN"}, "axis_mapping": {"const": ["-Z", "+Y", "+X"]}, "matrix_row_major": {"const": [[0, 0, -1], [0, 1, 0], [1, 0, 0]]}}}}}
+    },
+    {
+      "if": {"properties": {"source_asset_id": {"enum": ["lightning-low-pbr", "wrad-arms"]}}, "required": ["source_asset_id"]},
+      "then": {"properties": {"source_to_target": {"properties": {"mapping_evidence": {"const": "PENDING_SOURCE_VERIFICATION"}, "axis_mapping": {"const": ["+Z", "+Y", "-X"]}, "matrix_row_major": {"const": [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]}}}}}
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_to_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mapping_evidence", "axis_mapping", "matrix_row_major", "translation_m", "scale_xyz"],
+      "properties": {
+        "mapping_evidence": {"enum": ["PROVEN", "PENDING_SOURCE_VERIFICATION"]},
+        "axis_mapping": {"enum": [["-Z", "+Y", "+X"], ["+Z", "+Y", "-X"]]},
+        "matrix_row_major": {"enum": [[[0, 0, -1], [0, 1, 0], [1, 0, 0]], [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]]},
+        "translation_m": {"const": [0.0, 0.0, 0.0]},
+        "scale_xyz": {"const": [1.0, 1.0, 1.0]}
+      }
+    }
+  }
+}

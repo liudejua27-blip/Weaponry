@@ -1,0 +1,79 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04Q-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-SCREEN",
+  "task_id": "FPS-FORM-04Q",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 568.68,
+  "fixture_log_filename": "forgecad-d1-04q-stock-upper-profile-20260825.log",
+  "fixture_log_sha256": "4dbf1e8ec286051e2a268ebaff435d8298928076f77d39e098f6b349f0e8491c",
+  "operator_id": "forgecad.geometry.profile-loft@2",
+  "variant_scope": "private-complete-profile-only",
+  "public_sink_available": false,
+  "baseline_owner_intrusion_pixels": [302, 560, 587],
+  "trials": [
+    {
+      "inner_span_m": 0.85,
+      "owner_intrusion_pixels": [302, 492, 587],
+      "owner_boundary_adjacency_pixels": [55, 67, 72],
+      "owner_boundary_adjacency_milli": [319, 343, 248],
+      "selected_discovery_transforms": ["identity", "identity", "identity"],
+      "profile_contract_exact": true,
+      "exact_upper_node_only": true,
+      "raw_part_binding_rows_exact": false,
+      "rear_cap_binding_unchanged": true,
+      "lineage_unchanged": true,
+      "owner_screen_pass": false,
+      "six_view_non_regression": "NOT_RUN",
+      "status": "BLOCKED_OWNER_SCREEN"
+    },
+    {
+      "inner_span_m": 0.75,
+      "owner_intrusion_pixels": [302, 516, 587],
+      "owner_boundary_adjacency_pixels": [55, 74, 72],
+      "owner_boundary_adjacency_milli": [319, 379, 248],
+      "selected_discovery_transforms": ["identity", "identity", "identity"],
+      "profile_contract_exact": true,
+      "exact_upper_node_only": true,
+      "raw_part_binding_rows_exact": false,
+      "rear_cap_binding_unchanged": true,
+      "lineage_unchanged": true,
+      "owner_screen_pass": false,
+      "six_view_non_regression": "NOT_RUN",
+      "status": "BLOCKED_OWNER_SCREEN"
+    }
+  ],
+  "binding_note": {
+    "raw_part_binding_rows_include_triangle_count": true,
+    "operator_replacement_changes_triangle_count": true,
+    "future_stable_identity_projection_fields": [
+      "part_id",
+      "source_node_id",
+      "material_zone_id",
+      "solid"
+    ],
+    "promotion_effect": "NONE_TRIALS_ALREADY_BLOCKED_OWNER_SCREEN"
+  },
+  "conclusion": {
+    "profile_loft_runtime_and_readback_passed": true,
+    "identity_preserved_all_views": true,
+    "left_intrusion_improved": false,
+    "right_intrusion_improved": true,
+    "rear_three_quarter_intrusion_improved": false,
+    "continue_inner_span_only_profile_search": false,
+    "next_action": "PRIVATE_BOUNDED_PROFILE_LIP_SCREEN",
+    "promote_to_public_sink": false,
+    "advance_candidate_to_six_view": false
+  },
+  "promotion": {
+    "diagnostic_only": true,
+    "promotable": false,
+    "quality_status": "NOT_PROVEN",
+    "depth_status": "UNKNOWN",
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  }
+}

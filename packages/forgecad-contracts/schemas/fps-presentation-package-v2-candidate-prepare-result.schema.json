@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fps-presentation-package-v2-candidate-prepare-result.schema.json",
+  "title": "FpsPresentationPackageV2CandidatePrepareResult@1",
+  "description": "Runtime-owned prepare result containing one restart-verifiable structural candidate binding; it does not confirm, version or export the candidate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "binding_object_sha256", "binding", "request_input_sha256", "idempotency_key",
+    "replayed", "restart_hash_verified", "runtime_write_performed", "persistent_user_data_touched", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "FpsPresentationPackageV2CandidatePrepareResult@1"},
+    "binding_object_sha256": {"$ref": "#/$defs/sha256"},
+    "binding": {"$ref": "fps-presentation-package-v2-candidate-binding.schema.json"},
+    "request_input_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "replayed": {"type": "boolean"},
+    "restart_hash_verified": {"const": true},
+    "runtime_write_performed": {"type": "boolean"},
+    "persistent_user_data_touched": {"type": "boolean"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

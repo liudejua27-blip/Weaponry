@@ -1,0 +1,61 @@
+{
+  "schema_version": "ForgeCADSourceGateReceipt@1",
+  "receipt_id": "production-weapon-real-d1-durable-formart-semantic-attribution-gate-20260826",
+  "task_id": "FGC-MCP010F/FPS-FORM-04AA",
+  "recorded_at": "2026-08-26",
+  "status": "PASS_DIAGNOSTIC_BLOCKED_REPAIR",
+  "source_compile": {
+    "command_scope": "cargo check -p forgecad-runtime -p forgecad-mcp",
+    "status": "PASS"
+  },
+  "durable_real_d1_rebuild": {
+    "status": "PASS_1_OF_1",
+    "form_evidence_records": 1,
+    "form_art_records": 1,
+    "camera_lock_records": 1,
+    "unconfirmed_trial_candidates": 30,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "binding": {
+    "session_id": "fps-form-04a-session",
+    "candidate_id": "candidate-d8bc26f8c8d04928b6ec152e93c7981e",
+    "candidate_state_sha256": "a533249494bd3d6235ce28ff66c717468c41ccd22cf98a45b94bb0faaa7c7396",
+    "artifact_sha256": "78075df677b778433c8b800e078f0a2bab1f879c3721a317d8da81a289b1801e",
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "form_art_evidence_object_sha256": "6cedee95b671d69e17ba8f72a583d364648f2edfa41a633ee1696ee95e81c769",
+    "form_art_evidence_canonical_sha256": "72b71119c18bc064762e91f1d67802aebbe4a70bab9d2832c9838a7f6edca667",
+    "view_kind": "left",
+    "view_id": "fps-form-04a-left-view",
+    "camera_hash": "cd4cad426c4d55d2fa1f54a30eaf2c9593c24f138dadaa08802aecc51c2ed100"
+  },
+  "raster_attribution": {
+    "diagnostic_id": "fps-form-04aa-left-source-attribution",
+    "diagnostic_canonical_sha256": "f9f14421ee8d6870d39453b2ee337481ed27737dd63006dda6e09b708a30e78b",
+    "source_table_sha256": "7eef91e949c72010963afba3b7ea11fb3021501881d8748902f4779098daed8e",
+    "reviewed_region_structure_id": "left.open-stock-void",
+    "highest_impact_basis": "expected-void-pixels",
+    "highest_impact_pixel_count": 353,
+    "highest_impact_semantic_part_id": "muzzle-shroud",
+    "highest_impact_source_node_id": "muzzle-shroud",
+    "expected_semantic_part_ids": [
+      "rear-stock"
+    ],
+    "highest_impact_semantic_match": false,
+    "repair_target_status": "BLOCKED_REVIEW_REGION_SEMANTIC_MISMATCH",
+    "runtime_write": false,
+    "production_stage_advanced": false
+  },
+  "root_cause": "The silhouette-only camera lock admits a 180-degree longitudinal semantic ambiguity. The reviewed stock void overlaps muzzle geometry, so a pixel-only maximum is not a valid RepairIntent target.",
+  "required_next_action": "Rebuild CameraLock and FormArt with Runtime-derived muzzle-versus-stock semantic landmark ordering, then rerun attribution. Only a unique rear-stock source node may enter the bounded repair path.",
+  "authoritative_state": {
+    "stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "quality": "QUALITY_TARGET_NOT_MET",
+    "fps_high_05": "NOT_PASSED",
+    "human": "NOT_RUN",
+    "engine": "NOT_RUN",
+    "distribution": "NOT_RUN"
+  }
+}

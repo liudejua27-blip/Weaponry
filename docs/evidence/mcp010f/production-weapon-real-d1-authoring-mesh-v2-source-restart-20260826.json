@@ -1,0 +1,56 @@
+{
+  "artifact_readback_sha256": "af4ab8c084e07913f68a05e4482ca9992944232b29d7681f65f5cb6b591579ea",
+  "artifact_sha256": "fa5d81fd9d219eaf85f7bb9094adb7d89338b3395f6263443b1159918418368e",
+  "candidate_confirmed": false,
+  "candidate_id": "candidate-8b35615c93e34775a7ca0d5418272adb",
+  "candidate_state_sha256": "47f7d2117a88beabc38d4cb123e694dbc425608a8aa43a5af40d10040c82ea67",
+  "durable_source_binding_verified": true,
+  "export_performed": false,
+  "face_count": 6,
+  "geometry_program_sha256": "d154ae2982de2aac2b09b80741b8dd2eaa26ceee6745642c0b87b8537d01b6d4",
+  "limitations": [
+    "REAL_CANDIDATE_SOURCE_BOUND",
+    "PRIMITIVE_BOX_GENESIS_ONLY",
+    "NO_ART_EDIT_APPLIED",
+    "NO_STAGE_ADVANCEMENT",
+    "NO_VISUAL_QUALITY_CLAIM"
+  ],
+  "lineage_id": "amv2-lineage-0085fc1412a9ed754c7fed4ff69166af7aa98c8d47b5dddd",
+  "mesh_id": "amv2-mesh-0085fc1412a9ed754c7fed4ff69166af7aa98c8d47b5dddd",
+  "part_id": "rear-stock",
+  "preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-318e4de6aa4d4f33b2f740988fed6fa1",
+  "quality_status": "structural_source_bound_not_visually_evaluated",
+  "restart_hash_verified": true,
+  "revision_id": "amrev-86cdb5ace0eea5c0811694e08aba1598d977706c9e067811a911ce09",
+  "revision_object_sha256": "34711dc335650b7e17051cab6243e09a2f23f5386131436c2068264ff04e7541",
+  "revision_sha256": "a22bbf0644751b7088fbb16b19273362d03dc16770d081a827ebb5bfe885aec0",
+  "runtime_write_performed": true,
+  "schema_version": "ForgeCADRealD1AuthoringMeshV2SourceRestartReceipt@1",
+  "source_binding_sha256": "8fac4b0fbd3524bcd335a1a957934844d0e5166f688a75f57c5e5abe14f78fff",
+  "source_node_id": "rear-stock",
+  "source_operator_id": "forgecad.geometry.primitive@2",
+  "source_parameters_sha256": "427797cf45c0903de12c004b095358cd97394a6eadee669d03ee4c0bc8c728dd",
+  "source_transform_preserved": {
+    "position_m": [
+      2.05,
+      1.68,
+      0.0
+    ],
+    "rotation_rad": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "stage_advanced": false,
+  "status": "PASS",
+  "version_created": false,
+  "vertex_count": 8
+}

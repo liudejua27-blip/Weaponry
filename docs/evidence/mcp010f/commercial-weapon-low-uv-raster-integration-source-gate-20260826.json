@@ -1,0 +1,111 @@
+{
+  "schema_version": "ForgeCADCommercialWeaponLowUvRasterIntegrationSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-26",
+  "status": "PASS_SOURCE_WITH_POSITIVE_LOW_RUNTIME_RESTART_AND_EXPLICIT_UNRUN_PRODUCT_GATES",
+  "current_surface": {
+    "schema_count": 511,
+    "operator_catalog_entries": 28,
+    "mcp_read_tools": 108,
+    "mcp_opt_in_write_tools": 80,
+    "mcp_total_tools": 188,
+    "contract_manifest_sha256": "ff0f971382b4f0151ea26923efb77c02719bdc6debaa3d203ada5395e7c9d30c",
+    "tool_manifest_summary_sha256": "fc08bdb0bbfc8519f24f63a493d56f2715bb5858d76a2ad18bd1aeedc6b679ef"
+  },
+  "form_raster_attribution": {
+    "status": "PASS_RENDER_CORE_READ_ONLY_SOURCE_MAP_NOT_BOUND_CURRENT_RUNTIME_FORM_DIAGNOSTIC",
+    "source_sha256": "8bf1af02e539cb883c0d307bfbace3eda1b7559f448f884db54a98e04d119a8a",
+    "capabilities": [
+      "deterministic 512x512 read-only pixel hit map sampled from the fixed 1024x1024 raster",
+      "triangle index, source-map index, barycentric and depth attribution",
+      "strict primitive lineage to source node, semantic Part and MaterialZone",
+      "fail-closed missing or ambiguous lineage"
+    ],
+    "focused_tests": "12/12 PASS",
+    "runtime_form_binding": "NOT_IMPLEMENTED",
+    "runtime_status_string": "AVAILABLE_RENDER_CORE_NOT_BOUND_CURRENT_RUNTIME_DIAGNOSTIC"
+  },
+  "low_quad_durable": {
+    "status": "PASS_SOURCE_CONTRACT_STORE_RUNTIME_MCP_AND_POSITIVE_RESTART",
+    "contract_source_sha256": "1c9ca8e75459b7b27bfcc51e05634041a2b230686c6288432308164ae2a592ce",
+    "store_source_sha256": "3a40b3b0708365081d7d49a10b4fcbb30e00ef6c2a535e3ef150f02f067eee16",
+    "store_global_linked_query_source_sha256": "065f5404774011b70cc242611b253334d438df691f0ce265cfbb182e88e389b5",
+    "runtime_source_sha256": "371f8e60eb7e9d0f0a694fd54d60a3631e406f160153ba56cdb17a746495e3ae",
+    "runtime_worker_launcher_source_sha256": "1b0f12af635ff398ac428b5aae1c95d551ea37fd7118034f72d756ba3baa908b",
+    "mcp_source_sha256": "411d6af8d082c6180ee942baf95aca45748f1a42975c58ac7eaa814f26c9d88d",
+    "mcp_tools": [
+      "low_quad_draft_durable_get",
+      "low_quad_draft_durable_prepare"
+    ],
+    "policy": {
+      "writer": "forgecad-runtime-only-state-writer@1",
+      "edge_flow_status": "DRAFT_UNREVIEWED",
+      "quality_status": "structural_only",
+      "promotion_eligible": false,
+      "production_stage_advanced": false,
+      "candidate_confirmed": false,
+      "version_created": false,
+      "export_performed": false
+    },
+    "focused_tests": {
+      "geometry_worker_explicit_quad_draft": "2/2 PASS",
+      "mcp_tool_definition_routing_and_summary": "3/3 PASS",
+      "mcp_manifest_opt_in_and_runtime_routing": "1/1 PASS",
+      "runtime_closed_fields_policy_and_positive_restart": "3/3 PASS",
+      "store_low_durable_and_global_gc_linked_query": "2/2 PASS",
+      "store_full_library": "149/149 PASS"
+    },
+    "runtime_restart_positive_fixture": "1/1 PASS_CURRENT_COHORT_AUTHORING_MESH_TO_NATIVE_HIGH_TO_LOW_PREPARE_REPLAY_DROP_REOPEN_GET",
+    "restart_fixture_assertions": [
+      "exact durable link and all source/worker/artifact/readback CAS hashes survive Runtime reopen",
+      "same idempotency key replays without adding CAS objects",
+      "post-restart get performs zero CAS writes",
+      "candidate and candidate inventory remain byte-equivalent",
+      "no version, Stage transition, confirmation or export is created"
+    ],
+    "worker_entry_routing": "PASS_DEDICATED_ISOLATED_LOW_QUAD_ENTRY",
+    "native_high_source_readback": "PASS_NATIVE_HIGH_SPECIFIC_STRICT_GLB_AND_WORKER_READBACK_BINDING",
+    "worker_request_canonicalization": "PASS_EXCLUDES_CANONICAL_SHA256_FIELD_CONSISTENT_WITH_WORKER_CONTRACT",
+    "cas_gc_reachability": "PASS_ALL_SIX_LOW_DURABLE_ROOTS_RECOGNIZED_BY_GLOBAL_LINKED_QUERY",
+    "packaged_same_cohort": "NOT_RUN",
+    "artist_edge_flow_review": "NOT_RUN"
+  },
+  "hero_uv_durable_core": {
+    "status": "PASS_REGISTERED_CONTRACTS_AND_COMPILED_TYPED_PERSISTENCE_CORE_ONLY",
+    "source_sha256": "998d85a4632417999e8fb4b910760d7cee897f532b3f75365eada5ab7466ce77",
+    "focused_tests": "4/4 PASS",
+    "registered_contracts": 7,
+    "store_adapter": "NOT_IMPLEMENTED",
+    "runtime_public_methods": "NOT_IMPLEMENTED",
+    "mcp_tools": "NOT_IMPLEMENTED",
+    "restart_fixture": "NOT_RUN",
+    "commercial_uv_acceptance": "NOT_RUN"
+  },
+  "compile_and_contract_gates": {
+    "forgecad_contracts": "511/511 PASS",
+    "forgecad_runtime_cargo_check": "PASS",
+    "forgecad_mcp_cargo_check": "PASS",
+    "forgecad_mcp_build": "PASS",
+    "forgecad_runtime_and_mcp_cargo_check_after_restart_fixes": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "unchanged_quality_truth": {
+    "production_stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "fps_high_05": "NOT_PASSED",
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "proposal_registered": false
+  },
+  "limitations": [
+    "Form raster attribution is available in Render Core but is not yet bound into the exact candidate/reference/camera/hash Runtime Form diagnostic.",
+    "The positive Low restart fixture uses an isolated temporary Runtime/CAS cohort; packaged Desktop and installed-app transport are still NOT_RUN.",
+    "Low topology remains DRAFT_UNREVIEWED and is not artist-authored, promotion-eligible or commercially accepted.",
+    "Hero UV has registered contracts and a compiled typed persistence core only; Store, Runtime and MCP adapters are not implemented.",
+    "No packaged, visual, human, engine, distribution, confirmation, version or export gate is promoted."
+  ],
+  "persistent_user_data_touched": false
+}

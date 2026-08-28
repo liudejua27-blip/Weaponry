@@ -1,0 +1,302 @@
+{
+  "build": {
+    "build_cohort_sha256": "40bbeba5dfc4a60630e523ab3b61b0c34dcfe0d4d65f26ab19148de9ad468174",
+    "mcp_identity": {
+      "build_cohort_sha256": "40bbeba5dfc4a60630e523ab3b61b0c34dcfe0d4d65f26ab19148de9ad468174",
+      "component": "forgecad-mcp",
+      "schema_version": "ForgeCADDevBuildIdentity@1"
+    },
+    "runtime_identity": {
+      "build_cohort_sha256": "40bbeba5dfc4a60630e523ab3b61b0c34dcfe0d4d65f26ab19148de9ad468174",
+      "component": "forgecad-runtime",
+      "schema_version": "ForgeCADDevBuildIdentity@1"
+    },
+    "source_file_count": 1258
+  },
+  "non_promotion_boundary": {
+    "candidate_confirmed": false,
+    "commercial_quality": "NOT_PROVEN",
+    "engine_validation": "NOT_RUN",
+    "export_performed": false,
+    "form_quality_v2_created": false,
+    "high_low_uv_bake_started": false,
+    "human_review": "NOT_RUN",
+    "repair_executed": false,
+    "version_created": false
+  },
+  "public_surface": {
+    "opt_in_write_tool_count": 94,
+    "read_tool_count": 127,
+    "schema_count": 577,
+    "tool": "production_weapon_form_art_repair_plan_get",
+    "total_tool_count": 221
+  },
+  "recorded_on": "2026-08-28",
+  "request": {
+    "composite_evidence_id": "fps-form-04be-c-evidence-v1",
+    "composite_evidence_receipt_object_sha256": "7fb0a11d205f33e1469c88e4780ea8e062759475300e6884e11c9b2593a75106",
+    "composite_evidence_record_canonical_sha256": "86043db0e9e8dd5adb8a8d31a677c048ea7eba5e2458f6c17dec78b433120496",
+    "cross_view_evidence_bundle_sha256": "c93ccb2c4e7ce3cb8d7958a12ab2e31784f3e014b354c351cb0a2de4dade02f4",
+    "input_sha256": "c5b4c67390f8d3e37511874f00ca2eb766cc956f305dbf7b0ca3cc6c3ca69948",
+    "proposal_form_art_evidence_receipt_object_sha256": "e1240c5f175569b029341638218788197d0bff5dc7e88f85f586912dae54247e",
+    "repair_plan_id": "fps-form-04be-d-repair-plan-v1"
+  },
+  "result": {
+    "candidate_confirm_allowed": false,
+    "candidate_confirmed": false,
+    "canonical_sha256": "d6f740600ca5b0350cdeacd1cda1222859d625443693bf0937bcda551b3885fd",
+    "composed_geometry_program_sha256": "ca7db8dae76a8ccb885756a871def18dbe795057a8775f5b53ae1cf18b852386",
+    "composite_evidence_id": "fps-form-04be-c-evidence-v1",
+    "composite_evidence_receipt_object_sha256": "7fb0a11d205f33e1469c88e4780ea8e062759475300e6884e11c9b2593a75106",
+    "composite_evidence_record_canonical_sha256": "86043db0e9e8dd5adb8a8d31a677c048ea7eba5e2458f6c17dec78b433120496",
+    "cross_view_canonical_sha256": "aa955a4f4a9dd6e7f59bcd6917c167347bf292b3f5c7d933624fb1356005b4b9",
+    "cross_view_evidence_bundle_sha256": "c93ccb2c4e7ce3cb8d7958a12ab2e31784f3e014b354c351cb0a2de4dade02f4",
+    "current_profile": {
+      "coordinate_space": "source-local",
+      "profile_id": "registered-boundary-bridge-quarter-y-flat-z-relaxation@1",
+      "selection_policy": "runtime-derived-boundary-bridge-station-roles@1",
+      "station_parameters": [
+        {
+          "current_y_offset_m": 0.0,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": 0.0,
+          "station_ratio_milli": 0,
+          "target_y_offset_m": 0.0,
+          "target_z_wedge_m": 0.0
+        },
+        {
+          "current_y_offset_m": -0.003,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": -0.003,
+          "station_ratio_milli": 250,
+          "target_y_offset_m": -0.006,
+          "target_z_wedge_m": 0.0
+        },
+        {
+          "current_y_offset_m": -0.0045,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": -0.0045,
+          "station_ratio_milli": 500,
+          "target_y_offset_m": -0.009,
+          "target_z_wedge_m": 0.0
+        },
+        {
+          "current_y_offset_m": -0.003,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": -0.003,
+          "station_ratio_milli": 750,
+          "target_y_offset_m": -0.006,
+          "target_z_wedge_m": 0.0
+        },
+        {
+          "current_y_offset_m": 0.0,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": 0.0,
+          "station_ratio_milli": 1000,
+          "target_y_offset_m": 0.0,
+          "target_z_wedge_m": 0.0
+        }
+      ],
+      "station_roles": [
+        "endpoint-near",
+        "quarter-near",
+        "center",
+        "quarter-far",
+        "endpoint-far"
+      ],
+      "topology_application": "existing-profile-readback"
+    },
+    "derivation_policy": "durable-cross-view-form-art-owner-void-repair-plan@1",
+    "evidence_issues": [
+      {
+        "evidence_sha256": "c93ccb2c4e7ce3cb8d7958a12ab2e31784f3e014b354c351cb0a2de4dade02f4",
+        "issue_id": "left-boundary-f1-regression",
+        "metric": "boundary_f1_4px",
+        "observed": 0.176374536656,
+        "required": 0.176477603396,
+        "status": "FAIL",
+        "view_kind": "left"
+      },
+      {
+        "evidence_sha256": "e1240c5f175569b029341638218788197d0bff5dc7e88f85f586912dae54247e",
+        "issue_id": "left-owner-void-overlap",
+        "metric": "owner_expected_void_overlap_milli",
+        "observed": 538.0,
+        "required": 0.0,
+        "status": "FAIL",
+        "view_kind": "left"
+      },
+      {
+        "evidence_sha256": "e1240c5f175569b029341638218788197d0bff5dc7e88f85f586912dae54247e",
+        "issue_id": "right-owner-void-overlap",
+        "metric": "owner_expected_void_overlap_milli",
+        "observed": 573.0,
+        "required": 0.0,
+        "status": "FAIL",
+        "view_kind": "right"
+      },
+      {
+        "evidence_sha256": "e1240c5f175569b029341638218788197d0bff5dc7e88f85f586912dae54247e",
+        "issue_id": "rear-three-quarter-owner-attribution",
+        "metric": "owner_region_pixel_count",
+        "observed": 0.0,
+        "required": 128.0,
+        "status": "FAIL",
+        "view_kind": "rear-three-quarter"
+      }
+    ],
+    "export_performed": false,
+    "mandatory_revalidation_gates": [
+      "same-original-fresh-baseline",
+      "same-approved-six-camera-rig",
+      "six-view-no-regression",
+      "left-boundary-f1-at-least-baseline",
+      "strict-owner-void-all-owner-views",
+      "negative-space-and-line-flow-resolved",
+      "form-quality-v2-fresh-scope"
+    ],
+    "operation": "forgecad.production.weapon.form-art-repair-plan-get@1",
+    "persistent_user_data_touched": false,
+    "plan_status": "READY_EVIDENCE_BOUND_TYPED_REPAIR_PLAN",
+    "preserved_invariants": [
+      "camera-lock",
+      "reference-canvas",
+      "original-fresh-baseline",
+      "current-composite-base",
+      "trigger-guard-aperture",
+      "rear-stock-endpoints",
+      "rear-stock-lower-beam-and-rear-cap",
+      "all-non-rear-stock-parts"
+    ],
+    "production_stage_advanced": false,
+    "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+    "proposal_artifact_sha256": "e301dd8c1881ff1334acde4cd61bb0ffdb3eb7017c8cd7784fe58b1aac7ee007",
+    "proposal_candidate_id": "candidate-f4a7d01ea8174dd4821c21fcd8ff06fa",
+    "proposal_candidate_state_sha256": "da53deaadbbc74e1c859f9c0d4b1c85427a8b2dcfa9f9bb6748c07bd6da354aa",
+    "proposal_form_art_evidence_canonical_sha256": "85b84f7859f710bbba685d8b2e7b85fc46a2fc79da18a07c22e013d65bc53a19",
+    "proposal_form_art_evidence_receipt_object_sha256": "e1240c5f175569b029341638218788197d0bff5dc7e88f85f586912dae54247e",
+    "proposal_id": "fps-form-04be-b-composite-v1",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "repair_execution_allowed_by_this_tool": false,
+    "repair_execution_status": "NOT_RUN",
+    "repair_plan_id": "fps-form-04be-d-repair-plan-v1",
+    "runtime_write_performed": false,
+    "schema_version": "ProductionWeaponFormArtRepairPlanGetResult@1",
+    "secondary_form_approved": "NOT_CREATED",
+    "session_id": "fps-form-04a-session",
+    "source_node_id": "rear-stock",
+    "strategy_id": "rear-stock-owner-void-half-y-flat-z@1",
+    "target_part_id": "rear-stock",
+    "target_profile": {
+      "coordinate_space": "source-local",
+      "profile_id": "registered-boundary-bridge-half-y-flat-z-owner-void@1",
+      "selection_policy": "runtime-derived-boundary-bridge-station-roles@1",
+      "station_parameters": [
+        {
+          "current_y_offset_m": 0.0,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": 0.0,
+          "station_ratio_milli": 0,
+          "target_y_offset_m": 0.0,
+          "target_z_wedge_m": 0.0
+        },
+        {
+          "current_y_offset_m": -0.003,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": -0.003,
+          "station_ratio_milli": 250,
+          "target_y_offset_m": -0.006,
+          "target_z_wedge_m": 0.0
+        },
+        {
+          "current_y_offset_m": -0.0045,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": -0.0045,
+          "station_ratio_milli": 500,
+          "target_y_offset_m": -0.009,
+          "target_z_wedge_m": 0.0
+        },
+        {
+          "current_y_offset_m": -0.003,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": -0.003,
+          "station_ratio_milli": 750,
+          "target_y_offset_m": -0.006,
+          "target_z_wedge_m": 0.0
+        },
+        {
+          "current_y_offset_m": 0.0,
+          "current_z_wedge_m": 0.0,
+          "delta_y_m": 0.0,
+          "station_ratio_milli": 1000,
+          "target_y_offset_m": 0.0,
+          "target_z_wedge_m": 0.0
+        }
+      ],
+      "station_roles": [
+        "endpoint-near",
+        "quarter-near",
+        "center",
+        "quarter-far",
+        "endpoint-far"
+      ],
+      "topology_application": "registered-next-repair-only"
+    },
+    "version_created": false
+  },
+  "schema_version": "ForgeCADProductionWeaponFormArtRepairPlanRealD1Gate@1",
+  "status": "PASS_READ_ONLY_EVIDENCE_BOUND_REPAIR_PLAN_WITH_QUALITY_TARGET_NOT_MET",
+  "task_id": "FPS-FORM-04BE-D",
+  "transport": {
+    "first": {
+      "listed_tool_count": 127,
+      "ponytail_preflight": "PASS",
+      "tool_exposed": true
+    },
+    "restart": {
+      "listed_tool_count": 127,
+      "ponytail_preflight": "PASS",
+      "tool_exposed": true
+    },
+    "restart_canonical_sha256_equal": true,
+    "restart_exact_result_equal": true
+  },
+  "zero_write_proof": {
+    "after": {
+      "cas": {
+        "object_file_count": 1639,
+        "tree_sha256": "dc47c325b36f4fc397ce804612fa29fd56b4918786192cf88d02d4bf27176d07"
+      },
+      "database_file": {
+        "sha256": "2953fc1791745b61601bbd38cee6fa3f719b3df170ffc452facdda29ff3d112a",
+        "size_bytes": 3706880
+      },
+      "logical_database": {
+        "canonical_sha256": "62bb5823ef3f1f96dd31f357875a1fbd0232e2414f60ee3bd52901358ce6a9c6",
+        "row_count": 2520,
+        "table_count": 116
+      }
+    },
+    "before": {
+      "cas": {
+        "object_file_count": 1639,
+        "tree_sha256": "dc47c325b36f4fc397ce804612fa29fd56b4918786192cf88d02d4bf27176d07"
+      },
+      "database_file": {
+        "sha256": "8cf93b6c721d2094e63a2a860617a2349e89e6af7158492e5229554548867524",
+        "size_bytes": 3706880
+      },
+      "logical_database": {
+        "canonical_sha256": "62bb5823ef3f1f96dd31f357875a1fbd0232e2414f60ee3bd52901358ce6a9c6",
+        "row_count": 2520,
+        "table_count": 116
+      }
+    },
+    "cas_object_file_count_equal": true,
+    "cas_tree_sha256_equal": true,
+    "logical_database_sha256_equal": true,
+    "persistent_user_data_touched": false,
+    "physical_database_sha256_equal": false,
+    "runtime_write_performed": false
+  }
+}

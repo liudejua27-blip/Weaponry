@@ -1,0 +1,39 @@
+{
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "native-high",
+  "version": "0.1.0",
+  "status": "passed_source_structural",
+  "suite_id": "native-high-structural-determinism",
+  "fixture_sha256": "d19126c69693c459ef22c33aeccaa99e1c34edae8bbd7569ba5722220827fcbf",
+  "worker_lock_sha256": "a0ae14870c216198fb41f6698d772a29bdfab7170a6d18eb471c609a87a372cd",
+  "source_lib_sha256": "d5a88cc24a9024b3035317591c7e25151c397af89924672dc1e7e6b8624d1f11",
+  "source_glb_sha256": "c8f206b592017a94d0fc4bc96bf6a462e49d0685ee44a16351845d9dd07a760e",
+  "source_main_sha256": "764710bad654a1f19885125a5d38347aee596164b014dede2dddd29d49d312be",
+  "source_protocol_sha256": "5d4f973c6a6e78f8af8fe5559a740e06c53fa56fa97ae09843e4ef55c7a3bce9",
+  "test_command": "cargo test --offline --manifest-path apps/high-worker/Cargo.toml --lib --test transport",
+  "test_status": "PASS",
+  "behavioral_test_count": 6,
+  "transport_test_count": 7,
+  "determinism_receipt": "benchmarks/determinism-receipt.json",
+  "durable_glb_contracts": [
+    "NativeHighDurableGetRequest@1",
+    "NativeHighDurableGetResult@1",
+    "NativeHighDurableLink@1",
+    "NativeHighDurablePrepareRequest@1",
+    "NativeHighDurablePrepareResult@1",
+    "NativeHighGlbMaterializeRequest@1",
+    "NativeHighGlbMaterializeResult@1"
+  ],
+  "metrics": {
+    "double_replay_byte_exact": 1,
+    "base_authoring_mesh_preserved": 1,
+    "glb_materialization_double_replay_byte_exact": 1,
+    "glb_strict_readback": 1,
+    "glb_embedded_only": 1,
+    "glb_runtime_write_performed": 0,
+    "runtime_integration_gate": "PASS_SOURCE_DURABLE_RESTART_MCP_ONLY",
+    "runtime_integration_status": "source-only-pass",
+    "high_gate_passed": false
+  },
+  "reason": "Worker structural/determinism and source Runtime/MCP durable restart gates pass, but the proposal remains unregistered/unpackaged and commercial quality gates are not run; Native High is not active and FPS-HIGH-05 is not passed."
+}

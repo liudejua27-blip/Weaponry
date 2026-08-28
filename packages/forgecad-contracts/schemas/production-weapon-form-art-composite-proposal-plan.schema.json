@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-composite-proposal-plan.schema.json",
+  "title": "ProductionWeaponFormArtCompositeProposalPlan@1",
+  "description": "A closed Runtime-owned plan that separates the original visual baseline from the current proposal base and applies only ordered, disjoint, registered source-node replacements. It accepts no raw mesh, profile points, script, path, URL or arbitrary operator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "original_source_candidate_id",
+    "original_source_candidate_state_sha256",
+    "original_source_artifact_sha256",
+    "original_fresh_baseline_canonical_sha256",
+    "current_base_candidate_id",
+    "current_base_candidate_state_sha256",
+    "current_base_artifact_sha256",
+    "current_base_geometry_program_sha256",
+    "current_base_proposal_evidence_sha256",
+    "operations",
+    "composition_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtCompositeProposalPlan@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "original_source_candidate_id": {"$ref": "#/$defs/identifier"},
+    "original_source_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "original_source_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "original_fresh_baseline_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "current_base_candidate_id": {"$ref": "#/$defs/identifier"},
+    "current_base_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "current_base_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "current_base_geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "current_base_proposal_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/operation"}
+    },
+    "composition_policy": {"const": "runtime-owned-original-baseline-current-base-registered-disjoint-replacements@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "operation": {
+      "oneOf": [
+        {"$ref": "#/$defs/trigger_guard_aperture_operation"},
+        {"$ref": "#/$defs/rear_stock_owner_void_operation"}
+      ]
+    },
+    "trigger_guard_aperture_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "sequence_index",
+        "operation_id",
+        "operation_kind",
+        "source_node_id",
+        "part_id",
+        "registered_profile_id",
+        "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "ProductionWeaponFormArtCompositeProposalOperation@1"},
+        "sequence_index": {"type": "integer", "minimum": 0, "maximum": 7},
+        "operation_id": {"$ref": "#/$defs/identifier"},
+        "operation_kind": {"const": "registered_profile_replace"},
+        "source_node_id": {"const": "trigger-guard"},
+        "part_id": {"const": "trigger-guard"},
+        "registered_profile_id": {"const": "trigger-guard-side-aperture-xy@1"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "rear_stock_owner_void_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "sequence_index",
+        "operation_id",
+        "operation_kind",
+        "source_node_id",
+        "part_id",
+        "registered_profile_id",
+        "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "ProductionWeaponFormArtCompositeProposalOperation@1"},
+        "sequence_index": {"type": "integer", "minimum": 0, "maximum": 7},
+        "operation_id": {"$ref": "#/$defs/identifier"},
+        "operation_kind": {"const": "registered_profile_replace"},
+        "source_node_id": {"const": "rear-stock"},
+        "part_id": {"const": "rear-stock"},
+        "registered_profile_id": {"const": "registered-boundary-bridge-half-y-flat-z-owner-void@1"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

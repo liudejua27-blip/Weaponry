@@ -1,0 +1,78 @@
+{
+  "schema_version": "AuthoringMeshIdentityLineageV2SourceGateReceipt@1",
+  "task_id": "CQ-02-AUTHORING-MESH-IDENTITY-LINEAGE-V2",
+  "recorded_on": "2026-08-25",
+  "status": "PASS_RUNTIME_RESTART_BASIC_CROSS_CANDIDATE_IDENTITY",
+  "scope": "fictional-nonfunctional-game-visual-authoring-only@1",
+  "source_surface": {
+    "schema_count": 488,
+    "schema_content_set_sha256": "3c15444a84b0dbd0a3e8e84794f6e25728484f77d752935ed180837b18b22a6a",
+    "contract_manifest_sha256": "332af3298f69a7a15e9fe15983a3a5046ef69d00129053a9f4c1c4e0a1b110f2",
+    "read_tools": 106,
+    "write_tools": 78,
+    "total_tools": 184,
+    "tool_manifest_canonical_sha256": "dc6966d9d31f34bebbb5b7c390bdd902cbb41e75b9b65461a8fa0a769f490e0b",
+    "tool_manifest_receipt_sha256": "f2523c8e2bf383ecea9103f6e76cc06fe773bcaff93a49619ae8ea5a12a21cdf"
+  },
+  "contracts": {
+    "authoring_mesh_identity_lineage_v2_prepare_request_sha256": "6b9f180e4e1e579663f05ff8614f86c2d6e8efcf47810176d6e3eb502e663844",
+    "authoring_mesh_identity_lineage_v2_prepare_result_sha256": "73e82d7a2f40e85daaf9bea59804f13a80048c93bdc2f71ea0dee9de72263e62",
+    "authoring_mesh_identity_lineage_v2_get_request_sha256": "d15977cb91d033d102974332c58be4ec14609da4fda85ff6cc6df1a3158f1bd5",
+    "authoring_mesh_identity_lineage_v2_get_result_sha256": "b076ab0ae788c9a25d3b2063e6049adf816abf031b12f6f1f00f8f75e3cc1304",
+    "contract_check": "PASS_488_OF_488"
+  },
+  "store": {
+    "source_sha256": "8bd48440183e72c077897b3c697e891f3b96c1ab899edc56dbfe2fdb2b1a3b12",
+    "focused_identity_lineage_tests": "PASS_4_OF_4",
+    "projection_regression_tests": "PASS_2_OF_2",
+    "object_and_payload_hashes_distinct": true,
+    "restart_and_cas_tamper_fail_closed": true
+  },
+  "runtime": {
+    "module_sha256": "eaf65fbdb4ec2cfba40869f36f339e442aa29ca876b8cac2a41a6eaae8e715bf",
+    "lib_sha256": "68d5b57b987236efc740c04de0c25fd78b8432dcc93387c07cbb7590d41e1e0a",
+    "combined_store_runtime_mcp_cargo_check": "PASS",
+    "public_prepare_get_source_wired": true,
+    "positive_prepare_get_fixture": "PASS_1_OF_1",
+    "drop_reopen_restart_fixture": "PASS_EXACT_IDENTITY_AND_HASH_READBACK",
+    "same_lineage_two_candidate_fixture": "PASS_BASIC_PRESERVING_AND_TOPOLOGY_EDIT",
+    "derived_correspondence": "PASS_PRESERVED_CREATED_RETIRED_ONLY",
+    "monotonic_tombstone_non_reuse": "PASS",
+    "split_merge_correspondence": "NOT_PROVEN"
+  },
+  "mcp": {
+    "module_sha256": "90371155f0a9c46757b13fb2861162b5436442b834c18927a839651213c04708",
+    "main_sha256": "d3f7d9430dc845f4c0ea90ef6d92e59be040ad3dbde599bed6918cf68901e8cb",
+    "focused_tests": "PASS_3_OF_3",
+    "raw_stdio_positive_roundtrip": "NOT_RUN",
+    "default_read_tool": "authoring_mesh_identity_lineage_get",
+    "explicit_write_opt_in_tool": "authoring_mesh_identity_lineage_prepare",
+    "ponytail_preflight_required": true,
+    "max_wire_bytes": 1048576
+  },
+  "product_state": {
+    "runtime_sole_writer": true,
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "basic_cross_candidate_authored_identity": "PASS_PRESERVING_AND_TOPOLOGY_EDIT_FIXTURE",
+    "product_cross_version_stable_identity": "NOT_PROVEN",
+    "split_merge_correspondence": "NOT_PROVEN",
+    "complete_edit_history": "NOT_PROVEN",
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "STRUCTURAL_RUNTIME_IDENTITY_LEDGER_ONLY",
+    "BASIC_PRESERVED_CREATED_RETIRED_CORRESPONDENCE_ONLY",
+    "NO_SPLIT_MERGE_CORRESPONDENCE_PROOF",
+    "NO_RAW_STDIO_POSITIVE_ROUNDTRIP",
+    "NO_VISUAL_HUMAN_ENGINE_OR_DISTRIBUTION_PASS"
+  ],
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "canonical_sha256": "46b5f07e5a63157e87d53a049ec06bbf7dbf8aa8bc831ba3d397031c74eb92c2"
+}

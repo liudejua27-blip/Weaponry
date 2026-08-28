@@ -1,13 +1,29 @@
 # ForgeCAD 产品定义
 
-版本：2026-08-13
-状态：单用户 MVP host golden path 已完成；MCP005–009 geometry/appearance/render/limited-quality/change/version/export 可用，真实 Codex CLI 主链已通过；MCP010F 仍为 `QUALITY_TARGET_NOT_MET`。ADR-0026 的 Agentic Design Runtime 已落地一部分当前实现：Runtime-owned durable `ReferenceCanvas@1`/`DesignSpec@1`、candidate-bound Observation、Session/Checkpoint/RepairIntent prepare/readback 已有 source/transport 证据；通用单动作 orchestrator、Repair 应用、多视图视觉通过、人评和发布级闭环仍未完成。
+> 2026-08-26 商业化定义补充：ForgeCAD 的成功不是工具数或可打开 GLB，而是 Codex 通过 ForgeCAD 产生同 lineage/hash 的 `HeroSourceAsset@1 + FpsPresentationPackage@1 + EngineDeliveryPackage@1`，并经独立 Hero Art Review。当前 real D1 的枪托网格编辑只达到局部有回退的 `REVIEWABLE_TRADEOFF`，且缺 fresh proposal-side FormArt owner evidence，证明产品开始触达真实美术形变，也证明它仍未达到商业创作水平。
+
+> 产品北极星已明确为：用户只安装 ForgeCAD，Codex 通过 MCP 完成商业 FPS Hero Weapon 的 Art Direction、AuthoringMesh、High/Low/UV/Bake、Material、FPS presentation、EngineValidation 和独立人审。详见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。
+
+> 2026-08-26 北极星：用户只安装 ForgeCAD，Codex 经 MCP 完成原创、非功能性商业 FPS Hero Weapon。产品必须同时交付可编辑生产源资产、第一人称表现包和商业引擎交付包；目标是对标《无畏契约》公开展示的 gameplay-first 可读性与跨 concept/model/animation/VFX/audio 的生产纪律，不复制其现有资产或 IP。当前仍未达到该目标。
+
+> 2026-08-25 商业质量定位：ForgeCAD 的目标不是“生成一个看起来像武器的 GLB”，而是以 Runtime 单写者、typed Worker 和同 hash 证据完成虚构 Hero Weapon 的 Form、AuthoringMesh、High/Low、Hero UV、Cage/Bake、Material、FPS presentation、LOD/collision/socket、引擎与人审链。当前产品仍处于可验证高级灰模/结构管线阶段，状态保持 `QUALITY_TARGET_NOT_MET`。详见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+版本：2026-08-26
+状态：单用户 MVP host golden path 已完成；MCP005–009 geometry/appearance/render/limited-quality/change/version/export 可用，真实 Codex CLI 主链已通过；MCP010F 仍为 `QUALITY_TARGET_NOT_MET`。ADR-0026 的 Agentic Design Runtime 只有受限 CAS-backed session/observation/checkpoint/RepairIntent source/readback slice；完整 durable `ReferenceCanvas@1`/`DesignSpec@1` producer/consumer conformance、通用单动作 orchestrator、Repair 应用、多视图视觉通过、人评和发布级闭环仍未完成。
 
 ## 1. 一句话
 
 ForgeCAD 是 Codex 可自由调用的本地 3D Runtime：把用户的合法参考和要求编译成可检查、可局部修改、可回退和可导出的 3D 资产。MVP 只提供 bounded hard-surface functional core；“高质量/相似度”必须由真实参考指标和真人门证明，不能由工具存在或单张截图推出。
 
 Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent 对话。ADR-0026 进一步规定：未来高质量路线不是把 ForgeCAD 变成聊天 Agent，而是在 Runtime 上增加可观察的 Agentic design loop，让 Codex 每步都能读取语义场景、视觉证据、阶段门和下一步允许动作。
+
+### 1.1 商业级边界与根因
+
+当前产品定位必须保持诚实：ForgeCAD 是可验证高级灰模/技术管线，不是商业级资产生产软件。根因是上游资产真值和艺术生产能力缺失，而不是“再加几个 primitive 或再跑几轮 Agent”即可解决：AuthoringMesh 的专业可编辑 topology、Native High/Low、Hero UV、独立 Cage/Bake、Material Layer Graph、LOD/FPS 交付、Art Director Viewer、EngineValidation 和 HeroArtReview 尚未以同一 candidate/hash 闭合。
+
+这些能力的生产职责属于 ForgeCAD-only 的内建 typed Worker。AuthoringMesh 保持 original/evaluated 与 Part lineage；Native High/Low 形成独立高低模和 correspondence；Hero UV 负责可视性密度、seam、stretch、padding 与 tangent；Cage/Bake 负责逐 Part ray/miss/skew/cross-hit 诊断；Material Layer Graph 负责 layer/mask/wear/microdetail 与 provenance；LOD 负责 authored LOD0/1/2、collision/socket；Art Director Viewer 只读呈现 AOV/compare/阶段矩阵；EngineValidation 和 HeroArtReview 是真实引擎与独立艺术家门。Runtime 是唯一写者，Worker、MCP、Viewer 不得成为第二真值，也不允许运行任意脚本、DCC、网络服务或 `.blend` 状态。
+
+当前研究/结构增量不能改变机器真值：唯一 `in_progress` 为 `FGC-MCP010F`；Stage=`camera-calibrated`；`secondary-form-approved=NOT_CREATED`；`FPS-HIGH-05=NOT_PASSED`；Low=`DRAFT_UNREVIEWED / structural_only / promotion_eligible=false`；proposal=`registered=false`；visual=`QUALITY_TARGET_NOT_MET`；human/engine/distribution=`NOT_RUN`；HQ360=`BLOCKED_REFERENCE_COVERAGE`；无 confirm/version/export。Hero UV 的 7 个 registered contracts 与 durable `get/prepare` restart **1/1 PASS** 只证明 structural/source，不是 artist unwrap 或商业通过。
 
 ## 2. 目标用户
 

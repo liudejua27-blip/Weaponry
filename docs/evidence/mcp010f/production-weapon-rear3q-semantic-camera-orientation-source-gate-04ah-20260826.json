@@ -1,0 +1,94 @@
+{
+  "schema_version": "ForgeCADRearThreeQuarterSemanticCameraOrientationSourceGate@1",
+  "recorded_on": "2026-08-26",
+  "task_id": "FPS-FORM-04AH",
+  "scope": "fictional_nonfunctional_game_weapon_visual_asset",
+  "status": "PASS_SOURCE_COMPILE_SEMANTIC_CAMERA_ORIENTATION_SEAM",
+  "diagnosis": {
+    "reference_board_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "reference_view_kind": "rear-three-quarter",
+    "reference_view_spec_canonical_sha256": "0fa47369bb184ca6b3c4581cbf90aa0b1a538a44c6d1a6efc39d6071d93746da",
+    "reference_rotation_degrees": 0,
+    "reference_visual_order": "stock-left-muzzle-right",
+    "reference_upright": true,
+    "current_registered_render_sha256": "e1631c4a55a87b8b496d2dbdcbe9d7dcad234952079bda0b3a104141bf371bef",
+    "current_registered_camera_hash": "4fa162d6c011a7fa110920a0a9e607ae9bec25701afd278ae9bbd9571dce3d43",
+    "current_render_visual_order": "muzzle-left-stock-right",
+    "current_render_upright": true,
+    "diagnostic_ranked_image_transform": "rotate-180",
+    "diagnostic_transform_rejected_as_authority": true,
+    "reason": "A 180-degree image rotation swaps stock and muzzle but also reverses upright. The defect is a semantic rear-oblique camera selection mismatch, not an authorized reference-pixel rotation."
+  },
+  "implementation": {
+    "prepare_fields": [
+      "rear_three_quarter_rotation_degrees",
+      "rear_three_quarter_subject_screen_order",
+      "rear_three_quarter_camera_orbit_degrees"
+    ],
+    "closed_subject_screen_orders": [
+      "stock-left-muzzle-right",
+      "muzzle-left-stock-right"
+    ],
+    "closed_camera_orbits_degrees": [0, 180],
+    "canonical_opposite_orbit_degrees": 180,
+    "reference_pixels_rotated_by_camera_orbit": false,
+    "camera_variant_runtime_derived": true,
+    "runtime_projection_proof": {
+      "policy": "runtime-projected-stock-muzzle-screen-order-and-world-y-upright@1",
+      "uses_candidate_owned_source_anchors": true,
+      "binds_final_registered_camera_hash": true,
+      "requires_exact_subject_screen_order": true,
+      "requires_world_positive_y_upright": true,
+      "fails_closed_on_ambiguous_order": true
+    },
+    "approval_receipt": {
+      "schema_version": "ApprovalReceipt@1",
+      "cas_backed": true,
+      "bound_to_authored_orientation_provenance": true,
+      "validated_during_lineage_readback": true,
+      "caller_supplied_receipt_object_hash": false
+    },
+    "caller_supplied_camera_matrix": false,
+    "caller_supplied_geometry": false,
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "source_hashes": {
+    "camera_rig_rs": "197dab210bf8e8f62b0c5417b66092b1167f947333ad6783c02eaf5b6a116e2e",
+    "agentic_session_rs": "2df14cb49aadfae7d326e4e365624225a719ae783a5381ed4df92806f2f42b02",
+    "contracts_lib_rs": "93dcb7fe24e7ccb70535af404ae4df28e0c9d027bab92c628b7f6cf2dc6a1b61",
+    "mcp_lineage_tools_rs": "72a83e6bc3b34d5066129d6a7bed12c06b41fe38bdf5d9757bc1b6107909b61f",
+    "store_lib_rs": "ab3dac2f0ccacec5ec16f5658b2f600897fde8075ff2a0257dddd41dbeaef277",
+    "lineage_prepare_schema": "53f67ef54c0d25b4417bf961ff35672ba8ed235bddaec82c8cc4048d567918be",
+    "lineage_schema": "c28af4d65b6d72e774b675ce40d6f0ea80790bb8409a35546cc0060e1be821dd",
+    "lineage_prepare_result_schema": "a53d4b261e7431654545df70182c2c1357c9e7014d473fbeb6e1cfc1b94c0b88",
+    "lineage_get_result_schema": "975f184f7cfd2e05bfb9c181b985cfdb87984cc8e9414b67c8a0cd0fb71832b6",
+    "authored_orientation_schema": "9b5ea3218f50a0e18896a9b627fba1e8d3a01d5baefc7cea221a56b0a21c0c0f",
+    "registered_rig_v2_schema": "43ed4196643fa5e531ed70b94937be4b3063e73c0b7960ea828b6426e389a6d1",
+    "approval_receipt_schema": "41fa12e3350ee375dc5afd0a4e083e7233b43767cfc5726a2520252597a84601"
+  },
+  "verification": {
+    "contracts_check": "PASS_529_SCHEMAS",
+    "cargo_check_contracts_runtime_mcp": "PASS",
+    "schema_content_set_sha256": "78c3edd106291f880527bc53af37511dd5f7eef1e4a9250986d006e3736ed3ff",
+    "contract_manifest_sha256": "86fbdbf141baf541d5281f5689df4e9d5f49e122bbbd54e05c9d59e6c960d829",
+    "tool_surface": {
+      "read": 115,
+      "opt_in_write": 87,
+      "total": 202
+    }
+  },
+  "authority_boundary": {
+    "orientation_specific_user_receipt": "BLOCKED_REQUIRED",
+    "real_d1_registration_lineage_prepare": "NOT_RUN",
+    "real_d1_restart_readback": "NOT_RUN",
+    "smaller_open_frame_notch": "NOT_RUN_AFTER_CAMERA_AUTHORITY_FIX",
+    "secondary_form_approved": "NOT_CREATED",
+    "stage": "camera-calibrated",
+    "quality": "QUALITY_TARGET_NOT_MET",
+    "commercial_quality": "NOT_PROVEN"
+  },
+  "next_gate": "User explicitly approves rear3q board rotation=0, stock-left/muzzle-right, upright world +Y and the Runtime-derived opposite rear-oblique camera variant; then run durable lineage prepare/get/restart before the single smaller notch."
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "NativeHighBenchmarkFixture@1",
+  "fixture_id": "native-high-unregistered-proposal-activation-rejected",
+  "worker_lock": "workers/high-worker.lock.json",
+  "attempt": {
+    "runtime_consumer": "forgecad-runtime",
+    "mcp_tool": "native_high_durable_prepare",
+    "cas_materialization": true,
+    "worker_glb_materialization": true,
+    "runtime_glb_persist": true
+  },
+  "expected": {
+    "status": "reject",
+    "reason": "PROPOSAL_NOT_REGISTERED_FOR_SKILL_ACTIVATION",
+    "runtime_integration_gate": "PASS_SOURCE_DURABLE_RESTART_MCP_ONLY",
+    "runtime_integration_status": "source-only-pass"
+  }
+}

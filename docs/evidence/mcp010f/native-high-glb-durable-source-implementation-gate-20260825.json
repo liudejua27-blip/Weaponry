@@ -1,0 +1,83 @@
+{
+  "schema_version": "ForgeCADSupplementalSourceGateReceipt@1",
+  "receipt_id": "native-high-glb-durable-source-implementation-gate-20260825",
+  "recorded_at": "2026-08-25",
+  "task_id": "FGC-MCP010F",
+  "workstream": "CQ-03-NATIVE-HIGH",
+  "status": "PASS_BOUNDED_SOURCE_DURABLE_RESTART_MCP_ONLY",
+  "source_surface": {
+    "schema_count": 499,
+    "operator_entries": 28,
+    "read_tools": 107,
+    "write_tools": 79,
+    "total_tools": 186,
+    "public_native_high_mcp_tools_added": 2
+  },
+  "checks": {
+    "contracts": "PASS_499_OF_499",
+    "high_worker_library": "PASS_6_OF_6",
+    "high_worker_dedicated_transport": "PASS_7_OF_7",
+    "high_and_glb_two_independent_process_replay": "PASS_BYTE_EXACT",
+    "embedded_glb_2_strict_worker_readback": "PASS",
+    "worker_protocol": "PASS_12_OF_12",
+    "store_native_high_record": "PASS_1_OF_1",
+    "runtime_offline_compile": "PASS",
+    "runtime_parser_focused": "PASS_2_OF_2",
+    "runtime_local_glb_readback_compile": "PASS",
+    "runtime_same_cohort_real_process_restart": "PASS_1_OF_1",
+    "runtime_same_request_idempotent_replay": "PASS",
+    "runtime_build_cohort_sha256": "63919dab17910397b8a15b991468d24e338ce6ce550b337ad3797bf440363a62",
+    "mcp_native_high_compile": "PASS",
+    "mcp_native_high_focused": "PASS",
+    "git_diff_check": "PASS",
+    "release_docs_walkthrough": "PASS"
+  },
+  "implemented_source_boundary": [
+    "stable-ID durable AuthoringMesh binding",
+    "bounded deterministic 1-3 segment face-interior support-loop chamfer arc",
+    "HighMeshArtifact@1 double replay",
+    "deterministic embedded-only GLB 2.0 lowering",
+    "Runtime-owned strict local GLB readback",
+    "CAS reservation and bounded rollback",
+    "Store NativeHighDurableRecord@1 exact replay/conflict checks",
+    "Runtime native_high_durable_prepare/get source methods"
+  ],
+  "not_run": [
+    "packaged same-cohort High Worker and Runtime receipt",
+    "candidate-bound Commercial High quality report",
+    "visual review",
+    "independent human art review",
+    "commercial engine validation",
+    "distribution validation"
+  ],
+  "gate_truth": {
+    "fps_high_05": "NOT_PASSED",
+    "native_high_source_status": "PASS_SOURCE_DURABLE_RESTART_MCP",
+    "proposal_registered": false,
+    "active_registry_changed": false,
+    "production_stage": "camera-calibrated",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "structural_status": "PASS_SOURCE_STRUCTURAL_DURABLE_ONLY",
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "source_sha256": {
+    "apps/high-worker/src/lib.rs": "d5a88cc24a9024b3035317591c7e25151c397af89924672dc1e7e6b8624d1f11",
+    "apps/high-worker/src/glb.rs": "c8f206b592017a94d0fc4bc96bf6a462e49d0685ee44a16351845d9dd07a760e",
+    "apps/high-worker/src/main.rs": "764710bad654a1f19885125a5d38347aee596164b014dede2dddd29d49d312be",
+    "apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs": "5d4f973c6a6e78f8af8fe5559a740e06c53fa56fa97ae09843e4ef55c7a3bce9",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/native_high_durable.rs": "74165079a9436faec99485a56174c5f4054676950876fabf893daef94ebdb61b",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/native_high_glb_readback.rs": "5e91f934e62fc373c81e50b139b62304f05f234a714fb1db072d099995109071",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs": "bb168d5d4636d2bac70191154a32118570cee28960231ff8b2ecd458b27fccf7",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/native_high_durable_tools.rs": "83d31aa1bbcabd0dc83dd8d6c269756504db1789dac1d54be52a974b10644421",
+    "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs": "818fae9f64922757739caffd7fd09cfae8833de775a6f1c0d71ceacfc236f7ad",
+    "packages/forgecad-contracts/manifest.json": "a24298acb56df95721fe9db26ce88dbcbd470587d56b1b30d8be2038a57bdb2d"
+  },
+  "manifest_policy": "supplemental source receipt; does not promote ProductionStage, candidate, version, export or commercial quality"
+}

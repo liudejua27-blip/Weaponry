@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-repair-plan-get-request.schema.json",
+  "title": "ProductionWeaponFormArtRepairPlanGetRequest@1",
+  "description": "Closed read-only request for a Runtime-derived repair plan bound to one durable composite FormArt evidence sidecar. The caller supplies identities and hashes only; it cannot supply mesh selections, vertices, camera state, profile values, scripts, paths or URLs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "repair_plan_id",
+    "composite_evidence_id",
+    "proposal_id",
+    "session_id",
+    "project_id",
+    "composite_evidence_record_canonical_sha256",
+    "composite_evidence_receipt_object_sha256",
+    "cross_view_evidence_bundle_sha256",
+    "proposal_form_art_evidence_receipt_object_sha256",
+    "max_response_bytes",
+    "runtime_write_performed",
+    "derivation_policy",
+    "canonicalization_policy",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtRepairPlanGetRequest@1"},
+    "operation": {"const": "forgecad.production.weapon.form-art-repair-plan-get@1"},
+    "repair_plan_id": {"$ref": "#/$defs/id"},
+    "composite_evidence_id": {"$ref": "#/$defs/id"},
+    "proposal_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "composite_evidence_record_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "composite_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "cross_view_evidence_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_form_art_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "derivation_policy": {"const": "durable-cross-view-form-art-owner-void-repair-plan@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,5 +1,11 @@
 # Blender 能力研究与 ForgeCAD 适配计划
 
+> 2026-08-26 现行 source 为 **525 schemas / 112 read + 84 write = 196 tools**。Native High/Material plan 仍由 ForgeCAD typed Worker 负责，不把 Blender/DCC 状态设为产品真值；真实 D1 仍阻断于 authored orientation。
+
+> 2026-08-25 商业质量收口：本文件只保留 clean-room 概念研究。ForgeCAD 商业武器主链由自有 AuthoringMesh/High/Low/UV/Cage/Bake/Surface Workers 执行；Blender、`bpy`、`.blend`、BlenderMCP 或任意脚本不是产品依赖、fallback 或质量真值。新的原生落地顺序见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
+
+> 2026-08-26 现行 source 口径为 **515 schemas / 28 operator entries / 111 read + 83 opt-in write = 194 tools**；下文 195/24/90 等数字只属于历史 clean-room slices。Blender 永久 `reference-only / unavailable-for-product`，不会晋级为 package Worker。
+
 版本：2026-08-23
 状态：`FGC-MCP010F in_progress`；Modifier Stack、TopologySnapshot、bounded Bevel/Normal、Modifier evaluation v2、bounded Subdivision evaluation v2、fixed RenderProfile/AOV lineage、Mechanical pose/sequence/transient geometry preview、Parametric Group v2、Render Evidence Integrity、Render Evidence Replay、Boolean Operand Lineage、bounded crease-aware Subdivision、Subdivision root-lineage、artifact-lineage reconstructed projection/durable sidecar 与 product-owned Authoring Mesh source/focused slices 已实现，完整目标未完成。
 

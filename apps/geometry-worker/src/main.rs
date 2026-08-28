@@ -5,7 +5,18 @@
 
 use forgecad_worker_protocol::{
     build_cohort_sha256, validate_request, WorkerError, WorkerRequest, WorkerResponse,
-    MAX_WORKER_REQUEST_BYTES, MAX_WORKER_RESPONSE_BYTES, WORKER_PROTOCOL,
+    MAX_WORKER_REQUEST_BYTES, MAX_WORKER_RESPONSE_BYTES, PRODUCTION_WEAPON_CAGE_OFFSET_ENTRY,
+    PRODUCTION_WEAPON_CAGE_OFFSET_OPERATION, PRODUCTION_WEAPON_GEOMETRIC_BAKE_ENTRY,
+    PRODUCTION_WEAPON_GEOMETRIC_BAKE_OPERATION, PRODUCTION_WEAPON_HERO_MATERIAL_ENTRY,
+    PRODUCTION_WEAPON_HERO_MATERIAL_OPERATION, PRODUCTION_WEAPON_HERO_UV_LAYOUT_ENTRY,
+    PRODUCTION_WEAPON_HERO_UV_LAYOUT_OPERATION,
+    PRODUCTION_WEAPON_HIGH_LOW_CAGE_ARTIFACT_PRODUCER_ENTRY,
+    PRODUCTION_WEAPON_HIGH_LOW_CAGE_ARTIFACT_PRODUCER_OPERATION,
+    PRODUCTION_WEAPON_HIGH_LOW_CAGE_DIAGNOSTIC_ENTRY,
+    PRODUCTION_WEAPON_HIGH_LOW_CAGE_DIAGNOSTIC_OPERATION, PRODUCTION_WEAPON_LOW_QUAD_DRAFT_ENTRY,
+    PRODUCTION_WEAPON_LOW_QUAD_DRAFT_OPERATION, PRODUCTION_WEAPON_LOW_RETOPOLOGY_ENTRY,
+    PRODUCTION_WEAPON_LOW_RETOPOLOGY_OPERATION, PRODUCTION_WEAPON_MATERIAL_LAYER_GRAPH_PLAN_ENTRY,
+    PRODUCTION_WEAPON_MATERIAL_LAYER_GRAPH_PLAN_OPERATION, WORKER_PROTOCOL,
 };
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::io::{self, Read, Write};
@@ -127,6 +138,60 @@ fn main() {
     if args == ["--isolated-once-2k"] {
         std::process::exit(run_isolated_once(SURFACE_BAKE_CPU_LIMIT_SECONDS));
     }
+    if args == [PRODUCTION_WEAPON_HIGH_LOW_CAGE_DIAGNOSTIC_ENTRY] {
+        std::process::exit(run_isolated_once_for(
+            CPU_LIMIT_SECONDS,
+            Some(PRODUCTION_WEAPON_HIGH_LOW_CAGE_DIAGNOSTIC_OPERATION),
+        ));
+    }
+    if args == [PRODUCTION_WEAPON_HIGH_LOW_CAGE_ARTIFACT_PRODUCER_ENTRY] {
+        std::process::exit(run_isolated_once_for(
+            CPU_LIMIT_SECONDS,
+            Some(PRODUCTION_WEAPON_HIGH_LOW_CAGE_ARTIFACT_PRODUCER_OPERATION),
+        ));
+    }
+    if args == [PRODUCTION_WEAPON_LOW_RETOPOLOGY_ENTRY] {
+        std::process::exit(run_isolated_once_for(
+            CPU_LIMIT_SECONDS,
+            Some(PRODUCTION_WEAPON_LOW_RETOPOLOGY_OPERATION),
+        ));
+    }
+    if args == [PRODUCTION_WEAPON_LOW_QUAD_DRAFT_ENTRY] {
+        std::process::exit(run_isolated_once_for(
+            CPU_LIMIT_SECONDS,
+            Some(PRODUCTION_WEAPON_LOW_QUAD_DRAFT_OPERATION),
+        ));
+    }
+    if args == [PRODUCTION_WEAPON_CAGE_OFFSET_ENTRY] {
+        std::process::exit(run_isolated_once_for(
+            CPU_LIMIT_SECONDS,
+            Some(PRODUCTION_WEAPON_CAGE_OFFSET_OPERATION),
+        ));
+    }
+    if args == [PRODUCTION_WEAPON_GEOMETRIC_BAKE_ENTRY] {
+        std::process::exit(run_isolated_once_for(
+            SURFACE_BAKE_CPU_LIMIT_SECONDS,
+            Some(PRODUCTION_WEAPON_GEOMETRIC_BAKE_OPERATION),
+        ));
+    }
+    if args == [PRODUCTION_WEAPON_HERO_MATERIAL_ENTRY] {
+        std::process::exit(run_isolated_once_for(
+            SURFACE_BAKE_CPU_LIMIT_SECONDS,
+            Some(PRODUCTION_WEAPON_HERO_MATERIAL_OPERATION),
+        ));
+    }
+    if args == [PRODUCTION_WEAPON_HERO_UV_LAYOUT_ENTRY] {
+        std::process::exit(run_isolated_once_for(
+            CPU_LIMIT_SECONDS,
+            Some(PRODUCTION_WEAPON_HERO_UV_LAYOUT_OPERATION),
+        ));
+    }
+    if args == [PRODUCTION_WEAPON_MATERIAL_LAYER_GRAPH_PLAN_ENTRY] {
+        std::process::exit(run_isolated_once_for(
+            CPU_LIMIT_SECONDS,
+            Some(PRODUCTION_WEAPON_MATERIAL_LAYER_GRAPH_PLAN_OPERATION),
+        ));
+    }
 
     #[cfg(debug_assertions)]
     {
@@ -155,6 +220,10 @@ fn main() {
 }
 
 fn run_isolated_once(cpu_limit_seconds: libc::rlim_t) -> i32 {
+    run_isolated_once_for(cpu_limit_seconds, None)
+}
+
+fn run_isolated_once_for(cpu_limit_seconds: libc::rlim_t, expected_operation: Option<&str>) -> i32 {
     // Limits are installed before reading attacker-controlled request bytes.
     // CPU/core failures are fatal. Darwin does not expose a portable total
     // address-space limit, so its optional memory rlimits are reported by the
@@ -195,6 +264,31 @@ fn run_isolated_once(cpu_limit_seconds: libc::rlim_t) -> i32 {
         ));
         return 1;
     }
+    let protected_operation = matches!(
+        request.operation.as_str(),
+        PRODUCTION_WEAPON_HIGH_LOW_CAGE_DIAGNOSTIC_OPERATION
+            | PRODUCTION_WEAPON_HIGH_LOW_CAGE_ARTIFACT_PRODUCER_OPERATION
+            | PRODUCTION_WEAPON_LOW_RETOPOLOGY_OPERATION
+            | PRODUCTION_WEAPON_LOW_QUAD_DRAFT_OPERATION
+            | PRODUCTION_WEAPON_CAGE_OFFSET_OPERATION
+            | PRODUCTION_WEAPON_GEOMETRIC_BAKE_OPERATION
+            | PRODUCTION_WEAPON_HERO_MATERIAL_OPERATION
+            | PRODUCTION_WEAPON_MATERIAL_LAYER_GRAPH_PLAN_OPERATION
+    );
+    if expected_operation.is_some_and(|operation| request.operation != operation)
+        || (protected_operation && expected_operation.is_none())
+    {
+        emit_response(error_response(
+            &request.request_id,
+            "WORKER_PROTOCOL",
+            if protected_operation {
+                "protected operation requires its dedicated isolated entry point"
+            } else {
+                "worker operation is not valid for this isolated entry point"
+            },
+        ));
+        return 1;
+    }
 
     let response = match forgecad_geometry_worker::worker_result(
         &serde_json::to_value(&request).expect("strict request serializes"),
@@ -209,10 +303,11 @@ fn run_isolated_once(cpu_limit_seconds: libc::rlim_t) -> i32 {
         },
         Err(error) => error_response(&request.request_id, "GEOMETRY_REJECTED", error.to_string()),
     };
-    if emit_response(response) {
-        0
-    } else {
+    let succeeded = response.ok;
+    if !emit_response(response) || !succeeded {
         1
+    } else {
+        0
     }
 }
 

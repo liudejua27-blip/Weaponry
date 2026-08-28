@@ -1,0 +1,83 @@
+{
+  "schema_version": "ForgeCADSupplementalSourceGateReceipt@1",
+  "receipt_id": "native-high-stable-id-fixed-transport-source-gate-20260825",
+  "recorded_at": "2026-08-25",
+  "task_id": "FGC-MCP010F",
+  "workstream": "CQ-03-NATIVE-HIGH",
+  "status": "PASS_SOURCE_AND_DEDICATED_TRANSPORT_ONLY",
+  "scope": {
+    "library": "apps/high-worker",
+    "protocol": "forgecad.production.high-mesh-prepare@1",
+    "entry": "--isolated-once-native-high",
+    "runtime_bridge": "apps/desktop/src-tauri/crates/forgecad-runtime/src/geometry_worker.rs",
+    "proposal": "packages/forgecad-skills/proposals/native-high/0.1.0"
+  },
+  "checks": {
+    "high_worker_library_behavioral": {
+      "status": "PASS",
+      "passed": 3,
+      "failed": 0,
+      "coverage": [
+        "stable-id AuthoringMesh adapter",
+        "double-replay byte exactness and base preservation",
+        "closed failure behavior"
+      ]
+    },
+    "high_worker_dedicated_transport": {
+      "status": "PASS",
+      "passed": 3,
+      "failed": 0,
+      "coverage": [
+        "build identity",
+        "closed dedicated entry",
+        "generic WorkerRequest to WorkerResponse typed rejection path"
+      ],
+      "valid_positive_payload_execution": "NOT_RUN"
+    },
+    "worker_protocol": {
+      "status": "PASS",
+      "passed": 12,
+      "failed": 0
+    },
+    "runtime_offline_compile": "PASS",
+    "runtime_bridge_consumed_by_product_producer": false,
+    "runtime_positive_sibling_execution": "NOT_RUN",
+    "proposal_schema_lock_benchmark_provenance_sync": "PASS",
+    "proposal_registered": false,
+    "active_registry_changed": false
+  },
+  "source_hashes": {
+    "high_worker_lib_sha256": "310c55f3423737a13f149fd633a9b6f3aed238e04db5883bb2e97b384500696d",
+    "high_worker_main_sha256": "d9a372e5a7f7433e444759cf21c7f4fae3e4a108f658376ee281e5f38a397dfe",
+    "high_worker_lock_sha256": "afc8f9c8727a3253844b5efe4f75975ff2629cd3d264762d0610c7a4386df6d2"
+  },
+  "not_run": [
+    "formal High artifact to GLB materialization",
+    "Runtime-owned CAS and Store producer",
+    "MCP public consumer",
+    "packaged worker cohort",
+    "Runtime restart readback",
+    "candidate-bound High quality report",
+    "visual review",
+    "human review",
+    "commercial engine validation",
+    "distribution validation"
+  ],
+  "gate_truth": {
+    "fps_high_05": "NOT_PASSED",
+    "runtime_integration": "unavailable",
+    "glb_materialization": "NOT_RUN",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "structural_status": "PARTIAL_SOURCE_TRANSPORT_PASS",
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "production_stage": "camera-calibrated"
+  },
+  "manifest_policy": "supplemental receipt only; not added to Stage0 manifest and does not change current benchmark truth"
+}

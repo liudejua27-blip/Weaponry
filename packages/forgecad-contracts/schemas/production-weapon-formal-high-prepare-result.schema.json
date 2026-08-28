@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-formal-high-prepare-result.schema.json",
+  "title": "ProductionWeaponFormalHighPrepareResult@1",
+  "description": "Runtime-derived Formal High prepare result. Candidate and High are resolved and materialized by Runtime, replay/restart are explicit, and the result cannot advance a ProductionStage, confirm a candidate, create a version or export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate",
+    "high",
+    "replayed",
+    "runtime_write",
+    "restart_hash_verified",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormalHighPrepareResult@1"},
+    "candidate": {"$ref": "https://forgecad.local/contracts/candidate.schema.json"},
+    "high": {"$ref": "https://forgecad.local/contracts/production-weapon-high-artifact.schema.json"},
+    "replayed": {"type": "boolean"},
+    "runtime_write": {"type": "boolean"},
+    "restart_hash_verified": {"const": true},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false}
+  }
+}

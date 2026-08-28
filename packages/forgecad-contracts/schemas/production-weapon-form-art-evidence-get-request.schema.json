@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-evidence-get-request.schema.json",
+  "title": "ProductionWeaponFormArtEvidenceGetRequest@1",
+  "description": "Closed, read-only lookup for a Runtime-owned additive form art-evidence receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "art_evidence_id", "session_id", "project_id", "candidate_id"],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtEvidenceGetRequest@1"},
+    "art_evidence_id": {"$ref": "#/$defs/id"}, "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"}, "candidate_id": {"$ref": "#/$defs/id"},
+    "raster_source_attribution_diagnostic": {"$ref": "#/$defs/rasterAttributionRequest"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "rasterAttributionRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "diagnostic_id", "session_id", "project_id", "candidate_id", "candidate_state_sha256", "artifact_id", "artifact_sha256", "reference_id", "reference_sha256", "form_art_evidence_object_sha256", "form_art_evidence_canonical_sha256", "view_kind", "view_id", "camera_hash", "camera_canonical_sha256", "input_sha256"],
+      "properties": {
+        "schema_version": {"const": "ProductionWeaponRasterSourceAttributionDiagnosticGetRequest@1"},
+        "diagnostic_id": {"$ref": "#/$defs/id"}, "session_id": {"$ref": "#/$defs/id"},
+        "project_id": {"$ref": "#/$defs/id"}, "candidate_id": {"$ref": "#/$defs/id"},
+        "candidate_state_sha256": {"$ref": "#/$defs/sha256"}, "artifact_id": {"$ref": "#/$defs/id"},
+        "artifact_sha256": {"$ref": "#/$defs/sha256"}, "reference_id": {"$ref": "#/$defs/id"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "form_art_evidence_object_sha256": {"$ref": "#/$defs/sha256"},
+        "form_art_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "view_kind": {"enum": ["left", "right", "rear-three-quarter"]},
+        "view_id": {"$ref": "#/$defs/id"}, "camera_hash": {"$ref": "#/$defs/sha256"},
+        "camera_canonical_sha256": {"$ref": "#/$defs/sha256"}, "input_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

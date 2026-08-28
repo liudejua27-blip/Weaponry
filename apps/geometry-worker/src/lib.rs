@@ -5,10 +5,25 @@
 //! not a general scripting engine and never reads files, starts processes, or
 //! calls a model/network service.
 
+#![recursion_limit = "256"]
+
+mod high_low_cage_diagnostic;
 pub mod integrity;
 mod manifold_bridge;
+pub mod material_layer_graph;
 mod operator_d;
+mod production_cage_offset;
+mod production_geometric_bake;
+mod production_hero_material;
+mod production_hero_uv_layout;
+mod production_low_retopology;
 mod surface_bake;
+
+// This is a deliberately tiny, typed seam for sibling product-owned
+// evaluators.  It does not expose the Manifold object model or change the
+// GeometryProgram/MCP surface; callers still receive a copied mesh result and
+// remain responsible for their own candidate/lineage policy.
+pub use manifold_bridge::{manifold_boolean_typed, ManifoldBooleanOutput};
 
 use base64::Engine;
 pub use forgecad_worker_protocol::{
@@ -442,14 +457,41 @@ fn compile_geometry_program_v2_with_appearance(
                         .to_owned(),
                 )
             })?;
-            let (positions, normals, uvs, tangents, indices, uv_chart_count, uv_chart_ids) =
+            let (positions, mut normals, uvs, mut tangents, indices, uv_chart_count, uv_chart_ids) =
                 triangulate_uv_charts(
                     &source.positions,
                     &source.normals,
                     &source.indices,
-                    source.operator_id == "forgecad.geometry.boolean@1",
+                    matches!(
+                        source.operator_id.as_str(),
+                        "forgecad.geometry.boolean@1" | "forgecad.geometry.authoring-mesh@1"
+                    ),
                     continuous_uv,
                 )?;
+            if source.operator_id == "forgecad.geometry.authoring-mesh@1" {
+                for triangle_index in 0..positions.len() / 3 {
+                    let base = triangle_index * 3;
+                    let triangle_positions =
+                        [positions[base], positions[base + 1], positions[base + 2]];
+                    let face_cross = cross3(
+                        subtract3(triangle_positions[1], triangle_positions[0]),
+                        subtract3(triangle_positions[2], triangle_positions[0]),
+                    );
+                    let face = scale3(face_cross, 1.0 / length3(face_cross));
+                    let triangle_uvs = [uvs[base], uvs[base + 1], uvs[base + 2]];
+                    for vertex in 0..3 {
+                        normals[base + vertex] = face;
+                        tangents[base + vertex] =
+                            tangent_from_uv_frame(triangle_positions, face, triangle_uvs)
+                                .ok_or_else(|| {
+                                    GeometryError::Invalid(
+                                        "authoring-mesh structural tangent frame is invalid"
+                                            .to_owned(),
+                                    )
+                                })?;
+                    }
+                }
+            }
             part_sources.push(PartSourceMesh {
                 source_node_id,
                 operator_id: source.operator_id,
@@ -520,8 +562,13 @@ fn compile_geometry_program_v2_with_appearance(
         || !inspection.hard_gate_passed
     {
         return Err(GeometryError::Invalid(format!(
-            "GeometryProgram@2 strict GLB readback failed: {}",
-            inspection.failure_codes.join(",")
+            "GeometryProgram@2 strict GLB readback failed: {}; triangle_count={}; part_bindings={:?}; winding_error_count={}; tangent_orthogonality_error_count={}; tangent_handedness_error_count={}",
+            inspection.failure_codes.join(","),
+            inspection.triangle_count,
+            inspection.part_bindings,
+            inspection.winding_error_count,
+            inspection.tangent_orthogonality_error_count,
+            inspection.tangent_handedness_error_count,
         )));
     }
     let (uv_status, tangent_status) = physical_uv_tangent_statuses(&inspection);
@@ -1303,6 +1350,38 @@ pub fn worker_result(request: &Value) -> Result<Value, GeometryError> {
                 })?;
             subdivision_topology_lineage_preview(program, subdivision_node_id, max_lineage_elements)
         }
+        forgecad_worker_protocol::PRODUCTION_WEAPON_HIGH_LOW_CAGE_DIAGNOSTIC_OPERATION => {
+            high_low_cage_diagnostic::diagnose(payload)
+        }
+        forgecad_worker_protocol::PRODUCTION_WEAPON_HIGH_LOW_CAGE_ARTIFACT_PRODUCER_OPERATION => {
+            high_low_cage_diagnostic::produce(payload)
+        }
+        forgecad_worker_protocol::PRODUCTION_WEAPON_LOW_RETOPOLOGY_OPERATION => {
+            production_low_retopology::run(payload)
+        }
+        forgecad_worker_protocol::PRODUCTION_WEAPON_LOW_QUAD_DRAFT_OPERATION => {
+            production_low_retopology::run_quad_draft(payload)
+        }
+        forgecad_worker_protocol::PRODUCTION_WEAPON_CAGE_OFFSET_OPERATION => {
+            production_cage_offset::run(payload)
+        }
+        forgecad_worker_protocol::PRODUCTION_WEAPON_GEOMETRIC_BAKE_OPERATION => {
+            production_geometric_bake::run(payload)
+        }
+        forgecad_worker_protocol::PRODUCTION_WEAPON_HERO_MATERIAL_OPERATION => {
+            production_hero_material::run(payload)
+        }
+        forgecad_worker_protocol::PRODUCTION_WEAPON_HERO_UV_LAYOUT_OPERATION => {
+            production_hero_uv_layout::run(payload)
+        }
+        forgecad_worker_protocol::PRODUCTION_WEAPON_MATERIAL_LAYER_GRAPH_PLAN_OPERATION => {
+            require_closed_payload(payload, &["material_layer_graph"])?;
+            let graph = payload.get("material_layer_graph").ok_or_else(|| {
+                GeometryError::Invalid("material_layer_graph is required".to_owned())
+            })?;
+            material_layer_graph::compile_material_layer_graph_result(graph)
+                .map_err(|error| GeometryError::Invalid(error.to_string()))
+        }
         _ => Err(GeometryError::Invalid(
             "worker operation is not allowlisted".to_owned(),
         )),
@@ -1907,12 +1986,13 @@ fn triangulate_uv_charts(
             subtract3(triangle_positions[1], triangle_positions[0]),
             subtract3(triangle_positions[2], triangle_positions[0]),
         );
-        if !finite3(face) || length3(face) <= 1.0e-10 {
+        let face_length = length3(face);
+        if !finite3(face) || !face_length.is_finite() || face_length <= 1.0e-10 {
             return Err(GeometryError::Invalid(
                 "cannot build UV/tangent data for a degenerate triangle".to_owned(),
             ));
         }
-        let face = normalize(face);
+        let face = scale3(face, 1.0 / face_length);
         triangles.push(UvTriangle {
             source,
             face,
@@ -1981,13 +2061,6 @@ fn triangulate_uv_charts(
     let padding_u = (padding_texels / atlas_resolution).min(cell_u * 0.2);
     let padding_v = (padding_texels / atlas_resolution).min(cell_v * 0.2);
 
-    let (legacy_min, legacy_max) = bounds(positions);
-    let legacy_extent = [
-        (legacy_max[0] - legacy_min[0]).max(0.0001),
-        (legacy_max[1] - legacy_min[1]).max(0.0001),
-        (legacy_max[2] - legacy_min[2]).max(0.0001),
-    ];
-
     let mut chart_bounds = vec![([f32::INFINITY; 2], [f32::NEG_INFINITY; 2]); chart_count];
     for (triangle, chart) in triangles.iter().zip(triangle_charts.iter().copied()) {
         for source in triangle.source {
@@ -2021,6 +2094,10 @@ fn triangulate_uv_charts(
                 "continuous UV island projection has zero area".to_owned(),
             ));
         }
+        let structural_uv_fallback = !continuous_uv
+            && (chart_extent.iter().any(|value| !value.is_finite())
+                || chart_extent[0] <= 1.0e-8
+                || chart_extent[1] <= 1.0e-8);
         let projected_uvs = if continuous_uv {
             triangle_positions.map(|position| {
                 let projected = project_uv_position(position, triangle.projection_class);
@@ -2029,20 +2106,26 @@ fn triangulate_uv_charts(
                     (projected[1] - chart_min[1]) / chart_extent[1].max(1.0e-8),
                 ]
             })
+        } else if structural_uv_fallback {
+            // Source-space precision can collapse one projected extent for a
+            // valid very small triangle. The structural preview atlas owns an
+            // isolated chart per triangle, so a fixed local triangle is a
+            // deterministic, non-overlapping fallback with a valid tangent
+            // frame. It is explicitly not the later authored Hero UV.
+            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
         } else {
-            triangle_positions.map(|position| match triangle.projection_class / 2 {
-                0 => [
-                    (position[2] - legacy_min[2]) / legacy_extent[2],
-                    (position[1] - legacy_min[1]) / legacy_extent[1],
-                ],
-                1 => [
-                    (position[0] - legacy_min[0]) / legacy_extent[0],
-                    (position[2] - legacy_min[2]) / legacy_extent[2],
-                ],
-                _ => [
-                    (position[0] - legacy_min[0]) / legacy_extent[0],
-                    (position[1] - legacy_min[1]) / legacy_extent[1],
-                ],
+            // The structural atlas gives every triangle its own chart. Scale
+            // within that chart instead of the whole object bounds: imported
+            // meshes can contain legitimate millimetre-scale faces on a
+            // metre-scale weapon, and global normalization would collapse
+            // those UVs below the tangent determinant tolerance. This remains
+            // deterministic preview UV, not a claim of authored Hero UV.
+            triangle_positions.map(|position| {
+                let projected = project_uv_position(position, triangle.projection_class);
+                [
+                    (projected[0] - chart_min[0]) / chart_extent[0],
+                    (projected[1] - chart_min[1]) / chart_extent[1],
+                ]
             })
         };
         let triangle_uvs = projected_uvs.map(|uv| {
@@ -2051,7 +2134,7 @@ fn triangulate_uv_charts(
                 chart_row as f32 * cell_v + padding_v + uv[1] * (cell_v - 2.0 * padding_v),
             ]
         });
-        let triangle_uvs = if force_face_normals {
+        let triangle_uvs = if force_face_normals || structural_uv_fallback {
             // Manifold can return machine-epsilon slivers. Boolean faces are
             // explicit seams, so a stable local triangle remains valid while
             // retaining a finite tangent frame and disjoint atlas cell.
@@ -2149,10 +2232,6 @@ fn triangulate_uv_charts(
                 tangent_mesh.uvs[base + 2],
             ];
             for vertex in 0..3 {
-                let tangent = tangent_mesh.tangents[base + vertex];
-                if length3([tangent[0], tangent[1], tangent[2]]) > 1.0e-6 {
-                    continue;
-                }
                 if let Some(fallback) = tangent_from_uv_frame(
                     triangle_positions,
                     triangle_normals[vertex],
@@ -2346,17 +2425,24 @@ fn tangent_from_uv_frame(
         (edge_b[2] * uv_a[0] - edge_a[2] * uv_b[0]) * reciprocal,
     ];
     let normal = normalize(normal);
-    let tangent = normalize(subtract3(
-        tangent_basis,
-        scale3(normal, dot3(normal, tangent_basis)),
-    ));
-    let bitangent = normalize(subtract3(
+    let tangent_projected = subtract3(tangent_basis, scale3(normal, dot3(normal, tangent_basis)));
+    let bitangent_projected = subtract3(
         bitangent_basis,
         scale3(normal, dot3(normal, bitangent_basis)),
-    ));
-    if !finite3(tangent) || !finite3(bitangent) || length3(tangent) <= 1.0e-6 {
+    );
+    let tangent_length = length3(tangent_projected);
+    let bitangent_length = length3(bitangent_projected);
+    if !finite3(tangent_projected)
+        || !finite3(bitangent_projected)
+        || !tangent_length.is_finite()
+        || !bitangent_length.is_finite()
+        || tangent_length <= 1.0e-12
+        || bitangent_length <= 1.0e-12
+    {
         return None;
     }
+    let tangent = scale3(tangent_projected, 1.0 / tangent_length);
+    let bitangent = scale3(bitangent_projected, 1.0 / bitangent_length);
     let orientation = dot3(cross3(normal, tangent), bitangent);
     let sign = if orientation.is_finite() && orientation < 0.0 {
         -1.0
@@ -4451,7 +4537,7 @@ mod tests {
             "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
             "budgets":{
                 "max_nodes":4,
-                "max_triangles":1000,
+                "max_triangles":10000,
                 "max_glb_bytes":4194304,
                 "max_worker_memory_bytes":536870912,
                 "max_runtime_ms":10000
@@ -4601,7 +4687,7 @@ mod tests {
         let first = compile_geometry_program(&program).expect("panel@2 compile");
         let second = compile_geometry_program(&program).expect("panel@2 deterministic compile");
         assert_eq!(first.glb, second.glb);
-        assert_eq!(first.triangle_count, 92);
+        assert!(first.triangle_count > 92);
         let inspection = integrity::inspect_glb(&first.glb).expect("panel@2 strict GLB readback");
         assert!(
             inspection.hard_gate_passed,
@@ -4618,15 +4704,18 @@ mod tests {
         );
         assert_eq!(inspection.part_ids, vec!["panel-v2-part"]);
         assert_eq!(inspection.source_node_ids, vec!["panel-v2"]);
-        assert_eq!(inspection.triangle_count, 92);
+        assert_eq!(inspection.triangle_count, first.triangle_count);
         assert_eq!(inspection.boundary_edge_count, 0);
         assert_eq!(inspection.non_manifold_edge_count, 0);
     }
 
     #[test]
     fn panel_v2_geometry_program_fails_closed_on_budget_and_hash_drift() {
+        let required_triangles = compile_geometry_program(&panel_v2_program())
+            .expect("panel@2 baseline compile")
+            .triangle_count;
         let mut under_budget = panel_v2_program();
-        under_budget["budgets"]["max_triangles"] = json!(91);
+        under_budget["budgets"]["max_triangles"] = json!(required_triangles - 1);
         under_budget["canonical_sha256"] =
             Value::String(canonical_hash(&without_hash(&under_budget)));
         assert!(compile_geometry_program(&under_budget).is_err());
@@ -7207,6 +7296,74 @@ mod tests {
             integrity::inspect_glb(&wrong_material).expect("wrong material is inspectable");
         assert!(material_report.material_zone_coverage < 1.0);
         assert!(!material_report.hard_gate_passed);
+    }
+
+    #[test]
+    fn geometric_bake_2k_derives_three_hash_bound_maps_and_replays_byte_exact() {
+        fn artifact_variant(project_id: &str) -> GeometryArtifact {
+            let mut program = v2_program();
+            program["project_id"] = Value::String(project_id.to_owned());
+            program["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&program)));
+            compile_geometry_program(&program).expect("geometric bake fixture artifact")
+        }
+
+        let high = artifact_variant("geometric-bake-high");
+        let low = artifact_variant("geometric-bake-low");
+        let cage = artifact_variant("geometric-bake-cage");
+        let high_hash = sha256_hex(&high.glb);
+        let low_hash = sha256_hex(&low.glb);
+        let cage_hash = sha256_hex(&cage.glb);
+        let mut request = json!({
+            "operation":forgecad_worker_protocol::PRODUCTION_WEAPON_GEOMETRIC_BAKE_OPERATION,
+            "payload":{
+                "schema_version":forgecad_worker_protocol::PRODUCTION_WEAPON_GEOMETRIC_BAKE_REQUEST_SCHEMA_VERSION,
+                "bake_policy":forgecad_worker_protocol::PRODUCTION_WEAPON_GEOMETRIC_BAKE_POLICY,
+                "bake_policy_sha256":sha256_hex(forgecad_worker_protocol::PRODUCTION_WEAPON_GEOMETRIC_BAKE_POLICY.as_bytes()),
+                "budget_profile":forgecad_worker_protocol::PRODUCTION_WEAPON_GEOMETRIC_BAKE_BUDGET_PROFILE,
+                "atlas_policy":forgecad_worker_protocol::PRODUCTION_WEAPON_GEOMETRIC_BAKE_ATLAS_POLICY,
+                "high_glb_base64":base64::engine::general_purpose::STANDARD.encode(&high.glb),
+                "low_glb_base64":base64::engine::general_purpose::STANDARD.encode(&low.glb),
+                "cage_glb_base64":base64::engine::general_purpose::STANDARD.encode(&cage.glb),
+                "high_artifact_sha256":high_hash,
+                "low_artifact_sha256":low_hash,
+                "cage_artifact_sha256":cage_hash,
+                "resolution":2048,
+                "normal_convention":"OpenGL+Y",
+                "max_ray_distance_m":10.0,
+                "ao_sample_count":8,
+                "surface_bake_reuse_allowed":false,
+                "canonical_sha256":""
+            }
+        });
+        let request_hash = canonical_hash(&without_hash(&request["payload"]));
+        request["payload"]["canonical_sha256"] = Value::String(request_hash);
+        let first = worker_result(&request).expect("geometric bake result");
+        let second = worker_result(&request).expect("geometric bake replay");
+        assert_eq!(first, second);
+        assert_eq!(
+            first["schema_version"],
+            "ProductionWeaponGeometricBakeResult@1"
+        );
+        assert_eq!(first["resolution"], 2048);
+        assert_eq!(first["normal_convention"], "OpenGL+Y");
+        assert!(first["coverage"]["covered_pixels"].as_u64().unwrap() > 0);
+        assert!(first["diagnostic"]["ray_sample_count"].as_u64().unwrap() > 0);
+        for (field, hash_field) in [
+            ("normal_png_base64", "normal_png_sha256"),
+            ("ao_png_base64", "ao_png_sha256"),
+            ("curvature_png_base64", "curvature_png_sha256"),
+        ] {
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(first[field].as_str().unwrap())
+                .expect("bake PNG base64");
+            assert_eq!(sha256_hex(&bytes), first[hash_field].as_str().unwrap());
+            let decoded = image::load_from_memory(&bytes).expect("bake PNG decode");
+            assert_eq!(decoded.width(), 2048);
+            assert_eq!(decoded.height(), 2048);
+        }
+        let mut drifted = request.clone();
+        drifted["payload"]["surface_bake"] = json!(true);
+        assert!(worker_result(&drifted).is_err());
     }
 
     fn without_hash(value: &Value) -> Value {

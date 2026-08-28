@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weapon-foundation-asset-result.schema.json",
+  "title": "WeaponFoundationAssetResult@1",
+  "description": "Hash-only typed-import result for an allowlisted foundation asset. It binds compact CAS children and readback statistics while keeping authoring materialization explicitly pending.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "result_id",
+    "request_id",
+    "request_sha256",
+    "foundation_pack_id",
+    "foundation_pack_version",
+    "foundation_manifest_sha256",
+    "asset_id",
+    "asset_sha256",
+    "asset_role",
+    "source_format",
+    "coordinate_spec_sha256",
+    "coordinate_frame",
+    "units",
+    "source_to_target",
+    "strict_readback",
+    "degenerate_face_sanitation",
+    "deterministic_replay",
+    "topology_object_sha256",
+    "socket_map_object_sha256",
+    "rig_map_object_sha256",
+    "fps_presentation_package_object_sha256",
+    "authoring_mesh_materialization_status",
+    "socket_materialization_status",
+    "rig_materialization_status",
+    "presentation_materialization_status",
+    "import_status",
+    "quality_status",
+    "promotion_eligible",
+    "runtime_write_performed",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "actual_engine_roundtrip",
+    "human_review_status",
+    "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponFoundationAssetResult@1"},
+    "result_id": {"$ref": "#/$defs/id"},
+    "request_id": {"$ref": "#/$defs/id"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "foundation_pack_id": {"const": "forgecad-fps-production-foundation"},
+    "foundation_pack_version": {"const": "0.1.0-proposal"},
+    "foundation_manifest_sha256": {"const": "cc7dccca305a1d9bbaf1df80e78e9cab6b2ee39f12de7ffc88d5cf52194330cb"},
+    "asset_id": {"$ref": "#/$defs/asset_id"},
+    "asset_sha256": {"$ref": "#/$defs/sha256"},
+    "asset_role": {"enum": ["rigged-weapon-semantic-source", "high-low-bake-pbr-animation-benchmark", "first-person-armature-source"]},
+    "source_format": {"enum": ["glb", "gltf"]},
+    "coordinate_spec_sha256": {"$ref": "#/$defs/sha256"},
+    "coordinate_frame": {"const": "weapon-right-handed-x-muzzle-y-up-z-right"},
+    "units": {"const": "meter"},
+    "source_to_target": {"$ref": "#/$defs/source_to_target"},
+    "strict_readback": {"$ref": "#/$defs/strict_readback"},
+    "degenerate_face_sanitation": {"$ref": "#/$defs/degenerate_face_sanitation"},
+    "deterministic_replay": {"$ref": "#/$defs/deterministic_replay"},
+    "topology_object_sha256": {"$ref": "#/$defs/sha256"},
+    "socket_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "rig_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "fps_presentation_package_object_sha256": {"$ref": "#/$defs/sha256"},
+    "authoring_mesh_materialization_status": {"const": "PENDING"},
+    "socket_materialization_status": {"const": "MATERIALIZED_MAPPING_ONLY"},
+    "rig_materialization_status": {"const": "MATERIALIZED_MAPPING_ONLY"},
+    "presentation_materialization_status": {"const": "DRAFT_ONLY"},
+    "import_status": {"enum": ["IMPORTED_DRAFT", "REJECTED"]},
+    "quality_status": {"const": "structural_only"},
+    "promotion_eligible": {"const": false},
+    "runtime_write_performed": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "human_review_status": {"const": "NOT_RUN"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {"$ref": "#/$defs/allowlisted_asset_identity"},
+    {
+      "if": {"properties": {"asset_id": {"const": "pichuliru-weapon-west"}}, "required": ["asset_id"]},
+      "then": {"properties": {"degenerate_face_sanitation": {"properties": {"source_degenerate_face_count": {"const": 1}, "dropped_face_count": {"const": 1}}}}}
+    },
+    {
+      "if": {"properties": {"asset_id": {"const": "lightning-low-pbr"}}, "required": ["asset_id"]},
+      "then": {"properties": {"degenerate_face_sanitation": {"properties": {"source_degenerate_face_count": {"const": 4}, "dropped_face_count": {"const": 4}}}}}
+    },
+    {
+      "if": {"properties": {"asset_id": {"const": "pichuliru-weapon-west"}}, "required": ["asset_id"]},
+      "then": {"properties": {"source_to_target": {"properties": {"mapping_evidence": {"const": "PROVEN"}, "axis_mapping": {"const": ["-Z", "+Y", "+X"]}, "matrix_row_major": {"const": [[0, 0, -1], [0, 1, 0], [1, 0, 0]]}}}}}
+    },
+    {
+      "if": {"properties": {"asset_id": {"enum": ["lightning-low-pbr", "wrad-arms"]}}, "required": ["asset_id"]},
+      "then": {"properties": {"source_to_target": {"properties": {"mapping_evidence": {"const": "PENDING_SOURCE_VERIFICATION"}, "axis_mapping": {"const": ["+Z", "+Y", "-X"]}, "matrix_row_major": {"const": [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]}}}}}
+    },
+    {
+      "if": {"properties": {"strict_readback": {"properties": {"status": {"const": "PASS"}}}}, "required": ["strict_readback"]},
+      "then": {"properties": {"import_status": {"const": "IMPORTED_DRAFT"}}}
+    }
+  ],
+  "$defs": {
+    "allowlisted_asset_identity": {
+      "oneOf": [
+        {"properties": {"asset_id": {"const": "pichuliru-weapon-west"}, "asset_sha256": {"const": "0d80dd2118c884172a856455968be14eadc97f041d27d52bfa75fedb708fa486"}, "asset_role": {"const": "rigged-weapon-semantic-source"}, "source_format": {"const": "glb"}}, "required": ["asset_id", "asset_sha256", "asset_role", "source_format"]},
+        {"properties": {"asset_id": {"const": "lightning-low-pbr"}, "asset_sha256": {"const": "3f84f2b0d011ebfb142de7f7d9cfa7d57a59451a815b834b4f33603256c8f911"}, "asset_role": {"const": "high-low-bake-pbr-animation-benchmark"}, "source_format": {"const": "glb"}}, "required": ["asset_id", "asset_sha256", "asset_role", "source_format"]},
+        {"properties": {"asset_id": {"const": "wrad-arms"}, "asset_sha256": {"const": "580efbb0852bf0b41f82dd3e17eafec86b3d2a48f4a7acaa7e64d60e850f565d"}, "asset_role": {"const": "first-person-armature-source"}, "source_format": {"const": "glb"}}, "required": ["asset_id", "asset_sha256", "asset_role", "source_format"]}
+      ]
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "asset_id": {
+      "type": "string",
+      "enum": [
+        "pichuliru-weapon-west",
+        "lightning-low-pbr",
+        "wrad-arms"
+      ]
+    },
+    "source_to_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mapping_evidence", "axis_mapping", "matrix_row_major", "translation_m", "scale_xyz"],
+      "properties": {
+        "mapping_evidence": {"enum": ["PROVEN", "PENDING_SOURCE_VERIFICATION"]},
+        "axis_mapping": {"enum": [["-Z", "+Y", "+X"], ["+Z", "+Y", "-X"]]},
+        "matrix_row_major": {"enum": [[[0, 0, -1], [0, 1, 0], [1, 0, 0]], [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]]},
+        "translation_m": {"const": [0.0, 0.0, 0.0]},
+        "scale_xyz": {"const": [1.0, 1.0, 1.0]}
+      }
+    },
+    "strict_readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "policy", "readback_sha256", "source_node_count", "source_mesh_count", "source_primitive_count", "source_triangle_count", "sanitized_triangle_count", "invalid_index_count", "non_finite_count", "external_reference_count", "remaining_degenerate_face_count", "semantic_metadata_exact"],
+      "properties": {
+        "status": {"enum": ["PASS", "FAILED", "NOT_RUN"]},
+        "policy": {"const": "strict-gltf2-glb-readback-embedded-resources-no-external-reference@1"},
+        "readback_sha256": {"$ref": "#/$defs/sha256"},
+        "source_node_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "source_mesh_count": {"type": "integer", "minimum": 0, "maximum": 128},
+        "source_primitive_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "source_triangle_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "sanitized_triangle_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "invalid_index_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "non_finite_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "external_reference_count": {"const": 0},
+        "remaining_degenerate_face_count": {"const": 0},
+        "semantic_metadata_exact": {"type": "boolean"}
+      }
+    },
+    "degenerate_face_sanitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "test", "area_epsilon_m2", "area_comparison", "ordering", "source_degenerate_face_count", "dropped_face_count", "remaining_degenerate_face_count", "stable_reindexing"],
+      "properties": {
+        "policy": {"const": "drop-degenerate-faces-deterministic-source-order@1"},
+        "test": {"const": "non-finite-or-area-less-than-threshold-after-source-to-target-transform@1"},
+        "area_epsilon_m2": {"const": 1e-12},
+        "area_comparison": {"const": "strict-less-than"},
+        "ordering": {"const": "source-primitive-index-then-face-index@1"},
+        "source_degenerate_face_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "dropped_face_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "remaining_degenerate_face_count": {"const": 0},
+        "stable_reindexing": {"const": true}
+      }
+    },
+    "deterministic_replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "first_topology_sha256", "repeat_topology_sha256", "first_record_sha256", "repeat_record_sha256", "byte_exact", "metadata_exact"],
+      "properties": {
+        "policy": {"const": "fixed-input-order-fixed-transform-fixed-sanitization-two-pass-replay@1"},
+        "first_topology_sha256": {"$ref": "#/$defs/sha256"},
+        "repeat_topology_sha256": {"$ref": "#/$defs/sha256"},
+        "first_record_sha256": {"$ref": "#/$defs/sha256"},
+        "repeat_record_sha256": {"$ref": "#/$defs/sha256"},
+        "byte_exact": {"const": true},
+        "metadata_exact": {"const": true}
+      }
+    }
+  }
+}

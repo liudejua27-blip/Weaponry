@@ -10,13 +10,36 @@ use super::{
     MAX_DERIVED_JSON_BYTES, MAX_GEOMETRY_ARTIFACT_BYTES,
 };
 use forgecad_contracts::{
-    is_opaque_id, is_sha256, CandidateRecord, CandidateTopologyQualityRecord,
-    ProductionStageHeadV2Record, ProductionStageTransitionRecord,
-    ProductionStageTransitionV2Record, ReferenceEvidenceRecord,
+    is_opaque_id, is_sha256, production_stage_v3_is_camera_calibration_edge,
+    production_stage_v3_is_first_public_edge, production_stage_v3_is_form_edge,
+    ApprovalReceiptContextRecord, ApprovalReceiptContextScope, ApprovalReceiptOrientation,
+    ApprovalReceiptRecord, CandidateRecord, CandidateTopologyQualityRecord,
+    ProductionCameraLockPrepareRequest, ProductionCameraLockRecord,
+    ProductionCameraLockRegistrationLineageRecord, ProductionStageCompatibilityProjectionV3,
+    ProductionStageHeadV2Record, ProductionStageHeadV3Record, ProductionStageTransitionRecord,
+    ProductionStageTransitionV2Record, ProductionStageTransitionV3Record,
+    ProductionWeaponFormArtEvidenceRecord, ProductionWeaponFormQualityV2Record,
+    ReferenceEvidenceRecord, PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY,
+    PRODUCTION_CAMERA_LOCK_CALIBRATION_STATUS, PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS,
+    PRODUCTION_CAMERA_LOCK_DISTRIBUTION_STATUS, PRODUCTION_CAMERA_LOCK_ENGINE_STATUS,
+    PRODUCTION_CAMERA_LOCK_HUMAN_STATUS, PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND,
+    PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS, PRODUCTION_CAMERA_LOCK_REVIEW_STATUS,
+    PRODUCTION_CAMERA_LOCK_SCHEMA_VERSION, PRODUCTION_CAMERA_LOCK_STRUCTURAL_STATUS,
+    PRODUCTION_CAMERA_LOCK_VISUAL_STATUS, PRODUCTION_WEAPON_FORM_ART_EVIDENCE_PARENT_RECEIPT_KIND,
+    PRODUCTION_WEAPON_FORM_QUALITY_V2_SCHEMA_VERSION,
+    PRODUCTION_WEAPON_FORM_QUALITY_V2_VISUAL_STATUS,
+};
+#[cfg(test)]
+use forgecad_contracts::{
+    PRODUCTION_WEAPON_FORM_EVIDENCE_POLICY, PRODUCTION_WEAPON_FORM_EVIDENCE_VIEW_KINDS,
+    PRODUCTION_WEAPON_FORM_QUALITY_FIXED_CAMERA_VIEW_KINDS,
+    PRODUCTION_WEAPON_FORM_QUALITY_REVIEWED_REFERENCE_VIEW_KINDS,
 };
 use forgecad_store::{AgenticCheckpointRecord, AgenticSessionRecord, CasObject};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Map, Value};
+#[cfg(test)]
+use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
@@ -50,6 +73,37 @@ const PRODUCTION_OUTPUT_KINDS: [&str; 5] = [
 const PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_KIND: &str = "agentic-production-stage-transition-v2";
 const PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_MIME: &str = "application/json";
 const MAX_PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_BYTES: usize = 1024 * 1024;
+const PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_KIND: &str = "agentic-production-stage-transition-v3";
+const PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_MIME: &str = "application/json";
+const MAX_PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_BYTES: usize = 1024 * 1024;
+const PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE: &str = "reference-intake-candidate";
+const PRODUCTION_STAGE_V3_PROJECTION_POLICY: &str =
+    "production-stage-v3-compatibility-projection-reference-coverage@1";
+const PRODUCTION_CAMERA_LOCK_RIG_KIND: &str = "production-camera-rig-calibration";
+const PRODUCTION_CAMERA_LOCK_RECEIPT_KIND: &str = "production-camera-lock-receipt";
+const PRODUCTION_CAMERA_LOCK_JSON_MIME: &str = "application/json";
+const MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES: usize = 1024 * 1024;
+const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_JSON_MIME: &str = "application/json";
+const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_SEMANTIC_KIND: &str =
+    "production-weapon-semantic-landmark-ordering";
+const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_ORIENTATION_KIND: &str =
+    "production-weapon-authored-view-orientation";
+const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_RIG_V2_KIND: &str =
+    "registered-camera-rig-calibration-v2";
+const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_RECEIPT_KIND: &str =
+    "production-camera-lock-registration-lineage-receipt";
+const PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_POLICY: &str =
+    "camera-lock-promotable-authored-orientation-lineage@1";
+const MAX_PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_OBJECT_BYTES: usize = 8 * 1024 * 1024;
+const PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_SCHEMA_VERSION: &str =
+    "ProductionCameraLockOrientationApprovalContext@1";
+const PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_POLICY: &str =
+    "camera-lock-exact-authored-orientation-approval@1";
+const PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCREEN_ORDER: &str = "stock-left-muzzle-right";
+const PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_ROTATION_DEGREES: i64 = 0;
+const PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_ORBIT_DEGREES: i64 = 180;
+const PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_HASH: &str =
+    "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb";
 
 /// A complete high-quality reference set must contain the five identity
 /// views. Perspective, top, material and detail views are useful supplements,
@@ -157,6 +211,12 @@ impl Runtime {
             )?,
             None => canonical_value(build_reference_canvas(&reference, reference_canvas_id)),
         };
+        // Freeze the exact producer projection immediately before CAS bytes
+        // are serialized. Explicit multi-view authoring may contain nested
+        // crop floats and canonical-compatible wire representations; the
+        // durable object must bind the final Runtime-owned value, not an
+        // earlier caller projection.
+        let canvas = canonicalize_reference_canvas_for_cas(canvas)?;
         let canvas_bytes = canonical_json_bytes(&canvas)?;
         let canvas_object = self.put_object(
             &canvas_bytes,
@@ -182,6 +242,14 @@ impl Runtime {
                 &reference,
             )),
         };
+        let spec = canonical_value(spec);
+        let spec: Value =
+            serde_json::from_slice(&canonical_json_bytes(&spec)?).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "AGENTIC_AUTHORING_SPEC_WIRE_ROUNDTRIP_INVALID: {error}"
+                ))
+            })?;
+        let spec = canonical_value(spec);
         let spec_bytes = canonical_json_bytes(&spec)?;
         let spec_object =
             self.put_object(&spec_bytes, None, "application/json", "agentic-design-spec")?;
@@ -634,6 +702,14 @@ impl Runtime {
                 "reference_id",
                 "reference_sha256",
                 "camera_hash",
+                "camera_lock_id",
+                "camera_lock_canonical_sha256",
+                "camera_rig_object_sha256",
+                "camera_rig_canonical_sha256",
+                "camera_lock_receipt_object_sha256",
+                "camera_lock_source_transition_id",
+                "camera_lock_source_transition_sha256",
+                "camera_lock_source_head_canonical_sha256",
                 "evidence_sha256",
                 "parent_checkpoint_id",
                 "parent_checkpoint_sha256",
@@ -915,7 +991,7 @@ impl Runtime {
             // Using wall-clock time here would make the same transition
             // request produce different receipt bytes and defeat Store CAS
             // replay exactness.
-            created_at: session.updated_at.clone(),
+            created_at: session.created_at.clone(),
         };
         let mut transition_value = serde_json::to_value(&transition).map_err(|error| {
             RuntimeError::InvalidInput(format!(
@@ -1100,6 +1176,14 @@ impl Runtime {
                 "reference_id",
                 "reference_sha256",
                 "camera_hash",
+                "camera_lock_id",
+                "camera_lock_canonical_sha256",
+                "camera_rig_object_sha256",
+                "camera_rig_canonical_sha256",
+                "camera_lock_receipt_object_sha256",
+                "camera_lock_source_transition_id",
+                "camera_lock_source_transition_sha256",
+                "camera_lock_source_head_canonical_sha256",
                 "evidence_sha256",
                 "approval_receipt_id",
                 "approval_session_id",
@@ -1749,6 +1833,4730 @@ impl Runtime {
             }),
         })
     }
+
+    /// Prepare the first ProductionStage@3 edge.  This is intentionally a
+    /// same-candidate, same-artifact promotion: the Runtime only records that
+    /// the durable reference intake has complete core-view coverage.  It does
+    /// not derive geometry, mutate a candidate, confirm a version or export.
+    pub fn production_stage_transition_v3_prepare(
+        &self,
+        request: Value,
+    ) -> Result<Value, RuntimeError> {
+        let object = request_object(&request, "production_stage_transition_v3_prepare")?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "transition_id",
+                "session_id",
+                "project_id",
+                "root_candidate_id",
+                "root_candidate_role",
+                "root_candidate_state_sha256",
+                "source_artifact_id",
+                "root_artifact_sha256",
+                "previous_head_candidate_id",
+                "previous_head_candidate_role",
+                "previous_head_candidate_state_sha256",
+                "previous_head_artifact_id",
+                "previous_head_artifact_sha256",
+                "previous_head_stage",
+                "head_candidate_id",
+                "head_candidate_role",
+                "head_candidate_state_sha256",
+                "output_artifact_id",
+                "head_artifact_sha256",
+                "from_stage",
+                "to_stage",
+                "candidate_binding_status",
+                "reference_id",
+                "reference_sha256",
+                "camera_hash",
+                "camera_lock_id",
+                "camera_lock_canonical_sha256",
+                "camera_rig_object_sha256",
+                "camera_rig_canonical_sha256",
+                "camera_lock_receipt_object_sha256",
+                "camera_lock_source_transition_id",
+                "camera_lock_source_transition_sha256",
+                "camera_lock_source_head_canonical_sha256",
+                "evidence_sha256",
+                "reference_canvas_object_sha256",
+                "quality_report_object_sha256",
+                "comparison_report_object_sha256",
+                "design_spec_object_sha256",
+                "visual_receipt_object_sha256",
+                "human_review_receipt_object_sha256",
+                "engine_validation_receipt_object_sha256",
+                "distribution_receipt_object_sha256",
+                "structural_status",
+                "visual_status",
+                "human_status",
+                "engine_status",
+                "distribution_status",
+                "approval_receipt_id",
+                "approval_session_id",
+                "approval_expires_at",
+                "parent_transition_id",
+                "parent_transition_sha256",
+                "parent_transition_schema_version",
+                "input_sha256",
+                "approved",
+                "approval_summary",
+                "idempotency_key",
+            ],
+        )?;
+        require_schema_version(
+            object,
+            "schema_version",
+            "ProductionStageTransitionPrepareRequest@3",
+        )?;
+        require_approval(object)?;
+
+        let requested_from_stage = object
+            .get("from_stage")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let requested_to_stage = object
+            .get("to_stage")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if production_stage_v3_is_camera_calibration_edge(requested_from_stage, requested_to_stage)
+        {
+            return self.production_stage_transition_v3_camera_prepare(object);
+        }
+        if production_stage_v3_is_form_edge(requested_from_stage, requested_to_stage) {
+            return self.production_stage_transition_v3_form_prepare(object);
+        }
+
+        let transition_id = required_id(object, "transition_id")?;
+        let session_id = required_id(object, "session_id")?;
+        let project_id = required_id(object, "project_id")?;
+        let root_candidate_id = required_id(object, "root_candidate_id")?;
+        let root_candidate_role = required_literal(
+            object,
+            "root_candidate_role",
+            PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE,
+        )?;
+        let root_candidate_state_sha256 = required_sha(object, "root_candidate_state_sha256")?;
+        let source_artifact_id = required_id(object, "source_artifact_id")?;
+        let root_artifact_sha256 = required_sha(object, "root_artifact_sha256")?;
+        let previous_head_candidate_id = required_id(object, "previous_head_candidate_id")?;
+        let previous_head_candidate_role = required_literal(
+            object,
+            "previous_head_candidate_role",
+            PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE,
+        )?;
+        let previous_head_candidate_state_sha256 =
+            required_sha(object, "previous_head_candidate_state_sha256")?;
+        let previous_head_artifact_id = required_id(object, "previous_head_artifact_id")?;
+        let previous_head_artifact_sha256 = required_sha(object, "previous_head_artifact_sha256")?;
+        let previous_head_stage =
+            required_literal(object, "previous_head_stage", "reference-intake")?;
+        let head_candidate_id = required_id(object, "head_candidate_id")?;
+        let head_candidate_role = required_literal(
+            object,
+            "head_candidate_role",
+            PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE,
+        )?;
+        let head_candidate_state_sha256 = required_sha(object, "head_candidate_state_sha256")?;
+        let output_artifact_id = required_id(object, "output_artifact_id")?;
+        let head_artifact_sha256 = required_sha(object, "head_artifact_sha256")?;
+        let from_stage = required_literal(object, "from_stage", "reference-intake")?;
+        let to_stage = required_literal(object, "to_stage", "reference-coverage-reviewed")?;
+        if !production_stage_v3_is_first_public_edge(from_stage, to_stage) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_EDGE_NOT_SUPPORTED".to_owned(),
+            ));
+        }
+        let candidate_binding_status = required_literal(
+            object,
+            "candidate_binding_status",
+            "same-candidate-evidence",
+        )?;
+        let reference_id = required_id(object, "reference_id")?;
+        let reference_sha256 = required_sha(object, "reference_sha256")?;
+        let camera_hash = required_sha(object, "camera_hash")?;
+        let camera_lock_id = optional_id(object, "camera_lock_id")?;
+        let camera_lock_canonical_sha256 = optional_sha(object, "camera_lock_canonical_sha256")?;
+        let camera_rig_object_sha256 = optional_sha(object, "camera_rig_object_sha256")?;
+        let camera_rig_canonical_sha256 = optional_sha(object, "camera_rig_canonical_sha256")?;
+        let camera_lock_receipt_object_sha256 =
+            optional_sha(object, "camera_lock_receipt_object_sha256")?;
+        let camera_lock_source_transition_id =
+            optional_id(object, "camera_lock_source_transition_id")?;
+        let camera_lock_source_transition_sha256 =
+            optional_sha(object, "camera_lock_source_transition_sha256")?;
+        let camera_lock_source_head_canonical_sha256 =
+            optional_sha(object, "camera_lock_source_head_canonical_sha256")?;
+        if camera_lock_id.is_some()
+            || camera_lock_canonical_sha256.is_some()
+            || camera_rig_object_sha256.is_some()
+            || camera_rig_canonical_sha256.is_some()
+            || camera_lock_receipt_object_sha256.is_some()
+            || camera_lock_source_transition_id.is_some()
+            || camera_lock_source_transition_sha256.is_some()
+            || camera_lock_source_head_canonical_sha256.is_some()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_FIRST_EDGE_CAMERA_LOCK_FIELDS_MUST_BE_NULL".to_owned(),
+            ));
+        }
+        let evidence_sha256 = required_sha(object, "evidence_sha256")?;
+        let reference_canvas_object_sha256 =
+            required_sha(object, "reference_canvas_object_sha256")?;
+        let quality_report_object_sha256 = optional_sha(object, "quality_report_object_sha256")?;
+        let comparison_report_object_sha256 =
+            optional_sha(object, "comparison_report_object_sha256")?;
+        let design_spec_object_sha256 = required_sha(object, "design_spec_object_sha256")?;
+        let visual_receipt_object_sha256 = optional_sha(object, "visual_receipt_object_sha256")?;
+        let human_review_receipt_object_sha256 =
+            optional_sha(object, "human_review_receipt_object_sha256")?;
+        let engine_validation_receipt_object_sha256 =
+            optional_sha(object, "engine_validation_receipt_object_sha256")?;
+        let distribution_receipt_object_sha256 =
+            optional_sha(object, "distribution_receipt_object_sha256")?;
+        if quality_report_object_sha256.is_some()
+            || comparison_report_object_sha256.is_some()
+            || visual_receipt_object_sha256.is_some()
+            || human_review_receipt_object_sha256.is_some()
+            || engine_validation_receipt_object_sha256.is_some()
+            || distribution_receipt_object_sha256.is_some()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_FIRST_EDGE_RECEIPTS_MUST_BE_NULL".to_owned(),
+            ));
+        }
+        let structural_status =
+            required_literal(object, "structural_status", "PASS_SOURCE_STRUCTURAL")?;
+        let visual_status = required_literal(object, "visual_status", "QUALITY_TARGET_NOT_MET")?;
+        let human_status = required_literal(object, "human_status", "NOT_RUN")?;
+        let engine_status = required_literal(object, "engine_status", "NOT_RUN")?;
+        let distribution_status = required_literal(object, "distribution_status", "NOT_RUN")?;
+        let approval_receipt_id = required_id(object, "approval_receipt_id")?;
+        let approval_session_id = required_id(object, "approval_session_id")?;
+        if approval_session_id != session_id {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_APPROVAL_SESSION_MISMATCH".to_owned(),
+            ));
+        }
+        let approval_expires_at = object
+            .get("approval_expires_at")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_APPROVAL_REQUIRED: approval_expires_at is required".to_owned(),
+                )
+            })?;
+        validate_v2_approval_expiry(approval_expires_at, true)?;
+        let parent_transition_id = optional_id(object, "parent_transition_id")?;
+        let parent_transition_sha256 = optional_sha(object, "parent_transition_sha256")?;
+        let parent_transition_schema_version =
+            optional_id(object, "parent_transition_schema_version")?;
+        if parent_transition_id.is_some()
+            || parent_transition_sha256.is_some()
+            || parent_transition_schema_version.is_some()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_FIRST_EDGE_PARENT_MUST_BE_NULL".to_owned(),
+            ));
+        }
+        let input_sha256 = required_sha(object, "input_sha256")?;
+        let approval_summary = object
+            .get("approval_summary")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_APPROVAL_REQUIRED: approval_summary is required".to_owned(),
+                )
+            })?;
+        let idempotency_key = required_id(object, "idempotency_key")?;
+        let approval_summary_sha256 = sha256_hex(approval_summary.as_bytes());
+
+        if previous_head_candidate_id != root_candidate_id
+            || head_candidate_id != root_candidate_id
+            || previous_head_artifact_id != source_artifact_id
+            || output_artifact_id != source_artifact_id
+            || previous_head_candidate_role != root_candidate_role
+            || head_candidate_role != root_candidate_role
+            || previous_head_candidate_state_sha256 != root_candidate_state_sha256
+            || head_candidate_state_sha256 != root_candidate_state_sha256
+            || previous_head_artifact_sha256 != root_artifact_sha256
+            || head_artifact_sha256 != root_artifact_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_SAME_CANDIDATE_ARTIFACT_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+
+        // All validation below is read-only. In particular, complete core
+        // coverage is checked before the single CAS reservation so a blocked
+        // request leaves both CAS and SQLite untouched.
+        let session = self
+            .store
+            .get_agentic_session(session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        if session.candidate_id != root_candidate_id {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_SESSION_ROOT_CANDIDATE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_session_binding(
+            &session,
+            session_id,
+            project_id,
+            root_candidate_id,
+            reference_id,
+            camera_hash,
+            evidence_sha256,
+            &session.observation_sha256,
+        )?;
+        let reference = bound_reference(self, project_id, reference_id)?;
+        if reference.object_sha256 != reference_sha256
+            || session.reference_id != reference_id
+            || session.reference_sha256 != reference_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_REFERENCE_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let candidate = bound_candidate(self, project_id, root_candidate_id)?;
+        if candidate.canonical_sha256 != root_candidate_state_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CANDIDATE_STATE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_v2_candidate_artifact_identity(
+            self,
+            &candidate,
+            source_artifact_id,
+            root_artifact_sha256,
+            "root",
+        )?;
+        validate_current_candidate_head(self, &candidate, project_id)?;
+
+        let authoring_context = read_authoring_context(self, &session)?;
+        if session.reference_canvas_sha256 != reference_canvas_object_sha256
+            || session.design_spec_sha256 != design_spec_object_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_AUTHORING_OBJECT_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let canvas = authoring_context.get("reference_canvas").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_REFERENCE_CANVAS_READBACK_MISSING".to_owned(),
+            )
+        })?;
+        let design_spec = authoring_context.get("design_spec").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_DESIGN_SPEC_READBACK_MISSING".to_owned(),
+            )
+        })?;
+        validate_v3_reference_coverage(canvas)?;
+        validate_v3_reference_canvas_binding(canvas, camera_hash, evidence_sha256)?;
+        let _ = design_spec;
+
+        let input_binding = production_stage_transition_v3_input_binding(
+            transition_id,
+            session_id,
+            project_id,
+            root_candidate_id,
+            root_candidate_role,
+            root_candidate_state_sha256,
+            source_artifact_id,
+            root_artifact_sha256,
+            previous_head_candidate_id,
+            previous_head_candidate_role,
+            previous_head_candidate_state_sha256,
+            previous_head_artifact_id,
+            previous_head_artifact_sha256,
+            previous_head_stage,
+            head_candidate_id,
+            head_candidate_role,
+            head_candidate_state_sha256,
+            output_artifact_id,
+            head_artifact_sha256,
+            from_stage,
+            to_stage,
+            candidate_binding_status,
+            reference_id,
+            reference_sha256,
+            camera_hash,
+            evidence_sha256,
+            reference_canvas_object_sha256,
+            design_spec_object_sha256,
+            structural_status,
+            visual_status,
+            human_status,
+            engine_status,
+            distribution_status,
+            approval_receipt_id,
+            approval_session_id,
+            approval_expires_at,
+            approval_summary_sha256.as_str(),
+            idempotency_key,
+        );
+        let expected_input_sha256 = canonical_json_hash(&input_binding);
+        if input_sha256 != expected_input_sha256 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRODUCTION_STAGE_V3_INPUT_HASH_MISMATCH: expected={expected_input_sha256} actual={input_sha256}"
+            )));
+        }
+        let request_key = production_stage_transition_v3_request_key(
+            transition_id,
+            session_id,
+            project_id,
+            root_candidate_id,
+            source_artifact_id,
+            from_stage,
+            to_stage,
+            reference_canvas_object_sha256,
+            design_spec_object_sha256,
+            approval_receipt_id,
+            approval_session_id,
+            approval_expires_at,
+            approval_summary_sha256.as_str(),
+            idempotency_key,
+        );
+        let request_key_sha256 = canonical_json_hash(&request_key);
+
+        let mut transition = ProductionStageTransitionV3Record {
+            schema_version: "ProductionStageTransition@3".to_owned(),
+            transition_id: transition_id.to_owned(),
+            session_id: session_id.to_owned(),
+            project_id: project_id.to_owned(),
+            root_candidate_id: root_candidate_id.to_owned(),
+            root_candidate_role: root_candidate_role.to_owned(),
+            root_candidate_state_sha256: root_candidate_state_sha256.to_owned(),
+            source_artifact_id: source_artifact_id.to_owned(),
+            root_artifact_sha256: root_artifact_sha256.to_owned(),
+            previous_head_candidate_id: previous_head_candidate_id.to_owned(),
+            previous_head_candidate_role: previous_head_candidate_role.to_owned(),
+            previous_head_candidate_state_sha256: previous_head_candidate_state_sha256.to_owned(),
+            previous_head_artifact_id: previous_head_artifact_id.to_owned(),
+            previous_head_artifact_sha256: previous_head_artifact_sha256.to_owned(),
+            previous_head_stage: previous_head_stage.to_owned(),
+            head_candidate_id: head_candidate_id.to_owned(),
+            head_candidate_role: head_candidate_role.to_owned(),
+            head_candidate_state_sha256: head_candidate_state_sha256.to_owned(),
+            output_artifact_id: output_artifact_id.to_owned(),
+            head_artifact_sha256: head_artifact_sha256.to_owned(),
+            from_stage: from_stage.to_owned(),
+            to_stage: to_stage.to_owned(),
+            candidate_binding_status: candidate_binding_status.to_owned(),
+            reference_id: reference_id.to_owned(),
+            reference_sha256: reference_sha256.to_owned(),
+            camera_hash: camera_hash.to_owned(),
+            camera_lock_id: None,
+            camera_lock_canonical_sha256: None,
+            camera_rig_object_sha256: None,
+            camera_rig_canonical_sha256: None,
+            camera_lock_receipt_object_sha256: None,
+            camera_lock_source_transition_id: None,
+            camera_lock_source_transition_sha256: None,
+            camera_lock_source_head_canonical_sha256: None,
+            evidence_sha256: evidence_sha256.to_owned(),
+            reference_canvas_object_sha256: reference_canvas_object_sha256.to_owned(),
+            quality_report_object_sha256: None,
+            comparison_report_object_sha256: None,
+            design_spec_object_sha256: design_spec_object_sha256.to_owned(),
+            visual_receipt_object_sha256: None,
+            human_review_receipt_object_sha256: None,
+            engine_validation_receipt_object_sha256: None,
+            distribution_receipt_object_sha256: None,
+            structural_status: structural_status.to_owned(),
+            visual_status: visual_status.to_owned(),
+            human_status: human_status.to_owned(),
+            engine_status: engine_status.to_owned(),
+            distribution_status: distribution_status.to_owned(),
+            approval_receipt_id: approval_receipt_id.to_owned(),
+            approval_session_id: approval_session_id.to_owned(),
+            approval_expires_at: approval_expires_at.to_owned(),
+            approval_summary_sha256,
+            request_key_sha256,
+            parent_transition_id: None,
+            parent_transition_sha256: None,
+            parent_transition_schema_version: None,
+            gate_status: "pass".to_owned(),
+            status: "passed".to_owned(),
+            input_sha256: input_sha256.to_owned(),
+            receipt_object_sha256: String::new(),
+            canonical_sha256: String::new(),
+            // A transition replay must remain byte-stable even if a later
+            // checkpoint updates the mutable session projection.
+            created_at: session.created_at.clone(),
+        };
+        transition.canonical_sha256 = production_stage_transition_v3_canonical_hash(&transition)?;
+        let transition_value = serde_json::to_value(&transition).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_STAGE_V3_RECEIPT_SERIALIZE_FAILED: {error}"
+            ))
+        })?;
+        let receipt_bytes = canonical_json_bytes(&transition_value)?;
+        if receipt_bytes.len() > MAX_PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_BYTES {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_RECEIPT_TOO_LARGE".to_owned(),
+            ));
+        }
+
+        let reservation = self.store.begin_cas_reservation();
+        let receipt_object = self.store.put_object_reserved(
+            &reservation,
+            &receipt_bytes,
+            None,
+            PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_MIME,
+            PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_KIND,
+            &transition.created_at,
+        )?;
+        transition.receipt_object_sha256 = receipt_object.record.sha256.clone();
+        if let Err(error) = validate_production_stage_transition_v3_receipt(
+            self,
+            &receipt_object.record.sha256,
+            &transition,
+        ) {
+            release_v3_transition_receipt(self, &reservation, &receipt_object, true);
+            return Err(error);
+        }
+        match self
+            .store
+            .record_production_stage_transition_v3_with_replay(&transition, &receipt_object.record)
+        {
+            Ok((stored, head, replayed)) => {
+                release_v3_transition_receipt(self, &reservation, &receipt_object, false);
+                Ok(production_stage_transition_v3_result(
+                    &stored,
+                    &head,
+                    replayed,
+                    "ProductionStageTransitionPrepareResult@3",
+                    true,
+                ))
+            }
+            Err(error) => {
+                release_v3_transition_receipt(self, &reservation, &receipt_object, true);
+                Err(RuntimeError::Store(error))
+            }
+        }
+    }
+
+    /// Prepare the second ProductionStage@3 edge.  Unlike the first edge,
+    /// camera calibration is only a promotion when an independently durable
+    /// ProductionCameraLock@1 is present and still matches the immutable
+    /// reference-coverage head.  All source/head/lock checks happen before
+    /// the single transition receipt reservation.
+    fn production_stage_transition_v3_camera_prepare(
+        &self,
+        object: &Map<String, Value>,
+    ) -> Result<Value, RuntimeError> {
+        let transition_id = required_id(object, "transition_id")?;
+        let session_id = required_id(object, "session_id")?;
+        let project_id = required_id(object, "project_id")?;
+        let root_candidate_id = required_id(object, "root_candidate_id")?;
+        let root_candidate_role = required_literal(
+            object,
+            "root_candidate_role",
+            PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE,
+        )?;
+        let root_candidate_state_sha256 = required_sha(object, "root_candidate_state_sha256")?;
+        let source_artifact_id = required_id(object, "source_artifact_id")?;
+        let root_artifact_sha256 = required_sha(object, "root_artifact_sha256")?;
+        let previous_head_candidate_id = required_id(object, "previous_head_candidate_id")?;
+        let previous_head_candidate_role = required_literal(
+            object,
+            "previous_head_candidate_role",
+            PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE,
+        )?;
+        let previous_head_candidate_state_sha256 =
+            required_sha(object, "previous_head_candidate_state_sha256")?;
+        let previous_head_artifact_id = required_id(object, "previous_head_artifact_id")?;
+        let previous_head_artifact_sha256 = required_sha(object, "previous_head_artifact_sha256")?;
+        let previous_head_stage =
+            required_literal(object, "previous_head_stage", "reference-coverage-reviewed")?;
+        let head_candidate_id = required_id(object, "head_candidate_id")?;
+        let head_candidate_role = required_literal(
+            object,
+            "head_candidate_role",
+            PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE,
+        )?;
+        let head_candidate_state_sha256 = required_sha(object, "head_candidate_state_sha256")?;
+        let output_artifact_id = required_id(object, "output_artifact_id")?;
+        let head_artifact_sha256 = required_sha(object, "head_artifact_sha256")?;
+        let from_stage = required_literal(object, "from_stage", "reference-coverage-reviewed")?;
+        let to_stage = required_literal(object, "to_stage", "camera-calibrated")?;
+        if !production_stage_v3_is_camera_calibration_edge(from_stage, to_stage) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CAMERA_EDGE_NOT_SUPPORTED".to_owned(),
+            ));
+        }
+        let candidate_binding_status = required_literal(
+            object,
+            "candidate_binding_status",
+            "same-candidate-evidence",
+        )?;
+        let reference_id = required_id(object, "reference_id")?;
+        let reference_sha256 = required_sha(object, "reference_sha256")?;
+        let camera_hash = required_sha(object, "camera_hash")?;
+        let camera_lock_id = optional_id(object, "camera_lock_id")?.ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_REQUIRED".to_owned())
+        })?;
+        let camera_lock_canonical_sha256 = optional_sha(object, "camera_lock_canonical_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_rig_object_sha256 = optional_sha(object, "camera_rig_object_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_rig_canonical_sha256 = optional_sha(object, "camera_rig_canonical_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_lock_receipt_object_sha256 =
+            optional_sha(object, "camera_lock_receipt_object_sha256")?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_lock_source_transition_id =
+            optional_id(object, "camera_lock_source_transition_id")?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_lock_source_transition_sha256 =
+            optional_sha(object, "camera_lock_source_transition_sha256")?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_lock_source_head_canonical_sha256 =
+            optional_sha(object, "camera_lock_source_head_canonical_sha256")?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_REQUIRED".to_owned(),
+                )
+            })?;
+        let evidence_sha256 = required_sha(object, "evidence_sha256")?;
+        let reference_canvas_object_sha256 =
+            required_sha(object, "reference_canvas_object_sha256")?;
+        let quality_report_object_sha256 = optional_sha(object, "quality_report_object_sha256")?;
+        let comparison_report_object_sha256 =
+            optional_sha(object, "comparison_report_object_sha256")?;
+        let design_spec_object_sha256 = required_sha(object, "design_spec_object_sha256")?;
+        let visual_receipt_object_sha256 = optional_sha(object, "visual_receipt_object_sha256")?;
+        let human_review_receipt_object_sha256 =
+            optional_sha(object, "human_review_receipt_object_sha256")?;
+        let engine_validation_receipt_object_sha256 =
+            optional_sha(object, "engine_validation_receipt_object_sha256")?;
+        let distribution_receipt_object_sha256 =
+            optional_sha(object, "distribution_receipt_object_sha256")?;
+        if quality_report_object_sha256.is_some()
+            || comparison_report_object_sha256.is_some()
+            || visual_receipt_object_sha256.is_some()
+            || human_review_receipt_object_sha256.is_some()
+            || engine_validation_receipt_object_sha256.is_some()
+            || distribution_receipt_object_sha256.is_some()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CAMERA_EDGE_RECEIPTS_MUST_BE_NULL".to_owned(),
+            ));
+        }
+        let structural_status =
+            required_literal(object, "structural_status", "PASS_SOURCE_STRUCTURAL")?;
+        let visual_status = required_literal(object, "visual_status", "QUALITY_TARGET_NOT_MET")?;
+        let human_status = required_literal(object, "human_status", "NOT_RUN")?;
+        let engine_status = required_literal(object, "engine_status", "NOT_RUN")?;
+        let distribution_status = required_literal(object, "distribution_status", "NOT_RUN")?;
+        let approval_receipt_id = required_id(object, "approval_receipt_id")?;
+        let approval_session_id = required_id(object, "approval_session_id")?;
+        if approval_session_id != session_id {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_APPROVAL_SESSION_MISMATCH".to_owned(),
+            ));
+        }
+        let approval_expires_at = object
+            .get("approval_expires_at")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_APPROVAL_REQUIRED: approval_expires_at is required".to_owned(),
+                )
+            })?;
+        validate_v2_approval_expiry(approval_expires_at, true)?;
+        let parent_transition_id =
+            optional_id(object, "parent_transition_id")?.ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_CAMERA_PARENT_REQUIRED".to_owned())
+            })?;
+        let parent_transition_sha256 = optional_sha(object, "parent_transition_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_CAMERA_PARENT_REQUIRED".to_owned())
+            })?;
+        let parent_transition_schema_version = object
+            .get("parent_transition_schema_version")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_CAMERA_PARENT_REQUIRED".to_owned())
+            })?;
+        if parent_transition_schema_version != "ProductionStageTransition@3" {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CAMERA_PARENT_SCHEMA_MISMATCH".to_owned(),
+            ));
+        }
+        let input_sha256 = required_sha(object, "input_sha256")?;
+        let approval_summary = object
+            .get("approval_summary")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_APPROVAL_REQUIRED: approval_summary is required".to_owned(),
+                )
+            })?;
+        let idempotency_key = required_id(object, "idempotency_key")?;
+        let approval_summary_sha256 = sha256_hex(approval_summary.as_bytes());
+
+        if previous_head_candidate_id != root_candidate_id
+            || head_candidate_id != root_candidate_id
+            || previous_head_artifact_id != source_artifact_id
+            || output_artifact_id != source_artifact_id
+            || previous_head_candidate_role != root_candidate_role
+            || head_candidate_role != root_candidate_role
+            || previous_head_candidate_state_sha256 != root_candidate_state_sha256
+            || head_candidate_state_sha256 != root_candidate_state_sha256
+            || previous_head_artifact_sha256 != root_artifact_sha256
+            || head_artifact_sha256 != root_artifact_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_SAME_CANDIDATE_ARTIFACT_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+
+        let session = self
+            .store
+            .get_agentic_session(session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        if session.candidate_id != root_candidate_id {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_SESSION_ROOT_CANDIDATE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_session_binding(
+            &session,
+            session_id,
+            project_id,
+            root_candidate_id,
+            reference_id,
+            camera_hash,
+            evidence_sha256,
+            &session.observation_sha256,
+        )?;
+        let reference = bound_reference(self, project_id, reference_id)?;
+        if reference.object_sha256 != reference_sha256
+            || session.reference_id != reference_id
+            || session.reference_sha256 != reference_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_REFERENCE_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let candidate = bound_candidate(self, project_id, root_candidate_id)?;
+        if candidate.canonical_sha256 != root_candidate_state_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CANDIDATE_STATE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_v2_candidate_artifact_identity(
+            self,
+            &candidate,
+            source_artifact_id,
+            root_artifact_sha256,
+            "root",
+        )?;
+        validate_current_candidate_head(self, &candidate, project_id)?;
+
+        let current_head = self
+            .store
+            .get_production_stage_head_v3(session_id, project_id, root_candidate_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_PARENT_HEAD_NOT_FOUND".to_owned())
+            })?;
+        if current_head.head_stage != "reference-coverage-reviewed"
+            || current_head.head_candidate_id != root_candidate_id
+            || current_head.head_artifact_sha256 != root_artifact_sha256
+            || current_head.head_transition_id != parent_transition_id
+            || current_head.head_transition_sha256 != parent_transition_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CAMERA_PARENT_HEAD_MISMATCH".to_owned(),
+            ));
+        }
+        let parent_transition = self
+            .store
+            .get_production_stage_transition_v3(&parent_transition_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_PARENT_NOT_FOUND".to_owned())
+            })?;
+        validate_production_stage_transition_v3_and_head(
+            self,
+            &parent_transition,
+            &current_head,
+            session_id,
+            project_id,
+            root_candidate_id,
+            root_candidate_id,
+            false,
+        )?;
+        if parent_transition.canonical_sha256 != parent_transition_sha256
+            || parent_transition.transition_id != camera_lock_source_transition_id
+            || current_head.canonical_sha256 != camera_lock_source_head_canonical_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CAMERA_PARENT_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        // The request's `previous_head_*` is the immutable source head being
+        // promoted (the current reference-coverage-reviewed head).  The
+        // source head's own `previous_head_*` points one edge further back at
+        // reference-intake, so comparing those fields directly would reject
+        // every valid second-edge request.  Bind the request to the source
+        // head's current head fields instead.
+        if current_head.head_candidate_id != previous_head_candidate_id
+            || current_head.head_candidate_role != previous_head_candidate_role
+            || current_head.head_candidate_state_sha256 != previous_head_candidate_state_sha256
+            || current_head.output_artifact_id != previous_head_artifact_id
+            || current_head.head_artifact_sha256 != previous_head_artifact_sha256
+            || current_head.head_stage != previous_head_stage
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CAMERA_PREVIOUS_HEAD_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+
+        let lock = self
+            .store
+            .get_production_camera_lock(camera_lock_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_CAMERA_LOCK_NOT_FOUND".to_owned())
+            })?;
+        validate_production_camera_lock_record(self, &lock)?;
+        if lock.camera_lock_id != camera_lock_id
+            || lock.canonical_sha256 != camera_lock_canonical_sha256
+            || lock.camera_rig_object_sha256 != camera_rig_object_sha256
+            || lock.camera_rig_canonical_sha256 != camera_rig_canonical_sha256
+            || lock.receipt_object_sha256 != camera_lock_receipt_object_sha256
+            || lock.source_transition_id != camera_lock_source_transition_id
+            || lock.source_transition_sha256 != camera_lock_source_transition_sha256
+            || lock.source_head_canonical_sha256 != camera_lock_source_head_canonical_sha256
+            || lock.session_id != session_id
+            || lock.project_id != project_id
+            || lock.candidate_id != root_candidate_id
+            || lock.artifact_id != source_artifact_id
+            || lock.artifact_sha256 != root_artifact_sha256
+            || lock.reference_id != reference_id
+            || lock.reference_sha256 != reference_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CAMERA_LOCK_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let authoring_context = read_authoring_context(self, &session)?;
+        if session.reference_canvas_sha256 != reference_canvas_object_sha256
+            || session.design_spec_sha256 != design_spec_object_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_AUTHORING_OBJECT_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let canvas = authoring_context.get("reference_canvas").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_REFERENCE_CANVAS_READBACK_MISSING".to_owned(),
+            )
+        })?;
+        validate_v3_reference_coverage(canvas)?;
+        validate_v3_reference_canvas_binding(canvas, camera_hash, evidence_sha256)?;
+
+        let input_binding = production_stage_transition_v3_input_binding_with_camera(
+            production_stage_transition_v3_input_binding(
+                transition_id,
+                session_id,
+                project_id,
+                root_candidate_id,
+                root_candidate_role,
+                root_candidate_state_sha256,
+                source_artifact_id,
+                root_artifact_sha256,
+                previous_head_candidate_id,
+                previous_head_candidate_role,
+                previous_head_candidate_state_sha256,
+                previous_head_artifact_id,
+                previous_head_artifact_sha256,
+                previous_head_stage,
+                head_candidate_id,
+                head_candidate_role,
+                head_candidate_state_sha256,
+                output_artifact_id,
+                head_artifact_sha256,
+                from_stage,
+                to_stage,
+                candidate_binding_status,
+                reference_id,
+                reference_sha256,
+                camera_hash,
+                evidence_sha256,
+                reference_canvas_object_sha256,
+                design_spec_object_sha256,
+                structural_status,
+                visual_status,
+                human_status,
+                engine_status,
+                distribution_status,
+                approval_receipt_id,
+                approval_session_id,
+                approval_expires_at,
+                approval_summary_sha256.as_str(),
+                idempotency_key,
+            ),
+            [
+                ("camera_lock_id", camera_lock_id),
+                ("camera_lock_canonical_sha256", camera_lock_canonical_sha256),
+                ("camera_rig_object_sha256", camera_rig_object_sha256),
+                ("camera_rig_canonical_sha256", camera_rig_canonical_sha256),
+                (
+                    "camera_lock_receipt_object_sha256",
+                    camera_lock_receipt_object_sha256,
+                ),
+                (
+                    "camera_lock_source_transition_id",
+                    camera_lock_source_transition_id,
+                ),
+                (
+                    "camera_lock_source_transition_sha256",
+                    camera_lock_source_transition_sha256,
+                ),
+                (
+                    "camera_lock_source_head_canonical_sha256",
+                    camera_lock_source_head_canonical_sha256,
+                ),
+            ],
+            [
+                ("parent_transition_id", parent_transition_id),
+                ("parent_transition_sha256", parent_transition_sha256),
+                (
+                    "parent_transition_schema_version",
+                    parent_transition_schema_version,
+                ),
+            ],
+        );
+        let expected_input_sha256 = canonical_json_hash(&input_binding);
+        if input_sha256 != expected_input_sha256 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRODUCTION_STAGE_V3_INPUT_HASH_MISMATCH: expected={expected_input_sha256} actual={input_sha256}"
+            )));
+        }
+        let request_key = production_stage_transition_v3_request_key_with_camera(
+            production_stage_transition_v3_request_key(
+                transition_id,
+                session_id,
+                project_id,
+                root_candidate_id,
+                source_artifact_id,
+                from_stage,
+                to_stage,
+                reference_canvas_object_sha256,
+                design_spec_object_sha256,
+                approval_receipt_id,
+                approval_session_id,
+                approval_expires_at,
+                approval_summary_sha256.as_str(),
+                idempotency_key,
+            ),
+            [
+                ("camera_lock_id", camera_lock_id),
+                ("camera_lock_canonical_sha256", camera_lock_canonical_sha256),
+                ("camera_rig_object_sha256", camera_rig_object_sha256),
+                ("camera_rig_canonical_sha256", camera_rig_canonical_sha256),
+                (
+                    "camera_lock_receipt_object_sha256",
+                    camera_lock_receipt_object_sha256,
+                ),
+                (
+                    "camera_lock_source_transition_id",
+                    camera_lock_source_transition_id,
+                ),
+                (
+                    "camera_lock_source_transition_sha256",
+                    camera_lock_source_transition_sha256,
+                ),
+                (
+                    "camera_lock_source_head_canonical_sha256",
+                    camera_lock_source_head_canonical_sha256,
+                ),
+            ],
+            [
+                ("parent_transition_id", parent_transition_id),
+                ("parent_transition_sha256", parent_transition_sha256),
+                (
+                    "parent_transition_schema_version",
+                    parent_transition_schema_version,
+                ),
+            ],
+        );
+        let request_key_sha256 = canonical_json_hash(&request_key);
+        let mut transition = ProductionStageTransitionV3Record {
+            schema_version: "ProductionStageTransition@3".to_owned(),
+            transition_id: transition_id.to_owned(),
+            session_id: session_id.to_owned(),
+            project_id: project_id.to_owned(),
+            root_candidate_id: root_candidate_id.to_owned(),
+            root_candidate_role: root_candidate_role.to_owned(),
+            root_candidate_state_sha256: root_candidate_state_sha256.to_owned(),
+            source_artifact_id: source_artifact_id.to_owned(),
+            root_artifact_sha256: root_artifact_sha256.to_owned(),
+            previous_head_candidate_id: previous_head_candidate_id.to_owned(),
+            previous_head_candidate_role: previous_head_candidate_role.to_owned(),
+            previous_head_candidate_state_sha256: previous_head_candidate_state_sha256.to_owned(),
+            previous_head_artifact_id: previous_head_artifact_id.to_owned(),
+            previous_head_artifact_sha256: previous_head_artifact_sha256.to_owned(),
+            previous_head_stage: previous_head_stage.to_owned(),
+            head_candidate_id: head_candidate_id.to_owned(),
+            head_candidate_role: head_candidate_role.to_owned(),
+            head_candidate_state_sha256: head_candidate_state_sha256.to_owned(),
+            output_artifact_id: output_artifact_id.to_owned(),
+            head_artifact_sha256: head_artifact_sha256.to_owned(),
+            from_stage: from_stage.to_owned(),
+            to_stage: to_stage.to_owned(),
+            candidate_binding_status: candidate_binding_status.to_owned(),
+            reference_id: reference_id.to_owned(),
+            reference_sha256: reference_sha256.to_owned(),
+            camera_hash: camera_hash.to_owned(),
+            camera_lock_id: Some(camera_lock_id.to_owned()),
+            camera_lock_canonical_sha256: Some(camera_lock_canonical_sha256.to_owned()),
+            camera_rig_object_sha256: Some(camera_rig_object_sha256.to_owned()),
+            camera_rig_canonical_sha256: Some(camera_rig_canonical_sha256.to_owned()),
+            camera_lock_receipt_object_sha256: Some(camera_lock_receipt_object_sha256.to_owned()),
+            camera_lock_source_transition_id: Some(camera_lock_source_transition_id.to_owned()),
+            camera_lock_source_transition_sha256: Some(
+                camera_lock_source_transition_sha256.to_owned(),
+            ),
+            camera_lock_source_head_canonical_sha256: Some(
+                camera_lock_source_head_canonical_sha256.to_owned(),
+            ),
+            evidence_sha256: evidence_sha256.to_owned(),
+            reference_canvas_object_sha256: reference_canvas_object_sha256.to_owned(),
+            quality_report_object_sha256: None,
+            comparison_report_object_sha256: None,
+            design_spec_object_sha256: design_spec_object_sha256.to_owned(),
+            visual_receipt_object_sha256: None,
+            human_review_receipt_object_sha256: None,
+            engine_validation_receipt_object_sha256: None,
+            distribution_receipt_object_sha256: None,
+            structural_status: structural_status.to_owned(),
+            visual_status: visual_status.to_owned(),
+            human_status: human_status.to_owned(),
+            engine_status: engine_status.to_owned(),
+            distribution_status: distribution_status.to_owned(),
+            approval_receipt_id: approval_receipt_id.to_owned(),
+            approval_session_id: approval_session_id.to_owned(),
+            approval_expires_at: approval_expires_at.to_owned(),
+            approval_summary_sha256,
+            request_key_sha256,
+            parent_transition_id: Some(parent_transition_id.to_owned()),
+            parent_transition_sha256: Some(parent_transition_sha256.to_owned()),
+            parent_transition_schema_version: Some(parent_transition_schema_version.to_owned()),
+            gate_status: "pass".to_owned(),
+            status: "passed".to_owned(),
+            input_sha256: input_sha256.to_owned(),
+            receipt_object_sha256: String::new(),
+            canonical_sha256: String::new(),
+            created_at: session.created_at.clone(),
+        };
+        transition.canonical_sha256 = production_stage_transition_v3_canonical_hash(&transition)?;
+        let receipt_bytes =
+            canonical_json_bytes(&serde_json::to_value(&transition).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRODUCTION_STAGE_V3_RECEIPT_SERIALIZE_FAILED: {error}"
+                ))
+            })?)?;
+        if receipt_bytes.len() > MAX_PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_BYTES {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_RECEIPT_TOO_LARGE".to_owned(),
+            ));
+        }
+        let reservation = self.store.begin_cas_reservation();
+        let receipt_object = self.store.put_object_reserved(
+            &reservation,
+            &receipt_bytes,
+            None,
+            PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_MIME,
+            PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_KIND,
+            &transition.created_at,
+        )?;
+        transition.receipt_object_sha256 = receipt_object.record.sha256.clone();
+        if let Err(error) = validate_production_stage_transition_v3_receipt(
+            self,
+            &receipt_object.record.sha256,
+            &transition,
+        ) {
+            release_v3_transition_receipt(self, &reservation, &receipt_object, true);
+            return Err(error);
+        }
+        match self
+            .store
+            .record_production_stage_transition_v3_with_replay(&transition, &receipt_object.record)
+        {
+            Ok((stored, head, replayed)) => {
+                release_v3_transition_receipt(self, &reservation, &receipt_object, false);
+                Ok(production_stage_transition_v3_result(
+                    &stored,
+                    &head,
+                    replayed,
+                    "ProductionStageTransitionPrepareResult@3",
+                    true,
+                ))
+            }
+            Err(error) => {
+                release_v3_transition_receipt(self, &reservation, &receipt_object, true);
+                Err(RuntimeError::Store(error))
+            }
+        }
+    }
+
+    /// Prepare one of the three additive form edges.  The form receipt is
+    /// evidence for the edge, not a substitute for approval: all source
+    /// head, camera-lock, candidate, quality and art bindings are read back
+    /// before the single transition receipt reservation.  The transition and
+    /// its new V3 head are committed together by Store.
+    fn production_stage_transition_v3_form_prepare(
+        &self,
+        object: &Map<String, Value>,
+    ) -> Result<Value, RuntimeError> {
+        let transition_id = required_id(object, "transition_id")?;
+        let session_id = required_id(object, "session_id")?;
+        let project_id = required_id(object, "project_id")?;
+        let root_candidate_id = required_id(object, "root_candidate_id")?;
+        let root_candidate_role = required_literal(
+            object,
+            "root_candidate_role",
+            PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE,
+        )?;
+        let root_candidate_state_sha256 = required_sha(object, "root_candidate_state_sha256")?;
+        let source_artifact_id = required_id(object, "source_artifact_id")?;
+        let root_artifact_sha256 = required_sha(object, "root_artifact_sha256")?;
+        let previous_head_candidate_id = required_id(object, "previous_head_candidate_id")?;
+        let previous_head_candidate_role = required_literal(
+            object,
+            "previous_head_candidate_role",
+            PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE,
+        )?;
+        let previous_head_candidate_state_sha256 =
+            required_sha(object, "previous_head_candidate_state_sha256")?;
+        let previous_head_artifact_id = required_id(object, "previous_head_artifact_id")?;
+        let previous_head_artifact_sha256 = required_sha(object, "previous_head_artifact_sha256")?;
+        let previous_head_stage = required_id(object, "previous_head_stage")?;
+        let head_candidate_id = required_id(object, "head_candidate_id")?;
+        let head_candidate_role = required_literal(
+            object,
+            "head_candidate_role",
+            PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE,
+        )?;
+        let head_candidate_state_sha256 = required_sha(object, "head_candidate_state_sha256")?;
+        let output_artifact_id = required_id(object, "output_artifact_id")?;
+        let head_artifact_sha256 = required_sha(object, "head_artifact_sha256")?;
+        let from_stage = required_id(object, "from_stage")?;
+        let to_stage = required_id(object, "to_stage")?;
+        if !production_stage_v3_is_form_edge(from_stage, to_stage)
+            || previous_head_stage != from_stage
+            || !matches!(
+                (from_stage, to_stage),
+                ("camera-calibrated", "blockout-reviewed")
+                    | ("blockout-reviewed", "primary-form-approved")
+                    | ("primary-form-approved", "secondary-form-approved")
+            )
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_FORM_EDGE_NOT_SUPPORTED".to_owned(),
+            ));
+        }
+        let candidate_binding_status = required_literal(
+            object,
+            "candidate_binding_status",
+            "same-candidate-evidence",
+        )?;
+        let reference_id = required_id(object, "reference_id")?;
+        let reference_sha256 = required_sha(object, "reference_sha256")?;
+        let camera_hash = required_sha(object, "camera_hash")?;
+        let camera_lock_id = optional_id(object, "camera_lock_id")?.ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_FORM_CAMERA_LOCK_REQUIRED".to_owned())
+        })?;
+        let camera_lock_canonical_sha256 = optional_sha(object, "camera_lock_canonical_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_FORM_CAMERA_LOCK_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_rig_object_sha256 = optional_sha(object, "camera_rig_object_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_FORM_CAMERA_LOCK_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_rig_canonical_sha256 = optional_sha(object, "camera_rig_canonical_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_FORM_CAMERA_LOCK_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_lock_receipt_object_sha256 =
+            optional_sha(object, "camera_lock_receipt_object_sha256")?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_FORM_CAMERA_LOCK_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_lock_source_transition_id =
+            optional_id(object, "camera_lock_source_transition_id")?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_FORM_CAMERA_LOCK_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_lock_source_transition_sha256 =
+            optional_sha(object, "camera_lock_source_transition_sha256")?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_FORM_CAMERA_LOCK_REQUIRED".to_owned(),
+                )
+            })?;
+        let camera_lock_source_head_canonical_sha256 =
+            optional_sha(object, "camera_lock_source_head_canonical_sha256")?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_FORM_CAMERA_LOCK_REQUIRED".to_owned(),
+                )
+            })?;
+        let evidence_sha256 = required_sha(object, "evidence_sha256")?;
+        let reference_canvas_object_sha256 =
+            required_sha(object, "reference_canvas_object_sha256")?;
+        let quality_report_object_sha256 = optional_sha(object, "quality_report_object_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_FORM_QUALITY_REQUIRED".to_owned())
+            })?;
+        let comparison_report_object_sha256 =
+            optional_sha(object, "comparison_report_object_sha256")?;
+        let design_spec_object_sha256 = required_sha(object, "design_spec_object_sha256")?;
+        let visual_receipt_object_sha256 = optional_sha(object, "visual_receipt_object_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_FORM_ART_REQUIRED".to_owned())
+            })?;
+        let human_review_receipt_object_sha256 =
+            optional_sha(object, "human_review_receipt_object_sha256")?;
+        let engine_validation_receipt_object_sha256 =
+            optional_sha(object, "engine_validation_receipt_object_sha256")?;
+        let distribution_receipt_object_sha256 =
+            optional_sha(object, "distribution_receipt_object_sha256")?;
+        if comparison_report_object_sha256.is_some()
+            || human_review_receipt_object_sha256.is_some()
+            || engine_validation_receipt_object_sha256.is_some()
+            || distribution_receipt_object_sha256.is_some()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_FORM_LATER_EVIDENCE_MUST_BE_NULL".to_owned(),
+            ));
+        }
+        let structural_status =
+            required_literal(object, "structural_status", "PASS_SOURCE_STRUCTURAL")?;
+        let visual_status = required_literal(
+            object,
+            "visual_status",
+            PRODUCTION_WEAPON_FORM_QUALITY_V2_VISUAL_STATUS,
+        )?;
+        let human_status = required_literal(object, "human_status", "NOT_RUN")?;
+        let engine_status = required_literal(object, "engine_status", "NOT_RUN")?;
+        let distribution_status = required_literal(object, "distribution_status", "NOT_RUN")?;
+        let approval_receipt_id = required_id(object, "approval_receipt_id")?;
+        let approval_session_id = required_id(object, "approval_session_id")?;
+        if approval_session_id != session_id {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_APPROVAL_SESSION_MISMATCH".to_owned(),
+            ));
+        }
+        let approval_expires_at = object
+            .get("approval_expires_at")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| invalid_stage_input("approval_expires_at is required"))?;
+        validate_v2_approval_expiry(approval_expires_at, true)?;
+        let parent_transition_id =
+            optional_id(object, "parent_transition_id")?.ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_FORM_PARENT_REQUIRED".to_owned())
+            })?;
+        let parent_transition_sha256 = optional_sha(object, "parent_transition_sha256")?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_FORM_PARENT_REQUIRED".to_owned())
+            })?;
+        let parent_transition_schema_version = object
+            .get("parent_transition_schema_version")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_FORM_PARENT_REQUIRED".to_owned())
+            })?;
+        if parent_transition_schema_version != "ProductionStageTransition@3" {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_FORM_PARENT_SCHEMA_MISMATCH".to_owned(),
+            ));
+        }
+        let input_sha256 = required_sha(object, "input_sha256")?;
+        let approval_summary = object
+            .get("approval_summary")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| invalid_stage_input("approval_summary is required"))?;
+        let idempotency_key = required_id(object, "idempotency_key")?;
+        let approval_summary_sha256 = sha256_hex(approval_summary.as_bytes());
+        if previous_head_candidate_id != root_candidate_id
+            || head_candidate_id != root_candidate_id
+            || previous_head_artifact_id != source_artifact_id
+            || output_artifact_id != source_artifact_id
+            || previous_head_candidate_role != root_candidate_role
+            || head_candidate_role != root_candidate_role
+            || previous_head_candidate_state_sha256 != root_candidate_state_sha256
+            || head_candidate_state_sha256 != root_candidate_state_sha256
+            || previous_head_artifact_sha256 != root_artifact_sha256
+            || head_artifact_sha256 != root_artifact_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_SAME_CANDIDATE_ARTIFACT_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+
+        // Source/head, lock, candidate and authoring checks all happen before
+        // a CAS reservation.  The parent edge is the exact current V3 head;
+        // no stale parent or retargeted candidate can reach Store.
+        let session = self
+            .store
+            .get_agentic_session(session_id)?
+            .ok_or_else(|| invalid_stage_input("AGENTIC_SESSION_NOT_FOUND"))?;
+        if session.candidate_id != root_candidate_id {
+            return Err(invalid_stage_input(
+                "AGENTIC_SESSION_ROOT_CANDIDATE_MISMATCH",
+            ));
+        }
+        validate_session_binding(
+            &session,
+            session_id,
+            project_id,
+            root_candidate_id,
+            reference_id,
+            reference_sha256,
+            evidence_sha256,
+            &session.observation_sha256,
+        )?;
+        let reference = bound_reference(self, project_id, reference_id)?;
+        if reference.object_sha256 != reference_sha256 {
+            return Err(invalid_stage_input("AGENTIC_REFERENCE_BINDING_MISMATCH"));
+        }
+        let candidate = bound_candidate(self, project_id, root_candidate_id)?;
+        if candidate.canonical_sha256 != root_candidate_state_sha256 {
+            return Err(invalid_stage_input(
+                "PRODUCTION_STAGE_V3_CANDIDATE_STATE_MISMATCH",
+            ));
+        }
+        validate_v2_candidate_artifact_identity(
+            self,
+            &candidate,
+            source_artifact_id,
+            root_artifact_sha256,
+            "root",
+        )?;
+        validate_current_candidate_head(self, &candidate, project_id)?;
+        let authoring_context = read_authoring_context(self, &session)?;
+        if session.reference_canvas_sha256 != reference_canvas_object_sha256
+            || session.design_spec_sha256 != design_spec_object_sha256
+        {
+            return Err(invalid_stage_input(
+                "PRODUCTION_STAGE_V3_AUTHORING_OBJECT_BINDING_MISMATCH",
+            ));
+        }
+        let canvas = authoring_context.get("reference_canvas").ok_or_else(|| {
+            invalid_stage_input("PRODUCTION_STAGE_V3_REFERENCE_CANVAS_READBACK_MISSING")
+        })?;
+        validate_v3_reference_coverage(canvas)?;
+        validate_v3_reference_canvas_binding(canvas, camera_hash, evidence_sha256)?;
+
+        let current_head = self
+            .store
+            .get_production_stage_head_v3(session_id, project_id, root_candidate_id)?
+            .ok_or_else(|| invalid_stage_input("PRODUCTION_STAGE_V3_PARENT_HEAD_NOT_FOUND"))?;
+        if current_head.head_stage != from_stage
+            || current_head.head_candidate_id != previous_head_candidate_id
+            || current_head.head_candidate_state_sha256 != previous_head_candidate_state_sha256
+            || current_head.output_artifact_id != previous_head_artifact_id
+            || current_head.head_artifact_sha256 != previous_head_artifact_sha256
+            || current_head.head_transition_id != parent_transition_id
+            || current_head.head_transition_sha256 != parent_transition_sha256
+        {
+            return Err(invalid_stage_input(
+                "PRODUCTION_STAGE_V3_FORM_PARENT_HEAD_MISMATCH",
+            ));
+        }
+        let parent = self
+            .store
+            .get_production_stage_transition_v3(parent_transition_id)?
+            .ok_or_else(|| invalid_stage_input("PRODUCTION_STAGE_V3_FORM_PARENT_NOT_FOUND"))?;
+        validate_production_stage_transition_v3_and_head(
+            self,
+            &parent,
+            &current_head,
+            session_id,
+            project_id,
+            root_candidate_id,
+            root_candidate_id,
+            false,
+        )?;
+        if parent.canonical_sha256 != parent_transition_sha256 || parent.to_stage != from_stage {
+            return Err(invalid_stage_input(
+                "PRODUCTION_STAGE_V3_FORM_PARENT_BINDING_MISMATCH",
+            ));
+        }
+
+        let lock = self
+            .store
+            .get_production_camera_lock(camera_lock_id)?
+            .ok_or_else(|| invalid_stage_input("PRODUCTION_STAGE_V3_CAMERA_LOCK_NOT_FOUND"))?;
+        validate_production_camera_lock_record(self, &lock)?;
+        if lock.camera_lock_id != camera_lock_id
+            || lock.canonical_sha256 != camera_lock_canonical_sha256
+            || lock.camera_rig_object_sha256 != camera_rig_object_sha256
+            || lock.camera_rig_canonical_sha256 != camera_rig_canonical_sha256
+            || lock.receipt_object_sha256 != camera_lock_receipt_object_sha256
+            || lock.source_transition_id != camera_lock_source_transition_id
+            || lock.source_transition_sha256 != camera_lock_source_transition_sha256
+            || lock.source_head_canonical_sha256 != camera_lock_source_head_canonical_sha256
+            || lock.session_id != session_id
+            || lock.project_id != project_id
+            || lock.candidate_id != root_candidate_id
+            || lock.artifact_id != source_artifact_id
+            || lock.artifact_sha256 != root_artifact_sha256
+            || lock.reference_id != reference_id
+            || lock.reference_sha256 != reference_sha256
+        {
+            return Err(invalid_stage_input(
+                "PRODUCTION_STAGE_V3_FORM_CAMERA_LOCK_BINDING_MISMATCH",
+            ));
+        }
+
+        let quality = read_form_quality_v2_report(self, quality_report_object_sha256)?;
+        if quality.session_id != session_id
+            || quality.project_id != project_id
+            || quality.candidate_id != root_candidate_id
+            || quality.artifact_sha256 != root_artifact_sha256
+            || quality.source_stage != from_stage
+            || quality.target_stage != to_stage
+            || quality.current_source_head_transition_id != parent.transition_id
+            || quality.current_source_head_transition_sha256 != parent.canonical_sha256
+            || quality.current_source_head_canonical_sha256 != current_head.canonical_sha256
+            || quality.form_quality_id.is_empty()
+            || quality.form_quality_policy
+                != forgecad_contracts::PRODUCTION_WEAPON_FORM_QUALITY_V2_POLICY
+            || quality.form_gate_passed != true
+            || quality.hard_gate_passed != true
+            || quality.visual_status != PRODUCTION_WEAPON_FORM_QUALITY_V2_VISUAL_STATUS
+        {
+            return Err(invalid_stage_input(
+                "PRODUCTION_STAGE_V3_FORM_QUALITY_BINDING_MISMATCH",
+            ));
+        }
+        let art = read_form_art_evidence(self, visual_receipt_object_sha256)?;
+        if art.session_id != session_id
+            || art.project_id != project_id
+            || art.candidate_id != root_candidate_id
+            || art.artifact_sha256 != root_artifact_sha256
+            || art.reference_canvas_object_sha256 != reference_canvas_object_sha256
+            || art.design_spec_object_sha256 != design_spec_object_sha256
+            || art.camera_lock_id != camera_lock_id
+            || art.camera_lock_canonical_sha256 != camera_lock_canonical_sha256
+            || art.camera_rig_object_sha256 != camera_rig_object_sha256
+            || art.camera_rig_canonical_sha256 != camera_rig_canonical_sha256
+            || art.camera_lock_receipt_object_sha256 != camera_lock_receipt_object_sha256
+            || art.camera_lock_source_transition_id != camera_lock_source_transition_id
+            || art.camera_lock_source_transition_sha256 != camera_lock_source_transition_sha256
+            || art.camera_lock_source_head_canonical_sha256
+                != camera_lock_source_head_canonical_sha256
+            || art.quality_status != "NOT_PROVEN"
+        {
+            return Err(invalid_stage_input(
+                "PRODUCTION_STAGE_V3_FORM_ART_BINDING_MISMATCH",
+            ));
+        }
+
+        let mut input_binding = production_stage_transition_v3_input_binding(
+            transition_id,
+            session_id,
+            project_id,
+            root_candidate_id,
+            root_candidate_role,
+            root_candidate_state_sha256,
+            source_artifact_id,
+            root_artifact_sha256,
+            previous_head_candidate_id,
+            previous_head_candidate_role,
+            previous_head_candidate_state_sha256,
+            previous_head_artifact_id,
+            previous_head_artifact_sha256,
+            previous_head_stage,
+            head_candidate_id,
+            head_candidate_role,
+            head_candidate_state_sha256,
+            output_artifact_id,
+            head_artifact_sha256,
+            from_stage,
+            to_stage,
+            candidate_binding_status,
+            reference_id,
+            reference_sha256,
+            camera_hash,
+            evidence_sha256,
+            reference_canvas_object_sha256,
+            design_spec_object_sha256,
+            structural_status,
+            visual_status,
+            human_status,
+            engine_status,
+            distribution_status,
+            approval_receipt_id,
+            approval_session_id,
+            approval_expires_at,
+            approval_summary_sha256.as_str(),
+            idempotency_key,
+        );
+        let binding = input_binding
+            .as_object_mut()
+            .ok_or_else(|| invalid_stage_input("PRODUCTION_STAGE_V3_FORM_INPUT_BINDING_INVALID"))?;
+        for (key, value) in [
+            ("camera_lock_id", camera_lock_id),
+            ("camera_lock_canonical_sha256", camera_lock_canonical_sha256),
+            ("camera_rig_object_sha256", camera_rig_object_sha256),
+            ("camera_rig_canonical_sha256", camera_rig_canonical_sha256),
+            (
+                "camera_lock_receipt_object_sha256",
+                camera_lock_receipt_object_sha256,
+            ),
+            (
+                "camera_lock_source_transition_id",
+                camera_lock_source_transition_id,
+            ),
+            (
+                "camera_lock_source_transition_sha256",
+                camera_lock_source_transition_sha256,
+            ),
+            (
+                "camera_lock_source_head_canonical_sha256",
+                camera_lock_source_head_canonical_sha256,
+            ),
+            ("parent_transition_id", parent_transition_id),
+            ("parent_transition_sha256", parent_transition_sha256),
+            (
+                "parent_transition_schema_version",
+                parent_transition_schema_version,
+            ),
+            ("quality_report_object_sha256", quality_report_object_sha256),
+            ("visual_receipt_object_sha256", visual_receipt_object_sha256),
+        ] {
+            binding.insert(key.to_owned(), Value::String(value.to_owned()));
+        }
+        let expected_input_sha256 = canonical_json_hash(&input_binding);
+        if input_sha256 != expected_input_sha256 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRODUCTION_STAGE_V3_INPUT_HASH_MISMATCH: expected={expected_input_sha256} actual={input_sha256}"
+            )));
+        }
+        let mut request_key = production_stage_transition_v3_request_key(
+            transition_id,
+            session_id,
+            project_id,
+            root_candidate_id,
+            source_artifact_id,
+            from_stage,
+            to_stage,
+            reference_canvas_object_sha256,
+            design_spec_object_sha256,
+            approval_receipt_id,
+            approval_session_id,
+            approval_expires_at,
+            approval_summary_sha256.as_str(),
+            idempotency_key,
+        );
+        let request_key_object = request_key
+            .as_object_mut()
+            .ok_or_else(|| invalid_stage_input("PRODUCTION_STAGE_V3_FORM_REQUEST_KEY_INVALID"))?;
+        for (key, value) in [
+            ("camera_lock_id", camera_lock_id),
+            ("camera_lock_canonical_sha256", camera_lock_canonical_sha256),
+            ("camera_rig_object_sha256", camera_rig_object_sha256),
+            ("camera_rig_canonical_sha256", camera_rig_canonical_sha256),
+            (
+                "camera_lock_receipt_object_sha256",
+                camera_lock_receipt_object_sha256,
+            ),
+            (
+                "camera_lock_source_transition_id",
+                camera_lock_source_transition_id,
+            ),
+            (
+                "camera_lock_source_transition_sha256",
+                camera_lock_source_transition_sha256,
+            ),
+            (
+                "camera_lock_source_head_canonical_sha256",
+                camera_lock_source_head_canonical_sha256,
+            ),
+            ("parent_transition_id", parent_transition_id),
+            ("parent_transition_sha256", parent_transition_sha256),
+            (
+                "parent_transition_schema_version",
+                parent_transition_schema_version,
+            ),
+            ("quality_report_object_sha256", quality_report_object_sha256),
+            ("visual_receipt_object_sha256", visual_receipt_object_sha256),
+        ] {
+            request_key_object.insert(key.to_owned(), Value::String(value.to_owned()));
+        }
+        let request_key_sha256 = canonical_json_hash(&request_key);
+        let mut transition = ProductionStageTransitionV3Record {
+            schema_version: "ProductionStageTransition@3".to_owned(),
+            transition_id: transition_id.to_owned(),
+            session_id: session_id.to_owned(),
+            project_id: project_id.to_owned(),
+            root_candidate_id: root_candidate_id.to_owned(),
+            root_candidate_role: root_candidate_role.to_owned(),
+            root_candidate_state_sha256: root_candidate_state_sha256.to_owned(),
+            source_artifact_id: source_artifact_id.to_owned(),
+            root_artifact_sha256: root_artifact_sha256.to_owned(),
+            previous_head_candidate_id: previous_head_candidate_id.to_owned(),
+            previous_head_candidate_role: previous_head_candidate_role.to_owned(),
+            previous_head_candidate_state_sha256: previous_head_candidate_state_sha256.to_owned(),
+            previous_head_artifact_id: previous_head_artifact_id.to_owned(),
+            previous_head_artifact_sha256: previous_head_artifact_sha256.to_owned(),
+            previous_head_stage: previous_head_stage.to_owned(),
+            head_candidate_id: head_candidate_id.to_owned(),
+            head_candidate_role: head_candidate_role.to_owned(),
+            head_candidate_state_sha256: head_candidate_state_sha256.to_owned(),
+            output_artifact_id: output_artifact_id.to_owned(),
+            head_artifact_sha256: head_artifact_sha256.to_owned(),
+            from_stage: from_stage.to_owned(),
+            to_stage: to_stage.to_owned(),
+            candidate_binding_status: candidate_binding_status.to_owned(),
+            reference_id: reference_id.to_owned(),
+            reference_sha256: reference_sha256.to_owned(),
+            camera_hash: camera_hash.to_owned(),
+            camera_lock_id: Some(camera_lock_id.to_owned()),
+            camera_lock_canonical_sha256: Some(camera_lock_canonical_sha256.to_owned()),
+            camera_rig_object_sha256: Some(camera_rig_object_sha256.to_owned()),
+            camera_rig_canonical_sha256: Some(camera_rig_canonical_sha256.to_owned()),
+            camera_lock_receipt_object_sha256: Some(camera_lock_receipt_object_sha256.to_owned()),
+            camera_lock_source_transition_id: Some(camera_lock_source_transition_id.to_owned()),
+            camera_lock_source_transition_sha256: Some(
+                camera_lock_source_transition_sha256.to_owned(),
+            ),
+            camera_lock_source_head_canonical_sha256: Some(
+                camera_lock_source_head_canonical_sha256.to_owned(),
+            ),
+            evidence_sha256: evidence_sha256.to_owned(),
+            reference_canvas_object_sha256: reference_canvas_object_sha256.to_owned(),
+            quality_report_object_sha256: Some(quality_report_object_sha256.to_owned()),
+            comparison_report_object_sha256: None,
+            design_spec_object_sha256: design_spec_object_sha256.to_owned(),
+            visual_receipt_object_sha256: Some(visual_receipt_object_sha256.to_owned()),
+            human_review_receipt_object_sha256: None,
+            engine_validation_receipt_object_sha256: None,
+            distribution_receipt_object_sha256: None,
+            structural_status: structural_status.to_owned(),
+            visual_status: visual_status.to_owned(),
+            human_status: human_status.to_owned(),
+            engine_status: engine_status.to_owned(),
+            distribution_status: distribution_status.to_owned(),
+            approval_receipt_id: approval_receipt_id.to_owned(),
+            approval_session_id: approval_session_id.to_owned(),
+            approval_expires_at: approval_expires_at.to_owned(),
+            approval_summary_sha256,
+            request_key_sha256,
+            parent_transition_id: Some(parent_transition_id.to_owned()),
+            parent_transition_sha256: Some(parent_transition_sha256.to_owned()),
+            parent_transition_schema_version: Some(parent_transition_schema_version.to_owned()),
+            gate_status: "pass".to_owned(),
+            status: "passed".to_owned(),
+            input_sha256: input_sha256.to_owned(),
+            receipt_object_sha256: String::new(),
+            canonical_sha256: String::new(),
+            created_at: session.created_at.clone(),
+        };
+        transition.canonical_sha256 = production_stage_transition_v3_canonical_hash(&transition)?;
+        let receipt_bytes =
+            canonical_json_bytes(&serde_json::to_value(&transition).map_err(|error| {
+                invalid_stage_input(format!(
+                    "PRODUCTION_STAGE_V3_RECEIPT_SERIALIZE_FAILED: {error}"
+                ))
+            })?)?;
+        if receipt_bytes.len() > MAX_PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_BYTES {
+            return Err(invalid_stage_input("PRODUCTION_STAGE_V3_RECEIPT_TOO_LARGE"));
+        }
+        let reservation = self.store.begin_cas_reservation();
+        let receipt_object = match self.store.put_object_reserved(
+            &reservation,
+            &receipt_bytes,
+            None,
+            PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_MIME,
+            PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_KIND,
+            &transition.created_at,
+        ) {
+            Ok(object) => object,
+            Err(error) => return Err(error.into()),
+        };
+        transition.receipt_object_sha256 = receipt_object.record.sha256.clone();
+        if let Err(error) = validate_production_stage_transition_v3_receipt(
+            self,
+            &receipt_object.record.sha256,
+            &transition,
+        ) {
+            release_v3_transition_receipt(self, &reservation, &receipt_object, true);
+            return Err(error);
+        }
+        match self
+            .store
+            .record_production_stage_transition_v3_with_replay(&transition, &receipt_object.record)
+        {
+            Ok((stored, head, replayed)) => {
+                release_v3_transition_receipt(self, &reservation, &receipt_object, false);
+                Ok(production_stage_transition_v3_result(
+                    &stored,
+                    &head,
+                    replayed,
+                    "ProductionStageTransitionPrepareResult@3",
+                    true,
+                ))
+            }
+            Err(error) => {
+                release_v3_transition_receipt(self, &reservation, &receipt_object, true);
+                Err(RuntimeError::Store(error))
+            }
+        }
+    }
+
+    /// Read and revalidate one immutable ProductionStage@3 transition.  This
+    /// path is safe for a fresh MCP process and performs no CAS/SQLite write.
+    pub fn production_stage_transition_v3_get(
+        &self,
+        request: Value,
+    ) -> Result<Value, RuntimeError> {
+        let object = request_object(&request, "production_stage_transition_v3_get")?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "transition_id",
+                "session_id",
+                "project_id",
+                "root_candidate_id",
+                "head_candidate_id",
+            ],
+        )?;
+        require_schema_version(
+            object,
+            "schema_version",
+            "ProductionStageTransitionGetRequest@3",
+        )?;
+        let transition_id = required_id(object, "transition_id")?;
+        let session_id = required_id(object, "session_id")?;
+        let project_id = required_id(object, "project_id")?;
+        let root_candidate_id = required_id(object, "root_candidate_id")?;
+        let head_candidate_id = required_id(object, "head_candidate_id")?;
+        let transition = self
+            .store
+            .get_production_stage_transition_v3(transition_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "NOT_FOUND: production stage transition v3 not found".to_owned(),
+                )
+            })?;
+        let head = self
+            .store
+            .get_production_stage_head_v3(session_id, project_id, root_candidate_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "NOT_FOUND: production stage head v3 not found".to_owned(),
+                )
+            })?;
+        if transition.transition_id != transition_id
+            || transition.session_id != session_id
+            || transition.project_id != project_id
+            || transition.root_candidate_id != root_candidate_id
+            || transition.head_candidate_id != head_candidate_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_TRANSITION_SCOPE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_production_stage_transition_v3_and_head(
+            self,
+            &transition,
+            &head,
+            session_id,
+            project_id,
+            root_candidate_id,
+            head_candidate_id,
+            false,
+        )?;
+        Ok(production_stage_transition_v3_result(
+            &transition,
+            &head,
+            true,
+            "ProductionStageTransitionGetResult@3",
+            false,
+        ))
+    }
+
+    /// Prepare the independent camera-lock prerequisite.  This operation is
+    /// deliberately not a ProductionStage transition: all source/head,
+    /// authoring, reference, rig and approval checks happen before either CAS
+    /// object is reserved, and the only durable write is the lock row plus its
+    /// rig/receipt objects.
+    pub fn production_camera_lock_prepare(&self, request: Value) -> Result<Value, RuntimeError> {
+        let object = request_object(&request, "production_camera_lock_prepare")?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "camera_lock_id",
+                "session_id",
+                "project_id",
+                "source_transition_id",
+                "source_transition_sha256",
+                "source_head_canonical_sha256",
+                "candidate_id",
+                "candidate_state_sha256",
+                "artifact_id",
+                "artifact_sha256",
+                "reference_id",
+                "reference_sha256",
+                "required_reference_view_kinds",
+                "required_camera_view_kinds",
+                "primary_view_kind",
+                "calibration_policy",
+                "input_sha256",
+                "camera_rig",
+                "approval_receipt_id",
+                "approval_session_id",
+                "approval_expires_at",
+                "approval_summary",
+                "approved",
+                "idempotency_key",
+            ],
+        )?;
+        require_schema_version(
+            object,
+            "schema_version",
+            "ProductionCameraLockPrepareRequest@1",
+        )?;
+        require_approval(object)?;
+        let request: ProductionCameraLockPrepareRequest =
+            serde_json::from_value(request).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRODUCTION_CAMERA_LOCK_REQUEST_INVALID: {error}"
+                ))
+            })?;
+        if request.approval_session_id != request.session_id {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_APPROVAL_SESSION_MISMATCH".to_owned(),
+            ));
+        }
+        validate_v2_approval_expiry(&request.approval_expires_at, true)?;
+        if request.approval_receipt_id.is_empty()
+            || request.approval_receipt_id == request.source_transition_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_APPROVAL_RECEIPT_MUST_BE_INDEPENDENT".to_owned(),
+            ));
+        }
+        validate_production_camera_lock_request_shape(&request)?;
+
+        let transition = self
+            .store
+            .get_production_stage_transition_v3(&request.source_transition_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "NOT_FOUND: production stage transition v3 not found".to_owned(),
+                )
+            })?;
+        let head = self
+            .store
+            .get_production_stage_head_v3(
+                &request.session_id,
+                &request.project_id,
+                &request.candidate_id,
+            )?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "NOT_FOUND: production stage head v3 not found".to_owned(),
+                )
+            })?;
+        validate_production_stage_transition_v3_and_head(
+            self,
+            &transition,
+            &head,
+            &request.session_id,
+            &request.project_id,
+            &request.candidate_id,
+            &request.candidate_id,
+            false,
+        )?;
+        validate_production_camera_lock_source(
+            &request,
+            &transition,
+            &head,
+            &request.session_id,
+            &request.project_id,
+        )?;
+
+        let session = self
+            .store
+            .get_agentic_session(&request.session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        let context = read_authoring_context(self, &session)?;
+        let canvas = context
+            .get("reference_canvas")
+            .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_CANVAS_MISSING".to_owned()))?;
+        let design_spec = context
+            .get("design_spec")
+            .ok_or_else(|| RuntimeError::InvalidInput("DESIGN_SPEC_MISSING".to_owned()))?;
+        let reference = bound_reference(self, &request.project_id, &request.reference_id)?;
+        let (rig_hash, rig_canonical) = validate_production_camera_lock_rig(
+            &request.camera_rig,
+            &request.project_id,
+            &request.candidate_id,
+        )?;
+        let registered_rig = materialize_production_camera_lock_registered_rig(
+            self,
+            &request.project_id,
+            &request.candidate_id,
+            &request.candidate_state_sha256,
+            &request.artifact_id,
+            &request.artifact_sha256,
+            &request.camera_rig,
+            &rig_hash,
+        )?;
+        validate_production_camera_lock_canvas(
+            self,
+            canvas,
+            &reference,
+            &request.reference_id,
+            &request.reference_sha256,
+            &request.project_id,
+            &request.candidate_id,
+            &registered_rig,
+        )?;
+        let canvas_canonical = required_document_canonical(canvas, "ReferenceCanvas@1")?;
+        let spec_canonical = required_document_canonical(design_spec, "DesignSpec@1")?;
+        if session.reference_canvas_sha256 != transition.reference_canvas_object_sha256
+            || session.design_spec_sha256 != transition.design_spec_object_sha256
+        {
+            // The request intentionally has no free-form authoring hashes. The
+            // source transition is the authoritative binding for these CAS
+            // objects; this branch is retained as a defensive assertion and
+            // is unreachable because the source validator checks the same
+            // session/transition lineage above.
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_AUTHORING_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+
+        let approval_summary_sha256 = sha256_hex(request.approval_summary.as_bytes());
+        let input_binding = production_camera_lock_input_binding(
+            &request,
+            &rig_canonical,
+            &approval_summary_sha256,
+        );
+        if canonical_json_hash(&input_binding) != request.input_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_INPUT_HASH_MISMATCH".to_owned(),
+            ));
+        }
+        let request_key_sha256 = canonical_json_hash(&production_camera_lock_request_key(
+            &request,
+            &rig_canonical,
+            &approval_summary_sha256,
+        ));
+        let mut lock = ProductionCameraLockRecord {
+            schema_version: PRODUCTION_CAMERA_LOCK_SCHEMA_VERSION.to_owned(),
+            camera_lock_id: request.camera_lock_id.clone(),
+            session_id: request.session_id.clone(),
+            project_id: request.project_id.clone(),
+            source_transition_id: request.source_transition_id.clone(),
+            source_transition_sha256: transition.canonical_sha256.clone(),
+            source_head_canonical_sha256: head.canonical_sha256.clone(),
+            candidate_id: request.candidate_id.clone(),
+            candidate_state_sha256: request.candidate_state_sha256.clone(),
+            artifact_id: request.artifact_id.clone(),
+            artifact_sha256: request.artifact_sha256.clone(),
+            reference_id: request.reference_id.clone(),
+            reference_sha256: request.reference_sha256.clone(),
+            reference_canvas_object_sha256: session.reference_canvas_sha256.clone(),
+            reference_canvas_canonical_sha256: canvas_canonical,
+            design_spec_object_sha256: session.design_spec_sha256.clone(),
+            design_spec_canonical_sha256: spec_canonical,
+            camera_rig_object_sha256: rig_hash,
+            camera_rig_canonical_sha256: rig_canonical,
+            required_reference_view_kinds: request.required_reference_view_kinds.clone(),
+            required_camera_view_kinds: request.required_camera_view_kinds.clone(),
+            primary_view_kind: request.primary_view_kind.clone(),
+            calibration_policy: request.calibration_policy.clone(),
+            review_status: PRODUCTION_CAMERA_LOCK_REVIEW_STATUS.to_owned(),
+            calibration_status: PRODUCTION_CAMERA_LOCK_CALIBRATION_STATUS.to_owned(),
+            structural_status: PRODUCTION_CAMERA_LOCK_STRUCTURAL_STATUS.to_owned(),
+            visual_status: PRODUCTION_CAMERA_LOCK_VISUAL_STATUS.to_owned(),
+            human_status: PRODUCTION_CAMERA_LOCK_HUMAN_STATUS.to_owned(),
+            engine_status: PRODUCTION_CAMERA_LOCK_ENGINE_STATUS.to_owned(),
+            distribution_status: PRODUCTION_CAMERA_LOCK_DISTRIBUTION_STATUS.to_owned(),
+            approval_receipt_id: request.approval_receipt_id.clone(),
+            approval_session_id: request.approval_session_id.clone(),
+            approval_expires_at: request.approval_expires_at.clone(),
+            approval_summary_sha256,
+            input_sha256: request.input_sha256.clone(),
+            request_key_sha256,
+            receipt_object_sha256: String::new(),
+            canonical_sha256: String::new(),
+            created_at: session.created_at.clone(),
+        };
+        lock.canonical_sha256 = production_camera_lock_canonical_hash(&lock)?;
+        let rig_bytes = canonical_json_bytes(&request.camera_rig)?;
+        if rig_bytes.is_empty() || rig_bytes.len() > MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_RIG_TOO_LARGE".to_owned(),
+            ));
+        }
+        let receipt_bytes = production_camera_lock_receipt_bytes(&lock)?;
+        if receipt_bytes.is_empty() || receipt_bytes.len() > MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_RECEIPT_TOO_LARGE".to_owned(),
+            ));
+        }
+
+        let reservation = self.store.begin_cas_reservation();
+        let rig_object = match self.store.put_object_reserved(
+            &reservation,
+            &rig_bytes,
+            Some(&sha256_hex(&rig_bytes)),
+            PRODUCTION_CAMERA_LOCK_JSON_MIME,
+            PRODUCTION_CAMERA_LOCK_RIG_KIND,
+            &lock.created_at,
+        ) {
+            Ok(object) => object,
+            Err(error) => return Err(RuntimeError::Store(error)),
+        };
+        let receipt_object = match self.store.put_object_reserved(
+            &reservation,
+            &receipt_bytes,
+            None,
+            PRODUCTION_CAMERA_LOCK_JSON_MIME,
+            PRODUCTION_CAMERA_LOCK_RECEIPT_KIND,
+            &lock.created_at,
+        ) {
+            Ok(object) => object,
+            Err(error) => {
+                release_production_camera_lock_objects(self, &reservation, &[&rig_object], true);
+                return Err(RuntimeError::Store(error));
+            }
+        };
+        lock.camera_rig_object_sha256 = rig_object.record.sha256.clone();
+        lock.receipt_object_sha256 = receipt_object.record.sha256.clone();
+        if let Err(error) =
+            validate_production_camera_lock_receipt(self, &receipt_object.record, &lock)
+        {
+            release_production_camera_lock_objects(
+                self,
+                &reservation,
+                &[&rig_object, &receipt_object],
+                true,
+            );
+            return Err(error);
+        }
+        match self.store.record_production_camera_lock(
+            &lock,
+            &rig_object.record,
+            &receipt_object.record,
+        ) {
+            Ok((stored, replayed)) => {
+                release_production_camera_lock_objects(
+                    self,
+                    &reservation,
+                    &[&rig_object, &receipt_object],
+                    false,
+                );
+                Ok(production_camera_lock_result(
+                    &stored,
+                    replayed,
+                    "ProductionCameraLockPrepareResult@1",
+                    true,
+                ))
+            }
+            Err(error) => {
+                release_production_camera_lock_objects(
+                    self,
+                    &reservation,
+                    &[&rig_object, &receipt_object],
+                    true,
+                );
+                Err(RuntimeError::Store(error))
+            }
+        }
+    }
+
+    /// Read one ProductionCameraLock@1 and independently revalidate its
+    /// immutable source/head, authoring canvas/spec, rig and receipt.  The
+    /// method deliberately calls only Store reads and CAS reads.
+    pub fn production_camera_lock_get(&self, request: Value) -> Result<Value, RuntimeError> {
+        let object = request_object(&request, "production_camera_lock_get")?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "camera_lock_id",
+                "session_id",
+                "project_id",
+                "candidate_id",
+            ],
+        )?;
+        require_schema_version(object, "schema_version", "ProductionCameraLockGetRequest@1")?;
+        let request: forgecad_contracts::ProductionCameraLockGetRequest =
+            serde_json::from_value(request).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRODUCTION_CAMERA_LOCK_GET_REQUEST_INVALID: {error}"
+                ))
+            })?;
+        let lock = self
+            .store
+            .get_production_camera_lock(&request.camera_lock_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("NOT_FOUND: production camera lock".to_owned())
+            })?;
+        if lock.session_id != request.session_id
+            || lock.project_id != request.project_id
+            || lock.candidate_id != request.candidate_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_SCOPE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_production_camera_lock_record(self, &lock)?;
+        Ok(production_camera_lock_result(
+            &lock,
+            false,
+            "ProductionCameraLockGetResult@1",
+            false,
+        ))
+    }
+
+    /// Persist the success-only semantic registration child of an immutable
+    /// CameraLock. The request carries only one artistic choice (the authored
+    /// rear-three-quarter rotation) and approval primitives; Runtime derives
+    /// the program, ordering, crop hashes, exact transform and RigV2.
+    pub fn production_camera_lock_registration_lineage_prepare(
+        &self,
+        request_value: Value,
+    ) -> Result<Value, RuntimeError> {
+        let object = request_object(
+            &request_value,
+            "production_camera_lock_registration_lineage_prepare",
+        )?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "operation",
+                "registration_lineage_id",
+                "session_id",
+                "project_id",
+                "candidate_id",
+                "candidate_state_sha256",
+                "camera_lock_id",
+                "camera_lock_canonical_sha256",
+                "semantic_landmark_ordering_id",
+                "authored_orientation_id",
+                "registered_rig_v2_id",
+                "rear_three_quarter_rotation_degrees",
+                "rear_three_quarter_subject_screen_order",
+                "rear_three_quarter_camera_orbit_degrees",
+                "approval_receipt_id",
+                "approval_session_id",
+                "approval_expires_at",
+                "approval_summary",
+                "approved",
+                "idempotency_key",
+                "input_sha256",
+            ],
+        )?;
+        require_schema_version(
+            object,
+            "schema_version",
+            "ProductionCameraLockRegistrationLineagePrepareRequest@1",
+        )?;
+        require_approval(object)?;
+        let request: forgecad_contracts::ProductionCameraLockRegistrationLineagePrepareRequest =
+            serde_json::from_value(request_value.clone()).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_REQUEST_INVALID: {error}"
+                ))
+            })?;
+        validate_production_camera_lock_registration_lineage_prepare_request(&request)?;
+        validate_v2_approval_expiry(&request.approval_expires_at, true)?;
+
+        let lock = self
+            .store
+            .get_production_camera_lock(&request.camera_lock_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("NOT_FOUND: production camera lock".to_owned())
+            })?;
+        validate_production_camera_lock_record(self, &lock)?;
+        if lock.camera_lock_id != request.camera_lock_id
+            || lock.canonical_sha256 != request.camera_lock_canonical_sha256
+            || lock.session_id != request.session_id
+            || lock.project_id != request.project_id
+            || lock.candidate_id != request.candidate_id
+            || lock.candidate_state_sha256 != request.candidate_state_sha256
+            || request.approval_session_id != request.session_id
+            || request.approval_receipt_id == lock.approval_receipt_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_SCOPE_MISMATCH".to_owned(),
+            ));
+        }
+
+        let approval_summary_sha256 = sha256_hex(request.approval_summary.as_bytes());
+        let input_binding = production_camera_lock_registration_lineage_input_binding(
+            &request,
+            &approval_summary_sha256,
+        );
+        if canonical_json_hash(&input_binding) != request.input_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_INPUT_HASH_MISMATCH".to_owned(),
+            ));
+        }
+        let request_sha256 = canonical_json_hash(&request_value);
+
+        let session = self
+            .store
+            .get_agentic_session(&request.session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        let context = read_authoring_context(self, &session)?;
+        let canvas = context
+            .get("reference_canvas")
+            .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_CANVAS_MISSING".to_owned()))?;
+        if required_document_canonical(canvas, "ReferenceCanvas@1")?
+            != lock.reference_canvas_canonical_sha256
+            || session.reference_canvas_sha256 != lock.reference_canvas_object_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_CANVAS_MISMATCH".to_owned(),
+            ));
+        }
+        let reference = bound_reference(self, &request.project_id, &lock.reference_id)?;
+        let reference_bindings = materialize_production_camera_lock_reference_bindings(
+            self,
+            canvas,
+            &reference,
+            request.rear_three_quarter_rotation_degrees,
+        )?;
+        let subject_rig_bytes = self.cas_read_bounded(
+            &lock.camera_rig_object_sha256,
+            MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES as u64,
+        )?;
+        let subject_rig: Value = serde_json::from_slice(&subject_rig_bytes).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_SUBJECT_RIG_INVALID: {error}"
+            ))
+        })?;
+        if canonical_json_bytes(&subject_rig)? != subject_rig_bytes
+            || subject_rig.get("canonical_sha256").and_then(Value::as_str)
+                != Some(lock.camera_rig_canonical_sha256.as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_SUBJECT_RIG_HASH_MISMATCH".to_owned(),
+            ));
+        }
+        let registered_rig_v1 = materialize_production_camera_lock_registered_rig(
+            self,
+            &lock.project_id,
+            &lock.candidate_id,
+            &lock.candidate_state_sha256,
+            &lock.artifact_id,
+            &lock.artifact_sha256,
+            &subject_rig,
+            &lock.camera_rig_object_sha256,
+        )?;
+        let (program, geometry_program_object_sha256) =
+            read_production_camera_lock_geometry_program(
+                self,
+                &lock.project_id,
+                &lock.candidate_id,
+                &lock.artifact_sha256,
+            )?;
+        let lock_value = serde_json::to_value(&lock).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PARENT_SERIALIZE_FAILED: {error}"
+            ))
+        })?;
+        let semantic_ordering =
+            crate::multiview::camera_rig::materialize_production_weapon_semantic_landmark_ordering(
+                &registered_rig_v1,
+                &lock_value,
+                &program,
+                &request.semantic_landmark_ordering_id,
+            )
+            .map_err(RuntimeError::InvalidInput)?;
+        let semantic_camera_preview =
+            crate::multiview::camera_rig::materialize_rear_three_quarter_semantic_camera_preview(
+                &registered_rig_v1,
+                &semantic_ordering,
+                &request.rear_three_quarter_subject_screen_order,
+            )
+            .map_err(RuntimeError::InvalidInput)?;
+        let approval_context = production_camera_lock_orientation_approval_context(
+            &request,
+            &lock,
+            &semantic_camera_preview,
+        )?;
+        let approval_context_value = serde_json::to_value(&approval_context).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_SERIALIZE_FAILED: {error}"
+            ))
+        })?;
+        let approval_receipt = json!({
+            "schema_version":"ApprovalReceipt@1",
+            "approval_receipt_id":request.approval_receipt_id,
+            "project_id":request.project_id,
+            "tool":"production_camera_lock_registration_lineage_prepare",
+            "base_version_id":Value::Null,
+            "prepared_object_id":request.camera_lock_id,
+            "prepared_object_sha256":request.camera_lock_canonical_sha256,
+            "quality_report_id":Value::Null,
+            "summary_sha256":approval_summary_sha256,
+            "decision":"approved",
+            "expires_at":request.approval_expires_at,
+            "session_id":request.approval_session_id,
+            "created_at":lock.created_at,
+            "approval_context":approval_context_value
+        });
+        let approval_receipt: ApprovalReceiptRecord = serde_json::from_value(approval_receipt)
+            .map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_RECEIPT_INVALID: {error}"
+                ))
+            })?;
+        validate_production_camera_lock_orientation_approval_receipt(
+            &approval_receipt,
+            &approval_context,
+            &request,
+            &lock,
+            &semantic_camera_preview,
+        )?;
+        let request_key_sha256 = canonical_json_hash(&json!({
+            "request_sha256":request_sha256,
+            "approval_context_binding_sha256":approval_context.binding_sha256
+        }));
+        let approval_receipt = serde_json::to_value(&approval_receipt).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_RECEIPT_SERIALIZE_FAILED: {error}"
+            ))
+        })?;
+        let approval_receipt_bytes = canonical_json_bytes(&approval_receipt)?;
+        let approval_receipt_object_sha256 = sha256_hex(&approval_receipt_bytes);
+        let orientation =
+            crate::multiview::camera_rig::materialize_production_weapon_authored_view_orientation(
+                &lock_value,
+                &request.authored_orientation_id,
+                &reference_bindings.rear_view_spec_canonical_sha256,
+                reference_bindings.board_size_px,
+                reference_bindings.crop_xywh_px,
+                &reference_bindings.source_crop_sha256,
+                &reference_bindings.runtime_crop_png_sha256,
+                request.rear_three_quarter_rotation_degrees,
+                &approval_receipt_object_sha256,
+                &request.rear_three_quarter_subject_screen_order,
+                request.rear_three_quarter_camera_orbit_degrees,
+            )
+            .map_err(RuntimeError::InvalidInput)?;
+        let semantic_bytes = canonical_json_bytes(&semantic_ordering)?;
+        let orientation_bytes = canonical_json_bytes(&orientation)?;
+        if semantic_bytes.len() > MAX_PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_OBJECT_BYTES
+            || orientation_bytes.len()
+                > MAX_PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_OBJECT_BYTES
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_CHILD_TOO_LARGE".to_owned(),
+            ));
+        }
+
+        let reservation = self.store.begin_cas_reservation();
+        let approval_receipt_object = match self.store.put_object_reserved(
+            &reservation,
+            &approval_receipt_bytes,
+            None,
+            PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_JSON_MIME,
+            "production-weapon-authored-orientation-approval-receipt",
+            &lock.created_at,
+        ) {
+            Ok(object) if object.record.sha256 == approval_receipt_object_sha256 => object,
+            Ok(object) => {
+                release_production_camera_lock_objects(self, &reservation, &[&object], true);
+                return Err(RuntimeError::InvalidInput(
+                    "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_APPROVAL_RECEIPT_HASH_MISMATCH"
+                        .to_owned(),
+                ));
+            }
+            Err(error) => return Err(RuntimeError::Store(error)),
+        };
+        let semantic_object = match self.store.put_object_reserved(
+            &reservation,
+            &semantic_bytes,
+            None,
+            PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_JSON_MIME,
+            PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_SEMANTIC_KIND,
+            &lock.created_at,
+        ) {
+            Ok(object) => object,
+            Err(error) => {
+                release_production_camera_lock_objects(
+                    self,
+                    &reservation,
+                    &[&approval_receipt_object],
+                    true,
+                );
+                return Err(RuntimeError::Store(error));
+            }
+        };
+        let orientation_object = match self.store.put_object_reserved(
+            &reservation,
+            &orientation_bytes,
+            None,
+            PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_JSON_MIME,
+            PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_ORIENTATION_KIND,
+            &lock.created_at,
+        ) {
+            Ok(object) => object,
+            Err(error) => {
+                release_production_camera_lock_objects(
+                    self,
+                    &reservation,
+                    &[&approval_receipt_object, &semantic_object],
+                    true,
+                );
+                return Err(RuntimeError::Store(error));
+            }
+        };
+        let registered_rig_v2 =
+            crate::multiview::camera_rig::materialize_registered_weapon_camera_rig_v2(
+                &registered_rig_v1,
+                &lock_value,
+                &semantic_ordering,
+                &semantic_object.record.sha256,
+                &orientation,
+                &orientation_object.record.sha256,
+                &reference_bindings.reference_views,
+                &request.registered_rig_v2_id,
+                request.rear_three_quarter_camera_orbit_degrees,
+            )
+            .map_err(|error| {
+                release_production_camera_lock_objects(
+                    self,
+                    &reservation,
+                    &[
+                        &approval_receipt_object,
+                        &semantic_object,
+                        &orientation_object,
+                    ],
+                    true,
+                );
+                RuntimeError::InvalidInput(error)
+            })?;
+        let registered_rig_v2_bytes = canonical_json_bytes(&registered_rig_v2)?;
+        let registered_rig_v2_object = match self.store.put_object_reserved(
+            &reservation,
+            &registered_rig_v2_bytes,
+            None,
+            PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_JSON_MIME,
+            PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_RIG_V2_KIND,
+            &lock.created_at,
+        ) {
+            Ok(object) => object,
+            Err(error) => {
+                release_production_camera_lock_objects(
+                    self,
+                    &reservation,
+                    &[
+                        &approval_receipt_object,
+                        &semantic_object,
+                        &orientation_object,
+                    ],
+                    true,
+                );
+                return Err(RuntimeError::Store(error));
+            }
+        };
+        let mut lineage = ProductionCameraLockRegistrationLineageRecord {
+            schema_version: "ProductionCameraLockRegistrationLineage@1".to_owned(),
+            registration_lineage_id: request.registration_lineage_id.clone(),
+            camera_lock_id: lock.camera_lock_id.clone(),
+            camera_lock_canonical_sha256: lock.canonical_sha256.clone(),
+            camera_lock_receipt_object_sha256: lock.receipt_object_sha256.clone(),
+            session_id: lock.session_id.clone(),
+            project_id: lock.project_id.clone(),
+            source_transition_id: lock.source_transition_id.clone(),
+            source_transition_sha256: lock.source_transition_sha256.clone(),
+            source_head_canonical_sha256: lock.source_head_canonical_sha256.clone(),
+            candidate_id: lock.candidate_id.clone(),
+            candidate_state_sha256: lock.candidate_state_sha256.clone(),
+            artifact_id: lock.artifact_id.clone(),
+            artifact_sha256: lock.artifact_sha256.clone(),
+            reference_id: lock.reference_id.clone(),
+            reference_sha256: lock.reference_sha256.clone(),
+            reference_canvas_object_sha256: lock.reference_canvas_object_sha256.clone(),
+            reference_canvas_canonical_sha256: lock.reference_canvas_canonical_sha256.clone(),
+            design_spec_object_sha256: lock.design_spec_object_sha256.clone(),
+            design_spec_canonical_sha256: lock.design_spec_canonical_sha256.clone(),
+            subject_camera_rig_object_sha256: lock.camera_rig_object_sha256.clone(),
+            subject_camera_rig_canonical_sha256: lock.camera_rig_canonical_sha256.clone(),
+            geometry_program_object_sha256,
+            geometry_program_sha256: program["canonical_sha256"]
+                .as_str()
+                .expect("Runtime-bound geometry program hash")
+                .to_owned(),
+            semantic_landmark_ordering_object_sha256: semantic_object.record.sha256.clone(),
+            semantic_landmark_ordering_canonical_sha256: semantic_ordering["canonical_sha256"]
+                .as_str()
+                .expect("Runtime materialized semantic ordering hash")
+                .to_owned(),
+            authored_orientation_object_sha256: orientation_object.record.sha256.clone(),
+            authored_orientation_canonical_sha256: orientation["canonical_sha256"]
+                .as_str()
+                .expect("Runtime materialized authored orientation hash")
+                .to_owned(),
+            authored_orientation_approval_receipt_object_sha256: Some(
+                approval_receipt_object.record.sha256.clone(),
+            ),
+            registered_rig_v2_object_sha256: registered_rig_v2_object.record.sha256.clone(),
+            registered_rig_v2_canonical_sha256: registered_rig_v2["canonical_sha256"]
+                .as_str()
+                .expect("Runtime materialized RigV2 hash")
+                .to_owned(),
+            lineage_policy: PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_POLICY.to_owned(),
+            promotable: true,
+            input_sha256: request.input_sha256.clone(),
+            request_key_sha256,
+            receipt_object_sha256: String::new(),
+            canonical_sha256: String::new(),
+            created_at: lock.created_at.clone(),
+        };
+        lineage.canonical_sha256 =
+            production_camera_lock_registration_lineage_canonical_hash(&lineage)?;
+        let receipt_bytes = production_camera_lock_registration_lineage_receipt_bytes(&lineage)?;
+        let receipt_object = match self.store.put_object_reserved(
+            &reservation,
+            &receipt_bytes,
+            None,
+            PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_JSON_MIME,
+            PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_RECEIPT_KIND,
+            &lock.created_at,
+        ) {
+            Ok(object) => object,
+            Err(error) => {
+                release_production_camera_lock_objects(
+                    self,
+                    &reservation,
+                    &[
+                        &approval_receipt_object,
+                        &semantic_object,
+                        &orientation_object,
+                        &registered_rig_v2_object,
+                    ],
+                    true,
+                );
+                return Err(RuntimeError::Store(error));
+            }
+        };
+        lineage.receipt_object_sha256 = receipt_object.record.sha256.clone();
+        match self
+            .store
+            .record_production_camera_lock_registration_lineage(&lineage)
+        {
+            Ok((stored, replayed)) => {
+                release_production_camera_lock_objects(
+                    self,
+                    &reservation,
+                    &[
+                        &approval_receipt_object,
+                        &semantic_object,
+                        &orientation_object,
+                        &registered_rig_v2_object,
+                        &receipt_object,
+                    ],
+                    false,
+                );
+                let restarted = self
+                    .store
+                    .get_production_camera_lock_registration_lineage(
+                        &stored.registration_lineage_id,
+                    )?
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput(
+                            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_RESTART_READBACK_MISSING"
+                                .to_owned(),
+                        )
+                    })?;
+                production_camera_lock_registration_lineage_result(
+                    self,
+                    &restarted,
+                    "ProductionCameraLockRegistrationLineagePrepareResult@1",
+                    "forgecad.production.camera-lock-registration-lineage-prepare@1",
+                    &request_sha256,
+                    &request.input_sha256,
+                    Some(&request.idempotency_key),
+                    replayed,
+                    true,
+                )
+            }
+            Err(error) => {
+                release_production_camera_lock_objects(
+                    self,
+                    &reservation,
+                    &[
+                        &approval_receipt_object,
+                        &semantic_object,
+                        &orientation_object,
+                        &registered_rig_v2_object,
+                        &receipt_object,
+                    ],
+                    true,
+                );
+                Err(RuntimeError::Store(error))
+            }
+        }
+    }
+
+    pub fn production_camera_lock_registration_lineage_get(
+        &self,
+        request_value: Value,
+    ) -> Result<Value, RuntimeError> {
+        let object = request_object(
+            &request_value,
+            "production_camera_lock_registration_lineage_get",
+        )?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "operation",
+                "registration_lineage_id",
+                "session_id",
+                "project_id",
+                "candidate_id",
+                "candidate_state_sha256",
+                "camera_lock_id",
+                "camera_lock_canonical_sha256",
+                "max_response_bytes",
+                "writer_policy",
+                "input_sha256",
+                "runtime_write_performed",
+                "persistent_user_data_touched",
+            ],
+        )?;
+        require_schema_version(
+            object,
+            "schema_version",
+            "ProductionCameraLockRegistrationLineageGetRequest@1",
+        )?;
+        let request: forgecad_contracts::ProductionCameraLockRegistrationLineageGetRequest =
+            serde_json::from_value(request_value.clone()).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_REQUEST_INVALID: {error}"
+                ))
+            })?;
+        validate_production_camera_lock_registration_lineage_get_request(&request)?;
+        let expected_input = canonical_json_hash(&json!({
+            "operation":request.operation,
+            "registration_lineage_id":request.registration_lineage_id,
+            "session_id":request.session_id,
+            "project_id":request.project_id,
+            "candidate_id":request.candidate_id,
+            "candidate_state_sha256":request.candidate_state_sha256,
+            "camera_lock_id":request.camera_lock_id,
+            "camera_lock_canonical_sha256":request.camera_lock_canonical_sha256,
+            "max_response_bytes":request.max_response_bytes,
+            "writer_policy":request.writer_policy,
+            "runtime_write_performed":false,
+            "persistent_user_data_touched":false
+        }));
+        if expected_input != request.input_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_INPUT_HASH_MISMATCH".to_owned(),
+            ));
+        }
+        let lineage = self
+            .store
+            .get_production_camera_lock_registration_lineage(&request.registration_lineage_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "NOT_FOUND: production camera lock registration lineage".to_owned(),
+                )
+            })?;
+        if lineage.session_id != request.session_id
+            || lineage.project_id != request.project_id
+            || lineage.candidate_id != request.candidate_id
+            || lineage.candidate_state_sha256 != request.candidate_state_sha256
+            || lineage.camera_lock_id != request.camera_lock_id
+            || lineage.camera_lock_canonical_sha256 != request.camera_lock_canonical_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_SCOPE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_production_camera_lock_registration_lineage_runtime(self, &lineage)?;
+        production_camera_lock_registration_lineage_result(
+            self,
+            &lineage,
+            "ProductionCameraLockRegistrationLineageGetResult@1",
+            "forgecad.production.camera-lock-registration-lineage-get@1",
+            &canonical_json_hash(&request_value),
+            &request.input_sha256,
+            None,
+            true,
+            false,
+        )
+    }
+}
+
+fn validate_production_camera_lock_registration_lineage_prepare_request(
+    request: &forgecad_contracts::ProductionCameraLockRegistrationLineagePrepareRequest,
+) -> Result<(), RuntimeError> {
+    let derived_camera_orbit =
+        crate::multiview::camera_rig::rear_three_quarter_camera_orbit_for_screen_order(
+            &request.rear_three_quarter_subject_screen_order,
+        )
+        .map_err(|_| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_REQUEST_POLICY_MISMATCH".to_owned(),
+            )
+        })?;
+    if request.operation
+        != forgecad_contracts::PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PREPARE_OPERATION
+        || request.approval_summary.is_empty()
+        || request.approval_summary.len() > 512
+        || !request.approved
+        || ![-180, -90, 0, 90, 180].contains(&request.rear_three_quarter_rotation_degrees)
+        || !["stock-left-muzzle-right", "muzzle-left-stock-right"]
+            .contains(&request.rear_three_quarter_subject_screen_order.as_str())
+        || request.rear_three_quarter_camera_orbit_degrees != derived_camera_orbit
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_REQUEST_POLICY_MISMATCH".to_owned(),
+        ));
+    }
+    for (field, value) in [
+        (
+            "registration_lineage_id",
+            request.registration_lineage_id.as_str(),
+        ),
+        ("session_id", request.session_id.as_str()),
+        ("project_id", request.project_id.as_str()),
+        ("candidate_id", request.candidate_id.as_str()),
+        ("camera_lock_id", request.camera_lock_id.as_str()),
+        (
+            "semantic_landmark_ordering_id",
+            request.semantic_landmark_ordering_id.as_str(),
+        ),
+        (
+            "authored_orientation_id",
+            request.authored_orientation_id.as_str(),
+        ),
+        (
+            "registered_rig_v2_id",
+            request.registered_rig_v2_id.as_str(),
+        ),
+        ("approval_receipt_id", request.approval_receipt_id.as_str()),
+        ("approval_session_id", request.approval_session_id.as_str()),
+        ("idempotency_key", request.idempotency_key.as_str()),
+    ] {
+        if !is_opaque_id(value) {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_{field}_INVALID"
+            )));
+        }
+    }
+    for (field, value) in [
+        (
+            "candidate_state_sha256",
+            request.candidate_state_sha256.as_str(),
+        ),
+        (
+            "camera_lock_canonical_sha256",
+            request.camera_lock_canonical_sha256.as_str(),
+        ),
+        ("input_sha256", request.input_sha256.as_str()),
+    ] {
+        if !is_sha256(value) {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_{field}_INVALID"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn production_camera_lock_orientation_approval_context(
+    request: &forgecad_contracts::ProductionCameraLockRegistrationLineagePrepareRequest,
+    lock: &ProductionCameraLockRecord,
+    semantic_camera_preview: &Value,
+) -> Result<ApprovalReceiptContextRecord, RuntimeError> {
+    if request.rear_three_quarter_rotation_degrees
+        != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_ROTATION_DEGREES
+        || request.rear_three_quarter_subject_screen_order
+            != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCREEN_ORDER
+        || request.rear_three_quarter_camera_orbit_degrees
+            != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_ORBIT_DEGREES
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_TARGET_MISMATCH".to_owned(),
+        ));
+    }
+
+    let camera_orbit = semantic_camera_preview
+        .get("camera_orbit_degrees")
+        .and_then(Value::as_i64)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_ORBIT_MISSING".to_owned(),
+            )
+        })?;
+    let derived_camera_hash = semantic_camera_preview
+        .get("derived_registered_camera_hash")
+        .and_then(Value::as_str)
+        .filter(|hash| is_sha256(hash))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_HASH_INVALID".to_owned(),
+            )
+        })?;
+    let derived_camera_canonical_sha256 = semantic_camera_preview
+        .get("derived_registered_camera_canonical_sha256")
+        .and_then(Value::as_str)
+        .filter(|hash| is_sha256(hash))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_CANONICAL_INVALID".to_owned(),
+            )
+        })?;
+    let proof = semantic_camera_preview
+        .get("upright_proof")
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_UPRIGHT_PROOF_MISSING".to_owned(),
+            )
+        })?;
+    let proof_sha256 =
+        validate_production_camera_lock_orientation_proof(proof, derived_camera_hash)?;
+    if camera_orbit != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_ORBIT_DEGREES
+        || derived_camera_hash != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_HASH
+        || semantic_camera_preview
+            .get("semantic_orientation_proof_passed")
+            .and_then(Value::as_bool)
+            != Some(true)
+        || semantic_camera_preview
+            .get("semantic_orientation_proof_sha256")
+            .and_then(Value::as_str)
+            != Some(proof_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_DERIVED_PROOF_MISMATCH".to_owned(),
+        ));
+    }
+
+    let scope = ApprovalReceiptContextScope {
+        project_id: lock.project_id.clone(),
+        session_id: lock.session_id.clone(),
+        candidate_id: lock.candidate_id.clone(),
+        candidate_state_sha256: lock.candidate_state_sha256.clone(),
+        artifact_id: lock.artifact_id.clone(),
+        artifact_sha256: lock.artifact_sha256.clone(),
+        reference_id: lock.reference_id.clone(),
+        reference_sha256: lock.reference_sha256.clone(),
+        registration_lineage_id: request.registration_lineage_id.clone(),
+        camera_lock_id: lock.camera_lock_id.clone(),
+        camera_lock_canonical_sha256: lock.canonical_sha256.clone(),
+        authored_orientation_id: request.authored_orientation_id.clone(),
+        registered_rig_v2_id: request.registered_rig_v2_id.clone(),
+    };
+    let orientation = ApprovalReceiptOrientation {
+        rotation_degrees: request.rear_three_quarter_rotation_degrees,
+        subject_screen_order: request.rear_three_quarter_subject_screen_order.clone(),
+        upright: true,
+        screen_up: "world-positive-y".to_owned(),
+        derived_camera_orbit_degrees: camera_orbit,
+        derived_camera_hash: derived_camera_hash.to_owned(),
+        derived_camera_canonical_sha256: derived_camera_canonical_sha256.to_owned(),
+        semantic_orientation_proof_sha256: proof_sha256,
+    };
+    let binding_sha256 = canonical_json_hash(&json!({
+        "scope": &scope,
+        "orientation": &orientation
+    }));
+    let context = ApprovalReceiptContextRecord {
+        schema_version: PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_SCHEMA_VERSION
+            .to_owned(),
+        policy: PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_POLICY.to_owned(),
+        scope,
+        orientation,
+        binding_sha256,
+    };
+    validate_production_camera_lock_orientation_approval_context_integrity(&context)?;
+    Ok(context)
+}
+
+fn validate_production_camera_lock_orientation_proof(
+    proof: &Value,
+    expected_camera_hash: &str,
+) -> Result<String, RuntimeError> {
+    let proof_sha256 = proof
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .filter(|hash| is_sha256(hash))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_PROOF_HASH_INVALID".to_owned(),
+            )
+        })?;
+    if proof.get("policy").and_then(Value::as_str)
+        != Some("runtime-projected-stock-muzzle-screen-order-and-world-y-upright@1")
+        || proof.get("camera_hash").and_then(Value::as_str) != Some(expected_camera_hash)
+        || proof
+            .get("expected_subject_screen_order")
+            .and_then(Value::as_str)
+            != Some(PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCREEN_ORDER)
+        || proof
+            .get("projected_subject_screen_order")
+            .and_then(Value::as_str)
+            != Some(PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCREEN_ORDER)
+        || proof.get("screen_up").and_then(Value::as_str) != Some("world-positive-y")
+        || proof.get("passed").and_then(Value::as_bool) != Some(true)
+        || proof
+            .get("world_y_screen_up_dot_milli")
+            .and_then(Value::as_i64)
+            .filter(|dot| *dot > 0)
+            .is_none()
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_UPRIGHT_PROOF_MISMATCH".to_owned(),
+        ));
+    }
+    let mut without_hash = proof.clone();
+    without_hash["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&without_hash) != proof_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_PROOF_CANONICAL_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(proof_sha256.to_owned())
+}
+
+fn validate_production_camera_lock_orientation_approval_context_integrity(
+    context: &ApprovalReceiptContextRecord,
+) -> Result<(), RuntimeError> {
+    if context.schema_version != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_SCHEMA_VERSION
+        || context.policy != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_POLICY
+        || context.orientation.rotation_degrees
+            != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_ROTATION_DEGREES
+        || context.orientation.subject_screen_order
+            != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCREEN_ORDER
+        || !context.orientation.upright
+        || context.orientation.screen_up != "world-positive-y"
+        || context.orientation.derived_camera_orbit_degrees
+            != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_ORBIT_DEGREES
+        || context.orientation.derived_camera_hash
+            != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_HASH
+        || !is_sha256(&context.orientation.derived_camera_canonical_sha256)
+        || !is_sha256(&context.orientation.semantic_orientation_proof_sha256)
+        || !is_sha256(&context.binding_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_MISMATCH".to_owned(),
+        ));
+    }
+    for value in [
+        context.scope.project_id.as_str(),
+        context.scope.session_id.as_str(),
+        context.scope.candidate_id.as_str(),
+        context.scope.artifact_id.as_str(),
+        context.scope.reference_id.as_str(),
+        context.scope.registration_lineage_id.as_str(),
+        context.scope.camera_lock_id.as_str(),
+        context.scope.authored_orientation_id.as_str(),
+        context.scope.registered_rig_v2_id.as_str(),
+    ] {
+        if !is_opaque_id(value) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCOPE_ID_INVALID".to_owned(),
+            ));
+        }
+    }
+    for value in [
+        context.scope.candidate_state_sha256.as_str(),
+        context.scope.artifact_sha256.as_str(),
+        context.scope.reference_sha256.as_str(),
+        context.scope.camera_lock_canonical_sha256.as_str(),
+    ] {
+        if !is_sha256(value) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCOPE_HASH_INVALID".to_owned(),
+            ));
+        }
+    }
+    if canonical_json_hash(&json!({
+        "scope": &context.scope,
+        "orientation": &context.orientation
+    })) != context.binding_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_production_camera_lock_orientation_approval_receipt(
+    receipt: &ApprovalReceiptRecord,
+    expected_context: &ApprovalReceiptContextRecord,
+    request: &forgecad_contracts::ProductionCameraLockRegistrationLineagePrepareRequest,
+    lock: &ProductionCameraLockRecord,
+    semantic_camera_preview: &Value,
+) -> Result<(), RuntimeError> {
+    validate_v2_approval_expiry(&receipt.expires_at, true)?;
+    let approval_summary_sha256 = sha256_hex(request.approval_summary.as_bytes());
+    let recomputed_context = production_camera_lock_orientation_approval_context(
+        request,
+        lock,
+        semantic_camera_preview,
+    )?;
+    if &recomputed_context != expected_context
+        || receipt.approval_context.as_ref() != Some(expected_context)
+        || receipt.schema_version != "ApprovalReceipt@1"
+        || receipt.approval_receipt_id != request.approval_receipt_id
+        || receipt.project_id != lock.project_id
+        || receipt.tool != "production_camera_lock_registration_lineage_prepare"
+        || receipt.base_version_id.is_some()
+        || receipt.prepared_object_id != lock.camera_lock_id
+        || receipt.prepared_object_sha256 != lock.canonical_sha256
+        || receipt.quality_report_id.is_some()
+        || receipt.summary_sha256 != approval_summary_sha256
+        || receipt.decision != "approved"
+        || receipt.expires_at != request.approval_expires_at
+        || receipt.session_id != request.session_id
+        || receipt.created_at != lock.created_at
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_RECEIPT_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_production_camera_lock_orientation_approval_receipt_runtime(
+    receipt: &ApprovalReceiptRecord,
+    lineage: &ProductionCameraLockRegistrationLineageRecord,
+    lock: &ProductionCameraLockRecord,
+    orientation: &Value,
+    semantic_camera_preview: &Value,
+    rig_v2: &Value,
+) -> Result<(), RuntimeError> {
+    let context = receipt.approval_context.as_ref().ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CONTEXT_MISSING".to_owned(),
+        )
+    })?;
+    validate_production_camera_lock_orientation_approval_context_integrity(context)?;
+    if lock.artifact_id != lineage.artifact_id
+        || lock.artifact_sha256 != lineage.artifact_sha256
+        || lock.reference_id != lineage.reference_id
+        || lock.reference_sha256 != lineage.reference_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_SCOPE_MISMATCH".to_owned(),
+        ));
+    }
+    let orientation_id = orientation
+        .get("orientation_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_ORIENTATION_ID_MISSING".to_owned(),
+            )
+        })?;
+    let registered_rig_v2_id = rig_v2
+        .get("registered_rig_v2_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_RIG_V2_ID_MISSING".to_owned(),
+            )
+        })?;
+    let expected_scope = ApprovalReceiptContextScope {
+        project_id: lineage.project_id.clone(),
+        session_id: lineage.session_id.clone(),
+        candidate_id: lineage.candidate_id.clone(),
+        candidate_state_sha256: lineage.candidate_state_sha256.clone(),
+        artifact_id: lineage.artifact_id.clone(),
+        artifact_sha256: lineage.artifact_sha256.clone(),
+        reference_id: lineage.reference_id.clone(),
+        reference_sha256: lineage.reference_sha256.clone(),
+        registration_lineage_id: lineage.registration_lineage_id.clone(),
+        camera_lock_id: lineage.camera_lock_id.clone(),
+        camera_lock_canonical_sha256: lineage.camera_lock_canonical_sha256.clone(),
+        authored_orientation_id: orientation_id.to_owned(),
+        registered_rig_v2_id: registered_rig_v2_id.to_owned(),
+    };
+    if context.scope != expected_scope {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCOPE_MISMATCH".to_owned(),
+        ));
+    }
+
+    let derived_camera_hash = semantic_camera_preview
+        .get("derived_registered_camera_hash")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_HASH_MISSING".to_owned(),
+            )
+        })?;
+    let derived_camera_canonical_sha256 = semantic_camera_preview
+        .get("derived_registered_camera_canonical_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_CANONICAL_MISSING".to_owned(),
+            )
+        })?;
+    let camera_orbit = semantic_camera_preview
+        .get("camera_orbit_degrees")
+        .and_then(Value::as_i64)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_ORBIT_MISSING".to_owned(),
+            )
+        })?;
+    let expected_proof = rig_v2
+        .get("rear_three_quarter_semantic_orientation_proof")
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_UPRIGHT_PROOF_MISSING".to_owned(),
+            )
+        })?;
+    let proof_sha256 =
+        validate_production_camera_lock_orientation_proof(expected_proof, derived_camera_hash)?;
+    let preview_proof_sha256 = semantic_camera_preview
+        .get("semantic_orientation_proof_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_PROOF_HASH_MISSING".to_owned(),
+            )
+        })?;
+    let orientation_rotation = orientation
+        .pointer("/reference_to_subject_view/rotation_degrees")
+        .and_then(Value::as_i64);
+    let orientation_subject_order = orientation
+        .get("subject_screen_order")
+        .and_then(Value::as_str);
+    let orientation_camera_orbit = orientation
+        .pointer("/registered_camera_orbit/yaw_degrees")
+        .and_then(Value::as_i64);
+    let expected_orientation = ApprovalReceiptOrientation {
+        rotation_degrees: PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_ROTATION_DEGREES,
+        subject_screen_order: PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCREEN_ORDER.to_owned(),
+        upright: true,
+        screen_up: "world-positive-y".to_owned(),
+        derived_camera_orbit_degrees: camera_orbit,
+        derived_camera_hash: derived_camera_hash.to_owned(),
+        derived_camera_canonical_sha256: derived_camera_canonical_sha256.to_owned(),
+        semantic_orientation_proof_sha256: proof_sha256.to_owned(),
+    };
+    if context.orientation != expected_orientation
+        || camera_orbit != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_ORBIT_DEGREES
+        || derived_camera_hash != PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_HASH
+        || proof_sha256 != preview_proof_sha256
+        || proof_sha256 != context.orientation.semantic_orientation_proof_sha256
+        || orientation_rotation != Some(context.orientation.rotation_degrees)
+        || orientation_subject_order != Some(context.orientation.subject_screen_order.as_str())
+        || orientation_camera_orbit != Some(context.orientation.derived_camera_orbit_degrees)
+        || rig_v2.get("registered_rig_v2_id").and_then(Value::as_str)
+            != Some(context.scope.registered_rig_v2_id.as_str())
+        || rig_v2.get("project_id").and_then(Value::as_str)
+            != Some(context.scope.project_id.as_str())
+        || rig_v2.get("candidate_id").and_then(Value::as_str)
+            != Some(context.scope.candidate_id.as_str())
+        || rig_v2.get("candidate_state_sha256").and_then(Value::as_str)
+            != Some(context.scope.candidate_state_sha256.as_str())
+        || rig_v2.get("artifact_id").and_then(Value::as_str)
+            != Some(context.scope.artifact_id.as_str())
+        || rig_v2.get("artifact_sha256").and_then(Value::as_str)
+            != Some(context.scope.artifact_sha256.as_str())
+        || rig_v2.get("camera_lock_id").and_then(Value::as_str)
+            != Some(context.scope.camera_lock_id.as_str())
+        || rig_v2
+            .get("camera_lock_canonical_sha256")
+            .and_then(Value::as_str)
+            != Some(context.scope.camera_lock_canonical_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_DERIVED_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let rear_renderer_view = rig_v2
+        .get("renderer_views")
+        .and_then(Value::as_array)
+        .and_then(|views| {
+            views
+                .iter()
+                .find(|view| view.get("kind").and_then(Value::as_str) == Some("rear-three-quarter"))
+        })
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_REAR_VIEW_MISSING".to_owned(),
+            )
+        })?;
+    if rear_renderer_view
+        .get("registered_camera_hash")
+        .and_then(Value::as_str)
+        != Some(context.orientation.derived_camera_hash.as_str())
+        || rear_renderer_view
+            .pointer("/registered_camera/camera_hash")
+            .and_then(Value::as_str)
+            != Some(context.orientation.derived_camera_hash.as_str())
+        || rear_renderer_view
+            .pointer("/registered_camera/canonical_sha256")
+            .and_then(Value::as_str)
+            != Some(context.orientation.derived_camera_canonical_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_CAMERA_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_production_camera_lock_registration_lineage_get_request(
+    request: &forgecad_contracts::ProductionCameraLockRegistrationLineageGetRequest,
+) -> Result<(), RuntimeError> {
+    if request.operation
+        != forgecad_contracts::PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_OPERATION
+        || request.max_response_bytes != MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES as u64
+        || request.writer_policy
+            != forgecad_contracts::PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_WRITER_POLICY
+        || request.runtime_write_performed
+        || request.persistent_user_data_touched
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_POLICY_MISMATCH".to_owned(),
+        ));
+    }
+    for value in [
+        request.registration_lineage_id.as_str(),
+        request.session_id.as_str(),
+        request.project_id.as_str(),
+        request.candidate_id.as_str(),
+        request.camera_lock_id.as_str(),
+    ] {
+        if !is_opaque_id(value) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_ID_INVALID".to_owned(),
+            ));
+        }
+    }
+    for value in [
+        request.candidate_state_sha256.as_str(),
+        request.camera_lock_canonical_sha256.as_str(),
+        request.input_sha256.as_str(),
+    ] {
+        if !is_sha256(value) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GET_HASH_INVALID".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn production_camera_lock_registration_lineage_input_binding(
+    request: &forgecad_contracts::ProductionCameraLockRegistrationLineagePrepareRequest,
+    approval_summary_sha256: &str,
+) -> Value {
+    json!({
+        "operation":request.operation,
+        "registration_lineage_id":request.registration_lineage_id,
+        "session_id":request.session_id,
+        "project_id":request.project_id,
+        "candidate_id":request.candidate_id,
+        "candidate_state_sha256":request.candidate_state_sha256,
+        "camera_lock_id":request.camera_lock_id,
+        "camera_lock_canonical_sha256":request.camera_lock_canonical_sha256,
+        "semantic_landmark_ordering_id":request.semantic_landmark_ordering_id,
+        "authored_orientation_id":request.authored_orientation_id,
+        "registered_rig_v2_id":request.registered_rig_v2_id,
+        "rear_three_quarter_rotation_degrees":request.rear_three_quarter_rotation_degrees,
+        "rear_three_quarter_subject_screen_order":request.rear_three_quarter_subject_screen_order,
+        "rear_three_quarter_camera_orbit_degrees":request.rear_three_quarter_camera_orbit_degrees,
+        "approval_receipt_id":request.approval_receipt_id,
+        "approval_session_id":request.approval_session_id,
+        "approval_expires_at":request.approval_expires_at,
+        "approval_summary_sha256":approval_summary_sha256,
+        "approved":true,
+        "idempotency_key":request.idempotency_key
+    })
+}
+
+pub(super) fn read_production_camera_lock_geometry_program(
+    runtime: &Runtime,
+    project_id: &str,
+    candidate_id: &str,
+    artifact_sha256: &str,
+) -> Result<(Value, String), RuntimeError> {
+    let evidence = runtime
+        .store
+        .get_geometry_candidate_evidence(candidate_id)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_GEOMETRY_EVIDENCE_UNAVAILABLE".to_owned(),
+            )
+        })?;
+    if evidence.project_id != project_id
+        || evidence.candidate_id != candidate_id
+        || evidence.artifact_object_sha256 != artifact_sha256
+        || !is_sha256(&evidence.geometry_program_object_sha256)
+        || evidence.geometry_program_sha256 != evidence.geometry_program_object_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_GEOMETRY_EVIDENCE_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let bytes = runtime.cas_read_bounded(
+        &evidence.geometry_program_object_sha256,
+        MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES as u64,
+    )?;
+    let mut program: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_CAMERA_LOCK_GEOMETRY_PROGRAM_INVALID: {error}"
+        ))
+    })?;
+    if canonical_json_bytes(&program)? != bytes {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_GEOMETRY_PROGRAM_NOT_CANONICAL".to_owned(),
+        ));
+    }
+    program["canonical_sha256"] = Value::String(evidence.geometry_program_sha256.clone());
+    Ok((program, evidence.geometry_program_object_sha256))
+}
+
+fn production_camera_lock_registration_lineage_canonical_hash(
+    lineage: &ProductionCameraLockRegistrationLineageRecord,
+) -> Result<String, RuntimeError> {
+    let mut value = serde_json::to_value(lineage).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_SERIALIZE_FAILED: {error}"
+        ))
+    })?;
+    value["receipt_object_sha256"] = Value::String(String::new());
+    value["canonical_sha256"] = Value::String(String::new());
+    Ok(canonical_json_hash(&value))
+}
+
+fn production_camera_lock_registration_lineage_receipt_bytes(
+    lineage: &ProductionCameraLockRegistrationLineageRecord,
+) -> Result<Vec<u8>, RuntimeError> {
+    let mut value = serde_json::to_value(lineage).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_SERIALIZE_FAILED: {error}"
+        ))
+    })?;
+    value["receipt_object_sha256"] = Value::String(String::new());
+    canonical_json_bytes(&value)
+}
+
+fn read_production_camera_lock_registration_lineage_json(
+    runtime: &Runtime,
+    object_sha256: &str,
+    canonical_sha256: &str,
+    label: &str,
+) -> Result<Value, RuntimeError> {
+    let bytes = runtime.cas_read_bounded(
+        object_sha256,
+        MAX_PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_OBJECT_BYTES as u64,
+    )?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_{label}_INVALID: {error}"
+        ))
+    })?;
+    if canonical_json_bytes(&value)? != bytes
+        || value.get("canonical_sha256").and_then(Value::as_str) != Some(canonical_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_{label}_HASH_MISMATCH"
+        )));
+    }
+    let mut normalized = value.clone();
+    normalized["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&normalized) != canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_{label}_CANONICAL_MISMATCH"
+        )));
+    }
+    Ok(value)
+}
+
+pub(super) fn validate_production_camera_lock_registration_lineage_runtime(
+    runtime: &Runtime,
+    lineage: &ProductionCameraLockRegistrationLineageRecord,
+) -> Result<(), RuntimeError> {
+    if lineage.lineage_policy != PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_POLICY
+        || !lineage.promotable
+        || production_camera_lock_registration_lineage_canonical_hash(lineage)?
+            != lineage.canonical_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_INVALID".to_owned(),
+        ));
+    }
+    let lock = runtime
+        .store
+        .get_production_camera_lock(&lineage.camera_lock_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_MISSING".to_owned()))?;
+    validate_production_camera_lock_record(runtime, &lock)?;
+    if lock.canonical_sha256 != lineage.camera_lock_canonical_sha256
+        || lock.receipt_object_sha256 != lineage.camera_lock_receipt_object_sha256
+        || lock.session_id != lineage.session_id
+        || lock.project_id != lineage.project_id
+        || lock.candidate_id != lineage.candidate_id
+        || lock.candidate_state_sha256 != lineage.candidate_state_sha256
+        || lock.artifact_id != lineage.artifact_id
+        || lock.artifact_sha256 != lineage.artifact_sha256
+        || lock.reference_id != lineage.reference_id
+        || lock.reference_sha256 != lineage.reference_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PARENT_MISMATCH".to_owned(),
+        ));
+    }
+    let semantic = read_production_camera_lock_registration_lineage_json(
+        runtime,
+        &lineage.semantic_landmark_ordering_object_sha256,
+        &lineage.semantic_landmark_ordering_canonical_sha256,
+        "SEMANTIC_ORDERING",
+    )?;
+    let orientation = read_production_camera_lock_registration_lineage_json(
+        runtime,
+        &lineage.authored_orientation_object_sha256,
+        &lineage.authored_orientation_canonical_sha256,
+        "AUTHORED_ORIENTATION",
+    )?;
+    let approval_receipt_object_sha256 = lineage
+        .authored_orientation_approval_receipt_object_sha256
+        .as_deref()
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_APPROVAL_RECEIPT_MISSING".to_owned(),
+            )
+        })?;
+    let approval_receipt_bytes = runtime.cas_read_bounded(
+        approval_receipt_object_sha256,
+        MAX_PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_OBJECT_BYTES as u64,
+    )?;
+    let approval_receipt_value: Value =
+        serde_json::from_slice(&approval_receipt_bytes).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_APPROVAL_RECEIPT_INVALID: {error}"
+            ))
+        })?;
+    if canonical_json_bytes(&approval_receipt_value)? != approval_receipt_bytes {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_APPROVAL_RECEIPT_MISMATCH".to_owned(),
+        ));
+    }
+    let approval_receipt: ApprovalReceiptRecord = serde_json::from_value(approval_receipt_value)
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_APPROVAL_RECEIPT_INVALID: {error}"
+            ))
+        })?;
+    validate_v2_approval_expiry(&approval_receipt.expires_at, true)?;
+    if approval_receipt.schema_version != "ApprovalReceipt@1"
+        || !is_opaque_id(&approval_receipt.approval_receipt_id)
+        || approval_receipt.approval_receipt_id == lock.approval_receipt_id
+        || approval_receipt.project_id != lineage.project_id
+        || approval_receipt.tool != "production_camera_lock_registration_lineage_prepare"
+        || approval_receipt.base_version_id.is_some()
+        || approval_receipt.decision != "approved"
+        || approval_receipt.session_id != lineage.session_id
+        || approval_receipt.prepared_object_id != lineage.camera_lock_id
+        || approval_receipt.prepared_object_sha256 != lineage.camera_lock_canonical_sha256
+        || approval_receipt.quality_report_id.is_some()
+        || !is_sha256(&approval_receipt.summary_sha256)
+        || approval_receipt.created_at != lineage.created_at
+        || approval_receipt.approval_context.is_none()
+        || orientation
+            .pointer("/orientation_provenance/authored_receipt_sha256")
+            .and_then(Value::as_str)
+            != Some(approval_receipt_object_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_APPROVAL_RECEIPT_MISMATCH".to_owned(),
+        ));
+    }
+    let rig_v2 = read_production_camera_lock_registration_lineage_json(
+        runtime,
+        &lineage.registered_rig_v2_object_sha256,
+        &lineage.registered_rig_v2_canonical_sha256,
+        "REGISTERED_RIG_V2",
+    )?;
+    let subject_rig_bytes = runtime.cas_read_bounded(
+        &lineage.subject_camera_rig_object_sha256,
+        MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES as u64,
+    )?;
+    let subject_rig: Value = serde_json::from_slice(&subject_rig_bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_CAMERA_LOCK_SUBJECT_RIG_INVALID: {error}"
+        ))
+    })?;
+    let registered_v1 = materialize_production_camera_lock_registered_rig(
+        runtime,
+        &lineage.project_id,
+        &lineage.candidate_id,
+        &lineage.candidate_state_sha256,
+        &lineage.artifact_id,
+        &lineage.artifact_sha256,
+        &subject_rig,
+        &lineage.subject_camera_rig_object_sha256,
+    )?;
+    let (program, program_object_sha256) = read_production_camera_lock_geometry_program(
+        runtime,
+        &lineage.project_id,
+        &lineage.candidate_id,
+        &lineage.artifact_sha256,
+    )?;
+    if program_object_sha256 != lineage.geometry_program_object_sha256
+        || program.get("canonical_sha256").and_then(Value::as_str)
+            != Some(lineage.geometry_program_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_PROGRAM_MISMATCH".to_owned(),
+        ));
+    }
+    let lock_value = serde_json::to_value(&lock).map_err(|error| {
+        RuntimeError::InvalidInput(format!("PRODUCTION_CAMERA_LOCK_SERIALIZE_FAILED: {error}"))
+    })?;
+    crate::multiview::camera_rig::validate_production_weapon_semantic_landmark_ordering(
+        &semantic,
+        &registered_v1,
+        &lock_value,
+    )
+    .map_err(RuntimeError::InvalidInput)?;
+    crate::multiview::camera_rig::validate_production_weapon_authored_view_orientation(
+        &orientation,
+        &lock_value,
+        true,
+    )
+    .map_err(RuntimeError::InvalidInput)?;
+    let semantic_camera_preview =
+        crate::multiview::camera_rig::materialize_rear_three_quarter_semantic_camera_preview(
+            &registered_v1,
+            &semantic,
+            PRODUCTION_CAMERA_LOCK_ORIENTATION_APPROVAL_SCREEN_ORDER,
+        )
+        .map_err(RuntimeError::InvalidInput)?;
+    validate_production_camera_lock_orientation_approval_receipt_runtime(
+        &approval_receipt,
+        lineage,
+        &lock,
+        &orientation,
+        &semantic_camera_preview,
+        &rig_v2,
+    )?;
+    let session = runtime
+        .store
+        .get_agentic_session(&lineage.session_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+    let context = read_authoring_context(runtime, &session)?;
+    let canvas = context
+        .get("reference_canvas")
+        .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_CANVAS_MISSING".to_owned()))?;
+    let reference = bound_reference(runtime, &lineage.project_id, &lineage.reference_id)?;
+    let rotation = orientation
+        .pointer("/reference_to_subject_view/rotation_degrees")
+        .and_then(Value::as_i64)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AUTHORED_ORIENTATION_ROTATION_MISSING".to_owned())
+        })?;
+    let bindings = materialize_production_camera_lock_reference_bindings(
+        runtime, canvas, &reference, rotation,
+    )?;
+    let rebuilt = crate::multiview::camera_rig::materialize_registered_weapon_camera_rig_v2(
+        &registered_v1,
+        &lock_value,
+        &semantic,
+        &lineage.semantic_landmark_ordering_object_sha256,
+        &orientation,
+        &lineage.authored_orientation_object_sha256,
+        &bindings.reference_views,
+        rig_v2
+            .get("registered_rig_v2_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| RuntimeError::InvalidInput("REGISTERED_RIG_V2_ID_MISSING".to_owned()))?,
+        orientation
+            .pointer("/registered_camera_orbit/yaw_degrees")
+            .and_then(Value::as_i64)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("AUTHORED_ORIENTATION_CAMERA_ORBIT_MISSING".to_owned())
+            })?,
+    )
+    .map_err(RuntimeError::InvalidInput)?;
+    if canonical_json_bytes(&rebuilt)? != canonical_json_bytes(&rig_v2)?
+        || orientation.pointer("/source_crop/source_crop_sha256")
+            != Some(&Value::String(bindings.source_crop_sha256))
+        || orientation.pointer("/source_crop/runtime_crop_png_sha256")
+            != Some(&Value::String(bindings.runtime_crop_png_sha256))
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_REBUILD_MISMATCH".to_owned(),
+        ));
+    }
+    let receipt_bytes = runtime.cas_read_bounded(
+        &lineage.receipt_object_sha256,
+        MAX_PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_OBJECT_BYTES as u64,
+    )?;
+    if receipt_bytes != production_camera_lock_registration_lineage_receipt_bytes(lineage)? {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_RECEIPT_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn production_camera_lock_registration_lineage_result(
+    runtime: &Runtime,
+    lineage: &ProductionCameraLockRegistrationLineageRecord,
+    schema_version: &str,
+    operation: &str,
+    request_sha256: &str,
+    request_input_sha256: &str,
+    idempotency_key: Option<&str>,
+    replayed: bool,
+    runtime_write_performed: bool,
+) -> Result<Value, RuntimeError> {
+    validate_production_camera_lock_registration_lineage_runtime(runtime, lineage)?;
+    let semantic = read_production_camera_lock_registration_lineage_json(
+        runtime,
+        &lineage.semantic_landmark_ordering_object_sha256,
+        &lineage.semantic_landmark_ordering_canonical_sha256,
+        "SEMANTIC_ORDERING",
+    )?;
+    let orientation = read_production_camera_lock_registration_lineage_json(
+        runtime,
+        &lineage.authored_orientation_object_sha256,
+        &lineage.authored_orientation_canonical_sha256,
+        "AUTHORED_ORIENTATION",
+    )?;
+    let rig_v2 = read_production_camera_lock_registration_lineage_json(
+        runtime,
+        &lineage.registered_rig_v2_object_sha256,
+        &lineage.registered_rig_v2_canonical_sha256,
+        "REGISTERED_RIG_V2",
+    )?;
+    let mut result = json!({
+        "schema_version":schema_version,
+        "operation":operation,
+        "registration_lineage_id":lineage.registration_lineage_id,
+        "registration_lineage":lineage,
+        "session_id":lineage.session_id,
+        "project_id":lineage.project_id,
+        "camera_lock_id":lineage.camera_lock_id,
+        "camera_lock_canonical_sha256":lineage.camera_lock_canonical_sha256,
+        "camera_lock_receipt_object_sha256":lineage.camera_lock_receipt_object_sha256,
+        "candidate_id":lineage.candidate_id,
+        "candidate_state_sha256":lineage.candidate_state_sha256,
+        "artifact_id":lineage.artifact_id,
+        "artifact_sha256":lineage.artifact_sha256,
+        "geometry_program_object_sha256":lineage.geometry_program_object_sha256,
+        "geometry_program_sha256":lineage.geometry_program_sha256,
+        "semantic_landmark_ordering_id":semantic["ordering_id"],
+        "semantic_landmark_ordering_object_sha256":lineage.semantic_landmark_ordering_object_sha256,
+        "semantic_landmark_ordering_canonical_sha256":lineage.semantic_landmark_ordering_canonical_sha256,
+        "authored_orientation_id":orientation["orientation_id"],
+        "authored_orientation_object_sha256":lineage.authored_orientation_object_sha256,
+        "authored_orientation_canonical_sha256":lineage.authored_orientation_canonical_sha256,
+        "authored_orientation_approval_receipt_object_sha256":lineage.authored_orientation_approval_receipt_object_sha256,
+        "authored_orientation_status":orientation["status"],
+        "registered_rig_v2_id":rig_v2["registered_rig_v2_id"],
+        "registered_rig_v2_object_sha256":lineage.registered_rig_v2_object_sha256,
+        "registered_rig_v2_canonical_sha256":lineage.registered_rig_v2_canonical_sha256,
+        "lineage_policy":lineage.lineage_policy,
+        "promotable":lineage.promotable,
+        "request_sha256":request_sha256,
+        "request_input_sha256":request_input_sha256,
+        "input_sha256":lineage.input_sha256,
+        "request_key_sha256":lineage.request_key_sha256,
+        "receipt_object_sha256":lineage.receipt_object_sha256,
+        "replayed":replayed,
+        "restart_hash_verified":true,
+        "writer_policy":forgecad_contracts::PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_WRITER_POLICY,
+        "runtime_write_performed":runtime_write_performed,
+        "persistent_user_data_touched":runtime_write_performed,
+        "production_stage_advanced":false,
+        "candidate_confirmed":false,
+        "version_created":false,
+        "export_performed":false,
+        "quality_status":"structural_only",
+        "depth_status":"UNKNOWN",
+        "canonicalization_policy":forgecad_contracts::PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_CANONICALIZATION_POLICY,
+        "canonical_sha256":""
+    });
+    if let Some(idempotency_key) = idempotency_key {
+        result["idempotency_key"] = Value::String(idempotency_key.to_owned());
+    }
+    result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+    Ok(result)
+}
+
+fn validate_production_camera_lock_request_shape(
+    request: &ProductionCameraLockPrepareRequest,
+) -> Result<(), RuntimeError> {
+    for (field, value) in [
+        ("camera_lock_id", request.camera_lock_id.as_str()),
+        ("session_id", request.session_id.as_str()),
+        ("project_id", request.project_id.as_str()),
+        (
+            "source_transition_id",
+            request.source_transition_id.as_str(),
+        ),
+        ("candidate_id", request.candidate_id.as_str()),
+        ("artifact_id", request.artifact_id.as_str()),
+        ("reference_id", request.reference_id.as_str()),
+        ("approval_receipt_id", request.approval_receipt_id.as_str()),
+        ("approval_session_id", request.approval_session_id.as_str()),
+        ("idempotency_key", request.idempotency_key.as_str()),
+    ] {
+        if !is_opaque_id(value) {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_{field}_INVALID"
+            )));
+        }
+    }
+    for (field, value) in [
+        (
+            "source_transition_sha256",
+            request.source_transition_sha256.as_str(),
+        ),
+        (
+            "source_head_canonical_sha256",
+            request.source_head_canonical_sha256.as_str(),
+        ),
+        (
+            "candidate_state_sha256",
+            request.candidate_state_sha256.as_str(),
+        ),
+        ("artifact_sha256", request.artifact_sha256.as_str()),
+        ("reference_sha256", request.reference_sha256.as_str()),
+        ("input_sha256", request.input_sha256.as_str()),
+    ] {
+        if !is_sha256(value) {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRODUCTION_CAMERA_LOCK_{field}_INVALID"
+            )));
+        }
+    }
+    if request.required_reference_view_kinds
+        != PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS
+            .iter()
+            .map(|value| (*value).to_owned())
+            .collect::<Vec<_>>()
+        || request.required_camera_view_kinds
+            != PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect::<Vec<_>>()
+        || request.primary_view_kind != PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND
+        || request.calibration_policy != PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_PROFILE_MISMATCH".to_owned(),
+        ));
+    }
+    if request.approval_summary.is_empty() || request.approval_summary.len() > 512 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_APPROVAL_SUMMARY_INVALID".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_production_camera_lock_source(
+    request: &ProductionCameraLockPrepareRequest,
+    transition: &ProductionStageTransitionV3Record,
+    head: &ProductionStageHeadV3Record,
+    session_id: &str,
+    project_id: &str,
+) -> Result<(), RuntimeError> {
+    if transition.transition_id != request.source_transition_id
+        || transition.canonical_sha256 != request.source_transition_sha256
+        || head.canonical_sha256 != request.source_head_canonical_sha256
+        || head.head_transition_id != transition.transition_id
+        || head.head_transition_sha256 != transition.canonical_sha256
+        || transition.session_id != session_id
+        || transition.project_id != project_id
+        || transition.root_candidate_id != request.candidate_id
+        || transition.head_candidate_id != request.candidate_id
+        || transition.root_candidate_state_sha256 != request.candidate_state_sha256
+        || transition.source_artifact_id != request.artifact_id
+        || transition.root_artifact_sha256 != request.artifact_sha256
+        || transition.reference_id != request.reference_id
+        || transition.reference_sha256 != request.reference_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_SOURCE_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn required_document_canonical(value: &Value, schema: &str) -> Result<String, RuntimeError> {
+    if value.get("schema_version").and_then(Value::as_str) != Some(schema) {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_AUTHORING_SCHEMA_MISMATCH".to_owned(),
+        ));
+    }
+    value
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .filter(|hash| is_sha256(hash))
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_AUTHORING_CANONICAL_INVALID".to_owned(),
+            )
+        })
+}
+
+fn validate_production_camera_lock_canvas(
+    runtime: &Runtime,
+    canvas: &Value,
+    reference: &ReferenceEvidenceRecord,
+    reference_id: &str,
+    reference_sha256: &str,
+    project_id: &str,
+    candidate_id: &str,
+    registered_rig: &Value,
+) -> Result<(), RuntimeError> {
+    if canvas.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || canvas
+            .get("reference_set_sha256")
+            .and_then(Value::as_str)
+            .is_none_or(|hash| !is_sha256(hash))
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_CANVAS_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let coverage = canvas.get("coverage").ok_or_else(|| {
+        RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_COVERAGE_MISSING".to_owned())
+    })?;
+    validate_coverage(coverage).map_err(|_| {
+        RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_COVERAGE_INVALID".to_owned())
+    })?;
+    let coverage_object = coverage.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_COVERAGE_INVALID".to_owned())
+    })?;
+    let reference_kinds = PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS
+        .iter()
+        .map(|value| (*value).to_owned())
+        .collect::<Vec<_>>();
+    if coverage_object
+        .get("coverage_status")
+        .and_then(Value::as_str)
+        != Some("complete")
+        || coverage_object.get("hq_360_status").and_then(Value::as_str) != Some("eligible")
+        || coverage_object
+            .get("missing_views")
+            .and_then(Value::as_array)
+            != Some(&Vec::new())
+        || coverage_object
+            .get("required_views")
+            .and_then(Value::as_array)
+            != Some(
+                &reference_kinds
+                    .iter()
+                    .map(|value| Value::String(value.clone()))
+                    .collect(),
+            )
+        || coverage_object
+            .get("supplied_views")
+            .and_then(Value::as_array)
+            != Some(
+                &reference_kinds
+                    .iter()
+                    .map(|value| Value::String(value.clone()))
+                    .collect(),
+            )
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REFERENCE_COVERAGE_MISMATCH".to_owned(),
+        ));
+    }
+    let views = canvas
+        .get("views")
+        .and_then(Value::as_array)
+        .filter(|views| views.len() == reference_kinds.len())
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_COUNT".to_owned())
+        })?;
+    if registered_rig.get("schema_version").and_then(Value::as_str)
+        != Some("RegisteredCameraRigCalibration@1")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REGISTERED_RIG_REQUIRED".to_owned(),
+        ));
+    }
+    let rig_views = registered_rig
+        .get("renderer_views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REGISTERED_RIG_VIEWS_MISSING".to_owned(),
+            )
+        })?;
+    let mut seen = HashSet::new();
+    for kind in &reference_kinds {
+        let view = views
+            .iter()
+            .find(|view| view.get("kind").and_then(Value::as_str) == Some(kind.as_str()))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_MISSING:{kind}"
+                ))
+            })?;
+        if !seen.insert(kind.as_str())
+            || view.get("reference_id").and_then(Value::as_str) != Some(reference_id)
+            || view.get("reference_sha256").and_then(Value::as_str) != Some(reference_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let view_object = view.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_INVALID".to_owned())
+        })?;
+        let target = view_object.get("target_sha256").and_then(Value::as_str);
+        let mask = view_object.get("mask_sha256").and_then(Value::as_str);
+        if !target.is_some_and(is_sha256) || !mask.is_some_and(is_sha256) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_TARGET_MASK_REQUIRED".to_owned(),
+            ));
+        }
+        let view_spec = view_object.get("view_spec").ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_VIEW_SPEC_REQUIRED".to_owned())
+        })?;
+        if view_spec.get("schema_version").and_then(Value::as_str) != Some("ReferenceViewSpec@1")
+            || view_spec
+                .get("canonical_sha256")
+                .and_then(Value::as_str)
+                .is_none_or(|hash| !is_sha256(hash))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_VIEW_SPEC_INVALID".to_owned(),
+            ));
+        }
+        super::validate_reference_view_spec(view_spec, reference)?;
+        validate_reference_view_annotations(runtime, view_object, reference)?;
+        validate_authorization_claim(
+            view_object.get("authorization").ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_CAMERA_LOCK_AUTHORIZATION_REQUIRED".to_owned(),
+                )
+            })?,
+            reference,
+            reference_sha256,
+        )?;
+        let camera_claim = view_object.get("camera_claim").ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_CAMERA_CLAIM_REQUIRED".to_owned())
+        })?;
+        validate_camera_claim(camera_claim)?;
+        let camera_claim_object = camera_claim.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_CAMERA_CLAIM_INVALID".to_owned())
+        })?;
+        let camera_hash = camera_claim_object
+            .get("camera_hash")
+            .and_then(Value::as_str)
+            .filter(|hash| is_sha256(hash))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_CAMERA_HASH_REQUIRED".to_owned())
+            })?;
+        let camera_canonical = camera_claim_object
+            .get("camera_canonical_sha256")
+            .and_then(Value::as_str)
+            .filter(|hash| is_sha256(hash))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_CAMERA_LOCK_CAMERA_CANONICAL_REQUIRED".to_owned(),
+                )
+            })?;
+        let rig_view = rig_views
+            .iter()
+            .find(|candidate| candidate.get("kind").and_then(Value::as_str) == Some(kind.as_str()))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "PRODUCTION_CAMERA_LOCK_RIG_REFERENCE_KIND_MISSING:{kind}"
+                ))
+            })?;
+        if rig_view
+            .get("registered_camera_hash")
+            .and_then(Value::as_str)
+            != Some(camera_hash)
+            || rig_view
+                .get("registered_camera")
+                .and_then(|camera| camera.get("canonical_sha256"))
+                .and_then(Value::as_str)
+                != Some(camera_canonical)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_CAMERA_CLAIM_RIG_MISMATCH".to_owned(),
+            ));
+        }
+    }
+    if views.iter().any(|view| {
+        view.get("kind")
+            .and_then(Value::as_str)
+            .is_none_or(|kind| !reference_kinds.iter().any(|expected| expected == kind))
+    }) {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KIND_MISMATCH".to_owned(),
+        ));
+    }
+    // `candidate_id` is part of the method contract so that a future canvas
+    // producer cannot accidentally be accepted for another candidate. The
+    // durable session/source validator performs the actual candidate binding.
+    let _ = candidate_id;
+    Ok(())
+}
+
+fn validate_production_camera_lock_rig(
+    rig: &Value,
+    project_id: &str,
+    candidate_id: &str,
+) -> Result<(String, String), RuntimeError> {
+    validate_bounded_authoring_value(rig, 0)?;
+    crate::multiview::camera_rig::validate_camera_rig(rig, project_id, candidate_id)
+        .map_err(RuntimeError::InvalidInput)?;
+    let views = rig.get("views").and_then(Value::as_array).ok_or_else(|| {
+        RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_RIG_VIEWS_MISSING".to_owned())
+    })?;
+    let expected = PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS
+        .iter()
+        .map(|value| (*value).to_owned())
+        .collect::<HashSet<_>>();
+    let mut kinds = HashSet::new();
+    let mut primary = None;
+    for view in views {
+        let kind = view.get("kind").and_then(Value::as_str).ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_RIG_KIND_MISSING".to_owned())
+        })?;
+        if !kinds.insert(kind.to_owned()) || !expected.contains(kind) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_RIG_KIND_MISMATCH".to_owned(),
+            ));
+        }
+        if view.get("primary").and_then(Value::as_bool) == Some(true) {
+            if primary.replace(kind).is_some() {
+                return Err(RuntimeError::InvalidInput(
+                    "PRODUCTION_CAMERA_LOCK_RIG_PRIMARY_COUNT".to_owned(),
+                ));
+            }
+        }
+        let nested_hash = view
+            .get("camera")
+            .and_then(|camera| camera.get("camera_hash"))
+            .and_then(Value::as_str)
+            .filter(|hash| is_sha256(hash))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_CAMERA_LOCK_RIG_CAMERA_HASH_MISSING".to_owned(),
+                )
+            })?;
+        if view.get("camera_hash").and_then(Value::as_str) != Some(nested_hash) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_RIG_CAMERA_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+    }
+    if views.len() != expected.len() || kinds != expected || primary != Some("left") {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_RIG_EXACT_COVERAGE_REQUIRED".to_owned(),
+        ));
+    }
+    let canonical = rig
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .filter(|hash| is_sha256(hash))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_RIG_CANONICAL_INVALID".to_owned())
+        })?;
+    Ok((
+        sha256_hex(&canonical_json_bytes(rig)?),
+        canonical.to_owned(),
+    ))
+}
+
+fn production_camera_lock_input_binding(
+    request: &ProductionCameraLockPrepareRequest,
+    rig_canonical: &str,
+    approval_summary_sha256: &str,
+) -> Value {
+    json!({
+        "schema_version":request.schema_version,
+        "camera_lock_id":request.camera_lock_id,
+        "session_id":request.session_id,
+        "project_id":request.project_id,
+        "source_transition_id":request.source_transition_id,
+        "source_transition_sha256":request.source_transition_sha256,
+        "source_head_canonical_sha256":request.source_head_canonical_sha256,
+        "candidate_id":request.candidate_id,
+        "candidate_state_sha256":request.candidate_state_sha256,
+        "artifact_id":request.artifact_id,
+        "artifact_sha256":request.artifact_sha256,
+        "reference_id":request.reference_id,
+        "reference_sha256":request.reference_sha256,
+        "required_reference_view_kinds":request.required_reference_view_kinds,
+        "required_camera_view_kinds":request.required_camera_view_kinds,
+        "primary_view_kind":request.primary_view_kind,
+        "calibration_policy":request.calibration_policy,
+        "camera_rig_canonical_sha256":rig_canonical,
+        "approval_receipt_id":request.approval_receipt_id,
+        "approval_session_id":request.approval_session_id,
+        "approval_expires_at":request.approval_expires_at,
+        "approval_summary_sha256":approval_summary_sha256,
+        "idempotency_key":request.idempotency_key
+    })
+}
+
+fn production_camera_lock_request_key(
+    request: &ProductionCameraLockPrepareRequest,
+    rig_canonical: &str,
+    approval_summary_sha256: &str,
+) -> Value {
+    json!({
+        "camera_lock_id":request.camera_lock_id,
+        "session_id":request.session_id,
+        "project_id":request.project_id,
+        "source_transition_id":request.source_transition_id,
+        "source_transition_sha256":request.source_transition_sha256,
+        "source_head_canonical_sha256":request.source_head_canonical_sha256,
+        "candidate_id":request.candidate_id,
+        "candidate_state_sha256":request.candidate_state_sha256,
+        "artifact_id":request.artifact_id,
+        "artifact_sha256":request.artifact_sha256,
+        "reference_id":request.reference_id,
+        "reference_sha256":request.reference_sha256,
+        "rig_canonical_sha256":rig_canonical,
+        "approval_receipt_id":request.approval_receipt_id,
+        "approval_session_id":request.approval_session_id,
+        "approval_expires_at":request.approval_expires_at,
+        "approval_summary_sha256":approval_summary_sha256,
+        "idempotency_key":request.idempotency_key
+    })
+}
+
+/// Runtime-owned binding material used to create the additive CameraLock child
+/// lineage. The crop hashes are recomputed from the exact authorized reference
+/// bytes and ReferenceViewSpec; callers never provide either hash.
+struct ProductionCameraLockReferenceBindings {
+    reference_views: Value,
+    rear_view_spec_canonical_sha256: String,
+    board_size_px: [u64; 2],
+    crop_xywh_px: [u64; 4],
+    source_crop_sha256: String,
+    runtime_crop_png_sha256: String,
+}
+
+fn materialize_production_camera_lock_reference_bindings(
+    runtime: &Runtime,
+    canvas: &Value,
+    reference: &ReferenceEvidenceRecord,
+    authored_rear_rotation_degrees: i64,
+) -> Result<ProductionCameraLockReferenceBindings, RuntimeError> {
+    use image::ImageEncoder;
+
+    if ![-180, -90, 0, 90, 180].contains(&authored_rear_rotation_degrees) {
+        return Err(RuntimeError::InvalidInput(
+            "AUTHORED_VIEW_ORIENTATION_INVALID: rotation".to_owned(),
+        ));
+    }
+    let views = canvas
+        .get("views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_CANVAS_VIEWS_MISSING".to_owned()))?;
+    let mut bindings = Vec::with_capacity(PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS.len());
+    let mut rear_view_spec = None;
+    for kind in PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS {
+        let view = views
+            .iter()
+            .find(|view| view.get("kind").and_then(Value::as_str) == Some(kind))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!("REFERENCE_CANVAS_VIEW_MISSING:{kind}"))
+            })?;
+        if view.get("reference_id").and_then(Value::as_str) != Some(reference.reference_id.as_str())
+            || view.get("reference_sha256").and_then(Value::as_str)
+                != Some(reference.object_sha256.as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_CANVAS_VIEW_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let view_id = view
+            .get("view_id")
+            .and_then(Value::as_str)
+            .filter(|id| is_opaque_id(id))
+            .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_VIEW_ID_INVALID".to_owned()))?;
+        let view_spec = view
+            .get("view_spec")
+            .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_VIEW_SPEC_MISSING".to_owned()))?;
+        super::validate_reference_view_spec(view_spec, reference)?;
+        let view_spec_sha256 = view_spec
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .filter(|hash| is_sha256(hash))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("REFERENCE_VIEW_SPEC_HASH_INVALID".to_owned())
+            })?;
+        let spec_rotation = super::reference_view_rotation_degrees(view_spec)?;
+        let rounded_rotation = spec_rotation.round() as i64;
+        if (spec_rotation - rounded_rotation as f64).abs() > 1e-12
+            || ![-180, -90, 0, 90, 180].contains(&rounded_rotation)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VIEW_ROTATION_NOT_DISCRETE".to_owned(),
+            ));
+        }
+        let rotation_degrees = if *kind == "rear-three-quarter" {
+            authored_rear_rotation_degrees
+        } else {
+            rounded_rotation
+        };
+        bindings.push(json!({
+            "view_kind":kind,
+            "reference_view_id":view_id,
+            "reference_view_spec_canonical_sha256":view_spec_sha256,
+            "rotation_degrees":rotation_degrees
+        }));
+        if *kind == "rear-three-quarter" {
+            rear_view_spec = Some(view_spec.clone());
+        }
+    }
+
+    let rear_view_spec = rear_view_spec.ok_or_else(|| {
+        RuntimeError::InvalidInput("REFERENCE_REAR_THREE_QUARTER_VIEW_MISSING".to_owned())
+    })?;
+    let board_width = rear_view_spec
+        .pointer("/image/width")
+        .and_then(Value::as_u64)
+        .filter(|value| *value > 0)
+        .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_BOARD_WIDTH_INVALID".to_owned()))?;
+    let board_height = rear_view_spec
+        .pointer("/image/height")
+        .and_then(Value::as_u64)
+        .filter(|value| *value > 0)
+        .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_BOARD_HEIGHT_INVALID".to_owned()))?;
+    if board_width != u64::from(reference.width) || board_height != u64::from(reference.height) {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_BOARD_DIMENSION_MISMATCH".to_owned(),
+        ));
+    }
+    let normalized_crop = rear_view_spec
+        .pointer("/image/crop")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_CROP_MISSING".to_owned()))?;
+    let scaled = |field: &str, extent: u64| -> Result<u64, RuntimeError> {
+        let value = normalized_crop
+            .get(field)
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
+            .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_CROP_INVALID".to_owned()))?;
+        Ok((value * extent as f64).round() as u64)
+    };
+    let crop_xywh_px = [
+        scaled("x", board_width)?,
+        scaled("y", board_height)?,
+        scaled("width", board_width)?,
+        scaled("height", board_height)?,
+    ];
+    if crop_xywh_px[2] == 0
+        || crop_xywh_px[3] == 0
+        || crop_xywh_px[0]
+            .checked_add(crop_xywh_px[2])
+            .is_none_or(|right| right > board_width)
+        || crop_xywh_px[1]
+            .checked_add(crop_xywh_px[3])
+            .is_none_or(|bottom| bottom > board_height)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_CROP_PIXEL_BOUNDS_INVALID".to_owned(),
+        ));
+    }
+    let source_crop_sha256 = canonical_json_hash(&json!({
+        "policy":"reference-view-spec-rounded-pixel-crop@1",
+        "reference_sha256":reference.object_sha256,
+        "reference_view_spec_canonical_sha256":rear_view_spec["canonical_sha256"],
+        "board_size_px":[board_width,board_height],
+        "crop_xywh_px":crop_xywh_px
+    }));
+    let source_bytes =
+        runtime.cas_read_bounded(&reference.object_sha256, super::MAX_REFERENCE_BYTES as u64)?;
+    let image = image::load_from_memory(&source_bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!("REFERENCE_IMAGE_DECODE_FAILED: {error}"))
+    })?;
+    if u64::from(image.width()) != board_width || u64::from(image.height()) != board_height {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_IMAGE_DIMENSION_MISMATCH".to_owned(),
+        ));
+    }
+    let rgba = image.to_rgba8();
+    let cropped = image::imageops::crop_imm(
+        &rgba,
+        u32::try_from(crop_xywh_px[0])
+            .map_err(|_| RuntimeError::InvalidInput("REFERENCE_CROP_X_OVERFLOW".to_owned()))?,
+        u32::try_from(crop_xywh_px[1])
+            .map_err(|_| RuntimeError::InvalidInput("REFERENCE_CROP_Y_OVERFLOW".to_owned()))?,
+        u32::try_from(crop_xywh_px[2])
+            .map_err(|_| RuntimeError::InvalidInput("REFERENCE_CROP_WIDTH_OVERFLOW".to_owned()))?,
+        u32::try_from(crop_xywh_px[3])
+            .map_err(|_| RuntimeError::InvalidInput("REFERENCE_CROP_HEIGHT_OVERFLOW".to_owned()))?,
+    )
+    .to_image();
+    let mut png = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut png)
+        .write_image(
+            cropped.as_raw(),
+            cropped.width(),
+            cropped.height(),
+            image::ExtendedColorType::Rgba8,
+        )
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!("REFERENCE_CROP_ENCODE_FAILED: {error}"))
+        })?;
+    if png.is_empty() || png.len() > super::MAX_REFERENCE_BYTES {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_CROP_PNG_SIZE_INVALID".to_owned(),
+        ));
+    }
+
+    Ok(ProductionCameraLockReferenceBindings {
+        reference_views: Value::Array(bindings),
+        rear_view_spec_canonical_sha256: rear_view_spec["canonical_sha256"]
+            .as_str()
+            .expect("validated reference view spec hash")
+            .to_owned(),
+        board_size_px: [board_width, board_height],
+        crop_xywh_px,
+        source_crop_sha256,
+        runtime_crop_png_sha256: sha256_hex(&png),
+    })
+}
+
+/// Derive the only renderer-space camera rig accepted by the FPS weapon Form
+/// chain. Camera fitting and reviewed image claims live in canonical subject
+/// space, while the legacy D1 GeometryProgram may use the opposite muzzle /
+/// stock axis. Runtime therefore replays the exact candidate-owned program,
+/// derives its closed semantic registration, and materializes renderer
+/// cameras itself. Callers cannot supply a registration, transformed camera,
+/// GeometryProgram or semantic axis claim.
+pub(super) fn materialize_production_camera_lock_registered_rig(
+    runtime: &Runtime,
+    project_id: &str,
+    candidate_id: &str,
+    candidate_state_sha256: &str,
+    artifact_id: &str,
+    artifact_sha256: &str,
+    subject_camera_rig: &Value,
+    subject_camera_rig_object_sha256: &str,
+) -> Result<Value, RuntimeError> {
+    let geometry_evidence = runtime
+        .store
+        .get_geometry_candidate_evidence(candidate_id)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_GEOMETRY_EVIDENCE_UNAVAILABLE".to_owned(),
+            )
+        })?;
+    if geometry_evidence.project_id != project_id
+        || geometry_evidence.candidate_id != candidate_id
+        || geometry_evidence.artifact_object_sha256 != artifact_sha256
+        || !is_sha256(&geometry_evidence.geometry_program_object_sha256)
+        || geometry_evidence.geometry_program_sha256
+            != geometry_evidence.geometry_program_object_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_GEOMETRY_EVIDENCE_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let program_bytes = runtime.cas_read_bounded(
+        &geometry_evidence.geometry_program_object_sha256,
+        MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES as u64,
+    )?;
+    let mut program: Value = serde_json::from_slice(&program_bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_CAMERA_LOCK_GEOMETRY_PROGRAM_INVALID: {error}"
+        ))
+    })?;
+    if canonical_json_bytes(&program)? != program_bytes {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_GEOMETRY_PROGRAM_NOT_CANONICAL".to_owned(),
+        ));
+    }
+    // GeometryProgram CAS payloads deliberately omit the self-referential
+    // canonical_sha256. GeometryCandidateEvidence binds the verified payload
+    // hash separately; restore that exact value only in this in-memory
+    // projection before deriving the closed subject-frame registration.
+    program["canonical_sha256"] = Value::String(geometry_evidence.geometry_program_sha256.clone());
+    let registration =
+        crate::multiview::camera_rig::production_weapon_subject_frame_registration(&program)
+            .map_err(RuntimeError::InvalidInput)?;
+    let registered_rig_id = format!(
+        "registered-{}",
+        candidate_state_sha256
+            .get(..24)
+            .ok_or_else(|| RuntimeError::InvalidInput(
+                "PRODUCTION_CAMERA_LOCK_CANDIDATE_STATE_INVALID".to_owned()
+            ))?
+    );
+    let registered = crate::multiview::camera_rig::materialize_registered_weapon_camera_rig(
+        subject_camera_rig,
+        &registration,
+        &program,
+        &registered_rig_id,
+        candidate_state_sha256,
+        artifact_id,
+        artifact_sha256,
+        &geometry_evidence.geometry_program_object_sha256,
+        subject_camera_rig_object_sha256,
+    )
+    .map_err(RuntimeError::InvalidInput)?;
+    crate::multiview::camera_rig::validate_registered_weapon_camera_rig(
+        &registered,
+        &program,
+        project_id,
+        candidate_id,
+        candidate_state_sha256,
+        artifact_id,
+        artifact_sha256,
+        &geometry_evidence.geometry_program_object_sha256,
+        subject_camera_rig_object_sha256,
+    )
+    .map_err(RuntimeError::InvalidInput)?;
+    Ok(registered)
+}
+
+fn production_camera_lock_canonical_hash(
+    lock: &ProductionCameraLockRecord,
+) -> Result<String, RuntimeError> {
+    let mut value = serde_json::to_value(lock).map_err(|error| {
+        RuntimeError::InvalidInput(format!("PRODUCTION_CAMERA_LOCK_SERIALIZE_FAILED: {error}"))
+    })?;
+    value["receipt_object_sha256"] = Value::String(String::new());
+    value["canonical_sha256"] = Value::String(String::new());
+    Ok(canonical_json_hash(&value))
+}
+
+fn production_camera_lock_receipt_bytes(
+    lock: &ProductionCameraLockRecord,
+) -> Result<Vec<u8>, RuntimeError> {
+    let mut value = serde_json::to_value(lock).map_err(|error| {
+        RuntimeError::InvalidInput(format!("PRODUCTION_CAMERA_LOCK_SERIALIZE_FAILED: {error}"))
+    })?;
+    value["receipt_object_sha256"] = Value::String(String::new());
+    canonical_json_bytes(&value)
+}
+
+fn validate_production_camera_lock_receipt(
+    runtime: &Runtime,
+    receipt: &forgecad_contracts::CasObjectRecord,
+    lock: &ProductionCameraLockRecord,
+) -> Result<(), RuntimeError> {
+    if receipt.mime != PRODUCTION_CAMERA_LOCK_JSON_MIME
+        || receipt.kind != PRODUCTION_CAMERA_LOCK_RECEIPT_KIND
+        || receipt.size_bytes == 0
+        || receipt.size_bytes as usize > MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES
+        || !is_sha256(&receipt.sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_RECEIPT_METADATA_INVALID".to_owned(),
+        ));
+    }
+    let bytes = runtime.cas_read_bounded(
+        &receipt.sha256,
+        MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES as u64,
+    )?;
+    if sha256_hex(&bytes) != receipt.sha256
+        || canonical_json_bytes(
+            &serde_json::from_slice::<Value>(&bytes)
+                .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
+        )? != bytes
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_RECEIPT_BYTES_INVALID".to_owned(),
+        ));
+    }
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!("PRODUCTION_CAMERA_LOCK_RECEIPT_INVALID: {error}"))
+    })?;
+    let mut expected = serde_json::to_value(lock).map_err(|error| {
+        RuntimeError::InvalidInput(format!("PRODUCTION_CAMERA_LOCK_SERIALIZE_FAILED: {error}"))
+    })?;
+    expected["receipt_object_sha256"] = Value::String(String::new());
+    if value != expected {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_RECEIPT_PROJECTION_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+pub(super) fn validate_production_camera_lock_record(
+    runtime: &Runtime,
+    lock: &ProductionCameraLockRecord,
+) -> Result<(), RuntimeError> {
+    if lock.schema_version != PRODUCTION_CAMERA_LOCK_SCHEMA_VERSION
+        || !is_opaque_id(&lock.camera_lock_id)
+        || !is_opaque_id(&lock.session_id)
+        || !is_opaque_id(&lock.project_id)
+        || !is_opaque_id(&lock.source_transition_id)
+        || !is_opaque_id(&lock.candidate_id)
+        || !is_opaque_id(&lock.artifact_id)
+        || !is_opaque_id(&lock.reference_id)
+        || !is_opaque_id(&lock.approval_receipt_id)
+        || lock.approval_session_id != lock.session_id
+        || !is_sha256(&lock.source_transition_sha256)
+        || !is_sha256(&lock.source_head_canonical_sha256)
+        || !is_sha256(&lock.candidate_state_sha256)
+        || !is_sha256(&lock.artifact_sha256)
+        || !is_sha256(&lock.reference_sha256)
+        || !is_sha256(&lock.reference_canvas_object_sha256)
+        || !is_sha256(&lock.reference_canvas_canonical_sha256)
+        || !is_sha256(&lock.design_spec_object_sha256)
+        || !is_sha256(&lock.design_spec_canonical_sha256)
+        || !is_sha256(&lock.camera_rig_object_sha256)
+        || !is_sha256(&lock.camera_rig_canonical_sha256)
+        || !is_sha256(&lock.approval_summary_sha256)
+        || !is_sha256(&lock.input_sha256)
+        || !is_sha256(&lock.request_key_sha256)
+        || !is_sha256(&lock.receipt_object_sha256)
+        || !is_sha256(&lock.canonical_sha256)
+        || lock.required_reference_view_kinds
+            != PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect::<Vec<_>>()
+        || lock.required_camera_view_kinds
+            != PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect::<Vec<_>>()
+        || lock.primary_view_kind != PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND
+        || lock.calibration_policy != PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY
+        || lock.review_status != PRODUCTION_CAMERA_LOCK_REVIEW_STATUS
+        || lock.calibration_status != PRODUCTION_CAMERA_LOCK_CALIBRATION_STATUS
+        || lock.structural_status != PRODUCTION_CAMERA_LOCK_STRUCTURAL_STATUS
+        || lock.visual_status != PRODUCTION_CAMERA_LOCK_VISUAL_STATUS
+        || lock.human_status != PRODUCTION_CAMERA_LOCK_HUMAN_STATUS
+        || lock.engine_status != PRODUCTION_CAMERA_LOCK_ENGINE_STATUS
+        || lock.distribution_status != PRODUCTION_CAMERA_LOCK_DISTRIBUTION_STATUS
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_RECORD_INVALID".to_owned(),
+        ));
+    }
+    validate_v2_approval_expiry(&lock.approval_expires_at, false)?;
+    if production_camera_lock_canonical_hash(lock)? != lock.canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_CANONICAL_MISMATCH".to_owned(),
+        ));
+    }
+    let rig_object = runtime
+        .store
+        .get_object(&lock.camera_rig_object_sha256)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_RIG_UNAVAILABLE".to_owned())
+        })?;
+    if rig_object.mime != PRODUCTION_CAMERA_LOCK_JSON_MIME
+        || rig_object.kind != PRODUCTION_CAMERA_LOCK_RIG_KIND
+        || rig_object.size_bytes == 0
+        || rig_object.size_bytes as usize > MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_RIG_METADATA_INVALID".to_owned(),
+        ));
+    }
+    let rig_bytes = runtime.cas_read_bounded(
+        &lock.camera_rig_object_sha256,
+        MAX_PRODUCTION_CAMERA_LOCK_OBJECT_BYTES as u64,
+    )?;
+    if sha256_hex(&rig_bytes) != lock.camera_rig_object_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_RIG_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    let rig: Value = serde_json::from_slice(&rig_bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!("PRODUCTION_CAMERA_LOCK_RIG_INVALID: {error}"))
+    })?;
+    if canonical_json_bytes(&rig)? != rig_bytes {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_RIG_NOT_CANONICAL".to_owned(),
+        ));
+    }
+    let (rig_hash, rig_canonical) =
+        validate_production_camera_lock_rig(&rig, &lock.project_id, &lock.candidate_id)?;
+    if rig_hash != lock.camera_rig_object_sha256
+        || rig_canonical != lock.camera_rig_canonical_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_RIG_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let receipt = runtime
+        .store
+        .get_object(&lock.receipt_object_sha256)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_RECEIPT_UNAVAILABLE".to_owned())
+        })?;
+    validate_production_camera_lock_receipt(runtime, &receipt, lock)?;
+    let transition = runtime
+        .store
+        .get_production_stage_transition_v3(&lock.source_transition_id)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_SOURCE_UNAVAILABLE".to_owned())
+        })?;
+    // The lock binds the immutable head produced by its source transition.
+    // Once the adjacent camera edge advances, the Store's current head is a
+    // different record; validating the historical source against that mutable
+    // projection would make a valid CameraLock unreadable after restart.
+    let head = production_stage_head_v3_from_transition_for_validation(&transition)?;
+    validate_production_stage_transition_v3_and_head(
+        runtime,
+        &transition,
+        &head,
+        &lock.session_id,
+        &lock.project_id,
+        &lock.candidate_id,
+        &lock.candidate_id,
+        false,
+    )?;
+    if transition.canonical_sha256 != lock.source_transition_sha256
+        || head.canonical_sha256 != lock.source_head_canonical_sha256
+        || transition.root_candidate_state_sha256 != lock.candidate_state_sha256
+        || transition.source_artifact_id != lock.artifact_id
+        || transition.root_artifact_sha256 != lock.artifact_sha256
+        || transition.reference_id != lock.reference_id
+        || transition.reference_sha256 != lock.reference_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_SOURCE_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let session = runtime
+        .store
+        .get_agentic_session(&lock.session_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+    let context = read_authoring_context(runtime, &session)?;
+    let canvas = context.get("reference_canvas").ok_or_else(|| {
+        RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_CANVAS_UNAVAILABLE".to_owned())
+    })?;
+    let spec = context.get("design_spec").ok_or_else(|| {
+        RuntimeError::InvalidInput("PRODUCTION_CAMERA_LOCK_SPEC_UNAVAILABLE".to_owned())
+    })?;
+    if session.reference_canvas_sha256 != lock.reference_canvas_object_sha256
+        || session.design_spec_sha256 != lock.design_spec_object_sha256
+        || required_document_canonical(canvas, "ReferenceCanvas@1")?
+            != lock.reference_canvas_canonical_sha256
+        || required_document_canonical(spec, "DesignSpec@1")? != lock.design_spec_canonical_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_CAMERA_LOCK_AUTHORING_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let reference = bound_reference(runtime, &lock.project_id, &lock.reference_id)?;
+    let registered_rig = materialize_production_camera_lock_registered_rig(
+        runtime,
+        &lock.project_id,
+        &lock.candidate_id,
+        &lock.candidate_state_sha256,
+        &lock.artifact_id,
+        &lock.artifact_sha256,
+        &rig,
+        &lock.camera_rig_object_sha256,
+    )?;
+    validate_production_camera_lock_canvas(
+        runtime,
+        canvas,
+        &reference,
+        &lock.reference_id,
+        &lock.reference_sha256,
+        &lock.project_id,
+        &lock.candidate_id,
+        &registered_rig,
+    )?;
+    Ok(())
+}
+
+fn release_production_camera_lock_objects(
+    runtime: &Runtime,
+    reservation: &forgecad_store::CasReservation,
+    objects: &[&CasObject],
+    cleanup: bool,
+) {
+    for object in objects {
+        let _ = runtime.store.release_cas_reservation_object(
+            reservation,
+            object,
+            cleanup && object.created_new,
+        );
+    }
+}
+
+fn production_camera_lock_result(
+    lock: &ProductionCameraLockRecord,
+    replayed: bool,
+    schema_version: &str,
+    runtime_write: bool,
+) -> Value {
+    json!({
+        "schema_version":schema_version,
+        "camera_lock":serde_json::to_value(lock).expect("ProductionCameraLockRecord serializes"),
+        "replayed":replayed,
+        "runtime_write":runtime_write,
+        "production_stage_advanced":false,
+        "candidate_confirmed":false,
+        "version_created":false,
+        "export_performed":false,
+        "restart_hash_verified":true
+    })
 }
 
 fn request_object<'a>(
@@ -2099,7 +6907,9 @@ fn read_authoring_object(
         })?;
     let mut without_hash = value.clone();
     without_hash["canonical_sha256"] = Value::String(String::new());
-    if canonical_json_hash(&without_hash) != canonical {
+    if canonical_json_hash(&without_hash) != canonical
+        && canonical_json_hash(&normalize_json_numbers(&without_hash)) != canonical
+    {
         return Err(RuntimeError::InvalidInput(
             "AGENTIC_AUTHORING_OBJECT_CANONICAL_MISMATCH".to_owned(),
         ));
@@ -2612,6 +7422,10 @@ fn required_literal<'a>(
         )));
     }
     Ok(value)
+}
+
+fn invalid_stage_input(message: impl Into<String>) -> RuntimeError {
+    RuntimeError::InvalidInput(message.into())
 }
 
 fn validate_v2_approval_expiry(value: &str, require_future: bool) -> Result<(), RuntimeError> {
@@ -3418,6 +8232,1014 @@ fn production_stage_transition_v2_result(
     })
 }
 
+fn validate_v3_reference_coverage(canvas: &Value) -> Result<(), RuntimeError> {
+    let coverage = canvas
+        .get("coverage")
+        .ok_or_else(|| RuntimeError::InvalidInput("BLOCKED_REFERENCE_COVERAGE".to_owned()))?;
+    let coverage_object = coverage
+        .as_object()
+        .ok_or_else(|| RuntimeError::InvalidInput("BLOCKED_REFERENCE_COVERAGE".to_owned()))?;
+    let status = coverage_object
+        .get("coverage_status")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let missing_empty = coverage_object
+        .get("missing_views")
+        .and_then(Value::as_array)
+        .is_some_and(Vec::is_empty);
+    let required_core = REQUIRED_HQ_REFERENCE_VIEWS.iter().all(|kind| {
+        coverage_object
+            .get("required_views")
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(kind)))
+    });
+    let supplied_core = REQUIRED_HQ_REFERENCE_VIEWS.iter().all(|kind| {
+        coverage_object
+            .get("supplied_views")
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(kind)))
+    });
+    if status != "complete" || !missing_empty || !required_core || !supplied_core {
+        return Err(RuntimeError::InvalidInput(
+            "BLOCKED_REFERENCE_COVERAGE".to_owned(),
+        ));
+    }
+    validate_coverage(coverage)
+        .map_err(|_| RuntimeError::InvalidInput("BLOCKED_REFERENCE_COVERAGE".to_owned()))?;
+    let views = canvas
+        .get("views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("BLOCKED_REFERENCE_COVERAGE".to_owned()))?;
+    validate_coverage_view_bindings(coverage, views)
+        .map_err(|_| RuntimeError::InvalidInput("BLOCKED_REFERENCE_COVERAGE".to_owned()))?;
+    Ok(())
+}
+
+fn validate_v3_reference_canvas_binding(
+    canvas: &Value,
+    camera_hash: &str,
+    evidence_sha256: &str,
+) -> Result<(), RuntimeError> {
+    let bindings = canvas
+        .get("bindings")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RuntimeError::InvalidInput("BLOCKED_REFERENCE_COVERAGE".to_owned()))?;
+    if bindings.get("status").and_then(Value::as_str) != Some("bound") {
+        return Err(RuntimeError::InvalidInput(
+            "BLOCKED_REFERENCE_COVERAGE".to_owned(),
+        ));
+    }
+    if bindings.get("camera_hash").and_then(Value::as_str) != Some(camera_hash)
+        || bindings.get("evidence_sha256").and_then(Value::as_str) != Some(evidence_sha256)
+        || !bindings
+            .get("target_sha256")
+            .and_then(Value::as_str)
+            .is_some_and(is_sha256)
+        || !bindings
+            .get("camera_canonical_sha256")
+            .and_then(Value::as_str)
+            .is_some_and(is_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_REFERENCE_CANVAS_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn production_stage_transition_v3_input_binding(
+    transition_id: &str,
+    session_id: &str,
+    project_id: &str,
+    root_candidate_id: &str,
+    root_candidate_role: &str,
+    root_candidate_state_sha256: &str,
+    source_artifact_id: &str,
+    root_artifact_sha256: &str,
+    previous_head_candidate_id: &str,
+    previous_head_candidate_role: &str,
+    previous_head_candidate_state_sha256: &str,
+    previous_head_artifact_id: &str,
+    previous_head_artifact_sha256: &str,
+    previous_head_stage: &str,
+    head_candidate_id: &str,
+    head_candidate_role: &str,
+    head_candidate_state_sha256: &str,
+    output_artifact_id: &str,
+    head_artifact_sha256: &str,
+    from_stage: &str,
+    to_stage: &str,
+    candidate_binding_status: &str,
+    reference_id: &str,
+    reference_sha256: &str,
+    camera_hash: &str,
+    evidence_sha256: &str,
+    reference_canvas_object_sha256: &str,
+    design_spec_object_sha256: &str,
+    structural_status: &str,
+    visual_status: &str,
+    human_status: &str,
+    engine_status: &str,
+    distribution_status: &str,
+    approval_receipt_id: &str,
+    approval_session_id: &str,
+    approval_expires_at: &str,
+    approval_summary_sha256: &str,
+    idempotency_key: &str,
+) -> Value {
+    let mut value = Map::new();
+    macro_rules! insert_string {
+        ($key:literal, $field:expr) => {
+            value.insert($key.to_owned(), Value::String($field.to_owned()));
+        };
+    }
+    insert_string!("transition_id", transition_id);
+    insert_string!("session_id", session_id);
+    insert_string!("project_id", project_id);
+    insert_string!("root_candidate_id", root_candidate_id);
+    insert_string!("root_candidate_role", root_candidate_role);
+    insert_string!("root_candidate_state_sha256", root_candidate_state_sha256);
+    insert_string!("source_artifact_id", source_artifact_id);
+    insert_string!("root_artifact_sha256", root_artifact_sha256);
+    insert_string!("previous_head_candidate_id", previous_head_candidate_id);
+    insert_string!("previous_head_candidate_role", previous_head_candidate_role);
+    insert_string!(
+        "previous_head_candidate_state_sha256",
+        previous_head_candidate_state_sha256
+    );
+    insert_string!("previous_head_artifact_id", previous_head_artifact_id);
+    insert_string!(
+        "previous_head_artifact_sha256",
+        previous_head_artifact_sha256
+    );
+    insert_string!("previous_head_stage", previous_head_stage);
+    insert_string!("head_candidate_id", head_candidate_id);
+    insert_string!("head_candidate_role", head_candidate_role);
+    insert_string!("head_candidate_state_sha256", head_candidate_state_sha256);
+    insert_string!("output_artifact_id", output_artifact_id);
+    insert_string!("head_artifact_sha256", head_artifact_sha256);
+    insert_string!("from_stage", from_stage);
+    insert_string!("to_stage", to_stage);
+    insert_string!("candidate_binding_status", candidate_binding_status);
+    insert_string!("reference_id", reference_id);
+    insert_string!("reference_sha256", reference_sha256);
+    insert_string!("camera_hash", camera_hash);
+    insert_string!("evidence_sha256", evidence_sha256);
+    insert_string!(
+        "reference_canvas_object_sha256",
+        reference_canvas_object_sha256
+    );
+    insert_string!("design_spec_object_sha256", design_spec_object_sha256);
+    insert_string!("structural_status", structural_status);
+    insert_string!("visual_status", visual_status);
+    insert_string!("human_status", human_status);
+    insert_string!("engine_status", engine_status);
+    insert_string!("distribution_status", distribution_status);
+    insert_string!("approval_receipt_id", approval_receipt_id);
+    insert_string!("approval_session_id", approval_session_id);
+    insert_string!("approval_expires_at", approval_expires_at);
+    insert_string!("approval_summary_sha256", approval_summary_sha256);
+    insert_string!("idempotency_key", idempotency_key);
+    value.insert("quality_report_object_sha256".to_owned(), Value::Null);
+    value.insert("comparison_report_object_sha256".to_owned(), Value::Null);
+    value.insert("visual_receipt_object_sha256".to_owned(), Value::Null);
+    value.insert("human_review_receipt_object_sha256".to_owned(), Value::Null);
+    value.insert(
+        "engine_validation_receipt_object_sha256".to_owned(),
+        Value::Null,
+    );
+    value.insert("distribution_receipt_object_sha256".to_owned(), Value::Null);
+    value.insert("parent_transition_id".to_owned(), Value::Null);
+    value.insert("parent_transition_sha256".to_owned(), Value::Null);
+    value.insert("parent_transition_schema_version".to_owned(), Value::Null);
+    for key in [
+        "camera_lock_id",
+        "camera_lock_canonical_sha256",
+        "camera_rig_object_sha256",
+        "camera_rig_canonical_sha256",
+        "camera_lock_receipt_object_sha256",
+        "camera_lock_source_transition_id",
+        "camera_lock_source_transition_sha256",
+        "camera_lock_source_head_canonical_sha256",
+    ] {
+        value.insert(key.to_owned(), Value::Null);
+    }
+    Value::Object(value)
+}
+
+fn production_stage_transition_v3_input_binding_with_camera(
+    base: Value,
+    camera_fields: [(&str, &str); 8],
+    parent_fields: [(&str, &str); 3],
+) -> Value {
+    let mut value = base.as_object().cloned().unwrap_or_default();
+    for (key, field) in camera_fields.into_iter().chain(parent_fields) {
+        value.insert(key.to_owned(), Value::String(field.to_owned()));
+    }
+    Value::Object(value)
+}
+
+fn production_stage_transition_v3_request_key(
+    transition_id: &str,
+    session_id: &str,
+    project_id: &str,
+    root_candidate_id: &str,
+    source_artifact_id: &str,
+    from_stage: &str,
+    to_stage: &str,
+    reference_canvas_object_sha256: &str,
+    design_spec_object_sha256: &str,
+    approval_receipt_id: &str,
+    approval_session_id: &str,
+    approval_expires_at: &str,
+    approval_summary_sha256: &str,
+    idempotency_key: &str,
+) -> Value {
+    json!({
+        "transition_id":transition_id,
+        "session_id":session_id,
+        "project_id":project_id,
+        "root_candidate_id":root_candidate_id,
+        "source_artifact_id":source_artifact_id,
+        "from_stage":from_stage,
+        "to_stage":to_stage,
+        "reference_canvas_object_sha256":reference_canvas_object_sha256,
+        "design_spec_object_sha256":design_spec_object_sha256,
+        "approval_receipt_id":approval_receipt_id,
+        "approval_session_id":approval_session_id,
+        "approval_expires_at":approval_expires_at,
+        "approval_summary_sha256":approval_summary_sha256,
+        "idempotency_key":idempotency_key
+    })
+}
+
+fn production_stage_transition_v3_request_key_with_camera(
+    base: Value,
+    camera_fields: [(&str, &str); 8],
+    parent_fields: [(&str, &str); 3],
+) -> Value {
+    let mut value = base.as_object().cloned().unwrap_or_default();
+    for (key, field) in camera_fields.into_iter().chain(parent_fields) {
+        value.insert(key.to_owned(), Value::String(field.to_owned()));
+    }
+    Value::Object(value)
+}
+
+fn production_stage_transition_v3_canonical_hash(
+    record: &ProductionStageTransitionV3Record,
+) -> Result<String, RuntimeError> {
+    let mut value = serde_json::to_value(record).map_err(|error| {
+        RuntimeError::InvalidInput(format!("record cannot be serialized: {error}"))
+    })?;
+    value["receipt_object_sha256"] = Value::String(String::new());
+    value["canonical_sha256"] = Value::String(String::new());
+    Ok(canonical_json_hash(&value))
+}
+
+fn validate_production_stage_transition_v3_receipt(
+    runtime: &Runtime,
+    receipt_hash: &str,
+    record: &ProductionStageTransitionV3Record,
+) -> Result<(), RuntimeError> {
+    let bytes = runtime.cas_read_bounded(
+        receipt_hash,
+        MAX_PRODUCTION_STAGE_TRANSITION_V3_RECEIPT_BYTES as u64,
+    )?;
+    if bytes.is_empty() || sha256_hex(&bytes) != receipt_hash {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_RECEIPT_BYTES_TAMPERED".to_owned(),
+        ));
+    }
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!("PRODUCTION_STAGE_V3_RECEIPT_INVALID: {error}"))
+    })?;
+    if canonical_json_bytes(&value)? != bytes {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_RECEIPT_NOT_CANONICAL".to_owned(),
+        ));
+    }
+    let mut expected = serde_json::to_value(record).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_STAGE_V3_RECEIPT_SERIALIZE_FAILED: {error}"
+        ))
+    })?;
+    expected["receipt_object_sha256"] = Value::String(String::new());
+    if value != expected {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_RECEIPT_PROJECTION_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn release_v3_transition_receipt(
+    runtime: &Runtime,
+    reservation: &forgecad_store::CasReservation,
+    object: &CasObject,
+    cleanup: bool,
+) {
+    let _ = runtime.store.release_cas_reservation_object(
+        reservation,
+        object,
+        cleanup && object.created_new,
+    );
+}
+
+fn production_stage_transition_v3_result(
+    transition: &ProductionStageTransitionV3Record,
+    head: &ProductionStageHeadV3Record,
+    replayed: bool,
+    schema_version: &str,
+    runtime_write: bool,
+) -> Value {
+    json!({
+        "schema_version":schema_version,
+        "transition":serde_json::to_value(transition).expect("V3 production transition serializes"),
+        "production_stage_head":serde_json::to_value(head).expect("V3 production head serializes"),
+        "compatibility_projection":serde_json::to_value(&head.compatibility_projection).expect("V3 compatibility projection serializes"),
+        "replayed":replayed,
+        "runtime_write":runtime_write,
+        "production_stage_advanced":true,
+        "candidate_confirmed":false,
+        "version_created":false,
+        "export_performed":false
+    })
+}
+
+fn read_form_quality_v2_report(
+    runtime: &Runtime,
+    report_sha256: &str,
+) -> Result<ProductionWeaponFormQualityV2Record, RuntimeError> {
+    let object = runtime
+        .store
+        .get_object(report_sha256)?
+        .ok_or_else(|| invalid_stage_input("PRODUCTION_STAGE_V3_FORM_QUALITY_UNAVAILABLE"))?;
+    if object.mime != "application/json"
+        || object.kind != "production-weapon-form-quality-v2-report"
+        || object.size_bytes == 0
+        || object.size_bytes > MAX_DERIVED_JSON_BYTES
+    {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_QUALITY_METADATA_INVALID",
+        ));
+    }
+    let bytes = runtime.cas_read_bounded(report_sha256, MAX_DERIVED_JSON_BYTES)?;
+    if sha256_hex(&bytes) != report_sha256
+        || canonical_json_bytes(&serde_json::from_slice::<Value>(&bytes).map_err(|error| {
+            invalid_stage_input(format!("PRODUCTION_STAGE_V3_FORM_QUALITY_INVALID: {error}"))
+        })?)?
+            != bytes
+    {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_QUALITY_BYTES_INVALID",
+        ));
+    }
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        invalid_stage_input(format!("PRODUCTION_STAGE_V3_FORM_QUALITY_INVALID: {error}"))
+    })?;
+    let parsed: ProductionWeaponFormQualityV2Record = serde_json::from_value(value.clone())
+        .map_err(|error| {
+            invalid_stage_input(format!("PRODUCTION_STAGE_V3_FORM_QUALITY_INVALID: {error}"))
+        })?;
+    if parsed.schema_version != PRODUCTION_WEAPON_FORM_QUALITY_V2_SCHEMA_VERSION
+        || parsed.receipt_object_sha256 != ""
+        || parsed.canonical_sha256.is_empty()
+    {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_QUALITY_PROJECTION_INVALID",
+        ));
+    }
+    let mut normalized = value;
+    normalized["receipt_object_sha256"] = Value::String(String::new());
+    normalized["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&normalized) != parsed.canonical_sha256 {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_QUALITY_CANONICAL_MISMATCH",
+        ));
+    }
+    let mut expected = parsed.clone();
+    expected.receipt_object_sha256 = report_sha256.to_owned();
+    let stored = runtime
+        .store
+        .get_production_weapon_form_quality_v2(&parsed.form_quality_id)?
+        .ok_or_else(|| invalid_stage_input("PRODUCTION_STAGE_V3_FORM_QUALITY_ROW_UNAVAILABLE"))?;
+    if stored != expected {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_QUALITY_ROW_MISMATCH",
+        ));
+    }
+    Ok(stored)
+}
+
+pub(crate) fn read_form_art_evidence(
+    runtime: &Runtime,
+    report_sha256: &str,
+) -> Result<ProductionWeaponFormArtEvidenceRecord, RuntimeError> {
+    let object = runtime
+        .store
+        .get_object(report_sha256)?
+        .ok_or_else(|| invalid_stage_input("PRODUCTION_STAGE_V3_FORM_ART_UNAVAILABLE"))?;
+    if object.mime != "application/json"
+        || object.kind != PRODUCTION_WEAPON_FORM_ART_EVIDENCE_PARENT_RECEIPT_KIND
+        || object.size_bytes == 0
+        || object.size_bytes > MAX_DERIVED_JSON_BYTES
+    {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_ART_METADATA_INVALID",
+        ));
+    }
+    let bytes = runtime.cas_read_bounded(report_sha256, MAX_DERIVED_JSON_BYTES)?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        invalid_stage_input(format!("PRODUCTION_STAGE_V3_FORM_ART_INVALID: {error}"))
+    })?;
+    if sha256_hex(&bytes) != report_sha256 || canonical_json_bytes(&value)? != bytes {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_ART_BYTES_INVALID",
+        ));
+    }
+    let parsed: ProductionWeaponFormArtEvidenceRecord = serde_json::from_value(value.clone())
+        .map_err(|error| {
+            invalid_stage_input(format!("PRODUCTION_STAGE_V3_FORM_ART_INVALID: {error}"))
+        })?;
+    if parsed.receipt_object_sha256 != "" {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_ART_PROJECTION_INVALID",
+        ));
+    }
+    let mut normalized = value;
+    normalized["receipt_object_sha256"] = Value::String(String::new());
+    normalized["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&normalized) != parsed.canonical_sha256 {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_ART_CANONICAL_MISMATCH",
+        ));
+    }
+    let mut expected = parsed.clone();
+    expected.receipt_object_sha256 = report_sha256.to_owned();
+    let stored = runtime
+        .store
+        .get_production_weapon_form_art_evidence(&parsed.art_evidence_id)?
+        .ok_or_else(|| invalid_stage_input("PRODUCTION_STAGE_V3_FORM_ART_ROW_UNAVAILABLE"))?;
+    if stored != expected {
+        return Err(invalid_stage_input(
+            "PRODUCTION_STAGE_V3_FORM_ART_ROW_MISMATCH",
+        ));
+    }
+    Ok(stored)
+}
+
+fn production_stage_compatibility_projection_v3(
+    stage: &str,
+) -> ProductionStageCompatibilityProjectionV3 {
+    ProductionStageCompatibilityProjectionV3 {
+        schema_version: "ProductionStageCompatibilityProjection@3".to_owned(),
+        source_schema_version: "ProductionStageHead@3".to_owned(),
+        v3_stage: Some(stage.to_owned()),
+        v3_stage_complete: true,
+        v1_projection_stage: None,
+        v1_projection_complete: false,
+        v2_projection_stage: None,
+        v2_projection_complete: false,
+        projection_status: "not-proven".to_owned(),
+        legacy_head_transition_id: None,
+        legacy_head_transition_sha256: None,
+        projection_policy_sha256: sha256_hex(PRODUCTION_STAGE_V3_PROJECTION_POLICY.as_bytes()),
+    }
+}
+
+fn production_stage_head_v3_from_transition_for_validation(
+    transition: &ProductionStageTransitionV3Record,
+) -> Result<ProductionStageHeadV3Record, RuntimeError> {
+    let compatibility_projection =
+        production_stage_compatibility_projection_v3(&transition.to_stage);
+    let payload_json = String::from_utf8(canonical_json_bytes(&json!({
+        "schema_version":"ProductionStageHead@3",
+        "head_transition_id":transition.transition_id,
+        "head_transition_sha256":transition.canonical_sha256,
+        "head_stage":transition.to_stage,
+        "materialization_status":"runtime-owned-durable-production-stage-head-v3"
+    }))?)
+    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
+    let mut head = ProductionStageHeadV3Record {
+        schema_version: "ProductionStageHead@3".to_owned(),
+        session_id: transition.session_id.clone(),
+        project_id: transition.project_id.clone(),
+        root_candidate_id: transition.root_candidate_id.clone(),
+        root_candidate_role: transition.root_candidate_role.clone(),
+        root_candidate_state_sha256: transition.root_candidate_state_sha256.clone(),
+        source_artifact_id: transition.source_artifact_id.clone(),
+        root_artifact_sha256: transition.root_artifact_sha256.clone(),
+        root_stage: "reference-intake".to_owned(),
+        previous_head_candidate_id: transition.previous_head_candidate_id.clone(),
+        previous_head_candidate_role: transition.previous_head_candidate_role.clone(),
+        previous_head_candidate_state_sha256: transition
+            .previous_head_candidate_state_sha256
+            .clone(),
+        previous_head_artifact_id: transition.previous_head_artifact_id.clone(),
+        previous_head_artifact_sha256: transition.previous_head_artifact_sha256.clone(),
+        previous_head_stage: transition.previous_head_stage.clone(),
+        head_candidate_id: transition.head_candidate_id.clone(),
+        head_candidate_role: transition.head_candidate_role.clone(),
+        head_candidate_state_sha256: transition.head_candidate_state_sha256.clone(),
+        output_artifact_id: transition.output_artifact_id.clone(),
+        head_artifact_sha256: transition.head_artifact_sha256.clone(),
+        head_stage: transition.to_stage.clone(),
+        candidate_binding_status: transition.candidate_binding_status.clone(),
+        reference_id: transition.reference_id.clone(),
+        reference_sha256: transition.reference_sha256.clone(),
+        camera_hash: transition.camera_hash.clone(),
+        camera_lock_id: transition.camera_lock_id.clone(),
+        camera_lock_canonical_sha256: transition.camera_lock_canonical_sha256.clone(),
+        camera_rig_object_sha256: transition.camera_rig_object_sha256.clone(),
+        camera_rig_canonical_sha256: transition.camera_rig_canonical_sha256.clone(),
+        camera_lock_receipt_object_sha256: transition.camera_lock_receipt_object_sha256.clone(),
+        camera_lock_source_transition_id: transition.camera_lock_source_transition_id.clone(),
+        camera_lock_source_transition_sha256: transition
+            .camera_lock_source_transition_sha256
+            .clone(),
+        camera_lock_source_head_canonical_sha256: transition
+            .camera_lock_source_head_canonical_sha256
+            .clone(),
+        evidence_sha256: transition.evidence_sha256.clone(),
+        reference_canvas_object_sha256: transition.reference_canvas_object_sha256.clone(),
+        quality_report_object_sha256: transition.quality_report_object_sha256.clone(),
+        comparison_report_object_sha256: transition.comparison_report_object_sha256.clone(),
+        design_spec_object_sha256: transition.design_spec_object_sha256.clone(),
+        visual_receipt_object_sha256: transition.visual_receipt_object_sha256.clone(),
+        human_review_receipt_object_sha256: transition.human_review_receipt_object_sha256.clone(),
+        engine_validation_receipt_object_sha256: transition
+            .engine_validation_receipt_object_sha256
+            .clone(),
+        distribution_receipt_object_sha256: transition.distribution_receipt_object_sha256.clone(),
+        structural_status: transition.structural_status.clone(),
+        visual_status: transition.visual_status.clone(),
+        human_status: transition.human_status.clone(),
+        engine_status: transition.engine_status.clone(),
+        distribution_status: transition.distribution_status.clone(),
+        approval_receipt_id: transition.approval_receipt_id.clone(),
+        approval_session_id: transition.approval_session_id.clone(),
+        approval_expires_at: transition.approval_expires_at.clone(),
+        approval_summary_sha256: transition.approval_summary_sha256.clone(),
+        head_transition_id: transition.transition_id.clone(),
+        head_transition_sha256: transition.canonical_sha256.clone(),
+        compatibility_projection,
+        candidate_confirmed: false,
+        version_created: false,
+        export_performed: false,
+        materialization_status: "runtime-owned-durable-production-stage-head-v3".to_owned(),
+        canonical_sha256: String::new(),
+        payload_json,
+        updated_at: transition.created_at.clone(),
+    };
+    head.canonical_sha256 = canonical_record_hash(&head)?;
+    Ok(head)
+}
+
+fn production_stage_v3_form_edge_evidence_is_complete(
+    transition: &ProductionStageTransitionV3Record,
+) -> bool {
+    transition.camera_lock_id.is_some()
+        && transition.camera_lock_canonical_sha256.is_some()
+        && transition.camera_rig_object_sha256.is_some()
+        && transition.camera_rig_canonical_sha256.is_some()
+        && transition.camera_lock_receipt_object_sha256.is_some()
+        && transition.camera_lock_source_transition_id.is_some()
+        && transition.camera_lock_source_transition_sha256.is_some()
+        && transition
+            .camera_lock_source_head_canonical_sha256
+            .is_some()
+        && transition.quality_report_object_sha256.is_some()
+        && transition.visual_receipt_object_sha256.is_some()
+        && transition.comparison_report_object_sha256.is_none()
+        && transition.human_review_receipt_object_sha256.is_none()
+        && transition.engine_validation_receipt_object_sha256.is_none()
+        && transition.distribution_receipt_object_sha256.is_none()
+}
+
+fn validate_production_stage_transition_v3_and_head(
+    runtime: &Runtime,
+    transition: &ProductionStageTransitionV3Record,
+    head: &ProductionStageHeadV3Record,
+    session_id: &str,
+    project_id: &str,
+    root_candidate_id: &str,
+    head_candidate_id: &str,
+    require_current_root_head: bool,
+) -> Result<(), RuntimeError> {
+    let first_edge =
+        production_stage_v3_is_first_public_edge(&transition.from_stage, &transition.to_stage);
+    let camera_edge = production_stage_v3_is_camera_calibration_edge(
+        &transition.from_stage,
+        &transition.to_stage,
+    );
+    let form_edge = production_stage_v3_is_form_edge(&transition.from_stage, &transition.to_stage);
+    let later_edge = camera_edge || form_edge;
+    let camera_fields_complete = transition.camera_lock_id.is_some()
+        && transition.camera_lock_canonical_sha256.is_some()
+        && transition.camera_rig_object_sha256.is_some()
+        && transition.camera_rig_canonical_sha256.is_some()
+        && transition.camera_lock_receipt_object_sha256.is_some()
+        && transition.camera_lock_source_transition_id.is_some()
+        && transition.camera_lock_source_transition_sha256.is_some()
+        && transition
+            .camera_lock_source_head_canonical_sha256
+            .is_some();
+    if transition.schema_version != "ProductionStageTransition@3"
+        || transition.transition_id.is_empty()
+        || transition.session_id != session_id
+        || transition.project_id != project_id
+        || transition.root_candidate_id != root_candidate_id
+        || transition.head_candidate_id != head_candidate_id
+        || transition.root_candidate_role != PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE
+        || transition.previous_head_candidate_role != PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE
+        || transition.head_candidate_role != PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE
+        || (!first_edge && !later_edge)
+        || (first_edge
+            && (transition.previous_head_stage != "reference-intake"
+                || transition.parent_transition_id.is_some()
+                || transition.parent_transition_sha256.is_some()
+                || transition.parent_transition_schema_version.is_some()
+                || camera_fields_complete
+                || transition.camera_lock_id.is_some()
+                || transition.camera_lock_canonical_sha256.is_some()
+                || transition.camera_rig_object_sha256.is_some()
+                || transition.camera_rig_canonical_sha256.is_some()
+                || transition.camera_lock_receipt_object_sha256.is_some()
+                || transition.camera_lock_source_transition_id.is_some()
+                || transition.camera_lock_source_transition_sha256.is_some()
+                || transition
+                    .camera_lock_source_head_canonical_sha256
+                    .is_some()))
+        || (camera_edge
+            && (transition.previous_head_stage != "reference-coverage-reviewed"
+                || !camera_fields_complete
+                || transition.parent_transition_id.is_none()
+                || transition.parent_transition_sha256.is_none()
+                || transition.parent_transition_schema_version.as_deref()
+                    != Some("ProductionStageTransition@3")))
+        || (form_edge
+            && (transition.previous_head_stage != transition.from_stage
+                || !camera_fields_complete
+                || transition.parent_transition_id.is_none()
+                || transition.parent_transition_sha256.is_none()
+                || transition.parent_transition_schema_version.as_deref()
+                    != Some("ProductionStageTransition@3")))
+        || (form_edge && !production_stage_v3_form_edge_evidence_is_complete(transition))
+        || transition.candidate_binding_status != "same-candidate-evidence"
+        || transition.structural_status != "PASS_SOURCE_STRUCTURAL"
+        || (camera_edge && transition.visual_status != "QUALITY_TARGET_NOT_MET")
+        || (form_edge
+            && transition.visual_status != PRODUCTION_WEAPON_FORM_QUALITY_V2_VISUAL_STATUS)
+        || transition.human_status != "NOT_RUN"
+        || transition.engine_status != "NOT_RUN"
+        || transition.distribution_status != "NOT_RUN"
+        || transition.gate_status != "pass"
+        || transition.status != "passed"
+        || transition.previous_head_candidate_id != transition.root_candidate_id
+        || transition.head_candidate_id != transition.root_candidate_id
+        || transition.previous_head_candidate_state_sha256 != transition.root_candidate_state_sha256
+        || transition.head_candidate_state_sha256 != transition.root_candidate_state_sha256
+        || transition.previous_head_artifact_id != transition.source_artifact_id
+        || transition.output_artifact_id != transition.source_artifact_id
+        || transition.previous_head_artifact_sha256 != transition.root_artifact_sha256
+        || transition.head_artifact_sha256 != transition.root_artifact_sha256
+        || (camera_edge && transition.quality_report_object_sha256.is_some())
+        || (camera_edge && transition.visual_receipt_object_sha256.is_some())
+        || (form_edge && transition.quality_report_object_sha256.is_none())
+        || (form_edge && transition.visual_receipt_object_sha256.is_none())
+        || transition.comparison_report_object_sha256.is_some()
+        || transition.human_review_receipt_object_sha256.is_some()
+        || transition.engine_validation_receipt_object_sha256.is_some()
+        || transition.distribution_receipt_object_sha256.is_some()
+        || !is_sha256(&transition.root_candidate_state_sha256)
+        || !is_sha256(&transition.root_artifact_sha256)
+        || !is_sha256(&transition.reference_sha256)
+        || !is_sha256(&transition.camera_hash)
+        || !is_sha256(&transition.evidence_sha256)
+        || !is_sha256(&transition.reference_canvas_object_sha256)
+        || !is_sha256(&transition.design_spec_object_sha256)
+        || !is_sha256(&transition.approval_summary_sha256)
+        || !is_sha256(&transition.request_key_sha256)
+        || !is_sha256(&transition.input_sha256)
+        || !is_sha256(&transition.receipt_object_sha256)
+        || !is_sha256(&transition.canonical_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_TRANSITION_RECORD_INVALID".to_owned(),
+        ));
+    }
+    validate_v2_approval_expiry(&transition.approval_expires_at, false)?;
+    if production_stage_transition_v3_canonical_hash(transition)? != transition.canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_TRANSITION_CANONICAL_MISMATCH".to_owned(),
+        ));
+    }
+    validate_production_stage_transition_v3_receipt(
+        runtime,
+        &transition.receipt_object_sha256,
+        transition,
+    )?;
+    if later_edge {
+        let lock_id = transition.camera_lock_id.as_deref().ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_REQUIRED".to_owned())
+        })?;
+        let lock_canonical = transition
+            .camera_lock_canonical_sha256
+            .as_deref()
+            .filter(|value| is_sha256(value))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_INVALID".to_owned(),
+                )
+            })?;
+        for value in [
+            transition.camera_rig_object_sha256.as_deref(),
+            transition.camera_rig_canonical_sha256.as_deref(),
+            transition.camera_lock_receipt_object_sha256.as_deref(),
+            transition.camera_lock_source_transition_sha256.as_deref(),
+            transition
+                .camera_lock_source_head_canonical_sha256
+                .as_deref(),
+        ] {
+            if value.is_none_or(|value| !is_sha256(value)) {
+                return Err(RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_INVALID".to_owned(),
+                ));
+            }
+        }
+        if transition
+            .camera_lock_source_transition_id
+            .as_deref()
+            .is_none_or(|value| !is_opaque_id(value))
+            || !is_opaque_id(lock_id)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CAMERA_LOCK_FIELDS_INVALID".to_owned(),
+            ));
+        }
+        let lock = runtime
+            .store
+            .get_production_camera_lock(lock_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_CAMERA_LOCK_NOT_FOUND".to_owned())
+            })?;
+        validate_production_camera_lock_record(runtime, &lock)?;
+        if lock.canonical_sha256 != lock_canonical
+            || transition.camera_rig_object_sha256.as_deref()
+                != Some(lock.camera_rig_object_sha256.as_str())
+            || transition.camera_rig_canonical_sha256.as_deref()
+                != Some(lock.camera_rig_canonical_sha256.as_str())
+            || transition.camera_lock_receipt_object_sha256.as_deref()
+                != Some(lock.receipt_object_sha256.as_str())
+            || transition.camera_lock_source_transition_id.as_deref()
+                != Some(lock.source_transition_id.as_str())
+            || transition.camera_lock_source_transition_sha256.as_deref()
+                != Some(lock.source_transition_sha256.as_str())
+            || transition
+                .camera_lock_source_head_canonical_sha256
+                .as_deref()
+                != Some(lock.source_head_canonical_sha256.as_str())
+            || lock.session_id != transition.session_id
+            || lock.project_id != transition.project_id
+            || lock.candidate_id != transition.root_candidate_id
+            || lock.artifact_id != transition.source_artifact_id
+            || lock.artifact_sha256 != transition.root_artifact_sha256
+            || lock.reference_id != transition.reference_id
+            || lock.reference_sha256 != transition.reference_sha256
+            || (camera_edge
+                && (transition.parent_transition_id.as_deref()
+                    != Some(lock.source_transition_id.as_str())
+                    || transition.parent_transition_sha256.as_deref()
+                        != Some(lock.source_transition_sha256.as_str())
+                    || transition.parent_transition_schema_version.as_deref()
+                        != Some("ProductionStageTransition@3")))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V3_CAMERA_LOCK_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        // `validate_production_camera_lock_record` replays the immutable
+        // source transition and reconstructs its historical head.  The `head`
+        // passed here is the current head produced by this camera edge, so it
+        // must not be compared to the lock's source head.
+        if form_edge {
+            let quality_hash = transition
+                .quality_report_object_sha256
+                .as_deref()
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "PRODUCTION_STAGE_V3_FORM_QUALITY_REQUIRED".to_owned(),
+                    )
+                })?;
+            let art_hash = transition
+                .visual_receipt_object_sha256
+                .as_deref()
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput("PRODUCTION_STAGE_V3_FORM_ART_REQUIRED".to_owned())
+                })?;
+            let quality = read_form_quality_v2_report(runtime, quality_hash)?;
+            if quality.session_id != transition.session_id
+                || quality.project_id != transition.project_id
+                || quality.candidate_id != transition.root_candidate_id
+                || quality.artifact_sha256 != transition.root_artifact_sha256
+                || quality.source_stage != transition.from_stage
+                || quality.target_stage != transition.to_stage
+                || quality.current_source_head_transition_id
+                    != transition
+                        .parent_transition_id
+                        .as_deref()
+                        .unwrap_or_default()
+                || quality.current_source_head_transition_sha256
+                    != transition
+                        .parent_transition_sha256
+                        .as_deref()
+                        .unwrap_or_default()
+                || !is_sha256(&quality.current_source_head_canonical_sha256)
+                || quality.visual_status != PRODUCTION_WEAPON_FORM_QUALITY_V2_VISUAL_STATUS
+                || !quality.hard_gate_passed
+                || !quality.form_gate_passed
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_FORM_QUALITY_BINDING_MISMATCH".to_owned(),
+                ));
+            }
+            let art = read_form_art_evidence(runtime, art_hash)?;
+            if art.session_id != transition.session_id
+                || art.project_id != transition.project_id
+                || art.candidate_id != transition.root_candidate_id
+                || art.artifact_sha256 != transition.root_artifact_sha256
+                || art.reference_canvas_object_sha256 != transition.reference_canvas_object_sha256
+                || art.design_spec_object_sha256 != transition.design_spec_object_sha256
+                || art.camera_lock_id != transition.camera_lock_id.as_deref().unwrap_or_default()
+                || art.camera_lock_canonical_sha256
+                    != transition
+                        .camera_lock_canonical_sha256
+                        .as_deref()
+                        .unwrap_or_default()
+                || art.camera_rig_object_sha256
+                    != transition
+                        .camera_rig_object_sha256
+                        .as_deref()
+                        .unwrap_or_default()
+                || art.camera_rig_canonical_sha256
+                    != transition
+                        .camera_rig_canonical_sha256
+                        .as_deref()
+                        .unwrap_or_default()
+                || art.camera_lock_receipt_object_sha256
+                    != transition
+                        .camera_lock_receipt_object_sha256
+                        .as_deref()
+                        .unwrap_or_default()
+                || art.camera_lock_source_transition_id
+                    != transition
+                        .camera_lock_source_transition_id
+                        .as_deref()
+                        .unwrap_or_default()
+                || art.camera_lock_source_transition_sha256
+                    != transition
+                        .camera_lock_source_transition_sha256
+                        .as_deref()
+                        .unwrap_or_default()
+                || art.camera_lock_source_head_canonical_sha256
+                    != transition
+                        .camera_lock_source_head_canonical_sha256
+                        .as_deref()
+                        .unwrap_or_default()
+                || art.quality_status != "NOT_PROVEN"
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V3_FORM_ART_BINDING_MISMATCH".to_owned(),
+                ));
+            }
+        }
+    }
+    let session = runtime
+        .store
+        .get_agentic_session(session_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+    if session.candidate_id != root_candidate_id {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_SESSION_ROOT_CANDIDATE_MISMATCH".to_owned(),
+        ));
+    }
+    validate_session_binding(
+        &session,
+        session_id,
+        project_id,
+        root_candidate_id,
+        &transition.reference_id,
+        &transition.camera_hash,
+        &transition.evidence_sha256,
+        &session.observation_sha256,
+    )?;
+    let reference = bound_reference(runtime, project_id, &transition.reference_id)?;
+    if reference.object_sha256 != transition.reference_sha256
+        || session.reference_id != transition.reference_id
+        || session.reference_sha256 != transition.reference_sha256
+        || session.reference_canvas_sha256 != transition.reference_canvas_object_sha256
+        || session.design_spec_sha256 != transition.design_spec_object_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_REFERENCE_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let candidate = bound_candidate(runtime, project_id, root_candidate_id)?;
+    if candidate.canonical_sha256 != transition.root_candidate_state_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_CANDIDATE_STATE_MISMATCH".to_owned(),
+        ));
+    }
+    validate_v2_candidate_artifact_identity(
+        runtime,
+        &candidate,
+        &transition.source_artifact_id,
+        &transition.root_artifact_sha256,
+        "root",
+    )?;
+    if require_current_root_head {
+        validate_current_candidate_head(runtime, &candidate, project_id)?;
+    }
+    let authoring_context = read_authoring_context(runtime, &session)?;
+    let canvas = authoring_context.get("reference_canvas").ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_REFERENCE_CANVAS_READBACK_MISSING".to_owned(),
+        )
+    })?;
+    validate_v3_reference_coverage(canvas)?;
+    validate_v3_reference_canvas_binding(
+        canvas,
+        &transition.camera_hash,
+        &transition.evidence_sha256,
+    )?;
+    let expected_projection = production_stage_compatibility_projection_v3(&transition.to_stage);
+    if head.schema_version != "ProductionStageHead@3"
+        || head.session_id != transition.session_id
+        || head.project_id != transition.project_id
+        || head.root_candidate_id != transition.root_candidate_id
+        || head.root_candidate_role != transition.root_candidate_role
+        || head.root_candidate_state_sha256 != transition.root_candidate_state_sha256
+        || head.source_artifact_id != transition.source_artifact_id
+        || head.root_artifact_sha256 != transition.root_artifact_sha256
+        // V3 heads retain the immutable root stage (`reference-intake`) while
+        // `previous_head_stage` advances across the adjacent edge.  Using
+        // transition.from_stage here would make the second edge impossible
+        // because its source stage is reference-coverage-reviewed.
+        || head.root_stage != "reference-intake"
+        || head.previous_head_candidate_id != transition.previous_head_candidate_id
+        || head.previous_head_candidate_role != transition.previous_head_candidate_role
+        || head.previous_head_candidate_state_sha256
+            != transition.previous_head_candidate_state_sha256
+        || head.previous_head_artifact_id != transition.previous_head_artifact_id
+        || head.previous_head_artifact_sha256 != transition.previous_head_artifact_sha256
+        || head.previous_head_stage != transition.previous_head_stage
+        || head.head_candidate_id != transition.head_candidate_id
+        || head.head_candidate_role != transition.head_candidate_role
+        || head.head_candidate_state_sha256 != transition.head_candidate_state_sha256
+        || head.output_artifact_id != transition.output_artifact_id
+        || head.head_artifact_sha256 != transition.head_artifact_sha256
+        || head.head_stage != transition.to_stage
+        || head.candidate_binding_status != transition.candidate_binding_status
+        || head.reference_id != transition.reference_id
+        || head.reference_sha256 != transition.reference_sha256
+        || head.camera_hash != transition.camera_hash
+        || head.evidence_sha256 != transition.evidence_sha256
+        || head.reference_canvas_object_sha256 != transition.reference_canvas_object_sha256
+        || head.quality_report_object_sha256 != transition.quality_report_object_sha256
+        || head.comparison_report_object_sha256 != transition.comparison_report_object_sha256
+        || head.design_spec_object_sha256 != transition.design_spec_object_sha256
+        || head.visual_receipt_object_sha256 != transition.visual_receipt_object_sha256
+        || head.human_review_receipt_object_sha256 != transition.human_review_receipt_object_sha256
+        || head.engine_validation_receipt_object_sha256
+            != transition.engine_validation_receipt_object_sha256
+        || head.distribution_receipt_object_sha256 != transition.distribution_receipt_object_sha256
+        || head.structural_status != transition.structural_status
+        || head.visual_status != transition.visual_status
+        || head.human_status != transition.human_status
+        || head.engine_status != transition.engine_status
+        || head.distribution_status != transition.distribution_status
+        || head.approval_receipt_id != transition.approval_receipt_id
+        || head.approval_session_id != transition.approval_session_id
+        || head.approval_expires_at != transition.approval_expires_at
+        || head.approval_summary_sha256 != transition.approval_summary_sha256
+        || head.head_transition_id != transition.transition_id
+        || head.head_transition_sha256 != transition.canonical_sha256
+        || head.compatibility_projection != expected_projection
+        || head.candidate_confirmed
+        || head.version_created
+        || head.export_performed
+        || head.materialization_status != "runtime-owned-durable-production-stage-head-v3"
+        || head.updated_at != transition.created_at
+        || !is_sha256(&head.canonical_sha256)
+        || canonical_record_hash(head)? != head.canonical_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V3_HEAD_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 fn bound_candidate<'a>(
     runtime: &'a Runtime,
     project_id: &str,
@@ -3710,6 +9532,1231 @@ fn next_actions(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const FPS_FORM_04L_PARAMETER_ID: &str = "stock-open-frame-clearance";
+    const FPS_FORM_04L_TRIAL_VALUES: [f64; 3] = [0.30, 0.35, 0.42];
+    const FPS_FORM_04L_MIN_BOUNDARY_ADJACENCY_MILLI: u64 = 250;
+
+    #[test]
+    #[ignore = "requires the existing FPS-FORM-04AY durable Runtime database and same-cohort render worker"]
+    fn production_weapon_d1_approved_camera_lineage_and_fresh_baseline_continue_durably() {
+        let database_path = std::env::var_os("FORGECAD_REAL_WEAPON_CONTINUATION_DATABASE_PATH")
+            .map(std::path::PathBuf::from)
+            .expect(
+                "FORGECAD_REAL_WEAPON_CONTINUATION_DATABASE_PATH must identify the 04AY database",
+            );
+        assert!(database_path.is_file(), "04AY durable database must exist");
+
+        let runtime = Runtime::open(&database_path).expect("open 04AY durable Runtime");
+        let lock = runtime
+            .store
+            .get_production_camera_lock("fps-form-04a-camera-lock")
+            .expect("read 04AY CameraLock")
+            .expect("04AY CameraLock must exist");
+        assert_eq!(
+            lock.reference_sha256,
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        assert_eq!(
+            lock.canonical_sha256,
+            "1cdfbd30ab8c43a9e01622f02d2a7f6d4da965205cd96652ead6b54fe7f42ce5"
+        );
+
+        let approval_summary =
+            "Approved rear three quarter orientation stock left muzzle right upright orbit 180";
+        let mut lineage_request = json!({
+            "schema_version":"ProductionCameraLockRegistrationLineagePrepareRequest@1",
+            "operation":"forgecad.production.camera-lock-registration-lineage-prepare@1",
+            "registration_lineage_id":"fps-form-04az-camera-lineage-v2",
+            "session_id":lock.session_id,
+            "project_id":lock.project_id,
+            "candidate_id":lock.candidate_id,
+            "candidate_state_sha256":lock.candidate_state_sha256,
+            "camera_lock_id":lock.camera_lock_id,
+            "camera_lock_canonical_sha256":lock.canonical_sha256,
+            "semantic_landmark_ordering_id":"fps-form-04az-semantic-ordering",
+            "authored_orientation_id":"fps-form-04az-rear3q-orientation",
+            "registered_rig_v2_id":"fps-form-04az-registered-rig-v2",
+            "rear_three_quarter_rotation_degrees":0,
+            "rear_three_quarter_subject_screen_order":"stock-left-muzzle-right",
+            "rear_three_quarter_camera_orbit_degrees":180,
+            "approval_receipt_id":"fps-form-04az-orientation-approval",
+            "approval_session_id":lock.session_id,
+            "approval_expires_at":"9999999999",
+            "approval_summary":approval_summary,
+            "approved":true,
+            "idempotency_key":"fps-form-04az-lineage-prepare",
+            "input_sha256":""
+        });
+        let typed_lineage_request: forgecad_contracts::ProductionCameraLockRegistrationLineagePrepareRequest =
+            serde_json::from_value(lineage_request.clone()).expect("typed 04AZ lineage request");
+        lineage_request["input_sha256"] = Value::String(canonical_json_hash(
+            &production_camera_lock_registration_lineage_input_binding(
+                &typed_lineage_request,
+                &sha256_hex(approval_summary.as_bytes()),
+            ),
+        ));
+        let lineage_prepare = runtime
+            .production_camera_lock_registration_lineage_prepare(lineage_request)
+            .expect("prepare 04AZ registration lineage");
+        assert_eq!(lineage_prepare["promotable"], true);
+        assert_eq!(lineage_prepare["restart_hash_verified"], true);
+        let lineage = lineage_prepare["registration_lineage"].clone();
+        let lineage_canonical_sha256 = lineage["canonical_sha256"]
+            .as_str()
+            .expect("04AZ lineage canonical hash")
+            .to_owned();
+        let rig_v2_object_sha256 = lineage["registered_rig_v2_object_sha256"]
+            .as_str()
+            .expect("04AZ RigV2 object hash")
+            .to_owned();
+        let rig_v2: Value = serde_json::from_slice(
+            &runtime
+                .cas_read_bounded(
+                    &rig_v2_object_sha256,
+                    MAX_PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_OBJECT_BYTES as u64,
+                )
+                .expect("read 04AZ RigV2"),
+        )
+        .expect("decode 04AZ RigV2");
+        let rear_camera_hash = rig_v2["renderer_views"]
+            .as_array()
+            .and_then(|views| {
+                views.iter().find(|view| {
+                    view.get("kind").and_then(Value::as_str) == Some("rear-three-quarter")
+                })
+            })
+            .and_then(|view| view.get("registered_camera_hash"))
+            .and_then(Value::as_str)
+            .expect("04AZ rear-three-quarter registered camera hash")
+            .to_owned();
+        assert_eq!(
+            rear_camera_hash,
+            "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb"
+        );
+        drop(runtime);
+
+        let runtime = Runtime::open(&database_path).expect("restart 04AZ Runtime after lineage");
+        let mut lineage_get = json!({
+            "schema_version":"ProductionCameraLockRegistrationLineageGetRequest@1",
+            "operation":"forgecad.production.camera-lock-registration-lineage-get@1",
+            "registration_lineage_id":"fps-form-04az-camera-lineage-v2",
+            "session_id":lock.session_id,
+            "project_id":lock.project_id,
+            "candidate_id":lock.candidate_id,
+            "candidate_state_sha256":lock.candidate_state_sha256,
+            "camera_lock_id":lock.camera_lock_id,
+            "camera_lock_canonical_sha256":lock.canonical_sha256,
+            "max_response_bytes":1048576,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "runtime_write_performed":false,
+            "persistent_user_data_touched":false,
+            "input_sha256":""
+        });
+        lineage_get["input_sha256"] = Value::String(canonical_json_hash(&json!({
+            "operation":lineage_get["operation"],
+            "registration_lineage_id":lineage_get["registration_lineage_id"],
+            "session_id":lineage_get["session_id"],
+            "project_id":lineage_get["project_id"],
+            "candidate_id":lineage_get["candidate_id"],
+            "candidate_state_sha256":lineage_get["candidate_state_sha256"],
+            "camera_lock_id":lineage_get["camera_lock_id"],
+            "camera_lock_canonical_sha256":lineage_get["camera_lock_canonical_sha256"],
+            "max_response_bytes":lineage_get["max_response_bytes"],
+            "writer_policy":lineage_get["writer_policy"],
+            "runtime_write_performed":false,
+            "persistent_user_data_touched":false
+        })));
+        let lineage_get_result = runtime
+            .production_camera_lock_registration_lineage_get(lineage_get)
+            .expect("restart-read 04AZ lineage");
+        assert_eq!(
+            lineage_get_result["registration_lineage"]["canonical_sha256"],
+            lineage_canonical_sha256
+        );
+        assert_eq!(lineage_get_result["replayed"], true);
+
+        let mut preflight = json!({
+            "schema_version":"ProductionWeaponFormArtBaselinePreflightRequest@1",
+            "operation":"forgecad.production.weapon.form-art-baseline-preflight-get@1",
+            "preflight_id":"fps-form-04az-fresh-baseline-preflight",
+            "registration_lineage_id":"fps-form-04az-camera-lineage-v2",
+            "registration_lineage_canonical_sha256":lineage_canonical_sha256,
+            "session_id":lock.session_id,
+            "project_id":lock.project_id,
+            "candidate_id":lock.candidate_id,
+            "candidate_state_sha256":lock.candidate_state_sha256,
+            "artifact_id":lock.artifact_id,
+            "artifact_sha256":lock.artifact_sha256,
+            "max_response_bytes":1048576,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "runtime_write_performed":false,
+            "persistent_user_data_touched":false,
+            "input_sha256":""
+        });
+        let mut preflight_input = preflight
+            .as_object()
+            .expect("04AZ preflight object")
+            .clone();
+        preflight_input.remove("input_sha256");
+        preflight["input_sha256"] =
+            Value::String(canonical_json_hash(&Value::Object(preflight_input)));
+        let preflight_result = runtime
+            .production_weapon_form_art_baseline_preflight_get(preflight)
+            .expect("04AZ fresh baseline preflight");
+        assert_eq!(
+            preflight_result["ready_for_fresh_baseline"],
+            true,
+            "04AZ baseline preflight: {}",
+            serde_json::to_string(&preflight_result).expect("04AZ preflight JSON")
+        );
+        assert_eq!(preflight_result["blocking_reasons"], json!([]));
+
+        let mut baseline_prepare_request = json!({
+            "schema_version":"ProductionWeaponFormArtBaselinePrepareRequest@1",
+            "operation":"forgecad.production.weapon.form-art-baseline-prepare@1",
+            "baseline_id":"fps-form-04az-fresh-baseline-v1",
+            "registration_lineage_id":"fps-form-04az-camera-lineage-v2",
+            "registration_lineage_canonical_sha256":lineage_canonical_sha256,
+            "session_id":lock.session_id,
+            "project_id":lock.project_id,
+            "candidate_id":lock.candidate_id,
+            "candidate_state_sha256":lock.candidate_state_sha256,
+            "artifact_id":lock.artifact_id,
+            "artifact_sha256":lock.artifact_sha256,
+            "base_version_id":Value::Null,
+            "idempotency_key":"fps-form-04az-fresh-baseline-prepare",
+            "max_response_bytes":1048576,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "canonicalization_policy":"canonical-json-sha256-excluding-canonical-sha256@1",
+            "runtime_write_performed":false,
+            "persistent_user_data_touched":false,
+            "input_sha256":""
+        });
+        let mut baseline_prepare_input = baseline_prepare_request
+            .as_object()
+            .expect("04AZ baseline prepare object")
+            .clone();
+        baseline_prepare_input.remove("input_sha256");
+        baseline_prepare_request["input_sha256"] =
+            Value::String(canonical_json_hash(&Value::Object(baseline_prepare_input)));
+        let baseline_prepare = runtime
+            .production_weapon_form_art_baseline_prepare(baseline_prepare_request)
+            .expect("prepare 04AZ fresh baseline");
+        assert_eq!(baseline_prepare["restart_hash_verified"], true);
+        assert_eq!(baseline_prepare["promotion_eligible"], false);
+        assert_eq!(baseline_prepare["quality_status"], "NOT_PROVEN");
+        let baseline_canonical_sha256 = baseline_prepare["baseline"]["canonical_sha256"]
+            .as_str()
+            .expect("04AZ baseline canonical hash")
+            .to_owned();
+        let view_count = baseline_prepare["baseline"]["views"]
+            .as_array()
+            .map(Vec::len)
+            .expect("04AZ baseline views");
+        let aov_count = baseline_prepare["baseline"]["views"]
+            .as_array()
+            .expect("04AZ baseline views")
+            .iter()
+            .map(|view| {
+                view["pass_artifact_object_sha256"]
+                    .as_array()
+                    .map(Vec::len)
+                    .expect("04AZ baseline AOVs")
+            })
+            .sum::<usize>();
+        assert_eq!(view_count, 6);
+        assert_eq!(aov_count, 54);
+        drop(runtime);
+
+        let runtime = Runtime::open(&database_path).expect("restart 04AZ Runtime after baseline");
+        let mut baseline_get_request = json!({
+            "schema_version":"ProductionWeaponFormArtBaselineGetRequest@1",
+            "operation":"forgecad.production.weapon.form-art-baseline-get@1",
+            "baseline_id":"fps-form-04az-fresh-baseline-v1",
+            "registration_lineage_id":"fps-form-04az-camera-lineage-v2",
+            "registration_lineage_canonical_sha256":lineage_canonical_sha256,
+            "session_id":lock.session_id,
+            "project_id":lock.project_id,
+            "candidate_id":lock.candidate_id,
+            "candidate_state_sha256":lock.candidate_state_sha256,
+            "artifact_id":lock.artifact_id,
+            "artifact_sha256":lock.artifact_sha256,
+            "base_version_id":Value::Null,
+            "idempotency_key":"fps-form-04az-fresh-baseline-prepare",
+            "max_response_bytes":1048576,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "canonicalization_policy":"canonical-json-sha256-excluding-canonical-sha256@1",
+            "runtime_write_performed":false,
+            "persistent_user_data_touched":false,
+            "input_sha256":""
+        });
+        let mut baseline_get_input = baseline_get_request
+            .as_object()
+            .expect("04AZ baseline get object")
+            .clone();
+        baseline_get_input.remove("input_sha256");
+        baseline_get_request["input_sha256"] =
+            Value::String(canonical_json_hash(&Value::Object(baseline_get_input)));
+        let baseline_get = runtime
+            .production_weapon_form_art_baseline_get(baseline_get_request)
+            .expect("restart-read 04AZ fresh baseline");
+        assert_eq!(
+            baseline_get["baseline"]["canonical_sha256"],
+            baseline_canonical_sha256
+        );
+        assert_eq!(baseline_get["replayed"], true);
+        assert_eq!(baseline_get["runtime_write_performed"], false);
+
+        let receipt = json!({
+            "schema_version":"ForgeCADRealD1CameraLineageFreshBaselineReceipt@1",
+            "task_id":"FPS-FORM-04AZ",
+            "status":"PASS_DURABLE_CAMERA_LINEAGE_AND_FRESH_BASELINE",
+            "project_id":lock.project_id,
+            "session_id":lock.session_id,
+            "candidate_id":lock.candidate_id,
+            "candidate_state_sha256":lock.candidate_state_sha256,
+            "artifact_id":lock.artifact_id,
+            "artifact_sha256":lock.artifact_sha256,
+            "camera_lock_id":lock.camera_lock_id,
+            "camera_lock_canonical_sha256":lock.canonical_sha256,
+            "registration_lineage_id":"fps-form-04az-camera-lineage-v2",
+            "registration_lineage_canonical_sha256":lineage_canonical_sha256,
+            "registered_rig_v2_object_sha256":rig_v2_object_sha256,
+            "rear_three_quarter_camera_hash":rear_camera_hash,
+            "baseline_id":"fps-form-04az-fresh-baseline-v1",
+            "baseline_canonical_sha256":baseline_canonical_sha256,
+            "view_count":view_count,
+            "aov_count":aov_count,
+            "quality_status":"NOT_PROVEN",
+            "production_stage_advanced":false,
+            "candidate_confirmed":false,
+            "version_created":false,
+            "export_performed":false
+        });
+        println!(
+            "FPS_FORM_CAMERA_LINEAGE_FRESH_BASELINE_04AZ={}",
+            serde_json::to_string(&receipt).expect("04AZ receipt JSON")
+        );
+    }
+
+    #[test]
+    #[ignore = "requires the FPS-FORM-04BA durable Runtime database and same-cohort geometry/render workers"]
+    fn production_weapon_d1_boundary_bridge_relaxation_runs_fresh_form_quality_v2_fail_closed() {
+        let database_path = std::env::var_os("FORGECAD_REAL_WEAPON_CONTINUATION_DATABASE_PATH")
+            .map(std::path::PathBuf::from)
+            .expect(
+                "FORGECAD_REAL_WEAPON_CONTINUATION_DATABASE_PATH must identify the 04BA database",
+            );
+        assert!(database_path.is_file(), "04BA durable database must exist");
+
+        let runtime = Runtime::open(&database_path).expect("open 04BA durable Runtime");
+        let project_id = "project-0d236b8acdde4f1187b3a46a7d5e4f0f";
+        let session_id = "fps-form-04a-session";
+        let source_candidate_id = "candidate-86f6ed6ac95c413d9280c1061b33ee72";
+        let source_candidate = runtime
+            .candidate(source_candidate_id)
+            .expect("read 04BA source candidate")
+            .expect("04BA source candidate must exist");
+        let geometry_evidence = runtime
+            .store
+            .get_geometry_candidate_evidence(source_candidate_id)
+            .expect("read source geometry evidence")
+            .expect("source geometry evidence must exist");
+        let artifact_sha256 = source_candidate
+            .prepared_object_sha256
+            .as_deref()
+            .expect("source artifact hash");
+        let artifact_readback = runtime
+            .artifact_readback(artifact_sha256, source_candidate_id)
+            .expect("strict source artifact readback");
+        assert_eq!(artifact_readback["hard_gate_passed"], true);
+        assert_eq!(artifact_readback["validator_status"], "passed");
+
+        let mut source_request = json!({
+            "schema_version":"ProductionWeaponAuthoringMeshV2SourcePrepareRequest@1",
+            "project_id":project_id,
+            "candidate_id":source_candidate_id,
+            "candidate_state_sha256":source_candidate.canonical_sha256,
+            "geometry_program_sha256":geometry_evidence.geometry_program_sha256,
+            "artifact_sha256":artifact_sha256,
+            "artifact_readback_sha256":artifact_readback["canonical_sha256"],
+            "part_id":"rear-stock",
+            "source_node_id":"rear-stock",
+            "idempotency_key":"fps-form-04ba-rear-stock-source-genesis",
+            "max_response_bytes":1048576,
+            "runtime_write_performed":false,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "canonicalization_policy":"canonical-json-sha256-excluding-canonical-sha256@1",
+            "input_sha256":""
+        });
+        source_request["input_sha256"] = Value::String(canonical_json_hash(&source_request));
+        let source = runtime
+            .production_weapon_authoring_mesh_v2_source_prepare(&source_request)
+            .expect("materialize the exact rear-stock AuthoringMesh@2 source");
+        assert_eq!(source["runtime_write_performed"], true);
+        assert_eq!(source["stage_advanced"], false);
+
+        let art = runtime
+            .store
+            .get_production_weapon_form_art_evidence("fps-form-04a-form-art")
+            .expect("read source FormArt")
+            .expect("source FormArt must exist");
+        let boundary_parent_revision_id =
+            "amrev-4b0217d82cdd93aa99a6dae7622dc53eaa53d0924008ac62a0f899f1";
+        let boundary_parent_revision_sha256 =
+            "a38b1a9bbe1571459e656846e5a9e9355e40212ff55cdb2f2b7005ba9ec4e6bc";
+        let boundary_parent_revision_object_sha256 =
+            "3cf448f4881f39e301983e3116abc9d5d901846e232218a885cea7367ca96cfb";
+        let mut boundary_parent_get_request = json!({
+            "schema_version":"AuthoringMeshV2DurableGetRequest@1",
+            "project_id":project_id,
+            "mesh_id":source["mesh_id"],
+            "revision_id":boundary_parent_revision_id,
+            "revision_sha256":boundary_parent_revision_sha256,
+            "revision_object_sha256":boundary_parent_revision_object_sha256,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "runtime_write_performed":false,
+            "persistent_user_data_touched":false,
+            "input_sha256":""
+        });
+        boundary_parent_get_request["input_sha256"] =
+            Value::String(canonical_json_hash(&boundary_parent_get_request));
+        let boundary_parent = runtime
+            .authoring_mesh_v2_durable_get(&boundary_parent_get_request)
+            .expect("restart-read the exact 04BA BoundaryBridge parent");
+        assert_eq!(
+            boundary_parent["revision"]["revision_id"],
+            boundary_parent_revision_id
+        );
+
+        // 04BA proved that the symmetric Z wedge owns the top-view regression,
+        // while the Y opening curve is directionally useful but too strong for
+        // the left boundary.  This single typed repair removes the Z wedge and
+        // retains exactly one quarter of the Y displacement on the six
+        // Runtime-generated upper-inner station vertices.  Endpoints, support
+        // beam, rear cap, outer envelope and all other Parts remain untouched.
+        let mut edit = json!({
+            "schema_version":"AuthoringMeshMoveVertices@1",
+            "operation":"move_vertices",
+            "source_node_id":"rear-stock",
+            "part_id":"rear-stock",
+            "coordinate_space":"source-local",
+            "selection_policy":"explicit-stable-vertex-ids@1",
+            "vertex_moves":[
+                {
+                    "vertex_id":"v-13588df49b84d491627ea5b8b507f4f1f3ab0d444d90271577b4ad96",
+                    "before_position_m":[-0.2375,-0.122,-0.436],
+                    "after_position_m":[-0.2375,-0.113,-0.43]
+                },
+                {
+                    "vertex_id":"v-db24f746f02ace20afeafa3f6b54d208a60de982279faa54d7eb28ed",
+                    "before_position_m":[-0.2375,-0.122,0.436],
+                    "after_position_m":[-0.2375,-0.113,0.43]
+                },
+                {
+                    "vertex_id":"v-cea545bb67b72b1c6485cbcc17a7465be6e4d891ee74dca507ae3a1e",
+                    "before_position_m":[0.0,-0.128,-0.439],
+                    "after_position_m":[0.0,-0.1145,-0.43]
+                },
+                {
+                    "vertex_id":"v-44c59c80442c7c8c42f163c842db5b1c0c945f6c852373eb10cb9dc5",
+                    "before_position_m":[0.0,-0.128,0.439],
+                    "after_position_m":[0.0,-0.1145,0.43]
+                },
+                {
+                    "vertex_id":"v-0b5816d146481be57c54d448977b09517ec6aad9b445e5cb8b60fb3f",
+                    "before_position_m":[0.23749999999999993,-0.122,-0.436],
+                    "after_position_m":[0.23749999999999993,-0.113,-0.43]
+                },
+                {
+                    "vertex_id":"v-35fe449914cfdac5bd483fb071fbb8bae7c051020b7c31dd0ceb1062",
+                    "before_position_m":[0.23749999999999993,-0.122,0.436],
+                    "after_position_m":[0.23749999999999993,-0.113,0.43]
+                }
+            ],
+            "canonical_sha256":""
+        });
+        edit["canonical_sha256"] = Value::String(canonical_json_hash(&edit));
+        let mut proposal_request = json!({
+            "schema_version":"ProductionWeaponFormArtMeshProposalGetRequest@1",
+            "project_id":project_id,
+            "candidate_id":source_candidate_id,
+            "candidate_state_sha256":source_candidate.canonical_sha256,
+            "mesh_id":source["mesh_id"],
+            "lineage_id":source["lineage_id"],
+            "parent_revision_id":boundary_parent_revision_id,
+            "parent_revision_sha256":boundary_parent_revision_sha256,
+            "parent_revision_object_sha256":boundary_parent_revision_object_sha256,
+            "source_node_id":"rear-stock",
+            "part_id":"rear-stock",
+            "source_binding_sha256":source["source_binding_sha256"],
+            "form_art_evidence_id":art.art_evidence_id,
+            "form_art_evidence_object_sha256":art.receipt_object_sha256,
+            "form_art_evidence_canonical_sha256":art.canonical_sha256,
+            "edit":edit,
+            "idempotency_key":"fps-form-04bb-boundary-bridge-quarter-y-flat-z-proposal",
+            "max_response_bytes":1048576,
+            "runtime_write_performed":false,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "canonicalization_policy":"canonical-json-sha256-excluding-canonical-sha256@1",
+            "input_sha256":""
+        });
+        proposal_request["input_sha256"] = Value::String(canonical_json_hash(&proposal_request));
+        let proposal_preview = runtime
+            .production_weapon_form_art_mesh_proposal_get(&proposal_request)
+            .expect("derive read-only boundary-bridge relaxation proposal");
+        assert_eq!(proposal_preview["typed_edit"]["operation"], "move_vertices");
+        assert_eq!(proposal_preview["runtime_write_performed"], false);
+
+        let objects_before_prepare = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before 04BB proposal")
+            .len();
+        let proposal = runtime
+            .production_weapon_form_art_mesh_proposal_prepare(&proposal_request)
+            .expect(
+                "prepare one bounded boundary-bridge relaxation candidate and six-view evidence",
+            );
+        assert_eq!(proposal["runtime_write_performed"], true);
+        for forbidden_true_field in [
+            "production_stage_advanced",
+            "candidate_confirmed",
+            "version_created",
+            "export_performed",
+        ] {
+            assert_ne!(
+                proposal.get(forbidden_true_field).and_then(Value::as_bool),
+                Some(true),
+                "proposal must not claim {forbidden_true_field}"
+            );
+        }
+        let proposal_evidence = &proposal["proposal_form_art_evidence"];
+        let proposal_receipt = &proposal_evidence["receipt"];
+        let proposal_evidence_ready = proposal_receipt["proposal_form_art_evidence_ready"]
+            .as_bool()
+            .unwrap_or(false);
+
+        let mut form_quality_v2 = Value::Null;
+        let mut form_quality_v2_status = "BLOCKED_PROPOSAL_FORM_ART_EVIDENCE";
+        if proposal_evidence_ready {
+            let baseline = runtime
+                .store
+                .get_production_weapon_form_art_baseline(
+                    project_id,
+                    "fps-form-04az-fresh-baseline-prepare",
+                )
+                .expect("read fresh source baseline")
+                .expect("fresh source baseline must exist");
+            let lineage = runtime
+                .store
+                .get_production_camera_lock_registration_lineage("fps-form-04az-camera-lineage-v2")
+                .expect("read registration lineage")
+                .expect("registration lineage must exist");
+            let legacy = runtime
+                .store
+                .get_production_weapon_form_quality("fps-form-04a-legacy-form-quality")
+                .expect("read legacy FormQuality")
+                .expect("legacy FormQuality must exist");
+            let head = runtime
+                .store
+                .get_production_stage_head_v3(session_id, project_id, source_candidate_id)
+                .expect("read camera-calibrated head")
+                .expect("camera-calibrated head must exist");
+            let proposal_receipt_object_sha256 = proposal_evidence["receipt_object_sha256"]
+                .as_str()
+                .expect("proposal evidence object hash");
+            let durable_proposal = runtime
+                .store
+                .get_production_weapon_form_art_proposal_evidence(proposal_receipt_object_sha256)
+                .expect("read durable proposal evidence")
+                .expect("durable proposal evidence must exist");
+            let derived_candidate_id = proposal["derived_candidate_id"]
+                .as_str()
+                .expect("derived candidate id");
+            let derived_candidate = runtime
+                .candidate(derived_candidate_id)
+                .expect("read derived candidate")
+                .expect("derived candidate must exist");
+            let proposal_artifact_id = derived_candidate
+                .prepared_object_id
+                .as_deref()
+                .expect("derived artifact id");
+            let proposal_views = proposal_receipt["views"]
+                .as_array()
+                .expect("proposal evidence views");
+            let proposal_part_id_evidence_sha256 = canonical_json_hash(&json!(proposal_views
+                .iter()
+                .map(|view| json!({
+                    "view_kind":view.get("view_kind"),
+                    "part_id_pass_object_sha256":view.get("part_id_pass_object_sha256"),
+                    "part_id_status":view.get("part_id_status"),
+                }))
+                .collect::<Vec<_>>()));
+            let proposal_negative_space_evidence_sha256 =
+                canonical_json_hash(&json!(proposal_views
+                    .iter()
+                    .map(|view| json!({
+                        "view_kind":view.get("view_kind"),
+                        "negative_space_status":view.get("negative_space_status"),
+                        "negative_space_observations":view.get("negative_space_observations"),
+                    }))
+                    .collect::<Vec<_>>()));
+            let proposal_line_flow_evidence_sha256 = canonical_json_hash(&json!(proposal_views
+                .iter()
+                .map(|view| json!({
+                    "view_kind":view.get("view_kind"),
+                    "line_flow_status":view.get("line_flow_status"),
+                    "line_flow_observations":view.get("line_flow_observations"),
+                }))
+                .collect::<Vec<_>>()));
+            let form_quality_policy = forgecad_contracts::PRODUCTION_WEAPON_FORM_QUALITY_V2_POLICY;
+            let threshold_policy =
+                forgecad_contracts::PRODUCTION_WEAPON_FORM_QUALITY_V2_THRESHOLD_POLICY;
+            let mut request = json!({
+                "schema_version":"ProductionWeaponFormQualityPrepareRequest@2",
+                "form_quality_id":"fps-form-04bb-boundary-bridge-relaxation-form-quality-v2",
+                "session_id":session_id,
+                "project_id":project_id,
+                "form_stage":"blockout",
+                "source_stage":"camera-calibrated",
+                "target_stage":"blockout-reviewed",
+                "legacy_form_quality_object_sha256":legacy.receipt_object_sha256,
+                "legacy_form_quality_canonical_sha256":legacy.canonical_sha256,
+                "form_art_evidence_object_sha256":art.receipt_object_sha256,
+                "form_art_evidence_canonical_sha256":art.canonical_sha256,
+                "evidence_source_kind":"fresh-baseline-proposal",
+                "source_candidate_id":baseline.candidate_id,
+                "source_candidate_state_sha256":baseline.candidate_state_sha256,
+                "source_artifact_id":baseline.artifact_id,
+                "source_artifact_sha256":baseline.artifact_sha256,
+                "source_fresh_baseline_id":baseline.baseline_id,
+                "source_fresh_baseline_canonical_sha256":baseline.canonical_sha256,
+                "source_fresh_baseline_receipt_object_sha256":baseline.receipt_object_sha256,
+                "source_registration_lineage_id":lineage.registration_lineage_id,
+                "source_registration_lineage_canonical_sha256":lineage.canonical_sha256,
+                "source_registration_lineage_receipt_object_sha256":lineage.receipt_object_sha256,
+                "source_registered_rig_v2_id":baseline.registered_rig_v2_id,
+                "source_registered_rig_v2_object_sha256":baseline.registered_rig_v2_object_sha256,
+                "source_registered_rig_v2_canonical_sha256":baseline.registered_rig_v2_canonical_sha256,
+                "source_runtime_build_cohort_sha256":baseline.runtime_build_cohort_sha256,
+                "proposal_candidate_id":durable_proposal.proposal_candidate_id,
+                "proposal_candidate_state_sha256":durable_proposal.proposal_candidate_state_sha256,
+                "proposal_artifact_id":proposal_artifact_id,
+                "proposal_artifact_sha256":durable_proposal.proposal_artifact_sha256,
+                "proposal_artifact_readback_sha256":durable_proposal.proposal_artifact_readback_sha256,
+                "proposal_worker_build_cohort_sha256":durable_proposal.worker_build_cohort_sha256,
+                "cross_view_evidence_bundle_sha256":durable_proposal.cross_view_evidence_bundle_sha256,
+                "proposal_form_art_evidence_id":art.art_evidence_id,
+                "proposal_form_art_evidence_object_sha256":proposal_evidence["receipt_object_sha256"],
+                "proposal_form_art_evidence_canonical_sha256":proposal_evidence["receipt_canonical_sha256"],
+                "proposal_part_id_evidence_sha256":proposal_part_id_evidence_sha256,
+                "proposal_negative_space_evidence_sha256":proposal_negative_space_evidence_sha256,
+                "proposal_line_flow_evidence_sha256":proposal_line_flow_evidence_sha256,
+                "current_source_head_transition_id":head.head_transition_id,
+                "current_source_head_transition_sha256":head.head_transition_sha256,
+                "current_source_head_canonical_sha256":head.canonical_sha256,
+                "previous_form_quality_id":Value::Null,
+                "previous_form_quality_report_object_sha256":Value::Null,
+                "previous_form_quality_canonical_sha256":Value::Null,
+                "form_quality_policy":form_quality_policy,
+                "form_quality_policy_sha256":sha256_hex(form_quality_policy.as_bytes()),
+                "threshold_policy":threshold_policy,
+                "threshold_policy_sha256":sha256_hex(threshold_policy.as_bytes()),
+                "input_sha256":"",
+                "idempotency_key":"fps-form-04bb-boundary-bridge-relaxation-form-quality-v2"
+            });
+            let mut input = request
+                .as_object()
+                .expect("FormQuality V2 request object")
+                .clone();
+            input.remove("input_sha256");
+            input.remove("idempotency_key");
+            request["input_sha256"] = Value::String(canonical_json_hash(&Value::Object(input)));
+            form_quality_v2 = runtime
+                .production_weapon_form_quality_v2_prepare(request)
+                .expect("consume exact fresh baseline and proposal evidence through FormQualityV2");
+            form_quality_v2_status = form_quality_v2["form_quality"]["quality_status"]
+                .as_str()
+                .unwrap_or("QUALITY_TARGET_NOT_MET");
+            assert_eq!(form_quality_v2["production_stage_advanced"], false);
+            assert_eq!(form_quality_v2["candidate_confirmed"], false);
+            assert_eq!(form_quality_v2["version_created"], false);
+            assert_eq!(form_quality_v2["export_performed"], false);
+        }
+
+        let objects_after_prepare = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after 04BB proposal")
+            .len();
+        let receipt = json!({
+            "schema_version":"ForgeCADRealD1BoundaryBridgeRelaxationFormQualityV2Receipt@1",
+            "task_id":"FPS-FORM-04BB",
+            "status":if proposal_evidence_ready {"FORM_QUALITY_V2_EVALUATED"} else {"BLOCKED_PROPOSAL_FORM_ART_EVIDENCE"},
+            "project_id":project_id,
+            "session_id":session_id,
+            "source_candidate_id":source_candidate_id,
+            "source_candidate_state_sha256":source_candidate.canonical_sha256,
+            "source_artifact_sha256":artifact_sha256,
+            "fresh_baseline_id":"fps-form-04az-fresh-baseline-v1",
+            "registration_lineage_id":"fps-form-04az-camera-lineage-v2",
+            "edit_schema":"AuthoringMeshMoveVertices@1",
+            "edit_profile_id":"registered-boundary-bridge-quarter-y-flat-z-relaxation@1",
+            "parent_boundary_bridge_revision_id":boundary_parent_revision_id,
+            "moved_vertex_count":6,
+            "child_revision_id":proposal["child_revision"]["revision_id"],
+            "child_revision_sha256":proposal["child_revision"]["revision_sha256"],
+            "derived_candidate_id":proposal["derived_candidate_id"],
+            "derived_candidate_state_sha256":proposal["derived_candidate_state_sha256"],
+            "derived_artifact_sha256":proposal["derived_geometry"]["derived_artifact_sha256"],
+            "derived_artifact_readback_sha256":proposal["derived_geometry"]["derived_artifact_readback_sha256"],
+            "worker_build_cohort_sha256":proposal["derived_geometry"]["worker_build_cohort_sha256"],
+            "triangle_count":proposal["derived_geometry"]["triangle_count"],
+            "cross_view_evidence_bundle_sha256":proposal["six_view_evaluation"]["bundle_sha256"],
+            "six_view_aggregate_status":proposal["six_view_evaluation"]["aggregate_status"],
+            "six_view_non_regressing":proposal["six_view_evaluation"]["non_regressing"],
+            "six_view_strict_improvement":proposal["six_view_evaluation"]["strict_improvement"],
+            "secondary_form_gate":proposal["six_view_evaluation"]["secondary_form_gate"],
+            "proposal_form_art_evidence_object_sha256":proposal_evidence["receipt_object_sha256"],
+            "proposal_form_art_evidence_canonical_sha256":proposal_evidence["receipt_canonical_sha256"],
+            "proposal_form_art_evidence_ready":proposal_evidence_ready,
+            "form_quality_v2_status":form_quality_v2_status,
+            "form_quality_v2":form_quality_v2,
+            "cas_object_delta":objects_after_prepare.saturating_sub(objects_before_prepare),
+            "quality_status":"QUALITY_TARGET_NOT_MET",
+            "production_stage_advanced":false,
+            "candidate_confirmed":false,
+            "version_created":false,
+            "export_performed":false
+        });
+        println!(
+            "FPS_FORM_BOUNDARY_BRIDGE_RELAXATION_QUALITY_04BB={}",
+            serde_json::to_string(&receipt).expect("04BB receipt JSON")
+        );
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    struct ProductionWeapon04lAcceptanceFacts {
+        owner_intrusion_pixels: [u64; 3],
+        owner_boundary_adjacency_milli: [u64; 3],
+        strict_owner_thresholds_pass: bool,
+        outer_silhouette_non_regressing: bool,
+        part_source_bindings_unchanged: bool,
+        rear_cap_binding_unchanged: bool,
+        depth_fields_unchanged: bool,
+        reference_lineage_unchanged: bool,
+        camera_lock_lineage_unchanged: bool,
+        registered_rig_lineage_unchanged: bool,
+        subject_registration_lineage_unchanged: bool,
+        worker_cohort_lineage_unchanged: bool,
+    }
+
+    fn production_weapon_04l_trial_values() -> &'static [f64; 3] {
+        &FPS_FORM_04L_TRIAL_VALUES
+    }
+
+    fn production_weapon_04l_acceptance(
+        trial_value: f64,
+        facts: ProductionWeapon04lAcceptanceFacts,
+    ) -> bool {
+        let trial_value_is_closed = production_weapon_04l_trial_values()
+            .iter()
+            .any(|candidate| candidate.to_bits() == trial_value.to_bits());
+        trial_value_is_closed
+            && facts.strict_owner_thresholds_pass
+            && facts
+                .owner_intrusion_pixels
+                .iter()
+                .all(|pixels| *pixels == 0)
+            && facts
+                .owner_boundary_adjacency_milli
+                .iter()
+                .all(|adjacency| *adjacency >= FPS_FORM_04L_MIN_BOUNDARY_ADJACENCY_MILLI)
+            && facts.outer_silhouette_non_regressing
+            && facts.part_source_bindings_unchanged
+            && facts.rear_cap_binding_unchanged
+            && facts.depth_fields_unchanged
+            && facts.reference_lineage_unchanged
+            && facts.camera_lock_lineage_unchanged
+            && facts.registered_rig_lineage_unchanged
+            && facts.subject_registration_lineage_unchanged
+            && facts.worker_cohort_lineage_unchanged
+    }
+
+    fn production_weapon_04l_only_clearance_positions_changed(
+        baseline: &Value,
+        trial: &Value,
+    ) -> bool {
+        let mut normalized_trial = trial.clone();
+        let mut normalized_baseline = baseline.clone();
+        normalized_trial
+            .as_object_mut()
+            .and_then(|object| object.remove("canonical_sha256"));
+        normalized_baseline
+            .as_object_mut()
+            .and_then(|object| object.remove("canonical_sha256"));
+        let Some(baseline_nodes) = normalized_baseline["nodes"].as_array() else {
+            return false;
+        };
+        let Some(trial_nodes) = normalized_trial["nodes"].as_array_mut() else {
+            return false;
+        };
+        let mut changed_positions = 0_u64;
+        for node_id in ["rear-stock", "rear-stock-lower-beam"] {
+            let Some(baseline_node) = baseline_nodes
+                .iter()
+                .find(|node| node["node_id"].as_str() == Some(node_id))
+            else {
+                return false;
+            };
+            let Some(trial_node) = trial_nodes
+                .iter_mut()
+                .find(|node| node["node_id"].as_str() == Some(node_id))
+            else {
+                return false;
+            };
+            let Some(baseline_position) = baseline_node["parameters"]["position_m"].as_array()
+            else {
+                return false;
+            };
+            let Some(trial_position) = trial_node["parameters"]["position_m"].as_array_mut() else {
+                return false;
+            };
+            if baseline_position.len() != 3 || trial_position.len() != 3 {
+                return false;
+            }
+            if trial_position[0] != baseline_position[0]
+                || trial_position[2] != baseline_position[2]
+                || trial_position[1] == baseline_position[1]
+            {
+                return false;
+            }
+            trial_position[1] = baseline_position[1].clone();
+            changed_positions += 1;
+        }
+        changed_positions == 2 && normalized_trial == normalized_baseline
+    }
+
+    #[test]
+    fn production_weapon_04l_clearance_trial_set_is_closed_and_fail_closed() {
+        assert_eq!(production_weapon_04l_trial_values(), &[0.30, 0.35, 0.42]);
+        assert_eq!(FPS_FORM_04L_PARAMETER_ID, "stock-open-frame-clearance");
+        assert!(!FPS_FORM_04L_PARAMETER_ID.contains("angle"));
+        assert!(!FPS_FORM_04L_PARAMETER_ID.contains("thickness"));
+
+        let mut facts = ProductionWeapon04lAcceptanceFacts {
+            owner_intrusion_pixels: [0, 0, 0],
+            owner_boundary_adjacency_milli: [250, 250, 250],
+            strict_owner_thresholds_pass: true,
+            outer_silhouette_non_regressing: true,
+            part_source_bindings_unchanged: true,
+            rear_cap_binding_unchanged: true,
+            depth_fields_unchanged: true,
+            reference_lineage_unchanged: true,
+            camera_lock_lineage_unchanged: true,
+            registered_rig_lineage_unchanged: true,
+            subject_registration_lineage_unchanged: true,
+            worker_cohort_lineage_unchanged: true,
+        };
+        for value in FPS_FORM_04L_TRIAL_VALUES {
+            assert!(production_weapon_04l_acceptance(value, facts));
+        }
+        facts.owner_intrusion_pixels[2] = 1;
+        assert!(!production_weapon_04l_acceptance(0.42, facts));
+        facts.owner_intrusion_pixels[2] = 0;
+        facts.owner_boundary_adjacency_milli[2] = 249;
+        assert!(!production_weapon_04l_acceptance(0.42, facts));
+        assert!(!production_weapon_04l_acceptance(0.22, facts));
+
+        let baseline = json!({
+            "canonical_sha256":"baseline",
+            "nodes":[
+                {"node_id":"rear-stock","parameters":{"position_m":[2.05,1.68,0.0],"size_m":[0.95,0.22,0.86]}},
+                {"node_id":"rear-stock-lower-beam","parameters":{"position_m":[2.02,1.15,0.0],"size_m":[0.90,0.16,0.72],"rotation_rad":[0.0,0.0,0.16]}},
+                {"node_id":"rear-cap","parameters":{"position_m":[2.57,1.4,0.0],"size_m":[0.20,0.98,0.92]}}
+            ]
+        });
+        let mut y_only = baseline.clone();
+        y_only["canonical_sha256"] = json!("trial");
+        y_only["nodes"][0]["parameters"]["position_m"][1] = json!(1.72);
+        y_only["nodes"][1]["parameters"]["position_m"][1] = json!(1.11);
+        assert!(production_weapon_04l_only_clearance_positions_changed(
+            &baseline, &y_only
+        ));
+        y_only["nodes"][1]["parameters"]["position_m"][2] = json!(0.01);
+        assert!(!production_weapon_04l_only_clearance_positions_changed(
+            &baseline, &y_only
+        ));
+    }
+
+    fn form_edge_transition_fixture() -> ProductionStageTransitionV3Record {
+        let hash = "a".repeat(64);
+        ProductionStageTransitionV3Record {
+            schema_version: "ProductionStageTransition@3".to_owned(),
+            transition_id: "transition-form-1".to_owned(),
+            session_id: "session-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            root_candidate_id: "candidate-1".to_owned(),
+            root_candidate_role: PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE.to_owned(),
+            root_candidate_state_sha256: hash.clone(),
+            source_artifact_id: "artifact-1".to_owned(),
+            root_artifact_sha256: hash.clone(),
+            previous_head_candidate_id: "candidate-1".to_owned(),
+            previous_head_candidate_role: PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE.to_owned(),
+            previous_head_candidate_state_sha256: hash.clone(),
+            previous_head_artifact_id: "artifact-1".to_owned(),
+            previous_head_artifact_sha256: hash.clone(),
+            previous_head_stage: "camera-calibrated".to_owned(),
+            head_candidate_id: "candidate-1".to_owned(),
+            head_candidate_role: PRODUCTION_STAGE_V3_SAME_CANDIDATE_ROLE.to_owned(),
+            head_candidate_state_sha256: hash.clone(),
+            output_artifact_id: "artifact-1".to_owned(),
+            head_artifact_sha256: hash.clone(),
+            from_stage: "camera-calibrated".to_owned(),
+            to_stage: "blockout-reviewed".to_owned(),
+            candidate_binding_status: "same-candidate-evidence".to_owned(),
+            reference_id: "reference-1".to_owned(),
+            reference_sha256: hash.clone(),
+            camera_hash: hash.clone(),
+            camera_lock_id: Some("camera-lock-1".to_owned()),
+            camera_lock_canonical_sha256: Some(hash.clone()),
+            camera_rig_object_sha256: Some(hash.clone()),
+            camera_rig_canonical_sha256: Some(hash.clone()),
+            camera_lock_receipt_object_sha256: Some(hash.clone()),
+            camera_lock_source_transition_id: Some("transition-camera-1".to_owned()),
+            camera_lock_source_transition_sha256: Some(hash.clone()),
+            camera_lock_source_head_canonical_sha256: Some(hash.clone()),
+            evidence_sha256: hash.clone(),
+            reference_canvas_object_sha256: hash.clone(),
+            quality_report_object_sha256: Some(hash.clone()),
+            comparison_report_object_sha256: None,
+            design_spec_object_sha256: hash.clone(),
+            visual_receipt_object_sha256: Some(hash.clone()),
+            human_review_receipt_object_sha256: None,
+            engine_validation_receipt_object_sha256: None,
+            distribution_receipt_object_sha256: None,
+            structural_status: "PASS_SOURCE_STRUCTURAL".to_owned(),
+            visual_status: PRODUCTION_WEAPON_FORM_QUALITY_V2_VISUAL_STATUS.to_owned(),
+            human_status: "NOT_RUN".to_owned(),
+            engine_status: "NOT_RUN".to_owned(),
+            distribution_status: "NOT_RUN".to_owned(),
+            approval_receipt_id: "approval-1".to_owned(),
+            approval_session_id: "session-1".to_owned(),
+            approval_expires_at: "9999999999".to_owned(),
+            approval_summary_sha256: hash.clone(),
+            request_key_sha256: hash.clone(),
+            parent_transition_id: Some("transition-camera-1".to_owned()),
+            parent_transition_sha256: Some(hash.clone()),
+            parent_transition_schema_version: Some("ProductionStageTransition@3".to_owned()),
+            gate_status: "pass".to_owned(),
+            status: "passed".to_owned(),
+            input_sha256: hash.clone(),
+            receipt_object_sha256: String::new(),
+            canonical_sha256: String::new(),
+            created_at: "2026-08-23T00:00:00Z".to_owned(),
+        }
+    }
+
+    #[test]
+    fn production_stage_v3_form_edges_are_exactly_three_and_do_not_skip() {
+        let edges = [
+            ("camera-calibrated", "blockout-reviewed"),
+            ("blockout-reviewed", "primary-form-approved"),
+            ("primary-form-approved", "secondary-form-approved"),
+        ];
+        for &(from, to) in &edges {
+            assert!(production_stage_v3_is_form_edge(from, to));
+        }
+        for &(from, to) in &[
+            ("camera-calibrated", "primary-form-approved"),
+            ("camera-calibrated", "secondary-form-approved"),
+            ("blockout-reviewed", "secondary-form-approved"),
+            ("reference-coverage-reviewed", "blockout-reviewed"),
+            ("primary-form-approved", "primary-form-approved"),
+        ] {
+            assert!(!production_stage_v3_is_form_edge(from, to));
+        }
+        assert_eq!(edges[0].1, edges[1].0);
+        assert_eq!(edges[1].1, edges[2].0);
+    }
+
+    #[test]
+    fn production_stage_v3_form_edge_requires_all_camera_and_form_receipts() {
+        let transition = form_edge_transition_fixture();
+        assert!(production_stage_v3_form_edge_evidence_is_complete(
+            &transition
+        ));
+
+        macro_rules! missing_required {
+            ($field:ident) => {{
+                let mut invalid = transition.clone();
+                invalid.$field = None;
+                assert!(!production_stage_v3_form_edge_evidence_is_complete(
+                    &invalid
+                ));
+            }};
+        }
+        missing_required!(camera_lock_id);
+        missing_required!(camera_lock_canonical_sha256);
+        missing_required!(camera_rig_object_sha256);
+        missing_required!(camera_rig_canonical_sha256);
+        missing_required!(camera_lock_receipt_object_sha256);
+        missing_required!(camera_lock_source_transition_id);
+        missing_required!(camera_lock_source_transition_sha256);
+        missing_required!(camera_lock_source_head_canonical_sha256);
+        missing_required!(quality_report_object_sha256);
+        missing_required!(visual_receipt_object_sha256);
+
+        let mut later_receipt = transition.clone();
+        later_receipt.comparison_report_object_sha256 = Some("b".repeat(64));
+        assert!(!production_stage_v3_form_edge_evidence_is_complete(
+            &later_receipt
+        ));
+        later_receipt.comparison_report_object_sha256 = None;
+        later_receipt.human_review_receipt_object_sha256 = Some("b".repeat(64));
+        assert!(!production_stage_v3_form_edge_evidence_is_complete(
+            &later_receipt
+        ));
+    }
+
+    #[test]
+    fn production_stage_v3_form_bindings_change_input_request_and_canonical_hashes() {
+        let hash = "a".repeat(64);
+        let base = json!({
+            "transition_id":"transition-form-1",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "quality_report_object_sha256":hash,
+            "visual_receipt_object_sha256":hash
+        });
+        let camera_fields = [
+            ("camera_lock_id", "camera-lock-1"),
+            ("camera_lock_canonical_sha256", &"a".repeat(64)),
+            ("camera_rig_object_sha256", &"b".repeat(64)),
+            ("camera_rig_canonical_sha256", &"c".repeat(64)),
+            ("camera_lock_receipt_object_sha256", &"d".repeat(64)),
+            ("camera_lock_source_transition_id", "transition-camera-1"),
+            ("camera_lock_source_transition_sha256", &"e".repeat(64)),
+            ("camera_lock_source_head_canonical_sha256", &"f".repeat(64)),
+        ];
+        let parent_fields = [
+            ("parent_transition_id", "transition-camera-1"),
+            ("parent_transition_sha256", &"e".repeat(64)),
+            (
+                "parent_transition_schema_version",
+                "ProductionStageTransition@3",
+            ),
+        ];
+        let input = production_stage_transition_v3_input_binding_with_camera(
+            base.clone(),
+            camera_fields.clone(),
+            parent_fields.clone(),
+        );
+        let request = production_stage_transition_v3_request_key_with_camera(
+            base,
+            camera_fields,
+            parent_fields,
+        );
+        let binding_fields = [
+            "quality_report_object_sha256",
+            "visual_receipt_object_sha256",
+            "camera_lock_id",
+            "camera_lock_canonical_sha256",
+            "camera_rig_object_sha256",
+            "camera_rig_canonical_sha256",
+            "camera_lock_receipt_object_sha256",
+            "camera_lock_source_transition_id",
+            "camera_lock_source_transition_sha256",
+            "camera_lock_source_head_canonical_sha256",
+            "parent_transition_id",
+            "parent_transition_sha256",
+            "parent_transition_schema_version",
+        ];
+        for field in binding_fields {
+            let mut changed_input = input.clone();
+            changed_input[field] = Value::String(format!("changed-{field}"));
+            assert_ne!(
+                canonical_json_hash(&input),
+                canonical_json_hash(&changed_input),
+                "input binding must include {field}"
+            );
+            let mut changed_request = request.clone();
+            changed_request[field] = Value::String(format!("changed-{field}"));
+            assert_ne!(
+                canonical_json_hash(&request),
+                canonical_json_hash(&changed_request),
+                "request key must include {field}"
+            );
+            let record = form_edge_transition_fixture();
+            let base_canonical = production_stage_transition_v3_canonical_hash(&record).unwrap();
+            let mut record_value = serde_json::to_value(record).unwrap();
+            record_value[field] = Value::String(format!("changed-{field}"));
+            record_value["receipt_object_sha256"] = Value::String(String::new());
+            record_value["canonical_sha256"] = Value::String(String::new());
+            let changed_record: ProductionStageTransitionV3Record =
+                serde_json::from_value(record_value).unwrap();
+            assert_ne!(
+                base_canonical,
+                production_stage_transition_v3_canonical_hash(&changed_record).unwrap(),
+                "canonical record must include {field}"
+            );
+        }
+    }
+
+    #[test]
+    fn production_stage_transition_v3_camera_binding_is_hash_distinct_and_closed() {
+        let base = json!({
+            "transition_id": "transition-camera-1",
+            "from_stage": "reference-coverage-reviewed",
+            "to_stage": "camera-calibrated"
+        });
+        let camera = production_stage_transition_v3_input_binding_with_camera(
+            base.clone(),
+            [
+                ("camera_lock_id", "camera-lock-1"),
+                ("camera_lock_canonical_sha256", &"a".repeat(64)),
+                ("camera_rig_object_sha256", &"b".repeat(64)),
+                ("camera_rig_canonical_sha256", &"c".repeat(64)),
+                ("camera_lock_receipt_object_sha256", &"d".repeat(64)),
+                ("camera_lock_source_transition_id", "transition-parent-1"),
+                ("camera_lock_source_transition_sha256", &"e".repeat(64)),
+                ("camera_lock_source_head_canonical_sha256", &"f".repeat(64)),
+            ],
+            [
+                ("parent_transition_id", "transition-parent-1"),
+                ("parent_transition_sha256", &"e".repeat(64)),
+                (
+                    "parent_transition_schema_version",
+                    "ProductionStageTransition@3",
+                ),
+            ],
+        );
+        assert_ne!(canonical_json_hash(&base), canonical_json_hash(&camera));
+        assert_eq!(camera["camera_lock_id"], "camera-lock-1");
+        assert_eq!(
+            camera["camera_lock_source_transition_id"],
+            "transition-parent-1"
+        );
+        assert_eq!(
+            camera["parent_transition_schema_version"],
+            "ProductionStageTransition@3"
+        );
+        assert_eq!(camera.as_object().unwrap().len(), 14);
+    }
+
+    #[test]
+    fn production_camera_lock_request_is_closed_approved_and_profile_bound() {
+        let hash = "a".repeat(64);
+        let mut request = ProductionCameraLockPrepareRequest {
+            schema_version: "ProductionCameraLockPrepareRequest@1".to_owned(),
+            camera_lock_id: "camera-lock-1".to_owned(),
+            session_id: "session-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            source_transition_id: "transition-1".to_owned(),
+            source_transition_sha256: hash.clone(),
+            source_head_canonical_sha256: hash.clone(),
+            candidate_id: "candidate-1".to_owned(),
+            candidate_state_sha256: hash.clone(),
+            artifact_id: "artifact-1".to_owned(),
+            artifact_sha256: hash.clone(),
+            reference_id: "reference-1".to_owned(),
+            reference_sha256: hash.clone(),
+            required_reference_view_kinds: PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            required_camera_view_kinds: PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            primary_view_kind: PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND.to_owned(),
+            calibration_policy: PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY.to_owned(),
+            input_sha256: hash,
+            camera_rig: json!({}),
+            approved: true,
+            approval_receipt_id: "approval-1".to_owned(),
+            approval_session_id: "session-1".to_owned(),
+            approval_expires_at: "9999999999".to_owned(),
+            approval_summary: "approved six-reference seven-camera lock".to_owned(),
+            idempotency_key: "camera-lock-idem-1".to_owned(),
+        };
+        validate_production_camera_lock_request_shape(&request).expect("valid closed request");
+        assert_eq!(serde_json::to_value(&request).unwrap()["approved"], true);
+        request.required_camera_view_kinds.pop();
+        assert!(validate_production_camera_lock_request_shape(&request).is_err());
+    }
+
+    #[test]
+    fn production_camera_lock_result_never_advances_or_confirms() {
+        let hash = "a".repeat(64);
+        let mut lock = ProductionCameraLockRecord {
+            schema_version: PRODUCTION_CAMERA_LOCK_SCHEMA_VERSION.to_owned(),
+            camera_lock_id: "camera-lock-1".to_owned(),
+            session_id: "session-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            source_transition_id: "transition-1".to_owned(),
+            source_transition_sha256: hash.clone(),
+            source_head_canonical_sha256: hash.clone(),
+            candidate_id: "candidate-1".to_owned(),
+            candidate_state_sha256: hash.clone(),
+            artifact_id: "artifact-1".to_owned(),
+            artifact_sha256: hash.clone(),
+            reference_id: "reference-1".to_owned(),
+            reference_sha256: hash.clone(),
+            reference_canvas_object_sha256: hash.clone(),
+            reference_canvas_canonical_sha256: hash.clone(),
+            design_spec_object_sha256: hash.clone(),
+            design_spec_canonical_sha256: hash.clone(),
+            camera_rig_object_sha256: hash.clone(),
+            camera_rig_canonical_sha256: hash.clone(),
+            required_reference_view_kinds: PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            required_camera_view_kinds: PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            primary_view_kind: PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND.to_owned(),
+            calibration_policy: PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY.to_owned(),
+            review_status: PRODUCTION_CAMERA_LOCK_REVIEW_STATUS.to_owned(),
+            calibration_status: PRODUCTION_CAMERA_LOCK_CALIBRATION_STATUS.to_owned(),
+            structural_status: PRODUCTION_CAMERA_LOCK_STRUCTURAL_STATUS.to_owned(),
+            visual_status: PRODUCTION_CAMERA_LOCK_VISUAL_STATUS.to_owned(),
+            human_status: PRODUCTION_CAMERA_LOCK_HUMAN_STATUS.to_owned(),
+            engine_status: PRODUCTION_CAMERA_LOCK_ENGINE_STATUS.to_owned(),
+            distribution_status: PRODUCTION_CAMERA_LOCK_DISTRIBUTION_STATUS.to_owned(),
+            approval_receipt_id: "approval-1".to_owned(),
+            approval_session_id: "session-1".to_owned(),
+            approval_expires_at: "9999999999".to_owned(),
+            approval_summary_sha256: hash.clone(),
+            input_sha256: hash.clone(),
+            request_key_sha256: hash.clone(),
+            receipt_object_sha256: hash,
+            canonical_sha256: String::new(),
+            created_at: "2026-08-23T00:00:00Z".to_owned(),
+        };
+        lock.canonical_sha256 = production_camera_lock_canonical_hash(&lock).unwrap();
+        let receipt: Value =
+            serde_json::from_slice(&production_camera_lock_receipt_bytes(&lock).unwrap()).unwrap();
+        assert_eq!(receipt["receipt_object_sha256"], "");
+        assert_eq!(receipt["canonical_sha256"], lock.canonical_sha256);
+        let result =
+            production_camera_lock_result(&lock, false, "ProductionCameraLockGetResult@1", false);
+        assert_eq!(result["runtime_write"], false);
+        assert_eq!(result["production_stage_advanced"], false);
+        assert_eq!(result["candidate_confirmed"], false);
+        assert_eq!(result["version_created"], false);
+        assert_eq!(result["export_performed"], false);
+        assert!(result["transition"].get("camera_lock_id").is_none());
+        assert!(result["production_stage_head"]
+            .get("camera_lock_id")
+            .is_none());
+    }
 
     #[test]
     fn production_stage_transition_input_binding_is_closed_and_deterministic() {
@@ -4021,6 +11068,11533 @@ mod tests {
         assert_eq!(
             extra.to_string(),
             "invalid runtime input: AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_NOT_SUPPLIED"
+        );
+    }
+
+    #[test]
+    fn production_stage_transition_v3_requires_complete_bound_core_coverage() {
+        let hash = "a".repeat(64);
+        let views = REQUIRED_HQ_REFERENCE_VIEWS
+            .iter()
+            .map(|kind| json!({"kind":kind}))
+            .collect::<Vec<_>>();
+        let canvas = json!({
+            "coverage":{
+                "required_views":REQUIRED_HQ_REFERENCE_VIEWS,
+                "supplied_views":REQUIRED_HQ_REFERENCE_VIEWS,
+                "missing_views":[],
+                "coverage_status":"complete",
+                "hq_360_status":"eligible",
+                "evidence_refs":[{"kind":"reference","sha256":hash}]
+            },
+            "views":views,
+            "bindings":{
+                "status":"bound",
+                "target_sha256":hash,
+                "camera_hash":hash,
+                "evidence_sha256":hash,
+                "camera_canonical_sha256":hash
+            }
+        });
+        assert!(validate_v3_reference_coverage(&canvas).is_ok());
+
+        let mut incomplete = canvas.clone();
+        incomplete["coverage"]["coverage_status"] = json!("partial");
+        incomplete["coverage"]["hq_360_status"] = json!("BLOCKED_REFERENCE_COVERAGE");
+        incomplete["coverage"]["missing_views"] = json!(["rear-three-quarter"]);
+        incomplete["coverage"]["supplied_views"] = json!(["front", "back", "left", "right"]);
+        let error = validate_v3_reference_coverage(&incomplete)
+            .expect_err("an incomplete canvas must remain blocked before reservation");
+        assert_eq!(
+            error.to_string(),
+            "invalid runtime input: BLOCKED_REFERENCE_COVERAGE"
+        );
+
+        let mut unbound = canvas;
+        unbound["bindings"] = Value::Null;
+        let error = validate_v3_reference_coverage(&unbound);
+        assert!(
+            error.is_ok(),
+            "coverage itself is independent of canvas bindings"
+        );
+        let binding_error = validate_v3_reference_canvas_binding(&unbound, &hash, &hash)
+            .expect_err("an unbound canvas cannot advance the V3 edge");
+        assert_eq!(
+            binding_error.to_string(),
+            "invalid runtime input: BLOCKED_REFERENCE_COVERAGE"
+        );
+    }
+
+    fn v3_fixture_geometry_program(project_id: &str) -> Value {
+        let mut program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":project_id,
+            "representation_plan_sha256":"a".repeat(64),
+            "operator_catalog_sha256":forgecad_geometry_worker::operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "nodes":[{
+                "node_id":"shell",
+                "operator_id":"forgecad.geometry.primitive@2",
+                "inputs":[],
+                "parameters":{
+                    "shape":"box",
+                    "size_m":[1.0,1.0,1.0],
+                    "position_m":[0.0,0.0,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            }],
+            "part_outputs":[{"part_id":"shell","input_node_ids":["shell"],"material_zone_id":"zone-white-shell","solid":true}],
+            "budgets":{"max_nodes":1,"max_triangles":1000,"max_glb_bytes":1048576,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000}
+        });
+        program["canonical_sha256"] = Value::String(
+            forgecad_geometry_worker::geometry_program_v2_draft_hash(&program)
+                .expect("V3 fixture GeometryProgram@2 draft hash"),
+        );
+        program
+    }
+
+    fn v3_fixture_authoring_context(
+        project_id: &str,
+        canvas_id: &str,
+        spec_id: &str,
+        reference: &ReferenceEvidenceRecord,
+        target_sha256: &str,
+        mask_sha256: &str,
+        camera_rig: &Value,
+        evidence_sha256: &str,
+        complete: bool,
+    ) -> Value {
+        let required_views = PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS.to_vec();
+        let supplied_views = if complete {
+            required_views.clone()
+        } else {
+            vec!["front"]
+        };
+        let missing_views = if complete {
+            Vec::new()
+        } else {
+            vec!["back", "left", "right", "top", "rear-three-quarter"]
+        };
+        let evidence_ref = json!({"kind":"reference","sha256":reference.object_sha256});
+        let evidence_refs = json!([evidence_ref]);
+        let state = json!({
+            "visibility":"observed",
+            "confidence":0.9,
+            "evidence_refs":evidence_refs.clone()
+        });
+        let views = supplied_views
+            .iter()
+            .map(|kind| {
+                let view_id = format!("v3-{kind}-view");
+                let rig_view = camera_rig["views"]
+                    .as_array()
+                    .and_then(|views| {
+                        views
+                            .iter()
+                            .find(|view| view["kind"].as_str() == Some(kind))
+                    })
+                    .expect("V3 fixture camera rig view");
+                let camera_hash = rig_view["camera_hash"]
+                    .as_str()
+                    .expect("V3 fixture camera hash");
+                let camera_canonical_sha256 = rig_view["camera"]["canonical_sha256"]
+                    .as_str()
+                    .expect("V3 fixture camera canonical");
+                let mut view_spec = json!({
+                    "schema_version":"ReferenceViewSpec@1",
+                    "reference_id":reference.reference_id,
+                    "reference_sha256":reference.object_sha256,
+                    "view_id":view_id,
+                    "source_view":expected_reference_source_view(kind).unwrap_or(kind),
+                    "image":{
+                        "width":reference.width,
+                        "height":reference.height,
+                        "rotation_degrees":0.0,
+                        "crop":{"x":0.0,"y":0.0,"width":1.0,"height":1.0}
+                    },
+                    "landmarks":[],
+                    "regions":[],
+                    "canonical_sha256":""
+                });
+                view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+                json!({
+                    "view_id":view_id,
+                    "reference_id":reference.reference_id,
+                    "reference_sha256":reference.object_sha256,
+                    "kind":kind,
+                    "authorization":{
+                        "user_authorized":true,
+                        "declaration":reference.authorization.declaration,
+                        "evidence_refs":evidence_refs.clone()
+                    },
+                    "image_dimensions":{"width":reference.width,"height":reference.height},
+                    "view_spec":view_spec,
+                    "target_sha256":target_sha256,
+                    "mask_sha256":mask_sha256,
+                    "camera_claim":{
+                        "visibility":"observed",
+                        "camera_hash":camera_hash,
+                        "camera_canonical_sha256":camera_canonical_sha256,
+                        "claim":"Runtime camera is bound to this authored view.",
+                        "evidence_refs":[
+                            {"kind":"camera","sha256":camera_hash},
+                            {"kind":"comparison","sha256":evidence_sha256}
+                        ]
+                    },
+                    "visible_regions":[],
+                    "unknown_regions":[]
+                })
+            })
+            .collect::<Vec<_>>();
+        let primary_rig_view = camera_rig["views"]
+            .as_array()
+            .and_then(|views| {
+                views
+                    .iter()
+                    .find(|view| view["kind"].as_str() == Some("left"))
+            })
+            .expect("V3 fixture primary camera rig view");
+        let camera_hash = primary_rig_view["camera_hash"]
+            .as_str()
+            .expect("V3 fixture primary camera hash");
+        let camera_canonical_sha256 = primary_rig_view["camera"]["canonical_sha256"]
+            .as_str()
+            .expect("V3 fixture primary camera canonical");
+        let stage_goals = STAGES
+            .iter()
+            .map(|stage| {
+                json!({
+                    "stage":stage,
+                    "objective":format!("V3 fixture {stage}"),
+                    "exit_gate":{"stage":stage,"status":"unknown"}
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut context = json!({
+            "reference_canvas":{
+                "schema_version":"ReferenceCanvas@1",
+                "canvas_id":canvas_id,
+                "project_id":project_id,
+                "reference_set_sha256":reference.object_sha256,
+                "bindings":{
+                    "status":"bound",
+                    "target_sha256":target_sha256,
+                    "camera_hash":camera_hash,
+                    "camera_canonical_sha256":camera_canonical_sha256,
+                    "evidence_sha256":evidence_sha256
+                },
+                "views":views,
+                "coverage":{
+                    "required_views":required_views,
+                    "supplied_views":supplied_views,
+                    "missing_views":missing_views,
+                    "coverage_status":if complete {"complete"} else {"partial"},
+                    "hq_360_status":if complete {"eligible"} else {"BLOCKED_REFERENCE_COVERAGE"},
+                    "evidence_refs":evidence_refs.clone()
+                },
+                "unknowns":[],
+                "claims":[],
+                "canonical_sha256":"",
+                "created_at":"2026-08-23T00:00:00Z"
+            },
+            "design_spec":{
+                "schema_version":"DesignSpec@1",
+                "spec_id":spec_id,
+                "project_id":project_id,
+                "reference_canvas_id":canvas_id,
+                "reference_canvas_sha256":"",
+                "category":"hard-surface test asset",
+                "style":"bounded V3 fixture",
+                "primary_forms":[{"form_id":"shell-form","name":"Shell","role":"main-body","description":"Fixture shell","state":state.clone()}],
+                "proportions":[],
+                "semantic_parts":[{"part_id":"shell","role":"root","parent_id":null,"symmetry":"unknown","material_zone_ids":[],"state":state}],
+                "material_language":[],
+                "stage_goals":stage_goals,
+                "risks":[],
+                "unknowns":[],
+                "canonical_sha256":"",
+                "created_at":"2026-08-23T00:00:00Z"
+            }
+        });
+        context["reference_canvas"]["canonical_sha256"] =
+            Value::String(canonical_json_hash(&context["reference_canvas"]));
+        let canvas_bytes = crate::canonical_json_bytes(&context["reference_canvas"])
+            .expect("V3 fixture ReferenceCanvas bytes");
+        context["design_spec"]["reference_canvas_sha256"] =
+            Value::String(sha256_hex(&canvas_bytes));
+        context["design_spec"]["canonical_sha256"] =
+            Value::String(canonical_json_hash(&context["design_spec"]));
+        context
+    }
+
+    fn v3_fixture_camera_rig(project_id: &str, candidate_id: &str) -> Value {
+        let views = PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS
+            .iter()
+            .map(|kind| {
+                let camera = crate::multiview::camera_rig::inferred_weapon_camera(kind, 4.0)
+                    .expect("V3 fixture camera");
+                json!({
+                    "view_id":format!("v3-{kind}-view"),
+                    "kind":kind,
+                    "camera_hash":camera["camera_hash"],
+                    "camera":camera,
+                    "weight":if *kind == "left" {1.0} else {0.75},
+                    "primary":*kind == "left"
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut rig = json!({
+            "schema_version":"CameraRigCalibration@1",
+            "rig_id":"v3-six-view-fixture-rig",
+            "project_id":project_id,
+            "candidate_id":candidate_id,
+            "subject_coordinate_frame":crate::weapon::coordinate_frame::standard_frame(),
+            "origin_m":[0.0,0.0,0.0],
+            "object_scale_m":1.0,
+            "renderer_revision":"forgecad-renderer-2",
+            "views":views,
+            "canonical_sha256":""
+        });
+        rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
+        crate::multiview::camera_rig::validate_camera_rig(&rig, project_id, candidate_id)
+            .expect("valid V3 fixture camera rig");
+        rig
+    }
+
+    /// The user-authorized weapon board is a contact sheet, not six separate
+    /// ReferenceEvidence objects.  Keep the crop recipe in the test boundary
+    /// so no local path, crop coordinates, or image bytes can enter Runtime
+    /// truth.  These boxes intentionally cover only the labelled primary
+    /// views used by the CameraLock/FormArt gate; the board's detail panels
+    /// and bottom view remain supplemental evidence.
+    #[derive(Clone, Copy)]
+    struct V3RealWeaponViewCrop {
+        kind: &'static str,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    }
+
+    fn v3_real_weapon_view_crops(
+        width: u32,
+        height: u32,
+    ) -> Result<Vec<V3RealWeaponViewCrop>, String> {
+        if (width, height) != (1491, 1055) {
+            return Err(format!(
+                "real weapon reference dimensions changed: {width}x{height}"
+            ));
+        }
+        let crops = vec![
+            V3RealWeaponViewCrop {
+                kind: "front",
+                x: 1072,
+                y: 56,
+                width: 141,
+                height: 374,
+            },
+            V3RealWeaponViewCrop {
+                kind: "back",
+                x: 1296,
+                y: 56,
+                width: 134,
+                height: 375,
+            },
+            V3RealWeaponViewCrop {
+                kind: "left",
+                x: 44,
+                y: 50,
+                width: 961,
+                height: 186,
+            },
+            V3RealWeaponViewCrop {
+                kind: "right",
+                x: 53,
+                y: 265,
+                width: 964,
+                height: 205,
+            },
+            V3RealWeaponViewCrop {
+                kind: "top",
+                x: 46,
+                y: 484,
+                width: 826,
+                height: 100,
+            },
+            V3RealWeaponViewCrop {
+                kind: "rear-three-quarter",
+                x: 883,
+                y: 676,
+                width: 577,
+                height: 160,
+            },
+        ];
+        if crops.iter().any(|crop| {
+            crop.x
+                .checked_add(crop.width)
+                .is_none_or(|right| right > width)
+                || crop
+                    .y
+                    .checked_add(crop.height)
+                    .is_none_or(|bottom| bottom > height)
+        }) {
+            return Err("real weapon reference crop exceeds source bounds".to_owned());
+        }
+        Ok(crops)
+    }
+
+    fn v3_real_weapon_view_crops_with_bottom(
+        width: u32,
+        height: u32,
+    ) -> Result<Vec<V3RealWeaponViewCrop>, String> {
+        let mut crops = v3_real_weapon_view_crops(width, height)?;
+        // The bottom view is a confirmed supplemental crop on the concept
+        // board.  It is intentionally kept outside the six identity views
+        // consumed by FormArt/FormQuality, but must remain independently
+        // hash-bound instead of being silently folded into the top view.
+        crops.insert(
+            5,
+            V3RealWeaponViewCrop {
+                kind: "bottom",
+                x: 45,
+                y: 623,
+                width: 827,
+                height: 93,
+            },
+        );
+        if crops.iter().any(|crop| {
+            crop.x
+                .checked_add(crop.width)
+                .is_none_or(|right| right > width)
+                || crop
+                    .y
+                    .checked_add(crop.height)
+                    .is_none_or(|bottom| bottom > height)
+        }) {
+            return Err("real weapon seven-view crop exceeds source bounds".to_owned());
+        }
+        Ok(crops)
+    }
+
+    // These are the reviewed, user-confirmed contour evidence bindings for
+    // the six identity views.  The clean overlay and proposal file are kept
+    // as external evidence hashes; the compact pixel payload below is the
+    // exact closed contour content used by this deterministic fixture.  It is
+    // deliberately not read from the Runtime's automatic target, because an
+    // automatic mask is exploratory and cannot become user observation.
+    const V3_REAL_WEAPON_CONTOUR_REVIEW_OVERLAY_SHA256: &str =
+        "d170909899b1ced7d7b97ad454fe895a386ccf5464429e98bdd06bb1b9f88648";
+    const V3_REAL_WEAPON_CONTOUR_PROPOSAL_SHA256: &str =
+        "b7411cbe0ade06a3c0c655a8d81243f86af59e10f1cd5fb3ce3df70e76cbe431";
+    const V3_REAL_WEAPON_CONTOUR_VIEW_CANONICAL_SHA256: [&str; 6] = [
+        "9ea045c456592a19e39957c6c4b20fd1a1c5d387a3f33bef0241d46c647aae78",
+        "a756792cc033a7e1346fa7c70cae3d37de7af1a3c3fe7c891a9a8a13106a3751",
+        "fff013eb59c22ecbe3b0b390f24e94d6892697e6188255fa4abcb0ca86ce6d2f",
+        "16a6dab2b778e5cdfc9d98d72d82baa1c9ae6050c4844cab65f68b9d0d5dd155",
+        "419c0786635331664207d7bf6dad90e47638fd3b00353c55c053e85d3ca212dd",
+        "bf745366551048a7f5da42c6c030150da1b7f631552763f6527f2ae955882d7d",
+    ];
+    // Each string is 192 little-endian (x,y) u16 pixel pairs at the fixed
+    // 512px review resolution. Coordinates are rounded back to the exact
+    // six-decimal normalized values in the reviewed JSON before hashing.
+    const V3_REAL_WEAPON_CONTOUR_PIXELS_B64: [&str; 6] = [
+        r#"yQCbAcoAlQHKAI4BywCIAckAgwHIAH4ByAB3AcgAcAHIAGkByQBiAckAWwHKAFUBywBPAcsARwHIAEMBxQA/AcMAOgHCADMBwQAtAcAAJwG9ACMBuQAfAbYAGwG0ABYBtAAPAbQACAG0AAABtAD7ALQA9ACzAO4AswDmALMA3wCzANgAswDRALMAyQCxAMQArwC/AK0AugCvALQAsQCvALIAqQCyAKIArwCdAK4AlwCvAJEAsACLALEAhACyAH4AtAB5ALUAcwC2AG0AuABnALkAYQC9AF4AvgBYAL4AUAC+AEkAwgBGAMkARgDMAEEAzwA9AM8ANgDSADIA2gAyAOEAMgDiACwA4wAmAOUAIADoABwA7AAZAPEAFwD2ABQA+AAPAPoACgAAAQkABwEJAAsBDQAMARMAEAEWABUBGAAaARsAHgEeACABIwAiASgAIwEvACgBMQAvATEAMwE0ADQBOwA1AUEAOQFEAD4BRgBEAUgARQFOAEUBVQBFAVwASQFgAEsBZQBMAWsATQFxAE4BdwBRAXwAUQGDAFIBiQBTAY8AUwGXAFMBnABQAaAAUAGnAFABrwBUAbIAVQG4AFQBvgBRAcMATwHIAE8BzwBPAdYAUAHbAFAB4gBQAekAUAHwAE8B9gBQAf0AUAEEAVABCwFQARIBTwEZAUwBHQFIASABRQEkAUMBKgFCATABQQE2AUABPAE9AUEBOgFFATkBSwE5AVIBOwFYATsBXwE7AWYBPQFrAT0BcwE9AXoBPgGAATsBhAE6AYoBOwGRATwBlwE9AZ0BPgGjAT8BqgE/AbEBPwG4AT8BvwE8AcQBOgHJATcBzQE0AdEBNAHZATQB4AEwAeMBKQHjASYB6AEkAe0BIQHxAR4B9QEZAfgBEwH5AQwB+QEFAfkB/gD5AfYA+QHvAPkB6gD3AecA8wHjAO8B4QDqAd4A5gHbAOIB0wDiAdEA3QHRANYB0QDPAc0AywHLAMYByADCAcYAvQHGALUBxgCuAccAqAHIAKIB"#,
+        r#"QQFKAEEBUQBBAVgAQwFdAEUBYgBHAWcASQFtAEoBcwBLAXkATQF+AE4BhABOAYsATwGSAFABmABOAZ0ATAGiAEwBqQBOAa4AUAG0AFIBuQBQAb4ATgHDAEsBxwBLAc4ASwHWAEwB3ABLAeIASwHpAEsB8ABLAfcASwH/AEsBBgFLAQ0BSwEUAUoBGgFHAR4BQgEhAUEBJwE9ASoBPQExATwBNwE6ATwBNwFBATYBRwE2AU4BNwFUATgBWgE5AWABOQFoATsBbQE7AXQBOwF7AToBgQE3AYUBOAGMATkBkgE5AZkBOgGfATsBpQE8AasBPAGxATwBuAE8Ab8BOgHEATcByAE1Ac0BMQHRATEB2AExAd8BLgHjAScB4wElAegBIQHsAR4B8AEcAfUBGAH4ARMB+gEMAfoBBAH6Af0A+gH2APoB7wD6AekA+QHlAPYB4gDxAd4A7gHcAOkB2QDlAdQA4wHOAOIBzQDbAc0A1AHMAM4ByQDKAccAxQHEAMEBxAC5AcQAsgHEAKsBxgCmAcYAnwHGAJgBxwCRAccAigHHAIMBxQB+AcUAdwHFAHABxQBoAccAYwHHAFwByABWAcgATwHIAEgByABAAccAOgHEADYBwgAxAcAALAG+ACcBvAAhAbgAHgGzABwBswAVAbMADgGzAAcBswD/ALMA+gCzAPMAsgDtALIA5gCyAN8AsgDXALIA0ACyAMkAsADEAK4AvwCtALkArwCzALEArgCxAKcAsQCgAK8AmwCvAJQAsACNALAAhgCxAIAAswB7ALMAdAC0AG4AtgBoALgAYwC6AF4AuwBYALsAUQC7AEoAvwBGAMYARgDKAEMAzAA+AM0AOADOADIA1QAxANwAMQDeACwA3wAmAOAAIADjABwA6AAZAO0AFwDxABQA9AAQAPYACwD8AAoAAwEJAAcBDAAJAREADQEUABEBFwAVARoAGgEdAB0BIQAfASYAIAEsACEBMgAoATIALgEyAC8BOAAwAT4AMwFCADYBRgA9AUYA"#,
+        r#"TgHPAFMB0QBbAdEAYQHSAGQB1wBqAdYAcgHWAHcB2AB3Ad4AfQHdAIIB4ACGAeMAiwHmAJIB5gCaAeYAoQHmAKUB4gCsAeIAtAHiALsB4gDCAeEAyQHhANEB4QDYAeEA3wHgAOYB4ADsAd4A8gHfAPkB4AD8AeQA+wHrAPoB8QD3AfYA9gH8APQBAgH0AQkB9AERAfUBFwH2AR4B9gEjAfQBKQHxAS0B6wEtAeQBLQHdASwB1gEsAc8BKwHKASkBxQEmAb8BJQG4ASQBsgElAawBJwGnASkBogEsAZ0BLgGXATABkwEvAZkBLQGVASoBjgErAYkBLQGDAS8BfQEwAXUBMAFzASsBcQElAW8BIAFrARwBaQEXAWIBFgFbARYBUwEWAUwBFgFGARQBQwEQAT0BEgE5ARUBPAEaAT8BHgFCASMBRwElAUsBKQFHASwBPwEsATgBLAEwASwBKQEsASIBKwEcASoBFgEoARIBJQEPASABCwEdAQUBGwH/ABoB9wAaAfAAGgHpABkB5AAXAeAAEwHaABIB1AAQAc4ADwHHAA4BwQANAbsACwG0AAsBrAALAaYACgGfAAsBmgALAZMACgGMAAoBhAAKAX0ACgF1AAoBbgAKAWYACgFfAAoBVwAKAVEACQFMAAwBRQAMAT0ADAE2AAwBMAAKASkACgEhAAoBGgAKARMACQERAAQBCwACAQYAAAEDAPsABAD1AAMA7gAEAOgACgDmABEA5gAXAOgAHQDpACUA6QAsAOkALADjACgA4AAnAN0ALgDdADYA3QA9AN0ARQDdAEwA3QBRANoAVgDYAF0A1wBkANcAagDVAHAA1AB1ANcAfADXAIMA1gCKANYAkgDWAJkA1gChANYAqADWAK8A1QC2ANUAvQDUAMQA1ADMANQA0gDTANkA0gDeANAA4wDRAOEA1ADnANYA7gDWAPUA1QD6ANMAAQHSAAcB0QANAc8AEgHPABgB0QAfAdEAJQHPACwBzwA0Ac8AOgHQAEEBzwBHAdAA"#,
+        r#"QQDeAEcA3QBNANwAVQDcAFsA3QBgAOAAZwDgAG4A4AB1AN8AegDdAH8A2gCDANcAhwDTAIsA0ACSANAAmADSAJ0A0ACgAMsApwDLAK8AywCzAMwAuQDLAL8AywDDAM4AywDOAM4AygDWAMoA2wDKAOEAywDmAMwA7ADLAPQAywD6AMwAAQHNAAUBygAMAcoAFAHKABoBywAhAcoAJgHMACwBzgAyAc8AOQHPAEEBzwBHAdAATwHQAFYB0ABdAdEAZAHRAGsB0QBzAdEAegHRAIIB0QCIAdIAjgHQAJMBzgCYAdAAnwHRAKUB0gCsAdMArwHXALcB1wC9AdgAxAHYAMwB2ADTAdgA2QHaANQB3ADRAeEA1QHkANwB5ADjAeMA6gHjAPAB4QD3AeEA+gHmAPoB7QD6AfQA+AH6APMB/ADtAf4A6wEDAeQBBAHdAQQB1gEEAc8BBQHJAQYBwgEHAbsBBwG0AQYBrwEEAasBBQGjAQUBnAEFAZQBBQGNAQUBhQEFAX4BBQF3AQUBbwEFAWgBBQFhAQYBXAEEAVYBBQFPAQYBSAEGAUABBgE6AQcBNAEJAS4BCgEpAQwBIQEMAR0BDwEYARIBEgETAQoBEwEEARQB/gAVAfcAFgHyABgB7wAdAesAIAHmACMB4AAkAdoAJQHSACUBywAlAcMAJQG8ACUBtAAlAbUAIQG5AB4BvgAbAcIAGAHFABMBxwAOAcIACwG8AAoBuQAOAbMAEAGsABABpAAQAZ0AEAGWABEBlAAWAZEAGgGOAB8BjAAkAY4AKgGNAC4BiAAxAYEAMQF7ADABdQAuAXAALAFqACoBZAApAV8AJgFaACQBVQAiAVAAHwFKAB4BRAAeAT0AHgE4ACEBMwAjAS4AJQEmACUBIAAmARgAJgESACcBDQAkAQoAIAEJABoBCgATAQsADQELAAUBCwD+AAoA9wAJAPEABwDsAAUA5gAEAOAABgDaAAwA2QATANgAGQDZAB8A2gAlANwALADcADMA3QA5AN4A"#,
+        r#"jAHrAJEB6wCXAesAnAHsAKAB7gCmAe4AqwHvALEB7wC3Ae8AvQHvAMIB8ADHAfAAzQHwANMB8ADZAfAA3wHwAOUB8ADqAe8A7wHwAPMB8gD3AfQA+gH3APsB+wD7AQEB+gEGAfcBCQH0AQwB8AEOAesBDwHlAQ8B3wEPAdkBDwHTAQ8BzgEPAcgBDwHCAQ8BvAEPAbYBDwGxARABqwEQAaUBEAGfARABmwESAZcBEwGRARMBiwETAYYBEgGBAREBfAESAXgBFAFzARUBbQEVAWgBFAFjARUBXgEVAVkBFgFUARcBUAEZAUoBGQFFARoBPwEaATkBGgE1ARgBMAEXASsBGAEnARcBIQEXARsBFwEVARcBEAEWAQoBFgEEARYB/gAWAfkAFQHzABUB7wAUAekAFAHjABQB3gATAdgAEwHTABIBzQASAcgAEQHCABEBvQAQAbcAEAGyABABrAAQAaYAEAGiAA4BnAAOAZYADgGQAA4BigAOAYQADgF+AA4BeAAOAXMADgFtAA4BaAANAWMADgFdAA4BVwAOAVIADQFMAA0BRgANAUAADQE8AAwBNgAMATAADAErAAsBJQALASAACgEbAAkBFQAJARAACgEKAAoBBgAIAQQABQEEAP8ABAD5AAYA9QAKAPMAEADzABQA8QAaAPEAIADxACYA8QAsAPEAMQDxADcA8QA9APEAQgDwAEgA8ABOAPAAVADwAFkA7wBfAO8AZQDvAGkA8ABuAO8AdADvAHoA7wCAAO8AhgDvAIwA7wCSAO8AmADvAJ4A7wCjAO4AqADuAK4A7gCzAO0AuQDtAL8A7QDFAO0AygDsANAA7ADWAOwA2wDrAOAA6gDlAOoA6wDqAPAA6QD1AOgA+wDoAAEB6AAHAegADQHoABMB6AAYAecAHQHnACMB5wApAecALgHmADIB5gA3AeUAPAHkAEIB5ABIAeQATQHlAFIB5gBVAegAWgHpAGAB6QBmAekAbAHpAHIB6QB4AekAfAHrAIEB7ACHAewA"#,
+        r#"TgE3AUMBOQE4ATsBMQFBAS0BRQEvATwBNgE2ATkBMwE/ASwBOwEnATUBLgEuATUBKQE9ASQBRQEdAUIBIgE6ASABNwEZAT0BFQFDAQsBRAEAAUYBAgE+AQQBNQH9AC8B+QA5AfUAQgHwAEQB9AA7AfAAOQHkADoB2QA6Ac0APAHKAEYBxgA9AckAOQHRADMB1QAqAdIAIAHJACMBxQAaAcgAGgHQABcB3AAXAeIAEgHgAAkB1gAHAc8ADQHJABQBvQASAbUADwGpAA4BnAAOAZMAEwGaABcBpgAWAbAAGAG2AB0BrgAgAa4AKwGuADEBqgA4AaUAQAGeAEUBowA9AacANAGsACwBrAAgAaUAGgGaABgBkQAdAYkAIgGDACkBfAAwAXgAOQF6AEQBdgA/AXIARQF0ADoBcAAxAWwAOQFrAEMBYQBGAV4APgFXAEUBVQBAAUoAQAFCAEYBQAA9AUIAMgFAACkBOwAmATsAGwE8ABUBOwAIATkA/QAzAPYAKwD0ADAA/AAvAAQBLQALASwACgEqAAMBKQD/ACcA9QAfAPAAHwD3ACIAAQEiAA8BJAAaASUAJgEhACoBIQAdASEAEAEZAA8BGQAdARgAKQEaADQBGgBCARQARQEWADoBFgAuARYAIQEVABUBEgALARAA/wAPAPMAEADnABUA3gAgANwALADbADYA3ABCAN4ATgDfAFsA3wBoAOAAdADhAIAA4gCKAOUAkwDqAJ0A5wClAOIAqwDaALIA1AC3AM4AwgDLAMsAxwDXAMYA4QDDAOgAvADzALwA/gC+AAgBugAVAboAIgG6ACwBvQA5Ab4ARAHAAE8BwgBaAcUAYwHJAGoBzwB1AdEAgQHTAIsB1gCWAdgAogHaAKoB2QC0AdwAvgHgAMQB5wDPAekA2gHrANgB9QDgAfQA7AH1APAB/wDwAQoB6wESAeMBFwHdAR0B0QEeAcUBHwG4AR4BqwEeAZ8BHwGSAR8BhgEfAXwBIgFwASMBZgEnAV4BLAFWATEB"#,
+    ];
+    fn v3_real_weapon_user_confirmed_contours(
+        width: u32,
+        height: u32,
+    ) -> Result<Vec<(&'static str, Value)>, String> {
+        use base64::Engine as _;
+
+        let crops = v3_real_weapon_view_crops(width, height)?;
+        let mut result = Vec::with_capacity(crops.len());
+        for (index, crop) in crops.into_iter().enumerate() {
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(V3_REAL_WEAPON_CONTOUR_PIXELS_B64[index])
+                .map_err(|error| format!("contour evidence base64 decode failed: {error}"))?;
+            if bytes.len() != 192 * 4 {
+                return Err(format!(
+                    "contour evidence pixel payload length changed for {}",
+                    crop.kind
+                ));
+            }
+            let mut contour_points = Vec::with_capacity(192);
+            for pair in bytes.chunks_exact(4) {
+                let x = u16::from_le_bytes([pair[0], pair[1]]) as f64;
+                let y = u16::from_le_bytes([pair[2], pair[3]]) as f64;
+                let x = (x / 511.0 * 1_000_000.0).round() / 1_000_000.0;
+                let y = (y / 511.0 * 1_000_000.0).round() / 1_000_000.0;
+                contour_points.push(json!([x, y]));
+            }
+            let proposal = json!({
+                "coordinate_space":"normalized_aspect_fit_512",
+                "crop_box_xyxy":[crop.x,crop.y,crop.x+crop.width,crop.y+crop.height],
+                "crop_size":[crop.width,crop.height],
+                "contour_points":contour_points,
+                "proposal_source":"runtime-compatible-automatic-mask-largest-component",
+                "user_confirmed":false
+            });
+            v3_real_weapon_validate_contour_proposal(crop.kind, &proposal)?;
+            result.push((crop.kind, proposal));
+        }
+        Ok(result)
+    }
+
+    fn v3_real_weapon_validate_contour_proposal(
+        kind: &str,
+        proposal: &Value,
+    ) -> Result<(), String> {
+        let index = [
+            "front",
+            "back",
+            "left",
+            "right",
+            "top",
+            "rear-three-quarter",
+        ]
+        .iter()
+        .position(|candidate| *candidate == kind)
+        .ok_or_else(|| format!("unknown reviewed contour view: {kind}"))?;
+        if canonical_json_hash(proposal) != V3_REAL_WEAPON_CONTOUR_VIEW_CANONICAL_SHA256[index] {
+            return Err(format!(
+                "reviewed contour proposal hash mismatch for {kind}"
+            ));
+        }
+        Ok(())
+    }
+
+    const V3_REAL_WEAPON_FORM_REVIEW_PROPOSAL_FILE_SHA256: &str =
+        "e830696e1f1b0c95eb709ef2a23defc9edc50c06d81480119a8b03c7c47b5680";
+    const V3_REAL_WEAPON_FORM_REVIEW_CONTOUR_BUNDLE_SHA256: &str =
+        "b7411cbe0ade06a3c0c655a8d81243f86af59e10f1cd5fb3ce3df70e76cbe431";
+    const V3_REAL_WEAPON_FORM_REVIEW_OVERLAY_SHA256: &str =
+        "830a8b92df3d4b0d06899be5cdaeeae065256733e01ce010692e62155355abdd";
+    const V3_REAL_WEAPON_FORM_REVIEW_BASE_OVERLAY_SHA256: &str =
+        "d170909899b1ced7d7b97ad454fe895a386ccf5464429e98bdd06bb1b9f88648";
+
+    // FPS-FORM-EVIDENCE-04A v4 is a reviewed derivative of the proposal: the
+    // proposal file remains pending, while the matrix is the exact, external
+    // source for the six user-confirmed closed negative-space contours.  Keep
+    // this fixture separate from the older bbox-only projection above.  The
+    // points are target-space normalized-aspect-fit coordinates from the v4
+    // matrix; they are not mirrored, depth-bearing geometry, or Runtime-
+    // generated observations.
+    const V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_FILE_SHA256: &str =
+        "78bbd80429e7eb9bb16a579d315abc7b370ad5ca7fb819851e73ea2b6721e195";
+    const V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_CANONICAL_SHA256: &str =
+        "864bf2134538b85e7e69aaa72980ae2ded2b8286c9f3b5c5576edf9e061abec2";
+    const V3_REAL_WEAPON_FORM_REVIEW_V4_OVERLAY_SHA256: &str =
+        "e162c2a09f5c9d4db2423fd0aa5bd1630e93f52ad3552740e856d2dc1dd737aa";
+    const V3_REAL_WEAPON_FORM_REVIEW_V4_MATRIX_SHA256: &str =
+        "c63b2e21adb83594708eabd4c7dad5eb05e47056aec00490d562a1fe85315ddc";
+    const V3_REAL_WEAPON_FORM_REVIEW_V4_MATRIX_V2_BASE_SHA256: &str =
+        "a4ecbcf86454939470d3c3cea6f5330e66e503309605c6c3ae033ba309f8977f";
+    const V3_REAL_WEAPON_FORM_REVIEW_CONFIRMATION_FILE_SHA256: &str =
+        "5f01e6ed039f7870f0f285092995c2efc6b83895742a1b848bd00e21c9d21c37";
+    const V3_REAL_WEAPON_FORM_REVIEW_V4_NEGATIVE_SPACE_V2_SHA256: [(&str, &str); 3] = [
+        (
+            "left",
+            "d7c05d17d709bb3bf2dd63f65b00e8884b36fd9e4679e54981b9df7c30cd9950",
+        ),
+        (
+            "right",
+            "4b923237fa25ac9917325a15be9f7b053d5b22bf1b7e9a4ca17078f51719c8c9",
+        ),
+        (
+            "rear-three-quarter",
+            "19c93a1af9f0df6a7f3a229344b83186af18f852213b6f587e49840106541ebe",
+        ),
+    ];
+    // These are the hashes of the exact RGBA8 crop bytes produced by the
+    // Runtime's PNG encoder (not hashes of PIL/source-side encodings).
+    const V3_REAL_WEAPON_FORM_REVIEW_V4_CROP_RUNTIME_SHA256: [(&str, &str); 7] = [
+        (
+            "front",
+            "c92a6cf67652080b4f2139a294bb6b2a66fe7471a6fdf53d5b1e3ae4707a3ac8",
+        ),
+        (
+            "back",
+            "6b4b414912ac4c0c7dff72a6ec40f7d9dc61421e3aaed4a6120a393ee61e2b3f",
+        ),
+        (
+            "left",
+            "f7b7a76b48032f1d12b8683c2a8358f5c167047b68f3c89048dd12eb620c291d",
+        ),
+        (
+            "right",
+            "bbf966ab6aa52201e3f4a7f25bf3f07ea5d9fdddb504361fe85731cd43aa6653",
+        ),
+        (
+            "top",
+            "37d83c553d9dddd7a4c40c54ba7f2f87c282edc1af48b000bd1fc89d2f655033",
+        ),
+        (
+            "rear-three-quarter",
+            "a6c6f84372d4e7bd6ba211d8958cea9af76ee2c2e8f0d82bf0d493104d69946d",
+        ),
+        (
+            "bottom",
+            "e15cbf3b802de4da8554a1f18a894058426f0a27d5a14795d13f403fc6990af9",
+        ),
+    ];
+    const V3_REAL_WEAPON_FORM_REVIEW_V4_REGION_CANONICAL_SHA256: [(&str, &str); 6] = [
+        (
+            "left.trigger-void",
+            "252e5d3338c843237a97d70bcd6e7076ee0b626be572c56c0699409cee7c1ab2",
+        ),
+        (
+            "left.open-stock-void",
+            "b2bbe60b177b4196ca2cf1380b275712e538c7a76f2c6301c77a430e4a4e0862",
+        ),
+        (
+            "right.open-stock-void",
+            "3a2361002988cbf079020668912322692245038eddb80292b79d513ae1a5ccc4",
+        ),
+        (
+            "right.trigger-void",
+            "c564689efc1f722d657eb6b88bda4b5be209d6fc9d54858566e3c0fbe31b1598",
+        ),
+        (
+            "rear3q.open-stock-void",
+            "5eff14f5d07dd1c5547321cda1e8717271ecf0e31ce9c1579b4646b86662b7f1",
+        ),
+        (
+            "rear3q.trigger-void",
+            "5db3f74730903cff39d2450378b61d1361345848f6664e6f437dd29951672125",
+        ),
+    ];
+    const V3_REAL_WEAPON_FORM_REVIEW_V4_NEGATIVE_SPACE_ROWS_JSON: &str = r#"{"left":[{"structure_id":"left.trigger-void","closed_contour_points":[[0.652,0.50871],[0.655,0.502903],[0.668,0.498645],[0.688,0.498645],[0.704,0.502903],[0.711,0.50871],[0.707,0.514516],[0.695,0.519742],[0.679,0.522258],[0.663,0.520516],[0.652,0.515484]]},{"structure_id":"left.open-stock-void","closed_contour_points":[[0.742,0.510645],[0.785,0.510065],[0.835,0.513548],[0.875,0.519355],[0.895,0.527097],[0.895,0.535806],[0.87,0.542581],[0.83,0.548387],[0.795,0.548387],[0.77,0.53871],[0.75,0.527097]]}],"right":[{"structure_id":"right.open-stock-void","closed_contour_points":[[0.095,0.512759],[0.14,0.507443],[0.19,0.508506],[0.235,0.512759],[0.265,0.521266],[0.275,0.531898],[0.26,0.542531],[0.235,0.553164],[0.2,0.559544],[0.16,0.553164],[0.13,0.542531],[0.105,0.531898]]},{"structure_id":"right.trigger-void","closed_contour_points":[[0.296,0.510633],[0.301,0.504253],[0.313,0.499362],[0.334,0.498511],[0.35,0.502552],[0.358,0.508506],[0.355,0.514886],[0.344,0.520415],[0.327,0.523392],[0.311,0.521266],[0.3,0.516587]]}],"rear-three-quarter":[{"structure_id":"rear3q.open-stock-void","closed_contour_points":[[0.285,0.534662],[0.33,0.531889],[0.375,0.533276],[0.41,0.538821],[0.435,0.549913],[0.438,0.563778],[0.425,0.577643],[0.395,0.588735],[0.355,0.594281],[0.32,0.588735],[0.295,0.577643],[0.275,0.561005]]},{"structure_id":"rear3q.trigger-void","closed_contour_points":[[0.482,0.565165],[0.488,0.556846],[0.503,0.552686],[0.522,0.555459],[0.535,0.563778],[0.536,0.57487],[0.528,0.583189],[0.512,0.588735],[0.495,0.587348],[0.484,0.579029]]}]}"#;
+
+    fn v3_real_weapon_point_inside_polygon(point: &Value, polygon: &Value) -> bool {
+        let Some(point) = point.as_array() else {
+            return false;
+        };
+        let Some(polygon) = polygon.as_array() else {
+            return false;
+        };
+        if point.len() != 2 || polygon.len() < 3 {
+            return false;
+        }
+        let Some(px) = point[0].as_f64() else {
+            return false;
+        };
+        let Some(py) = point[1].as_f64() else {
+            return false;
+        };
+        let mut inside = false;
+        for index in 0..polygon.len() {
+            let previous = (index + polygon.len() - 1) % polygon.len();
+            let Some(current) = polygon[index].as_array() else {
+                return false;
+            };
+            let Some(previous) = polygon[previous].as_array() else {
+                return false;
+            };
+            if current.len() != 2 || previous.len() != 2 {
+                return false;
+            }
+            let (Some(x1), Some(y1), Some(x2), Some(y2)) = (
+                current[0].as_f64(),
+                current[1].as_f64(),
+                previous[0].as_f64(),
+                previous[1].as_f64(),
+            ) else {
+                return false;
+            };
+            if (y1 > py) != (y2 > py) && px < (x2 - x1) * (py - y1) / (y2 - y1) + x1 {
+                inside = !inside;
+            }
+        }
+        inside
+    }
+
+    fn v3_real_weapon_v4_negative_space_structure(
+        kind: &str,
+        matrix_view: &Value,
+        outer_contour_points: &Value,
+    ) -> Result<Value, String> {
+        v3_real_weapon_v4_negative_space_structure_selected(
+            kind,
+            matrix_view,
+            outer_contour_points,
+            None,
+        )
+    }
+
+    fn v3_real_weapon_v4_negative_space_structure_selected(
+        kind: &str,
+        matrix_view: &Value,
+        outer_contour_points: &Value,
+        include_structure_ids: Option<&[&str]>,
+    ) -> Result<Value, String> {
+        let expected_hash = V3_REAL_WEAPON_FORM_REVIEW_V4_NEGATIVE_SPACE_V2_SHA256
+            .iter()
+            .find(|(candidate, _)| *candidate == kind)
+            .map(|(_, hash)| *hash)
+            .ok_or_else(|| format!("v4 negative-space view is not an identity view: {kind}"))?;
+        if matrix_view
+            .get("negative_space_v2_sha256")
+            .and_then(Value::as_str)
+            != Some(expected_hash)
+        {
+            return Err(format!("v4 negative-space matrix hash mismatch for {kind}"));
+        }
+        let expected_root: Value =
+            serde_json::from_str(V3_REAL_WEAPON_FORM_REVIEW_V4_NEGATIVE_SPACE_ROWS_JSON)
+                .map_err(|error| format!("v4 negative-space source rows are invalid: {error}"))?;
+        let expected_rows = expected_root
+            .get(kind)
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("v4 negative-space source rows missing for {kind}"))?;
+        let actual_rows = matrix_view
+            .get("negative_space")
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("v4 negative-space matrix rows missing for {kind}"))?;
+        if actual_rows.len() != expected_rows.len() {
+            return Err(format!("v4 negative-space row count changed for {kind}"));
+        }
+        let mut regions = Vec::with_capacity(expected_rows.len());
+        for (index, expected) in expected_rows.iter().enumerate() {
+            let actual = actual_rows[index]
+                .as_object()
+                .ok_or_else(|| format!("v4 negative-space row is not an object for {kind}"))?;
+            if actual.get("structure_id") != expected.get("structure_id")
+                || actual.get("closed_contour_points") != expected.get("closed_contour_points")
+                || actual.get("status").and_then(Value::as_str)
+                    != Some("CLOSED_POLYGON_PROPOSAL_NOT_AUTHORITY")
+                || actual.get("runtime_visibility").and_then(Value::as_str) != Some("unknown")
+                || actual.get("user_confirmed").and_then(Value::as_bool) != Some(false)
+            {
+                return Err(format!(
+                    "v4 negative-space row binding changed for {kind} at index {index}"
+                ));
+            }
+            let points = expected
+                .get("closed_contour_points")
+                .and_then(Value::as_array)
+                .ok_or_else(|| format!("v4 negative-space points missing for {kind}"))?;
+            if points.len() < 3
+                || points.iter().any(|point| {
+                    point.as_array().is_none_or(|point| {
+                        point.len() != 2
+                            || point.iter().any(|coordinate| {
+                                coordinate.as_f64().is_none_or(|value| {
+                                    !value.is_finite() || !(0.0..=1.0).contains(&value)
+                                })
+                            })
+                    })
+                })
+            {
+                return Err(format!("v4 negative-space contour is invalid for {kind}"));
+            }
+            let structure_id = expected["structure_id"]
+                .as_str()
+                .ok_or_else(|| format!("v4 negative-space id is invalid for {kind}"))?;
+            let include = include_structure_ids
+                .is_none_or(|ids| ids.iter().any(|candidate| *candidate == structure_id));
+            if include
+                && points
+                    .iter()
+                    .any(|point| !v3_real_weapon_point_inside_polygon(point, outer_contour_points))
+            {
+                return Err(format!(
+                    "v4 negative-space contour is outside the reviewed outer contour for {structure_id}"
+                ));
+            }
+            let region = json!({
+                "structure_id":structure_id,
+                "visual_role":"open-frame",
+                "continuity_group_id":format!("{kind}.reviewed-negative-space"),
+                "layer_index":2,
+                "boundary_relationship":"enclosed",
+                "visibility":"observed",
+                "depth_policy":"unknown",
+                "profile_policy":"material-only",
+                "mask_operation":"subtract",
+                "contour_points":points
+            });
+            let expected_region_hash = V3_REAL_WEAPON_FORM_REVIEW_V4_REGION_CANONICAL_SHA256
+                .iter()
+                .find(|(candidate, _)| *candidate == structure_id)
+                .map(|(_, hash)| *hash)
+                .ok_or_else(|| format!("v4 region canonical binding missing for {structure_id}"))?;
+            if canonical_json_hash(&region) != expected_region_hash {
+                return Err(format!(
+                    "v4 region canonical hash mismatch for {structure_id}"
+                ));
+            }
+            if !include {
+                continue;
+            }
+            regions.push(region);
+        }
+        let structure_input = json!({"regions":regions,"line_flows":[]});
+        let materialized = crate::prepare_reference_visual_structure(Some(&structure_input), true)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "v4 negative-space structure unexpectedly disappeared".to_owned())?;
+        if materialized.get("review_status").and_then(Value::as_str) != Some("user_confirmed")
+            || materialized
+                .get("regions")
+                .and_then(Value::as_array)
+                .is_none_or(|rows| {
+                    rows.len() != regions.len()
+                        || rows.iter().any(|row| {
+                            row.get("visual_role").and_then(Value::as_str) != Some("open-frame")
+                                || row.get("boundary_relationship").and_then(Value::as_str)
+                                    != Some("enclosed")
+                                || row.get("visibility").and_then(Value::as_str) != Some("observed")
+                                || row.get("depth_policy").and_then(Value::as_str)
+                                    != Some("unknown")
+                                || row.get("mask_operation").and_then(Value::as_str)
+                                    != Some("subtract")
+                        })
+                })
+        {
+            return Err(format!(
+                "v4 negative-space structure was not closed for {kind}"
+            ));
+        }
+        Ok(structure_input)
+    }
+
+    // Proposal evidence may contain labels such as `proposed_visibility:
+    // observed`, but those labels are not Runtime observations.  This helper
+    // deliberately projects only the candidate outer contour into the exact
+    // ReferenceVisualStructure@1 input shape, downgrades visibility/depth to
+    // unknown, and leaves line_flows empty because the proposal's free-form
+    // kinds are not in the Runtime contract enum.
+    fn v3_real_weapon_unconfirmed_visual_structure(
+        kind: &str,
+        proposal_view: &Value,
+    ) -> Result<Value, String> {
+        if proposal_view.get("view_kind").and_then(Value::as_str) != Some(kind)
+            || proposal_view.get("user_confirmed").and_then(Value::as_bool) != Some(false)
+            || proposal_view
+                .get("proposal_visibility")
+                .and_then(Value::as_str)
+                != Some("observed-candidate")
+            || proposal_view
+                .get("runtime_visibility_before_confirmation")
+                .and_then(Value::as_str)
+                != Some("unknown")
+        {
+            return Err(format!(
+                "unconfirmed form proposal binding is not safe for {kind}"
+            ));
+        }
+        let contour_points = proposal_view
+            .get("outer_contour_points")
+            .cloned()
+            .ok_or_else(|| format!("form proposal outer contour is missing for {kind}"))?;
+        let structure_input = json!({
+            "regions":[{
+                "structure_id":format!("{kind}.outer-contour-proposal"),
+                "visual_role":"unknown-visual-region",
+                "continuity_group_id":format!("{kind}.proposal"),
+                "layer_index":0,
+                "boundary_relationship":"independent",
+                "visibility":"unknown",
+                "depth_policy":"unknown",
+                "profile_policy":"material-only",
+                "contour_points":contour_points
+            }],
+            "line_flows":[]
+        });
+        let structure = crate::prepare_reference_visual_structure(Some(&structure_input), false)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "unconfirmed visual structure unexpectedly disappeared".to_owned())?;
+        if structure.get("review_status").and_then(Value::as_str) != Some("unreviewed")
+            || structure
+                .get("regions")
+                .and_then(Value::as_array)
+                .and_then(|regions| regions.first())
+                .and_then(|region| region.get("visibility"))
+                .and_then(Value::as_str)
+                != Some("unknown")
+        {
+            return Err(format!(
+                "unconfirmed form proposal was promoted in ReferenceVisualStructure for {kind}"
+            ));
+        }
+        // The public prepare method accepts only the draft `{regions,
+        // line_flows}` object.  Keep the fully materialized structure only as
+        // a validation result; never feed schema/policy/canonical output
+        // fields back into the request.
+        Ok(structure_input)
+    }
+
+    fn v3_real_weapon_map_review_point(
+        point: &Value,
+        crop: V3RealWeaponViewCrop,
+        source_width: u32,
+        source_height: u32,
+        context: &str,
+    ) -> Result<Value, String> {
+        let point = point
+            .as_array()
+            .filter(|point| point.len() == 2)
+            .ok_or_else(|| format!("{context} must be a two-coordinate point"))?;
+        let x = point[0]
+            .as_f64()
+            .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
+            .ok_or_else(|| format!("{context} x coordinate is invalid"))?;
+        let y = point[1]
+            .as_f64()
+            .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
+            .ok_or_else(|| format!("{context} y coordinate is invalid"))?;
+        Ok(json!([
+            (crop.x as f64 + x * crop.width as f64) / source_width as f64,
+            (crop.y as f64 + y * crop.height as f64) / source_height as f64
+        ]))
+    }
+
+    fn v3_real_weapon_map_review_points(
+        points: &Value,
+        minimum: usize,
+        crop: V3RealWeaponViewCrop,
+        source_width: u32,
+        source_height: u32,
+        context: &str,
+    ) -> Result<Vec<Value>, String> {
+        let points = points
+            .as_array()
+            .filter(|points| (minimum..=256).contains(&points.len()))
+            .ok_or_else(|| format!("{context} point count is invalid"))?;
+        points
+            .iter()
+            .map(|point| {
+                v3_real_weapon_map_review_point(point, crop, source_width, source_height, context)
+            })
+            .collect()
+    }
+
+    fn v3_real_weapon_review_bbox_points(
+        bbox: &Value,
+        crop: V3RealWeaponViewCrop,
+        source_width: u32,
+        source_height: u32,
+        context: &str,
+    ) -> Result<Vec<Value>, String> {
+        let bbox = bbox
+            .as_array()
+            .filter(|bbox| bbox.len() == 4)
+            .ok_or_else(|| format!("{context} bbox must have four coordinates"))?;
+        let values = bbox
+            .iter()
+            .map(|value| {
+                value
+                    .as_f64()
+                    .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
+                    .ok_or_else(|| format!("{context} bbox coordinate is invalid"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if values[0] >= values[2] || values[1] >= values[3] {
+            return Err(format!("{context} bbox is empty or reversed"));
+        }
+        [
+            json!([values[0], values[1]]),
+            json!([values[2], values[1]]),
+            json!([values[2], values[3]]),
+            json!([values[0], values[3]]),
+        ]
+        .iter()
+        .map(|point| {
+            v3_real_weapon_map_review_point(point, crop, source_width, source_height, context)
+        })
+        .collect()
+    }
+
+    fn v3_real_weapon_confirmed_visual_structure_v4(
+        kind: &str,
+        proposal_view: &Value,
+        confirmation: &Value,
+        crop: V3RealWeaponViewCrop,
+        source_width: u32,
+        source_height: u32,
+    ) -> Result<(Value, Vec<Value>), String> {
+        if crop.kind != kind
+            || proposal_view.get("view_kind").and_then(Value::as_str) != Some(kind)
+            || confirmation.get("user_confirmed").and_then(Value::as_bool) != Some(true)
+            || confirmation.get("depth_status").and_then(Value::as_str) != Some("UNKNOWN")
+        {
+            return Err(format!("confirmed V4 binding is not exact for {kind}"));
+        }
+        let local_outer = if kind == "rear-three-quarter" {
+            confirmation
+                .pointer("/outer_contour_correction/contour_points")
+                .ok_or_else(|| "confirmed rear outer contour is missing".to_owned())?
+        } else {
+            proposal_view
+                .get("outer_contour_points")
+                .ok_or_else(|| format!("V4 outer contour is missing for {kind}"))?
+        };
+        let outer = v3_real_weapon_map_review_points(
+            local_outer,
+            3,
+            crop,
+            source_width,
+            source_height,
+            &format!("{kind}.confirmed-outer-contour"),
+        )?;
+        let mut regions = vec![json!({
+            "structure_id":format!("{kind}.reviewed-outer-contour"),
+            "visual_role":"outer-flowing-shell",
+            "continuity_group_id":format!("{kind}.reviewed-form"),
+            "layer_index":0,
+            "boundary_relationship":"independent",
+            "visibility":"observed",
+            "depth_policy":"unknown",
+            "profile_policy":"preserve-continuity",
+            "contour_points":outer.clone()
+        })];
+        if matches!(kind, "left" | "right" | "rear-three-quarter") {
+            for row in proposal_view
+                .pointer("/negative_space_v2/regions")
+                .and_then(Value::as_array)
+                .ok_or_else(|| format!("V4 negative-space rows are missing for {kind}"))?
+            {
+                let structure_id = row["structure_id"]
+                    .as_str()
+                    .ok_or_else(|| format!("V4 negative-space ID is missing for {kind}"))?;
+                let local_points = if structure_id == "rear3q.open-stock-void" {
+                    confirmation
+                        .pointer("/negative_space_correction/contour_points")
+                        .ok_or_else(|| "confirmed rear stock void is missing".to_owned())?
+                } else {
+                    row.get("closed_contour_points").ok_or_else(|| {
+                        format!("V4 negative-space contour is missing for {structure_id}")
+                    })?
+                };
+                regions.push(json!({
+                    "structure_id":structure_id,
+                    "visual_role":"open-frame",
+                    "continuity_group_id":format!("{kind}.reviewed-negative-space"),
+                    "layer_index":2,
+                    "boundary_relationship":"enclosed",
+                    "visibility":"observed",
+                    "depth_policy":"unknown",
+                    "profile_policy":"material-only",
+                    "mask_operation":"subtract",
+                    "contour_points":v3_real_weapon_map_review_points(
+                        local_points,
+                        3,
+                        crop,
+                        source_width,
+                        source_height,
+                        structure_id,
+                    )?
+                }));
+            }
+        }
+        let line_flows = proposal_view
+            .get("line_flows_v2")
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("V4 line-flow rows are missing for {kind}"))?
+            .iter()
+            .map(|flow| {
+                let line_flow_id = flow["line_flow_id"]
+                    .as_str()
+                    .ok_or_else(|| format!("V4 line-flow ID is missing for {kind}"))?;
+                Ok(json!({
+                    "line_flow_id":line_flow_id,
+                    "continuity_group_id":flow["continuity_group_id"],
+                    "kind":flow["runtime_kind_candidate"],
+                    "visibility":"observed",
+                    "points":v3_real_weapon_map_review_points(
+                        &flow["points"],
+                        2,
+                        crop,
+                        source_width,
+                        source_height,
+                        line_flow_id,
+                    )?
+                }))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let structure_input = json!({"regions":regions,"line_flows":line_flows});
+        let structure_input: Value = serde_json::from_slice(
+            &crate::canonical_json_bytes(&structure_input).map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| format!("confirmed V4 structure wire round-trip failed: {error}"))?;
+        crate::prepare_reference_visual_structure(Some(&structure_input), true)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| format!("confirmed V4 structure disappeared for {kind}"))?;
+        let mapped_outer = structure_input["regions"][0]["contour_points"]
+            .as_array()
+            .ok_or_else(|| format!("confirmed V4 outer contour disappeared for {kind}"))?
+            .clone();
+        Ok((structure_input, mapped_outer))
+    }
+
+    // The proposal file remains immutable `PROPOSAL_REVIEW_PENDING`.  The
+    // explicit `user_confirmed_review` parameter represents the later user
+    // action confirming the seven crop boxes and their annotation boundaries;
+    // it does not rewrite the proposal or promote free-form labels directly.
+    // Only contract-closed visual roles and line kinds are projected, all
+    // depth stays unknown. The trigger/open-stock proposal rows are reviewed
+    // bounding annotations, not pixel-exact cutout polygons, so they remain
+    // enclosed open-frame regions with mask_operation=none. FormArt must keep
+    // their negative-space metric unknown until an exact subtract contour is
+    // separately confirmed.
+    fn v3_real_weapon_reviewed_visual_structure(
+        kind: &str,
+        proposal_view: &Value,
+        crop: V3RealWeaponViewCrop,
+        source_width: u32,
+        source_height: u32,
+        user_confirmed_review: bool,
+    ) -> Result<Value, String> {
+        if !user_confirmed_review
+            || crop.kind != kind
+            || proposal_view.get("view_kind").and_then(Value::as_str) != Some(kind)
+            || proposal_view.get("user_confirmed").and_then(Value::as_bool) != Some(false)
+            || proposal_view
+                .get("proposal_visibility")
+                .and_then(Value::as_str)
+                != Some("observed-candidate")
+            || proposal_view
+                .get("runtime_visibility_before_confirmation")
+                .and_then(Value::as_str)
+                != Some("unknown")
+            || proposal_view.get("crop_box_xyxy")
+                != Some(&json!([
+                    crop.x,
+                    crop.y,
+                    crop.x + crop.width,
+                    crop.y + crop.height
+                ]))
+        {
+            return Err(format!(
+                "reviewed form proposal binding is not exact for {kind}"
+            ));
+        }
+
+        let mut regions = vec![json!({
+            "structure_id":format!("{kind}.reviewed-outer-contour"),
+            "visual_role":"outer-flowing-shell",
+            "continuity_group_id":format!("{kind}.reviewed-form"),
+            "layer_index":0,
+            "boundary_relationship":"independent",
+            "visibility":"observed",
+            "depth_policy":"unknown",
+            "profile_policy":"preserve-continuity",
+            "contour_points":v3_real_weapon_map_review_points(
+                proposal_view.get("outer_contour_points").ok_or_else(|| {
+                    format!("reviewed outer contour is missing for {kind}")
+                })?,
+                3,
+                crop,
+                source_width,
+                source_height,
+                &format!("{kind}.outer_contour_points"),
+            )?
+        })];
+
+        let part_regions = proposal_view
+            .get("part_regions")
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("reviewed part regions are missing for {kind}"))?;
+        for region in part_regions {
+            if region.get("proposed_visibility").and_then(Value::as_str) != Some("observed")
+                || region
+                    .get("runtime_visibility_before_confirmation")
+                    .and_then(Value::as_str)
+                    != Some("unknown")
+                || region.get("user_confirmed").and_then(Value::as_bool) != Some(false)
+            {
+                return Err(format!("reviewed part region binding drifted for {kind}"));
+            }
+            let structure_id = region
+                .get("structure_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| format!("reviewed structure id is missing for {kind}"))?;
+            let visual_role = region
+                .get("visual_role")
+                .and_then(Value::as_str)
+                .filter(|role| {
+                    matches!(
+                        *role,
+                        "outer-flowing-shell"
+                            | "open-frame"
+                            | "primary-volume"
+                            | "floating-shell"
+                            | "layered-body"
+                            | "terminal-assembly"
+                            | "luminous-core"
+                            | "internal-channel"
+                            | "material-transition"
+                            | "unknown-visual-region"
+                    )
+                })
+                .ok_or_else(|| format!("reviewed visual role is unsupported for {kind}"))?;
+            let boundary_relationship = region
+                .get("boundary_relationship")
+                .and_then(Value::as_str)
+                .filter(|relationship| {
+                    matches!(
+                        *relationship,
+                        "shared" | "overlap" | "independent" | "enclosed"
+                    )
+                })
+                .ok_or_else(|| format!("reviewed boundary relationship is invalid for {kind}"))?;
+            if region.get("depth_policy").and_then(Value::as_str) != Some("unknown") {
+                return Err(format!("reviewed depth must remain unknown for {kind}"));
+            }
+            regions.push(json!({
+                "structure_id":structure_id,
+                "visual_role":visual_role,
+                "continuity_group_id":format!("{kind}.reviewed-form"),
+                "layer_index":1,
+                "boundary_relationship":boundary_relationship,
+                "visibility":"observed",
+                "depth_policy":"unknown",
+                "profile_policy":"material-only",
+                "contour_points":v3_real_weapon_review_bbox_points(
+                    region.get("bbox").ok_or_else(|| {
+                        format!("reviewed bbox is missing for {structure_id}")
+                    })?,
+                    crop,
+                    source_width,
+                    source_height,
+                    structure_id,
+                )?
+            }));
+        }
+
+        let negative_space = proposal_view
+            .get("negative_space")
+            .and_then(Value::as_object)
+            .ok_or_else(|| format!("reviewed negative-space record is missing for {kind}"))?;
+        match negative_space.get("status").and_then(Value::as_str) {
+            Some("not-applicable") => {
+                if negative_space
+                    .get("regions")
+                    .and_then(Value::as_array)
+                    .is_none_or(|regions| !regions.is_empty())
+                {
+                    return Err(format!(
+                        "not-applicable negative space has regions for {kind}"
+                    ));
+                }
+            }
+            Some("candidate-observed-closed") => {
+                for region in negative_space
+                    .get("regions")
+                    .and_then(Value::as_array)
+                    .ok_or_else(|| format!("negative-space regions are missing for {kind}"))?
+                {
+                    if region.get("visual_role").and_then(Value::as_str) != Some("open-frame")
+                        || region.get("mask_operation").and_then(Value::as_str) != Some("subtract")
+                        || region.get("boundary_relationship").and_then(Value::as_str)
+                            != Some("enclosed")
+                        || region.get("proposed_visibility").and_then(Value::as_str)
+                            != Some("observed")
+                        || region
+                            .get("runtime_visibility_before_confirmation")
+                            .and_then(Value::as_str)
+                            != Some("unknown")
+                        || region.get("user_confirmed").and_then(Value::as_bool) != Some(false)
+                    {
+                        return Err(format!("negative-space binding drifted for {kind}"));
+                    }
+                    let structure_id = region
+                        .get("structure_id")
+                        .and_then(Value::as_str)
+                        .ok_or_else(|| format!("negative-space id is missing for {kind}"))?;
+                    regions.push(json!({
+                        "structure_id":structure_id,
+                        "visual_role":"open-frame",
+                        "continuity_group_id":format!("{kind}.reviewed-negative-space"),
+                        "layer_index":2,
+                        "boundary_relationship":"enclosed",
+                        "visibility":"observed",
+                        "depth_policy":"unknown",
+                        "profile_policy":"material-only",
+                        "mask_operation":"none",
+                        "contour_points":v3_real_weapon_review_bbox_points(
+                            region.get("bbox").ok_or_else(|| {
+                                format!("negative-space bbox is missing for {structure_id}")
+                            })?,
+                            crop,
+                            source_width,
+                            source_height,
+                            structure_id,
+                        )?
+                    }));
+                }
+            }
+            _ => return Err(format!("negative-space status is invalid for {kind}")),
+        }
+
+        let mut line_flows = Vec::new();
+        for line in proposal_view
+            .get("line_flows")
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("reviewed line flows are missing for {kind}"))?
+        {
+            if line.get("proposed_visibility").and_then(Value::as_str) != Some("observed")
+                || line
+                    .get("runtime_visibility_before_confirmation")
+                    .and_then(Value::as_str)
+                    != Some("unknown")
+                || line.get("user_confirmed").and_then(Value::as_bool) != Some(false)
+            {
+                return Err(format!("reviewed line-flow binding drifted for {kind}"));
+            }
+            let line_flow_id = line
+                .get("line_flow_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| format!("reviewed line-flow id is missing for {kind}"))?;
+            let contract_kind = match line.get("kind").and_then(Value::as_str) {
+                Some("upper-spine" | "fore-rail" | "lower-brace" | "stock-bridge") => "ridge",
+                Some("core-ring") => "seam",
+                Some("light-channel") => "light-channel",
+                _ => return Err(format!("reviewed line-flow kind is unsupported for {kind}")),
+            };
+            line_flows.push(json!({
+                "line_flow_id":line_flow_id,
+                "continuity_group_id":format!("{kind}.reviewed-form"),
+                "kind":contract_kind,
+                "visibility":"observed",
+                "points":v3_real_weapon_map_review_points(
+                    line.get("points").ok_or_else(|| {
+                        format!("reviewed line-flow points are missing for {line_flow_id}")
+                    })?,
+                    2,
+                    crop,
+                    source_width,
+                    source_height,
+                    line_flow_id,
+                )?
+            }));
+        }
+
+        let structure_input = json!({"regions":regions,"line_flows":line_flows});
+        // Freeze serde_json's wire spelling of mapped f64 coordinates before
+        // the Runtime adds and verifies its canonical hash. Re-embedding an
+        // in-memory float Value in the public request must not create a second
+        // spelling of the same reviewed point set.
+        let structure_input: Value = serde_json::from_slice(
+            &crate::canonical_json_bytes(&structure_input).map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| format!("reviewed visual structure wire round-trip failed: {error}"))?;
+        let materialized = crate::prepare_reference_visual_structure(Some(&structure_input), true)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "reviewed visual structure unexpectedly disappeared".to_owned())?;
+        if materialized.get("review_status").and_then(Value::as_str) != Some("user_confirmed")
+            || materialized
+                .get("regions")
+                .and_then(Value::as_array)
+                .is_none_or(|regions| {
+                    regions.iter().any(|region| {
+                        region.get("visibility").and_then(Value::as_str) != Some("observed")
+                            || region.get("depth_policy").and_then(Value::as_str) != Some("unknown")
+                    })
+                })
+            || materialized
+                .get("line_flows")
+                .and_then(Value::as_array)
+                .is_none_or(|lines| {
+                    lines.iter().any(|line| {
+                        line.get("visibility").and_then(Value::as_str) != Some("observed")
+                    })
+                })
+        {
+            return Err(format!(
+                "reviewed visual structure was not closed for {kind}"
+            ));
+        }
+        Ok(structure_input)
+    }
+
+    fn v3_real_weapon_reference_crop_pngs_for_crops(
+        bytes: &[u8],
+        crops: Vec<V3RealWeaponViewCrop>,
+    ) -> Result<Vec<(&'static str, Vec<u8>, String, u32, u32)>, String> {
+        use image::ImageEncoder;
+
+        let image = image::load_from_memory(bytes)
+            .map_err(|error| format!("real weapon reference decode failed: {error}"))?;
+        let rgba = image.to_rgba8();
+        let mut result = Vec::with_capacity(crops.len());
+        for crop in crops {
+            let view = image::imageops::crop_imm(&rgba, crop.x, crop.y, crop.width, crop.height)
+                .to_image();
+            let mut png = Vec::new();
+            image::codecs::png::PngEncoder::new(&mut png)
+                .write_image(
+                    view.as_raw(),
+                    crop.width,
+                    crop.height,
+                    image::ExtendedColorType::Rgba8,
+                )
+                .map_err(|error| format!("real weapon reference crop encode failed: {error}"))?;
+            let sha256 = sha256_hex(&png);
+            result.push((crop.kind, png, sha256, crop.width, crop.height));
+        }
+        Ok(result)
+    }
+
+    fn v3_real_weapon_reference_crop_pngs(
+        bytes: &[u8],
+    ) -> Result<Vec<(&'static str, Vec<u8>, String, u32, u32)>, String> {
+        let image = image::load_from_memory(bytes)
+            .map_err(|error| format!("real weapon reference decode failed: {error}"))?;
+        let rgba = image.to_rgba8();
+        v3_real_weapon_reference_crop_pngs_for_crops(
+            bytes,
+            v3_real_weapon_view_crops(rgba.width(), rgba.height())?,
+        )
+    }
+
+    fn v3_real_weapon_reference_crop_pngs_seven(
+        bytes: &[u8],
+    ) -> Result<Vec<(&'static str, Vec<u8>, String, u32, u32)>, String> {
+        let image = image::load_from_memory(bytes)
+            .map_err(|error| format!("real weapon reference decode failed: {error}"))?;
+        let rgba = image.to_rgba8();
+        v3_real_weapon_reference_crop_pngs_for_crops(
+            bytes,
+            v3_real_weapon_view_crops_with_bottom(rgba.width(), rgba.height())?,
+        )
+    }
+
+    /// This is deliberately a fast source-intake fixture, not a quality or
+    /// stage fixture.  It proves that the actual user board can be split into
+    /// six independent, hash-bound ReferenceEvidence objects without using a
+    /// synthetic shell.  The automatic targets must remain unreviewed: no
+    /// contour, negative-space or line-flow observation may be promoted to
+    /// `observed` until the user confirms each crop.  That fail-closed fact is
+    /// the explicit prerequisite for the FormArt@1 -> FormQuality@2 -> Stage@3
+    /// chain and prevents a contact-sheet crop from becoming fake quality.
+    #[test]
+    #[ignore = "requires an explicitly supplied user-authorized reference path"]
+    fn production_weapon_real_reference_six_view_source_is_hash_bound_and_form_gate_stays_blocked_without_user_confirmed_views(
+    ) {
+        use base64::Engine as _;
+
+        let path = std::env::var_os("FORGECAD_REAL_WEAPON_REFERENCE_PATH")
+            .map(std::path::PathBuf::from)
+            .expect(
+                "FORGECAD_REAL_WEAPON_REFERENCE_PATH must identify the user-authorized reference",
+            );
+        let bytes = std::fs::read(&path).expect("user-authorized weapon reference must be present");
+        assert_eq!(
+            sha256_hex(&bytes),
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        let crops =
+            v3_real_weapon_reference_crop_pngs(&bytes).expect("real weapon reference crop recipe");
+        assert_eq!(
+            crops.len(),
+            PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS.len()
+        );
+        let mut crop_hashes = std::collections::BTreeSet::new();
+        let runtime = Runtime::ephemeral().expect("real reference intake runtime");
+        let project = runtime
+            .create_project(
+                "Real weapon six-view source fixture",
+                json!({"profile":"mvp"}),
+            )
+            .expect("real reference intake project");
+        for (kind, png, sha256, width, height) in crops {
+            assert!(
+                crop_hashes.insert(sha256.clone()),
+                "duplicate real crop for {kind}"
+            );
+            let imported = runtime
+                .import_reference(&crate::ReferenceImportRequest {
+                    project_id: project.project_id.clone(),
+                    source: crate::ReferenceImportSource::InlineContent {
+                        mime: "image/png".to_owned(),
+                        content_base64: base64::engine::general_purpose::STANDARD.encode(&png),
+                    },
+                    authorization: crate::ReferenceAuthorization {
+                        user_authorized: true,
+                        declaration: format!(
+                            "User-authorized crop derived in memory from the six-view weapon board ({kind})"
+                        ),
+                    },
+                    expected_sha256: Some(sha256),
+                })
+                .expect("real crop reference import");
+            assert_eq!(imported.reference.import_mode, "inline_content");
+            assert_eq!(imported.reference.width, width);
+            assert_eq!(imported.reference.height, height);
+            let target = runtime
+                .prepare_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "reference_id":imported.reference.reference_id,
+                        "user_confirmed":false
+                    }),
+                )
+                .expect("automatic crop target");
+            assert_eq!(target["target"]["source"], "automatic");
+            assert_eq!(target["target"]["annotation_status"], "unreviewed");
+        }
+        assert_eq!(crop_hashes.len(), 6);
+        // FormQuality@2 is intentionally not invoked with these automatic
+        // targets.  Its source gate requires user_refined + user_confirmed
+        // targets and reviewed visual structure; advancing without that
+        // evidence would manufacture observed negative-space/line-flow facts.
+    }
+
+    /// The user-confirmed board has seven explicitly bounded crops: the six
+    /// identity views plus a supplemental bottom view.  Crop-box/semantic
+    /// confirmation is not an exact silhouette contour, however.  This test
+    /// proves the largest honest prefix and the fail-closed boundary: all
+    /// seven real PNGs enter isolated CAS as independent references, automatic
+    /// targets remain exploratory, and a user-confirmed target without an
+    /// explicit contour is rejected before it can write another object.
+    #[test]
+    #[ignore = "requires an explicitly supplied user-authorized reference path"]
+    fn production_weapon_real_reference_seven_view_confirmed_crop_gate_blocks_without_explicit_contours(
+    ) {
+        use base64::Engine as _;
+
+        let path = std::env::var_os("FORGECAD_REAL_WEAPON_REFERENCE_PATH")
+            .map(std::path::PathBuf::from)
+            .expect(
+                "FORGECAD_REAL_WEAPON_REFERENCE_PATH must identify the user-authorized reference",
+            );
+        let bytes = std::fs::read(&path).expect("user-authorized weapon reference must be present");
+        assert_eq!(
+            sha256_hex(&bytes),
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        let crops = v3_real_weapon_reference_crop_pngs_seven(&bytes)
+            .expect("real weapon seven-view crop recipe");
+        assert_eq!(crops.len(), 7);
+        let mut crop_hashes = std::collections::BTreeSet::new();
+        let runtime = Runtime::ephemeral().expect("real seven-view intake runtime");
+        let project = runtime
+            .create_project(
+                "Real weapon seven-view source fixture",
+                json!({"profile":"mvp"}),
+            )
+            .expect("real seven-view intake project");
+        for (kind, png, sha256, width, height) in crops {
+            assert!(
+                crop_hashes.insert(sha256.clone()),
+                "duplicate real crop for {kind}"
+            );
+            let imported = runtime
+                .import_reference(&crate::ReferenceImportRequest {
+                    project_id: project.project_id.clone(),
+                    source: crate::ReferenceImportSource::InlineContent {
+                        mime: "image/png".to_owned(),
+                        content_base64: base64::engine::general_purpose::STANDARD.encode(&png),
+                    },
+                    authorization: crate::ReferenceAuthorization {
+                        user_authorized: true,
+                        declaration: format!(
+                            "User-authorized crop with confirmed board semantics ({kind})"
+                        ),
+                    },
+                    expected_sha256: Some(sha256),
+                })
+                .expect("real seven-view reference import");
+            assert_eq!(imported.reference.import_mode, "inline_content");
+            assert_eq!(imported.reference.width, width);
+            assert_eq!(imported.reference.height, height);
+
+            let automatic = runtime
+                .prepare_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "reference_id":imported.reference.reference_id,
+                        "user_confirmed":false
+                    }),
+                )
+                .expect("automatic seven-view target");
+            assert_eq!(automatic["target"]["source"], "automatic");
+            assert_eq!(automatic["target"]["annotation_status"], "unreviewed");
+
+            // The board confirmation covers crop/semantic boundaries, not an
+            // exact normalized silhouette polygon.  Runtime must reject this
+            // promotion rather than deriving a polygon from the image.
+            let before = runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS before confirmation");
+            let error = runtime
+                .prepare_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "reference_id":imported.reference.reference_id,
+                        "user_confirmed":true
+                    }),
+                )
+                .expect_err("user confirmation without contour must fail closed");
+            assert!(error.to_string().contains(
+                "REFERENCE_MASK_INVALID: user confirmation requires an explicit contour"
+            ));
+            assert_eq!(
+                runtime
+                    .store
+                    .cas()
+                    .list_objects()
+                    .expect("CAS after confirmation"),
+                before
+            );
+        }
+        assert_eq!(crop_hashes.len(), 7);
+    }
+
+    /// This is the bounded real-reference confirmation fixture.  The seven
+    /// crops come from the user's authorized board; only the six identity
+    /// views receive the reviewed closed green contour.  The supplemental
+    /// bottom crop remains camera-only and is never promoted to identity
+    /// form evidence.  No Geometry/Render Worker, CameraLock, FormArt,
+    /// Stage, confirmation, version or export operation is involved here.
+    #[test]
+    #[ignore = "requires an explicitly supplied user-authorized reference path"]
+    fn production_weapon_real_reference_seven_view_user_confirmed_contours_is_durable_replay_safe_and_tamper_safe(
+    ) {
+        use base64::Engine as _;
+
+        assert_eq!(
+            V3_REAL_WEAPON_CONTOUR_REVIEW_OVERLAY_SHA256,
+            "d170909899b1ced7d7b97ad454fe895a386ccf5464429e98bdd06bb1b9f88648"
+        );
+        assert_eq!(
+            V3_REAL_WEAPON_CONTOUR_PROPOSAL_SHA256,
+            "b7411cbe0ade06a3c0c655a8d81243f86af59e10f1cd5fb3ce3df70e76cbe431"
+        );
+        let path = std::env::var_os("FORGECAD_REAL_WEAPON_REFERENCE_PATH")
+            .map(std::path::PathBuf::from)
+            .expect(
+                "FORGECAD_REAL_WEAPON_REFERENCE_PATH must identify the user-authorized reference",
+            );
+        let bytes = std::fs::read(&path).expect("user-authorized weapon reference must be present");
+        assert_eq!(
+            sha256_hex(&bytes),
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        let image = image::load_from_memory(&bytes).expect("real weapon reference decode");
+        let crops = v3_real_weapon_reference_crop_pngs_seven(&bytes)
+            .expect("real seven-view reference crop recipe");
+        let contours = v3_real_weapon_user_confirmed_contours(image.width(), image.height())
+            .expect("reviewed contour evidence binding");
+        assert_eq!(contours.len(), 6);
+
+        let runtime = Runtime::ephemeral().expect("real seven-view confirmation runtime");
+        let objects_before_fixture = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before real seven-view fixture");
+        let project = runtime
+            .create_project(
+                "Real weapon seven-view confirmed contour fixture",
+                json!({"profile":"mvp"}),
+            )
+            .expect("real seven-view project");
+        let mut crop_hashes = std::collections::BTreeSet::new();
+        let mut automatic_targets = BTreeMap::new();
+        let mut refined_targets = BTreeMap::new();
+
+        for (kind, png, sha256, width, height) in crops {
+            assert!(
+                crop_hashes.insert(sha256.clone()),
+                "duplicate crop for {kind}"
+            );
+            let imported = runtime
+                .import_reference(&crate::ReferenceImportRequest {
+                    project_id: project.project_id.clone(),
+                    source: crate::ReferenceImportSource::InlineContent {
+                        mime: "image/png".to_owned(),
+                        content_base64: base64::engine::general_purpose::STANDARD.encode(&png),
+                    },
+                    authorization: crate::ReferenceAuthorization {
+                        user_authorized: true,
+                        declaration: format!(
+                            "User-authorized confirmed crop with reviewed contour semantics ({kind})"
+                        ),
+                    },
+                    expected_sha256: Some(sha256),
+                })
+                .expect("real seven-view reference import");
+            assert_eq!(imported.reference.width, width);
+            assert_eq!(imported.reference.height, height);
+
+            let automatic = runtime
+                .prepare_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "reference_id":imported.reference.reference_id,
+                        "user_confirmed":false
+                    }),
+                )
+                .expect("automatic target before reviewed contour");
+            let automatic_sha = automatic["target_sha256"]
+                .as_str()
+                .expect("automatic target hash")
+                .to_owned();
+            assert_eq!(automatic["target"]["source"], "automatic");
+            assert_eq!(automatic["target"]["annotation_status"], "unreviewed");
+            automatic_targets.insert(kind, automatic_sha.clone());
+
+            if kind == "bottom" {
+                continue;
+            }
+            let proposal = contours
+                .iter()
+                .find(|(proposal_kind, _)| *proposal_kind == kind)
+                .map(|(_, proposal)| proposal)
+                .expect("identity view reviewed contour");
+            let refined = runtime
+                .refine_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "base_target_sha256":automatic_sha,
+                        "contour_points":proposal["contour_points"],
+                        "user_confirmed":true
+                    }),
+                )
+                .expect("reviewed contour refinement");
+            let refined_sha = refined["target_sha256"]
+                .as_str()
+                .expect("refined target hash")
+                .to_owned();
+            let target = refined["target"].clone();
+            assert_eq!(target["source"], "user_refined");
+            assert_eq!(target["annotation_status"], "user_confirmed");
+            assert_eq!(target["parent_target_sha256"], automatic_sha);
+            assert_eq!(target["contour_points"].as_array().unwrap().len(), 192);
+            assert_eq!(
+                runtime
+                    .silhouette_target_get(&refined_sha)
+                    .expect("same-process target readback"),
+                target
+            );
+            refined_targets.insert(kind, (refined_sha, target));
+        }
+
+        assert_eq!(crop_hashes.len(), 7);
+        assert_eq!(automatic_targets.len(), 7);
+        assert_eq!(refined_targets.len(), 6);
+
+        let objects_after_prepare = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after reviewed contours");
+        assert_eq!(
+            objects_after_prepare.len() - objects_before_fixture.len(),
+            33,
+            "seven reference PNGs + seven automatic targets + six refined targets each write one mask and target object"
+        );
+        eprintln!(
+            "real seven-view contour fixture CAS objects: before={} after={} delta={}",
+            objects_before_fixture.len(),
+            objects_after_prepare.len(),
+            objects_after_prepare.len() - objects_before_fixture.len()
+        );
+        let reopened = Runtime::from_store(runtime.store.clone()).expect("reopened Runtime");
+        for (kind, (target_sha256, target)) in &refined_targets {
+            let readback = reopened
+                .silhouette_target_get(target_sha256)
+                .expect("restarted reviewed target readback");
+            assert_eq!(&readback, target, "restarted target changed for {kind}");
+            assert_eq!(readback["source"], "user_refined");
+            assert_eq!(readback["annotation_status"], "user_confirmed");
+        }
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after restart get"),
+            objects_after_prepare
+        );
+
+        let (front_kind, front_proposal) = contours
+            .iter()
+            .find(|(kind, _)| *kind == "front")
+            .expect("front reviewed contour");
+        let mut tampered = front_proposal.clone();
+        tampered["contour_points"][0] = json!([0.4, 0.4]);
+        assert_ne!(
+            canonical_json_hash(&tampered),
+            V3_REAL_WEAPON_CONTOUR_VIEW_CANONICAL_SHA256[0]
+        );
+        // A changed but in-range contour is not silently accepted as the
+        // reviewed proposal: this fixture's closed evidence binding rejects
+        // it before it reaches Runtime/CAS.
+        let before_tamper = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before tampered contour");
+        let tamper_error = v3_real_weapon_validate_contour_proposal(*front_kind, &tampered)
+            .expect_err("tampered reviewed contour must fail closed");
+        assert!(tamper_error.contains("hash mismatch"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after tampered contour"),
+            before_tamper
+        );
+
+        let mut invalid = front_proposal["contour_points"].clone();
+        invalid[0] = json!([1.1, 0.4]);
+        let before_invalid = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before invalid contour");
+        let error = runtime
+            .refine_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id,
+                    "base_target_sha256":automatic_targets["front"],
+                    "contour_points":invalid,
+                    "user_confirmed":true
+                }),
+            )
+            .expect_err("out-of-range contour must fail closed");
+        assert!(error.to_string().contains("contour"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after invalid contour"),
+            before_invalid
+        );
+    }
+
+    /// The v4 board confirmation explicitly covers five valid negative-space
+    /// rows and one contradictory row.  The six source rows are retained and
+    /// hash-bound, but rear3q.open-stock-void is rejected because its points
+    /// are not contained by the reviewed outer contour; it must not be
+    /// clipped, mirrored, or silently promoted.  This fixture only exercises
+    /// reference import/target refine/restart and never starts a Worker.
+    #[test]
+    #[ignore = "requires explicitly supplied user-authorized reference and v4 review files"]
+    fn production_weapon_real_reference_v4_negative_space_is_hash_bound_and_restart_safe() {
+        use base64::Engine as _;
+
+        let source_path = std::env::var_os("FORGECAD_REAL_WEAPON_REFERENCE_PATH")
+            .map(std::path::PathBuf::from)
+            .expect(
+                "FORGECAD_REAL_WEAPON_REFERENCE_PATH must identify the user-authorized reference",
+            );
+        let source_bytes =
+            std::fs::read(&source_path).expect("user-authorized weapon reference must be present");
+        assert_eq!(
+            sha256_hex(&source_bytes),
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+
+        let proposal_path = std::env::var_os("FORGECAD_FORM_REVIEW_V4_PROPOSAL_PATH")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from(
+                    "/tmp/forgecad-weapon-form-review-proposal-20260823/v4/six-identity-view-review-proposal-v4.json",
+                )
+            });
+        let matrix_path = std::env::var_os("FORGECAD_FORM_REVIEW_V4_MATRIX_PATH")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from(
+                    "/tmp/forgecad-weapon-form-review-proposal-20260823/v4/machine-readiness-matrix-v4.json",
+                )
+            });
+        let overlay_path = std::env::var_os("FORGECAD_FORM_REVIEW_V4_OVERLAY_PATH")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from(
+                    "/tmp/forgecad-weapon-form-review-proposal-20260823/v4/six-identity-view-review-overlay-v4.png",
+                )
+            });
+        let proposal_bytes = std::fs::read(&proposal_path).expect("v4 proposal must be present");
+        assert_eq!(
+            sha256_hex(&proposal_bytes),
+            V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_FILE_SHA256
+        );
+        let proposal: Value =
+            serde_json::from_slice(&proposal_bytes).expect("v4 proposal JSON must be valid");
+        assert_eq!(
+            canonical_json_hash(&proposal),
+            V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_CANONICAL_SHA256
+        );
+        assert_eq!(
+            proposal["schema_version"],
+            "ForgeCADWeaponFormReviewProposalV4@0"
+        );
+        assert_eq!(proposal["status"], "PROPOSAL_REVIEW_PENDING");
+        assert_eq!(proposal["proposal_only"], true);
+        assert_eq!(proposal["user_confirmed"], false);
+        assert_eq!(proposal["runtime_write"], false);
+        assert_eq!(proposal["worker_started"], false);
+        assert_eq!(
+            proposal["source_png_sha256"],
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        assert_eq!(
+            proposal["base_v2_matrix_sha256"],
+            V3_REAL_WEAPON_FORM_REVIEW_V4_MATRIX_V2_BASE_SHA256
+        );
+        assert_eq!(
+            proposal["overlay_sha256"],
+            V3_REAL_WEAPON_FORM_REVIEW_V4_OVERLAY_SHA256
+        );
+        let overlay_bytes = std::fs::read(&overlay_path).expect("v4 overlay PNG must be present");
+        assert_eq!(
+            sha256_hex(&overlay_bytes),
+            V3_REAL_WEAPON_FORM_REVIEW_V4_OVERLAY_SHA256
+        );
+        let overlay = image::load_from_memory(&overlay_bytes).expect("v4 overlay must decode");
+        assert_eq!((overlay.width(), overlay.height()), (1491, 1055));
+
+        let matrix_bytes = std::fs::read(&matrix_path).expect("v4 matrix must be present");
+        assert_eq!(
+            sha256_hex(&matrix_bytes),
+            V3_REAL_WEAPON_FORM_REVIEW_V4_MATRIX_SHA256
+        );
+        let matrix: Value =
+            serde_json::from_slice(&matrix_bytes).expect("v4 matrix JSON must be valid");
+        assert_eq!(
+            matrix["schema_version"],
+            "ForgeCADWeaponFormMachineReadinessMatrixV4@0"
+        );
+        assert_eq!(matrix["status"], "PROPOSAL_REVIEW_PENDING");
+        assert_eq!(
+            matrix["proposal_sha256"],
+            V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_FILE_SHA256
+        );
+        assert_eq!(
+            matrix["source_png_sha256"],
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        assert_eq!(
+            matrix["base_v2_matrix_sha256"],
+            V3_REAL_WEAPON_FORM_REVIEW_V4_MATRIX_V2_BASE_SHA256
+        );
+        assert_eq!(
+            matrix["overlay_sha256"],
+            V3_REAL_WEAPON_FORM_REVIEW_V4_OVERLAY_SHA256
+        );
+        let matrix_views = matrix["views"].as_object().expect("v4 matrix views");
+        for (kind, expected_hash) in V3_REAL_WEAPON_FORM_REVIEW_V4_NEGATIVE_SPACE_V2_SHA256 {
+            assert_eq!(
+                matrix_views[kind]["negative_space_v2_sha256"], expected_hash,
+                "v4 negative-space source hash drifted for {kind}"
+            );
+        }
+
+        let image = image::load_from_memory(&source_bytes).expect("source image must decode");
+        let crops =
+            v3_real_weapon_reference_crop_pngs_seven(&source_bytes).expect("v4 seven crop recipe");
+        let outer_contours = v3_real_weapon_user_confirmed_contours(image.width(), image.height())
+            .expect("reviewed outer contour evidence");
+        assert_eq!(crops.len(), 7);
+        assert_eq!(outer_contours.len(), 6);
+
+        let runtime = Runtime::ephemeral().expect("v4 negative-space runtime");
+        let objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before v4 negative-space fixture");
+        let project = runtime
+            .create_project(
+                "Real weapon v4 negative-space fixture",
+                json!({"profile":"mvp"}),
+            )
+            .expect("v4 negative-space project");
+        let mut refined_targets = BTreeMap::new();
+        let mut automatic_targets = BTreeMap::new();
+        let mut crop_hashes = BTreeMap::new();
+        let mut confirmed_negative_space_ids: Vec<String> = Vec::new();
+        let mut rejected_negative_space_ids: Vec<String> = Vec::new();
+
+        for (kind, png, crop_sha256, width, height) in crops {
+            let expected_crop_sha256 = V3_REAL_WEAPON_FORM_REVIEW_V4_CROP_RUNTIME_SHA256
+                .iter()
+                .find(|(candidate, _)| *candidate == kind)
+                .map(|(_, hash)| *hash)
+                .expect("v4 runtime crop hash binding");
+            assert_eq!(
+                crop_sha256, expected_crop_sha256,
+                "v4 runtime crop bytes changed for {kind}"
+            );
+            crop_hashes.insert(kind, crop_sha256.clone());
+            let imported = runtime
+                .import_reference(&crate::ReferenceImportRequest {
+                    project_id: project.project_id.clone(),
+                    source: crate::ReferenceImportSource::InlineContent {
+                        mime: "image/png".to_owned(),
+                        content_base64: base64::engine::general_purpose::STANDARD.encode(&png),
+                    },
+                    authorization: crate::ReferenceAuthorization {
+                        user_authorized: true,
+                        declaration: format!(
+                            "User-authorized v4 identity crop with confirmed negative-space review ({kind})"
+                        ),
+                    },
+                    expected_sha256: Some(crop_sha256),
+                })
+                .expect("v4 identity crop import");
+            assert_eq!(imported.reference.width, width);
+            assert_eq!(imported.reference.height, height);
+            let automatic = runtime
+                .prepare_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "reference_id":imported.reference.reference_id,
+                        "user_confirmed":false
+                    }),
+                )
+                .expect("automatic v4 target");
+            let automatic_sha256 = automatic["target_sha256"]
+                .as_str()
+                .expect("automatic v4 target hash")
+                .to_owned();
+            assert_eq!(automatic["target"]["source"], "automatic");
+            assert_eq!(automatic["target"]["annotation_status"], "unreviewed");
+            automatic_targets.insert(kind, automatic_sha256.clone());
+
+            if kind == "bottom" {
+                continue;
+            }
+
+            let outer = outer_contours
+                .iter()
+                .find(|(outer_kind, _)| *outer_kind == kind)
+                .map(|(_, proposal)| proposal["contour_points"].clone())
+                .expect("outer contour identity kind");
+            let matrix_view = matrix_views.get(kind).expect("v4 matrix identity view");
+            let mut visual_structure = None;
+            if let Some(expected_negative_hash) =
+                V3_REAL_WEAPON_FORM_REVIEW_V4_NEGATIVE_SPACE_V2_SHA256
+                    .iter()
+                    .find(|(candidate, _)| *candidate == kind)
+                    .map(|(_, hash)| *hash)
+            {
+                let before_negative_validation = runtime
+                    .store
+                    .cas()
+                    .list_objects()
+                    .expect("CAS before negative-space validation");
+                match kind {
+                    "rear-three-quarter" => {
+                        let error =
+                            v3_real_weapon_v4_negative_space_structure(kind, matrix_view, &outer)
+                                .expect_err("contradictory rear stock row must be rejected");
+                        assert!(error.contains("outside the reviewed outer contour"));
+                        rejected_negative_space_ids.push("rear3q.open-stock-void".to_owned());
+                        assert_eq!(
+                            runtime
+                                .store
+                                .cas()
+                                .list_objects()
+                                .expect("CAS after rejected rear row"),
+                            before_negative_validation
+                        );
+                        visual_structure = Some(
+                            v3_real_weapon_v4_negative_space_structure_selected(
+                                kind,
+                                matrix_view,
+                                &outer,
+                                Some(&["rear3q.trigger-void"]),
+                            )
+                            .expect("valid rear trigger row"),
+                        );
+                        confirmed_negative_space_ids.push("rear3q.trigger-void".to_owned());
+                    }
+                    _ => {
+                        assert_eq!(expected_negative_hash.len(), 64);
+                        visual_structure = Some(
+                            v3_real_weapon_v4_negative_space_structure(kind, matrix_view, &outer)
+                                .expect("valid v4 negative-space rows"),
+                        );
+                        confirmed_negative_space_ids.extend(
+                            visual_structure
+                                .as_ref()
+                                .and_then(|value| value["regions"].as_array())
+                                .into_iter()
+                                .flatten()
+                                .filter_map(|row| row["structure_id"].as_str().map(str::to_owned)),
+                        );
+                    }
+                }
+            }
+            let mut refine_request = json!({
+                "project_id":project.project_id,
+                "base_target_sha256":automatic_sha256,
+                "contour_points":outer,
+                "landmarks":[],
+                "parts":[],
+                "user_confirmed":true
+            });
+            if let Some(structure) = visual_structure {
+                refine_request["visual_structure"] = structure;
+            }
+            let refined = runtime
+                .refine_reference_mask(&project.project_id, refine_request)
+                .expect("v4 refined target");
+            let refined_sha256 = refined["target_sha256"]
+                .as_str()
+                .expect("refined v4 target hash")
+                .to_owned();
+            let target = refined["target"].clone();
+            assert_eq!(target["source"], "user_refined");
+            assert_eq!(target["annotation_status"], "user_confirmed");
+            assert_eq!(target["parent_target_sha256"], automatic_sha256);
+            if let Some(visual_structure) = target.get("visual_structure") {
+                assert_eq!(visual_structure["review_status"], "user_confirmed");
+                assert!(visual_structure["regions"].as_array().is_some());
+                for region in visual_structure["regions"].as_array().unwrap() {
+                    assert_eq!(region["visual_role"], "open-frame");
+                    assert_eq!(region["boundary_relationship"], "enclosed");
+                    assert_eq!(region["visibility"], "observed");
+                    assert_eq!(region["depth_policy"], "unknown");
+                    assert_eq!(region["mask_operation"], "subtract");
+                }
+            }
+            refined_targets.insert(kind, (refined_sha256, target));
+        }
+
+        assert_eq!(crop_hashes.len(), 7);
+        assert_eq!(automatic_targets.len(), 7);
+        assert_eq!(refined_targets.len(), 6);
+        assert_eq!(confirmed_negative_space_ids.len(), 5);
+        assert_eq!(rejected_negative_space_ids, vec!["rear3q.open-stock-void"]);
+        let objects_after_prepare = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after v4 negative-space fixture");
+        assert_eq!(
+            objects_after_prepare.len() - objects_before.len(),
+            33,
+            "seven crop PNGs + seven automatic target/mask pairs + six refined target/mask pairs"
+        );
+
+        let reopened = Runtime::from_store(runtime.store.clone()).expect("reopened v4 Runtime");
+        for (kind, (target_sha256, target)) in &refined_targets {
+            let readback = reopened
+                .silhouette_target_get(target_sha256)
+                .expect("restarted v4 target readback");
+            assert_eq!(&readback, target, "restarted v4 target changed for {kind}");
+        }
+        let bottom_target = automatic_targets
+            .get("bottom")
+            .expect("bottom automatic target");
+        let bottom_readback = reopened
+            .silhouette_target_get(bottom_target)
+            .expect("restarted bottom automatic target readback");
+        assert_eq!(bottom_readback["source"], "automatic");
+        assert_eq!(bottom_readback["annotation_status"], "unreviewed");
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after v4 restart readback"),
+            objects_after_prepare
+        );
+
+        let rear_matrix_view = matrix_views
+            .get("rear-three-quarter")
+            .expect("rear v4 matrix view");
+        let mut tampered_matrix = rear_matrix_view.clone();
+        tampered_matrix["negative_space"][0]["closed_contour_points"][0] = json!([0.1, 0.1]);
+        let before_tamper = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before v4 tamper");
+        assert!(v3_real_weapon_v4_negative_space_structure(
+            "rear-three-quarter",
+            &tampered_matrix,
+            &outer_contours
+                .iter()
+                .find(|(kind, _)| *kind == "rear-three-quarter")
+                .unwrap()
+                .1["contour_points"],
+        )
+        .is_err());
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after v4 tamper"),
+            before_tamper
+        );
+
+        let mut self_intersecting = rear_matrix_view.clone();
+        self_intersecting["negative_space"][0]["closed_contour_points"] =
+            json!([[0.30, 0.53], [0.42, 0.59], [0.28, 0.59], [0.43, 0.53],]);
+        let before_self_intersection = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before v4 self-intersection");
+        assert!(v3_real_weapon_v4_negative_space_structure(
+            "rear-three-quarter",
+            &self_intersecting,
+            &outer_contours
+                .iter()
+                .find(|(kind, _)| *kind == "rear-three-quarter")
+                .unwrap()
+                .1["contour_points"],
+        )
+        .is_err());
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after v4 self-intersection"),
+            before_self_intersection
+        );
+
+        let mut out_of_crop = rear_matrix_view.clone();
+        out_of_crop["negative_space"][1]["closed_contour_points"][0] = json!([1.1, 0.5]);
+        let before_out_of_crop = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before v4 out-of-crop");
+        assert!(v3_real_weapon_v4_negative_space_structure(
+            "rear-three-quarter",
+            &out_of_crop,
+            &outer_contours
+                .iter()
+                .find(|(kind, _)| *kind == "rear-three-quarter")
+                .unwrap()
+                .1["contour_points"],
+        )
+        .is_err());
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after v4 out-of-crop"),
+            before_out_of_crop
+        );
+
+        let mut omitted_row = rear_matrix_view.clone();
+        omitted_row["negative_space"] = json!([omitted_row["negative_space"][1].clone()]);
+        let before_omitted_row = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before v4 omitted row");
+        assert!(v3_real_weapon_v4_negative_space_structure(
+            "rear-three-quarter",
+            &omitted_row,
+            &outer_contours
+                .iter()
+                .find(|(kind, _)| *kind == "rear-three-quarter")
+                .unwrap()
+                .1["contour_points"],
+        )
+        .is_err());
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after v4 omitted row"),
+            before_omitted_row
+        );
+
+        eprintln!(
+            "real weapon v4 negative-space fixture: source=1964704a... proposal_file={} proposal_canonical={} overlay={} matrix={} crops={:?} confirmed_rows={:?} rejected_rows={:?} cas_delta={} restart_hash_verified=true worker_started=false visual_quality=NOT_PROVEN",
+            V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_FILE_SHA256,
+            V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_CANONICAL_SHA256,
+            V3_REAL_WEAPON_FORM_REVIEW_V4_OVERLAY_SHA256,
+            V3_REAL_WEAPON_FORM_REVIEW_V4_MATRIX_SHA256,
+            crop_hashes,
+            confirmed_negative_space_ids,
+            rejected_negative_space_ids,
+            objects_after_prepare.len() - objects_before.len()
+        );
+    }
+
+    #[test]
+    #[ignore = "requires explicitly supplied user-authorized reference and V4 proposal files"]
+    fn production_weapon_real_reference_confirmation_materializes_six_reviewed_targets() {
+        use base64::Engine as _;
+
+        let source_path = std::env::var_os("FORGECAD_REAL_WEAPON_REFERENCE_PATH")
+            .map(std::path::PathBuf::from)
+            .expect("FORGECAD_REAL_WEAPON_REFERENCE_PATH must identify the authorized board");
+        let proposal_path = std::env::var_os("FORGECAD_FORM_REVIEW_V4_PROPOSAL_PATH")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from(
+                    "/tmp/forgecad-weapon-form-review-proposal-20260823/v4/six-identity-view-review-proposal-v4.json",
+                )
+            });
+        let confirmation_path = std::env::var_os("FORGECAD_FORM_REVIEW_CONFIRMATION_PATH")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+                    "../../../../../docs/evidence/mcp010f/production-weapon-form-review-user-confirmation-20260824.json",
+                )
+            });
+        let source_bytes = std::fs::read(source_path).expect("authorized board bytes");
+        assert_eq!(
+            sha256_hex(&source_bytes),
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        let proposal_bytes = std::fs::read(proposal_path).expect("V4 proposal bytes");
+        assert_eq!(
+            sha256_hex(&proposal_bytes),
+            V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_FILE_SHA256
+        );
+        let proposal: Value = serde_json::from_slice(&proposal_bytes).expect("V4 proposal JSON");
+        assert_eq!(
+            canonical_json_hash(&proposal),
+            V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_CANONICAL_SHA256
+        );
+        let confirmation_bytes =
+            std::fs::read(confirmation_path).expect("form review confirmation bytes");
+        assert_eq!(
+            sha256_hex(&confirmation_bytes),
+            V3_REAL_WEAPON_FORM_REVIEW_CONFIRMATION_FILE_SHA256
+        );
+        let confirmation: Value =
+            serde_json::from_slice(&confirmation_bytes).expect("form review confirmation JSON");
+        assert_eq!(confirmation["user_confirmed"], true);
+        assert_eq!(confirmation["runtime_write"], false);
+        assert_eq!(confirmation["depth_status"], "UNKNOWN");
+        assert_eq!(confirmation["visual_quality_status"], "NOT_PROVEN");
+        assert_eq!(
+            confirmation["source_proposal_file_sha256"],
+            V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_FILE_SHA256
+        );
+        assert_eq!(
+            confirmation["line_flow_confirmation"]["accepted_mapping_count"],
+            25
+        );
+
+        let image = image::load_from_memory(&source_bytes).expect("authorized board image");
+        let mut crops = v3_real_weapon_view_crops(image.width(), image.height())
+            .expect("six identity crop recipe");
+        let rear_crop = crops
+            .iter_mut()
+            .find(|crop| crop.kind == "rear-three-quarter")
+            .expect("rear-three-quarter crop");
+        rear_crop.height = 227;
+        assert_eq!(rear_crop.y + rear_crop.height, 903);
+        let crop_pngs = v3_real_weapon_reference_crop_pngs_for_crops(&source_bytes, crops)
+            .expect("expanded six-view crop PNGs");
+        let proposal_views = proposal["views"].as_object().expect("V4 proposal views");
+        let accepted_line_ids = confirmation["line_flow_confirmation"]["accepted_line_flow_ids"]
+            .as_array()
+            .expect("accepted line-flow IDs");
+        assert_eq!(accepted_line_ids.len(), 25);
+
+        let runtime = Runtime::ephemeral().expect("confirmation target Runtime");
+        let project = runtime
+            .create_project(
+                "Real weapon confirmed FormArt target fixture",
+                json!({"profile":"mvp"}),
+            )
+            .expect("confirmation target project");
+        let objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before targets");
+        let mut target_hashes = BTreeMap::new();
+        let mut observed_line_ids = Vec::new();
+        let mut observed_negative_ids = Vec::new();
+
+        for (kind, png, crop_sha256, width, height) in crop_pngs {
+            let imported = runtime
+                .import_reference(&crate::ReferenceImportRequest {
+                    project_id: project.project_id.clone(),
+                    source: crate::ReferenceImportSource::InlineContent {
+                        mime: "image/png".to_owned(),
+                        content_base64: base64::engine::general_purpose::STANDARD.encode(&png),
+                    },
+                    authorization: crate::ReferenceAuthorization {
+                        user_authorized: true,
+                        declaration: format!(
+                            "User-authorized identity crop with delegated visible-2D review ({kind})"
+                        ),
+                    },
+                    expected_sha256: Some(crop_sha256.clone()),
+                })
+                .expect("confirmed crop import");
+            assert_eq!(
+                (imported.reference.width, imported.reference.height),
+                (width, height)
+            );
+            if kind == "rear-three-quarter" {
+                assert_eq!((width, height), (577, 227));
+                assert_eq!(
+                    confirmation["outer_contour_correction"]["runtime_crop_png_sha256"],
+                    crop_sha256
+                );
+                assert_eq!(
+                    confirmation["negative_space_correction"]["runtime_crop_png_sha256"],
+                    crop_sha256
+                );
+                println!("expanded rear crop Runtime PNG sha256={crop_sha256}");
+            }
+            let automatic = runtime
+                .prepare_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "reference_id":imported.reference.reference_id,
+                        "user_confirmed":false
+                    }),
+                )
+                .expect("automatic confirmed-crop target");
+            let view = proposal_views.get(kind).expect("V4 proposal identity view");
+            let outer = if kind == "rear-three-quarter" {
+                confirmation["outer_contour_correction"]["contour_points"].clone()
+            } else {
+                view["outer_contour_points"].clone()
+            };
+            let mut regions = vec![json!({
+                "structure_id":format!("{kind}.reviewed-outer-contour"),
+                "visual_role":"outer-flowing-shell",
+                "continuity_group_id":format!("{kind}.reviewed-form"),
+                "layer_index":0,
+                "boundary_relationship":"independent",
+                "visibility":"observed",
+                "depth_policy":"unknown",
+                "profile_policy":"preserve-continuity",
+                "contour_points":outer
+            })];
+            if matches!(kind, "left" | "right" | "rear-three-quarter") {
+                let negative_rows = view["negative_space_v2"]["regions"]
+                    .as_array()
+                    .expect("V4 negative-space rows");
+                for row in negative_rows {
+                    let structure_id = row["structure_id"].as_str().expect("negative-space ID");
+                    let contour_points = if structure_id == "rear3q.open-stock-void" {
+                        confirmation["negative_space_correction"]["contour_points"].clone()
+                    } else {
+                        row["closed_contour_points"].clone()
+                    };
+                    observed_negative_ids.push(structure_id.to_owned());
+                    regions.push(json!({
+                        "structure_id":structure_id,
+                        "visual_role":"open-frame",
+                        "continuity_group_id":format!("{kind}.reviewed-negative-space"),
+                        "layer_index":2,
+                        "boundary_relationship":"enclosed",
+                        "visibility":"observed",
+                        "depth_policy":"unknown",
+                        "profile_policy":"material-only",
+                        "mask_operation":"subtract",
+                        "contour_points":contour_points
+                    }));
+                }
+            }
+            let line_flows = view["line_flows_v2"]
+                .as_array()
+                .expect("V4 line-flow rows")
+                .iter()
+                .map(|flow| {
+                    let id = flow["line_flow_id"].as_str().expect("line-flow ID");
+                    observed_line_ids.push(id.to_owned());
+                    json!({
+                        "line_flow_id":id,
+                        "continuity_group_id":flow["continuity_group_id"],
+                        "kind":flow["runtime_kind_candidate"],
+                        "visibility":"observed",
+                        "points":flow["points"]
+                    })
+                })
+                .collect::<Vec<_>>();
+            let refined = runtime
+                .refine_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "base_target_sha256":automatic["target_sha256"],
+                        "contour_points":outer,
+                        "landmarks":[],
+                        "parts":[],
+                        "visual_structure":{"regions":regions,"line_flows":line_flows},
+                        "user_confirmed":true
+                    }),
+                )
+                .expect("user-confirmed exact FormArt target");
+            assert_eq!(refined["target"]["source"], "user_refined");
+            assert_eq!(refined["target"]["annotation_status"], "user_confirmed");
+            assert_eq!(
+                refined["target"]["visual_structure"]["review_status"],
+                "user_confirmed"
+            );
+            target_hashes.insert(
+                kind.to_owned(),
+                (
+                    refined["target_sha256"]
+                        .as_str()
+                        .expect("target object SHA-256")
+                        .to_owned(),
+                    refined["target"]["canonical_sha256"]
+                        .as_str()
+                        .expect("target canonical SHA-256")
+                        .to_owned(),
+                ),
+            );
+        }
+
+        assert_eq!(target_hashes.len(), 6);
+        assert_eq!(observed_line_ids.len(), 25);
+        assert_eq!(
+            observed_line_ids,
+            accepted_line_ids
+                .iter()
+                .map(|value| value.as_str().expect("accepted line-flow ID").to_owned())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            observed_negative_ids,
+            vec![
+                "left.trigger-void",
+                "left.open-stock-void",
+                "right.open-stock-void",
+                "right.trigger-void",
+                "rear3q.open-stock-void",
+                "rear3q.trigger-void"
+            ]
+        );
+        let fresh = Runtime::from_store(runtime.store.clone()).expect("fresh target Runtime");
+        for (target_object_sha256, target_canonical_sha256) in target_hashes.values() {
+            let target = fresh
+                .silhouette_target_get(target_object_sha256)
+                .expect("restart-safe confirmed target");
+            assert_eq!(target["canonical_sha256"], *target_canonical_sha256);
+            assert_eq!(target["annotation_status"], "user_confirmed");
+        }
+        let objects_after = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after targets");
+        assert!(objects_after.len() > objects_before.len());
+        println!(
+            "confirmed FormArt target fixture: confirmation={} line_flows=25 negative_spaces=6 targets={:?} cas_delta={} worker_started=false depth=UNKNOWN visual_quality=NOT_PROVEN",
+            V3_REAL_WEAPON_FORM_REVIEW_CONFIRMATION_FILE_SHA256,
+            target_hashes,
+            objects_after.len() - objects_before.len()
+        );
+    }
+
+    #[test]
+    #[ignore = "requires explicitly supplied user-authorized reference and reviewed proposal files"]
+    fn production_weapon_form_review_unconfirmed_proposal_stays_unreviewed_and_form_gates_blocked()
+    {
+        use base64::Engine as _;
+
+        let source_path = std::env::var_os("FORGECAD_REAL_WEAPON_REFERENCE_PATH")
+            .map(std::path::PathBuf::from)
+            .expect(
+                "FORGECAD_REAL_WEAPON_REFERENCE_PATH must identify the user-authorized reference",
+            );
+        let source_bytes =
+            std::fs::read(&source_path).expect("user-authorized weapon reference must be present");
+        assert_eq!(
+            sha256_hex(&source_bytes),
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        let proposal_path = std::env::var_os("FORGECAD_FORM_REVIEW_V4_PROPOSAL_PATH")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from(
+                    "/tmp/forgecad-weapon-form-review-proposal-20260823/v4/six-identity-view-review-proposal-v4.json",
+                )
+            });
+        let proposal_bytes =
+            std::fs::read(&proposal_path).expect("review proposal JSON must be present");
+        assert_eq!(
+            sha256_hex(&proposal_bytes),
+            V3_REAL_WEAPON_FORM_REVIEW_PROPOSAL_FILE_SHA256
+        );
+        let proposal: Value =
+            serde_json::from_slice(&proposal_bytes).expect("review proposal JSON must be valid");
+        assert_eq!(
+            proposal["schema_version"],
+            "ForgeCADWeaponFormReviewProposal@1"
+        );
+        assert_eq!(proposal["task_id"], "FPS-FORM-EVIDENCE-04A");
+        assert_eq!(proposal["status"], "PROPOSAL_REVIEW_PENDING");
+        assert_eq!(proposal["user_confirmed"], false);
+        assert_eq!(proposal["runtime_write"], false);
+        assert_eq!(proposal["worker_started"], false);
+        assert_eq!(proposal["receipt_created"], false);
+        assert_eq!(
+            proposal["source_board"]["sha256"],
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        assert_eq!(
+            proposal["source_contour_bundle"]["sha256"],
+            V3_REAL_WEAPON_FORM_REVIEW_CONTOUR_BUNDLE_SHA256
+        );
+        assert_eq!(
+            proposal["source_contour_bundle"]["status"],
+            "PROPOSAL_REQUIRES_USER_CONFIRMATION"
+        );
+        assert_eq!(
+            proposal["review_overlay"]["sha256"],
+            V3_REAL_WEAPON_FORM_REVIEW_OVERLAY_SHA256
+        );
+        assert_eq!(
+            proposal["review_overlay"]["base_overlay_sha256"],
+            V3_REAL_WEAPON_FORM_REVIEW_BASE_OVERLAY_SHA256
+        );
+        let overlay_path = std::env::var_os("FORGECAD_FORM_REVIEW_OVERLAY_PATH")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                proposal_path
+                    .parent()
+                    .expect("review proposal must have a parent directory")
+                    .join(
+                        proposal["review_overlay"]["file"]
+                            .as_str()
+                            .expect("review overlay filename"),
+                    )
+            });
+        let overlay_bytes =
+            std::fs::read(&overlay_path).expect("review overlay PNG must be present");
+        assert_eq!(
+            sha256_hex(&overlay_bytes),
+            V3_REAL_WEAPON_FORM_REVIEW_OVERLAY_SHA256
+        );
+        let overlay =
+            image::load_from_memory(&overlay_bytes).expect("review overlay PNG must decode");
+        assert_eq!((overlay.width(), overlay.height()), (1536, 1084));
+
+        let identity_order = proposal["identity_view_order"]
+            .as_array()
+            .expect("review proposal identity order");
+        assert_eq!(
+            identity_order,
+            &[
+                json!("front"),
+                json!("back"),
+                json!("left"),
+                json!("right"),
+                json!("top"),
+                json!("rear-three-quarter")
+            ]
+        );
+        let crops = v3_real_weapon_reference_crop_pngs(&source_bytes)
+            .expect("real weapon reference crop recipe");
+        assert_eq!(crops.len(), identity_order.len());
+        let runtime = Runtime::ephemeral().expect("unconfirmed proposal runtime");
+        let project = runtime
+            .create_project(
+                "Unconfirmed form proposal fixture",
+                json!({"profile":"mvp"}),
+            )
+            .expect("unconfirmed proposal project");
+        let objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before unconfirmed proposal fixture");
+        let views = proposal["views"]
+            .as_object()
+            .expect("review proposal views");
+        let mut automatic_targets = BTreeMap::new();
+        for (kind, png, sha256, width, height) in crops {
+            assert!(
+                identity_order
+                    .iter()
+                    .any(|value| value.as_str() == Some(kind)),
+                "crop is not part of the identity order: {kind}"
+            );
+            let proposal_view = views.get(kind).expect("identity view proposal").clone();
+            let structure = v3_real_weapon_unconfirmed_visual_structure(kind, &proposal_view)
+                .expect("proposal must map to an unreviewed visual structure draft");
+            let imported = runtime
+                .import_reference(&crate::ReferenceImportRequest {
+                    project_id: project.project_id.clone(),
+                    source: crate::ReferenceImportSource::InlineContent {
+                        mime: "image/png".to_owned(),
+                        content_base64: base64::engine::general_purpose::STANDARD.encode(&png),
+                    },
+                    authorization: crate::ReferenceAuthorization {
+                        user_authorized: true,
+                        declaration: format!(
+                            "User-authorized source crop; form contour remains an unconfirmed proposal ({kind})"
+                        ),
+                    },
+                    expected_sha256: Some(sha256.clone()),
+                })
+                .expect("real proposal crop import");
+            assert_eq!(imported.reference.width, width);
+            assert_eq!(imported.reference.height, height);
+            let target = runtime
+                .prepare_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "reference_id":imported.reference.reference_id,
+                        "visual_structure":structure,
+                        "landmarks":[],
+                        "parts":[],
+                        "user_confirmed":false
+                    }),
+                )
+                .expect("unconfirmed proposal target");
+            let target_value = target.get("target").expect("target value");
+            assert_eq!(target_value["source"], "automatic");
+            assert_eq!(target_value["annotation_status"], "unreviewed");
+            assert_eq!(
+                target_value["visual_structure"]["review_status"],
+                "unreviewed"
+            );
+            assert_eq!(target_value["visual_structure"]["line_flows"], json!([]));
+            assert_eq!(
+                target_value["visual_structure"]["regions"][0]["visibility"],
+                "unknown"
+            );
+            assert_eq!(
+                target_value["visual_structure"]["regions"][0]["depth_policy"],
+                "unknown"
+            );
+            // This is the same source predicate used by FormArt@1: a target
+            // without both user_refined/user_confirmed and a confirmed visual
+            // structure can only produce unknown, never observed evidence.
+            let form_art_visual_status = if target_value["source"] == "user_refined"
+                && target_value["annotation_status"] == "user_confirmed"
+                && target_value["visual_structure"]["review_status"] == "user_confirmed"
+            {
+                "user_confirmed"
+            } else {
+                "unknown"
+            };
+            assert_eq!(form_art_visual_status, "unknown");
+            automatic_targets.insert(kind, target["target_sha256"].clone());
+        }
+        assert_eq!(automatic_targets.len(), 6);
+        let objects_after_targets = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after unconfirmed proposal targets");
+        assert_eq!(
+            objects_after_targets.len() - objects_before.len(),
+            18,
+            "six reference PNGs plus six automatic mask/target pairs; no FormArt/FormQuality receipt"
+        );
+        assert!(runtime
+            .store
+            .get_production_weapon_form_art_evidence("unconfirmed-form-art-proposal")
+            .expect("unconfirmed FormArt lookup")
+            .is_none());
+        assert!(runtime
+            .store
+            .get_production_weapon_form_quality_v2("unconfirmed-form-quality-proposal")
+            .expect("unconfirmed FormQuality lookup")
+            .is_none());
+
+        // A local or prompt-side toggle cannot promote the reviewed proposal;
+        // it must be rejected before any Runtime/CAS call.  This protects the
+        // user-confirmation boundary even when a proposal file is tampered.
+        let objects_before_reject = objects_after_targets.clone();
+        let mut tampered_view = views.get("front").expect("front proposal").clone();
+        tampered_view["user_confirmed"] = Value::Bool(true);
+        assert!(v3_real_weapon_unconfirmed_visual_structure("front", &tampered_view).is_err());
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after proposal promotion rejection"),
+            objects_before_reject
+        );
+
+        // The proposal's human-readable flow kinds are intentionally not
+        // copied into ReferenceVisualStructure@1.  Passing one directly must
+        // fail the closed Runtime enum rather than being guessed into a ridge
+        // or seam and later reported as observed.
+        let invalid_flow_structure = json!({
+            "regions":[{
+                "structure_id":"front.outer",
+                "visual_role":"unknown-visual-region",
+                "continuity_group_id":"front.proposal",
+                "layer_index":0,
+                "boundary_relationship":"independent",
+                "visibility":"unknown",
+                "depth_policy":"unknown",
+                "profile_policy":"material-only",
+                "contour_points":[[0.1,0.1],[0.9,0.1],[0.5,0.9]]
+            }],
+            "line_flows":[{
+                "line_flow_id":"front.core-ring",
+                "continuity_group_id":"front.proposal",
+                "kind":"core-ring",
+                "visibility":"unknown",
+                "points":[[0.2,0.2],[0.8,0.8]]
+            }]
+        });
+        assert!(
+            crate::prepare_reference_visual_structure(Some(&invalid_flow_structure), false)
+                .is_err()
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after invalid proposal flow"),
+            objects_before_reject
+        );
+        eprintln!(
+            "unconfirmed form proposal fixture: automatic targets={} CAS delta={} FormArt/FormQuality=none",
+            automatic_targets.len(),
+            objects_after_targets.len() - objects_before.len()
+        );
+    }
+
+    #[test]
+    #[ignore = "requires same-cohort geometry and render workers"]
+    fn production_weapon_form_evidence_six_view_fixture_is_durable_replay_safe_and_coverage_blocked(
+    ) {
+        let runtime = Runtime::ephemeral().expect("V3 runtime");
+        let project = runtime
+            .create_project("ProductionStage V3 fixture", json!({"profile":"mvp"}))
+            .expect("V3 project");
+        let reference = runtime
+            .import_reference(&crate::ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: crate::ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: crate::ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "V3 Runtime fixture reference".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("V3 reference")
+            .reference;
+        let prepared = runtime
+            .prepare_geometry_candidate(
+                &project.project_id,
+                None,
+                json!({
+                    "typed":"geometry",
+                    "geometry_program":v3_fixture_geometry_program(&project.project_id)
+                }),
+            )
+            .expect("V3 geometry candidate");
+        let candidate = prepared
+            .get("candidate")
+            .and_then(Value::as_object)
+            .expect("V3 candidate");
+        let candidate_id = candidate["candidate_id"]
+            .as_str()
+            .expect("candidate id")
+            .to_owned();
+        let candidate_state_sha256 = candidate["canonical_sha256"]
+            .as_str()
+            .expect("candidate state")
+            .to_owned();
+        let source_artifact_id = candidate["prepared_object_id"]
+            .as_str()
+            .expect("source artifact id")
+            .to_owned();
+        let root_artifact_sha256 = candidate["prepared_object_sha256"]
+            .as_str()
+            .expect("source artifact hash")
+            .to_owned();
+        let target = runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id,
+                    "reference_id":reference.reference_id,
+                    "contour_points":[[0.1,0.1],[0.9,0.1],[0.9,0.9],[0.1,0.9]],
+                    "parts":[{"part_id":"shell","start_index":0,"end_index":3,"visibility":"observed"}],
+                    "user_confirmed":true
+                }),
+            )
+            .expect("V3 target");
+        let target_sha256 = target["target_sha256"].as_str().expect("target hash");
+        let mask_sha256 = target["mask_sha256"].as_str().expect("mask hash");
+        let camera_rig = v3_fixture_camera_rig(&project.project_id, &candidate_id);
+        let mut comparisons = BTreeMap::new();
+        // Persist the primary left view last because the legacy candidate-level
+        // VisualEvidence row is a single current projection. Per-view rows are
+        // still immutable and retained for all six views.
+        for kind in [
+            "front",
+            "back",
+            "right",
+            "top",
+            "rear-three-quarter",
+            "left",
+        ] {
+            let view_id = format!("v3-{kind}-view");
+            let rig_view = camera_rig["views"]
+                .as_array()
+                .and_then(|views| {
+                    views
+                        .iter()
+                        .find(|view| view["kind"].as_str() == Some(kind))
+                })
+                .expect("V3 comparison rig view");
+            let mut view_spec = json!({
+                "schema_version":"ReferenceViewSpec@1",
+                "reference_id":reference.reference_id,
+                "reference_sha256":reference.object_sha256,
+                "view_id":view_id,
+                    "source_view":expected_reference_source_view(kind).unwrap_or(kind),
+                "image":{"width":reference.width,"height":reference.height,"rotation_degrees":0.0,"crop":{"x":0.0,"y":0.0,"width":1.0,"height":1.0}},
+                "landmarks":[],
+                "regions":[],
+                "canonical_sha256":""
+            });
+            view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+            let comparison = runtime
+                .prepare_reference_comparison(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "candidate_id":candidate_id,
+                        "reference_id":reference.reference_id,
+                        "view_id":view_id,
+                        "view_spec":view_spec.clone(),
+                        "camera":rig_view["camera"],
+                        "target_sha256":target_sha256
+                    }),
+                )
+                .expect("V3 six-view comparison");
+            comparisons.insert(kind.to_owned(), comparison);
+        }
+        let primary = comparisons.get("left").expect("left comparison");
+        let camera_hash = primary["camera"]["camera_hash"]
+            .as_str()
+            .expect("camera hash")
+            .to_owned();
+        let evidence_sha256 = primary["quality_report_object_sha256"]
+            .as_str()
+            .expect("evidence hash")
+            .to_owned();
+
+        let complete_session = runtime
+            .session_create_or_resume(json!({
+                "session_id":"v3-complete-session",
+                "project_id":project.project_id,
+                "candidate_id":candidate_id,
+                "idempotency_key":"v3-complete-session-idempotency",
+                "reference_id":reference.reference_id,
+                "design_spec_id":"v3-complete-spec",
+                "reference_canvas_id":"v3-complete-canvas",
+                "camera_hash":camera_hash,
+                "evidence_sha256":evidence_sha256,
+                "approved":true,
+                "approval_receipt_id":"v3-complete-session-approval",
+                "approval_summary":"Approve complete V3 coverage",
+                "approval_expires_at":"9999999999",
+                "authoring_context":v3_fixture_authoring_context(
+                    &project.project_id,
+                    "v3-complete-canvas",
+                    "v3-complete-spec",
+                    &reference,
+                    target_sha256,
+                    mask_sha256,
+                    &camera_rig,
+                    &evidence_sha256,
+                    true
+                )
+            }))
+            .expect("complete V3 session");
+        let session = complete_session["session"]
+            .as_object()
+            .expect("session record");
+        let canvas_sha256 = session["reference_canvas_sha256"]
+            .as_str()
+            .expect("canvas hash");
+        let design_spec_sha256 = session["design_spec_sha256"].as_str().expect("spec hash");
+        assert_eq!(
+            complete_session["documents"]["reference_canvas"]["object_sha256"],
+            session["reference_canvas_sha256"]
+        );
+        assert_eq!(
+            complete_session["documents"]["design_spec"]["object_sha256"],
+            session["design_spec_sha256"]
+        );
+
+        let approval_summary = "Approve reference coverage review";
+        let approval_summary_sha256 = sha256_hex(approval_summary.as_bytes());
+        let idempotency_key = "v3-reference-coverage-once";
+        let mut request = json!({
+            "schema_version":"ProductionStageTransitionPrepareRequest@3",
+            "transition_id":"v3-reference-coverage-transition",
+            "session_id":"v3-complete-session",
+            "project_id":project.project_id,
+            "root_candidate_id":candidate_id,
+            "root_candidate_role":"reference-intake-candidate",
+            "root_candidate_state_sha256":candidate_state_sha256,
+            "source_artifact_id":source_artifact_id,
+            "root_artifact_sha256":root_artifact_sha256,
+            "previous_head_candidate_id":candidate_id,
+            "previous_head_candidate_role":"reference-intake-candidate",
+            "previous_head_candidate_state_sha256":candidate_state_sha256,
+            "previous_head_artifact_id":source_artifact_id,
+            "previous_head_artifact_sha256":root_artifact_sha256,
+            "previous_head_stage":"reference-intake",
+            "head_candidate_id":candidate_id,
+            "head_candidate_role":"reference-intake-candidate",
+            "head_candidate_state_sha256":candidate_state_sha256,
+            "output_artifact_id":source_artifact_id,
+            "head_artifact_sha256":root_artifact_sha256,
+            "from_stage":"reference-intake",
+            "to_stage":"reference-coverage-reviewed",
+            "candidate_binding_status":"same-candidate-evidence",
+            "reference_id":reference.reference_id,
+            "reference_sha256":reference.object_sha256,
+            "camera_hash":camera_hash,
+            "evidence_sha256":evidence_sha256,
+            "reference_canvas_object_sha256":canvas_sha256,
+            "quality_report_object_sha256":null,
+            "comparison_report_object_sha256":null,
+            "design_spec_object_sha256":design_spec_sha256,
+            "visual_receipt_object_sha256":null,
+            "human_review_receipt_object_sha256":null,
+            "engine_validation_receipt_object_sha256":null,
+            "distribution_receipt_object_sha256":null,
+            "camera_lock_id":null,
+            "camera_lock_canonical_sha256":null,
+            "camera_rig_object_sha256":null,
+            "camera_rig_canonical_sha256":null,
+            "camera_lock_receipt_object_sha256":null,
+            "camera_lock_source_transition_id":null,
+            "camera_lock_source_transition_sha256":null,
+            "camera_lock_source_head_canonical_sha256":null,
+            "structural_status":"PASS_SOURCE_STRUCTURAL",
+            "visual_status":"QUALITY_TARGET_NOT_MET",
+            "human_status":"NOT_RUN",
+            "engine_status":"NOT_RUN",
+            "distribution_status":"NOT_RUN",
+            "approval_receipt_id":"v3-coverage-approval",
+            "approval_session_id":"v3-complete-session",
+            "approval_expires_at":"9999999999",
+            "parent_transition_id":null,
+            "parent_transition_sha256":null,
+            "parent_transition_schema_version":null,
+            "input_sha256":"",
+            "approved":true,
+            "approval_summary":approval_summary,
+            "idempotency_key":idempotency_key
+        });
+        let input_binding = production_stage_transition_v3_input_binding(
+            request["transition_id"].as_str().unwrap(),
+            request["session_id"].as_str().unwrap(),
+            request["project_id"].as_str().unwrap(),
+            request["root_candidate_id"].as_str().unwrap(),
+            request["root_candidate_role"].as_str().unwrap(),
+            request["root_candidate_state_sha256"].as_str().unwrap(),
+            request["source_artifact_id"].as_str().unwrap(),
+            request["root_artifact_sha256"].as_str().unwrap(),
+            request["previous_head_candidate_id"].as_str().unwrap(),
+            request["previous_head_candidate_role"].as_str().unwrap(),
+            request["previous_head_candidate_state_sha256"]
+                .as_str()
+                .unwrap(),
+            request["previous_head_artifact_id"].as_str().unwrap(),
+            request["previous_head_artifact_sha256"].as_str().unwrap(),
+            request["previous_head_stage"].as_str().unwrap(),
+            request["head_candidate_id"].as_str().unwrap(),
+            request["head_candidate_role"].as_str().unwrap(),
+            request["head_candidate_state_sha256"].as_str().unwrap(),
+            request["output_artifact_id"].as_str().unwrap(),
+            request["head_artifact_sha256"].as_str().unwrap(),
+            request["from_stage"].as_str().unwrap(),
+            request["to_stage"].as_str().unwrap(),
+            request["candidate_binding_status"].as_str().unwrap(),
+            request["reference_id"].as_str().unwrap(),
+            request["reference_sha256"].as_str().unwrap(),
+            request["camera_hash"].as_str().unwrap(),
+            request["evidence_sha256"].as_str().unwrap(),
+            request["reference_canvas_object_sha256"].as_str().unwrap(),
+            request["design_spec_object_sha256"].as_str().unwrap(),
+            request["structural_status"].as_str().unwrap(),
+            request["visual_status"].as_str().unwrap(),
+            request["human_status"].as_str().unwrap(),
+            request["engine_status"].as_str().unwrap(),
+            request["distribution_status"].as_str().unwrap(),
+            request["approval_receipt_id"].as_str().unwrap(),
+            request["approval_session_id"].as_str().unwrap(),
+            request["approval_expires_at"].as_str().unwrap(),
+            &approval_summary_sha256,
+            idempotency_key,
+        );
+        request["input_sha256"] = Value::String(canonical_json_hash(&input_binding));
+        let objects_before = runtime.store.cas().list_objects().expect("CAS before V3");
+        let first = runtime
+            .production_stage_transition_v3_prepare(request.clone())
+            .expect("V3 prepare");
+        assert_eq!(first["production_stage_advanced"], true);
+        assert_eq!(first["candidate_confirmed"], false);
+        assert_eq!(first["version_created"], false);
+        assert_eq!(first["export_performed"], false);
+        assert_eq!(first["replayed"], false);
+        assert!(runtime
+            .store
+            .get_production_stage_transition_v3("v3-reference-coverage-transition")
+            .expect("V3 transition row")
+            .is_some());
+        assert!(runtime
+            .store
+            .get_production_stage_head_v3(
+                "v3-complete-session",
+                request["project_id"].as_str().unwrap(),
+                request["root_candidate_id"].as_str().unwrap()
+            )
+            .expect("V3 head row")
+            .is_some());
+        let objects_after_first = runtime.store.cas().list_objects().expect("CAS after V3");
+        assert!(objects_after_first.len() > objects_before.len());
+
+        let replay = runtime
+            .production_stage_transition_v3_prepare(request.clone())
+            .expect("V3 replay");
+        assert_eq!(replay["replayed"], true);
+        assert_eq!(replay["transition"], first["transition"]);
+        assert_eq!(
+            replay["production_stage_head"],
+            first["production_stage_head"]
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after replay"),
+            objects_after_first
+        );
+
+        let get_request = json!({
+            "schema_version":"ProductionStageTransitionGetRequest@3",
+            "transition_id":"v3-reference-coverage-transition",
+            "session_id":"v3-complete-session",
+            "project_id":request["project_id"],
+            "root_candidate_id":request["root_candidate_id"],
+            "head_candidate_id":request["head_candidate_id"]
+        });
+        let get = Runtime::from_store(runtime.store.clone())
+            .expect("fresh V3 Runtime")
+            .production_stage_transition_v3_get(get_request.clone())
+            .expect("V3 fresh get");
+        assert_eq!(get["runtime_write"], false);
+        assert_eq!(get["production_stage_advanced"], true);
+        assert_eq!(get["transition"], first["transition"]);
+        assert_eq!(get["production_stage_head"], first["production_stage_head"]);
+        assert_eq!(
+            runtime.store.cas().list_objects().expect("CAS after get"),
+            objects_after_first
+        );
+
+        let camera_lock_summary = "Approve fixed six-reference seven-camera fixture lock";
+        let mut camera_lock_request = ProductionCameraLockPrepareRequest {
+            schema_version: "ProductionCameraLockPrepareRequest@1".to_owned(),
+            camera_lock_id: "v3-six-view-fixture-camera-lock".to_owned(),
+            session_id: "v3-complete-session".to_owned(),
+            project_id: project.project_id.clone(),
+            source_transition_id: "v3-reference-coverage-transition".to_owned(),
+            source_transition_sha256: first["transition"]["canonical_sha256"]
+                .as_str()
+                .expect("source transition canonical")
+                .to_owned(),
+            source_head_canonical_sha256: first["production_stage_head"]["canonical_sha256"]
+                .as_str()
+                .expect("source head canonical")
+                .to_owned(),
+            candidate_id: candidate_id.clone(),
+            candidate_state_sha256: candidate_state_sha256.clone(),
+            artifact_id: source_artifact_id.clone(),
+            artifact_sha256: root_artifact_sha256.clone(),
+            reference_id: reference.reference_id.clone(),
+            reference_sha256: reference.object_sha256.clone(),
+            required_reference_view_kinds: PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            required_camera_view_kinds: PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            primary_view_kind: PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND.to_owned(),
+            calibration_policy: PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY.to_owned(),
+            input_sha256: String::new(),
+            camera_rig: camera_rig.clone(),
+            approved: true,
+            approval_receipt_id: "v3-six-view-fixture-camera-approval".to_owned(),
+            approval_session_id: "v3-complete-session".to_owned(),
+            approval_expires_at: "9999999999".to_owned(),
+            approval_summary: camera_lock_summary.to_owned(),
+            idempotency_key: "v3-six-view-fixture-camera-lock-idem".to_owned(),
+        };
+        camera_lock_request.input_sha256 =
+            canonical_json_hash(&production_camera_lock_input_binding(
+                &camera_lock_request,
+                camera_rig["canonical_sha256"]
+                    .as_str()
+                    .expect("rig canonical"),
+                &sha256_hex(camera_lock_summary.as_bytes()),
+            ));
+        let lock_result = runtime
+            .production_camera_lock_prepare(
+                serde_json::to_value(&camera_lock_request).expect("camera lock request JSON"),
+            )
+            .expect("six-view CameraLock");
+        assert_eq!(lock_result["runtime_write"], true);
+        assert_eq!(lock_result["production_stage_advanced"], false);
+        let camera_lock = lock_result["camera_lock"].clone();
+
+        let evidence_views = PRODUCTION_WEAPON_FORM_EVIDENCE_VIEW_KINDS
+            .iter()
+            .map(|kind| {
+                let view_id = format!("v3-{kind}-view");
+                let comparison = comparisons.get(*kind).expect("six-view comparison");
+                json!({
+                    "view_kind":kind,
+                    "view_id":view_id,
+                    "reference_id":reference.reference_id,
+                    "reference_sha256":reference.object_sha256,
+                    "camera_hash":comparison["camera"]["camera_hash"],
+                    "camera_canonical_sha256":comparison["camera"]["canonical_sha256"],
+                    "render_set_object_sha256":comparison["render_set_object_sha256"],
+                    "render_set_canonical_sha256":comparison["render_set"]["canonical_sha256"],
+                    "render_set_view_id":view_id
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut evidence_request = json!({
+            "schema_version":"ProductionWeaponFormEvidencePrepareRequest@1",
+            "form_evidence_id":"v3-six-view-fixture-form-evidence",
+            "session_id":"v3-complete-session",
+            "project_id":project.project_id,
+            "candidate_id":candidate_id,
+            "candidate_state_sha256":candidate_state_sha256,
+            "artifact_id":source_artifact_id,
+            "artifact_sha256":root_artifact_sha256,
+            "reference_canvas_object_sha256":canvas_sha256,
+            "reference_canvas_canonical_sha256":complete_session["documents"]["reference_canvas"]["document"]["canonical_sha256"],
+            "design_spec_object_sha256":design_spec_sha256,
+            "design_spec_canonical_sha256":complete_session["documents"]["design_spec"]["document"]["canonical_sha256"],
+            "camera_lock_id":camera_lock["camera_lock_id"],
+            "camera_lock_canonical_sha256":camera_lock["canonical_sha256"],
+            "camera_rig_object_sha256":camera_lock["camera_rig_object_sha256"],
+            "camera_rig_canonical_sha256":camera_lock["camera_rig_canonical_sha256"],
+            "camera_lock_receipt_object_sha256":camera_lock["receipt_object_sha256"],
+            "camera_lock_source_transition_id":camera_lock["source_transition_id"],
+            "camera_lock_source_transition_sha256":camera_lock["source_transition_sha256"],
+            "camera_lock_source_head_canonical_sha256":camera_lock["source_head_canonical_sha256"],
+            "view_kinds":PRODUCTION_WEAPON_FORM_EVIDENCE_VIEW_KINDS,
+            "views":evidence_views,
+            "evidence_policy":PRODUCTION_WEAPON_FORM_EVIDENCE_POLICY,
+            "evidence_policy_sha256":sha256_hex(PRODUCTION_WEAPON_FORM_EVIDENCE_POLICY.as_bytes()),
+            "input_sha256":"",
+            "idempotency_key":"v3-six-view-fixture-form-evidence-idem"
+        });
+        let mut evidence_preimage = evidence_request.as_object().unwrap().clone();
+        evidence_preimage.remove("input_sha256");
+        evidence_preimage.remove("idempotency_key");
+        evidence_request["input_sha256"] =
+            Value::String(canonical_json_hash(&Value::Object(evidence_preimage)));
+        let evidence_objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("evidence CAS before");
+        let evidence_first = runtime
+            .production_weapon_form_evidence_prepare(evidence_request.clone())
+            .expect("six-view FORM Evidence prepare");
+        assert_eq!(
+            evidence_first["form_evidence"]["views"]
+                .as_array()
+                .unwrap()
+                .len(),
+            6
+        );
+        assert_eq!(
+            evidence_first["form_evidence"]["quality_status"],
+            "NOT_PROVEN"
+        );
+        assert_eq!(evidence_first["production_stage_advanced"], false);
+        assert_eq!(evidence_first["candidate_confirmed"], false);
+        assert_eq!(evidence_first["version_created"], false);
+        assert_eq!(evidence_first["export_performed"], false);
+        let evidence_objects_after = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("evidence CAS after");
+        assert_eq!(
+            evidence_objects_after.len(),
+            evidence_objects_before.len() + 7
+        );
+        let evidence_replay = runtime
+            .production_weapon_form_evidence_prepare(evidence_request.clone())
+            .expect("six-view FORM Evidence replay");
+        assert_eq!(evidence_replay["replayed"], true);
+        assert_eq!(
+            evidence_replay["form_evidence"],
+            evidence_first["form_evidence"]
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after evidence replay"),
+            evidence_objects_after
+        );
+        let evidence_get = Runtime::from_store(runtime.store.clone())
+            .expect("fresh FORM Evidence Runtime")
+            .production_weapon_form_evidence_get(json!({
+                "schema_version":"ProductionWeaponFormEvidenceGetRequest@1",
+                "form_evidence_id":"v3-six-view-fixture-form-evidence",
+                "session_id":"v3-complete-session",
+                "project_id":request["project_id"],
+                "candidate_id":request["root_candidate_id"]
+            }))
+            .expect("six-view FORM Evidence restart get");
+        assert_eq!(evidence_get["runtime_write"], false);
+        assert_eq!(evidence_get["restart_hash_verified"], true);
+        assert_eq!(
+            evidence_get["form_evidence"],
+            evidence_first["form_evidence"]
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after evidence get"),
+            evidence_objects_after
+        );
+        let mut retargeted_evidence = evidence_request.clone();
+        retargeted_evidence["form_evidence_id"] =
+            Value::String("v3-six-view-fixture-form-evidence-retarget".to_owned());
+        retargeted_evidence["idempotency_key"] =
+            Value::String("v3-six-view-fixture-form-evidence-retarget-idem".to_owned());
+        retargeted_evidence["views"][0]["render_set_object_sha256"] =
+            retargeted_evidence["views"][1]["render_set_object_sha256"].clone();
+        retargeted_evidence["views"][0]["render_set_canonical_sha256"] =
+            retargeted_evidence["views"][1]["render_set_canonical_sha256"].clone();
+        let mut retargeted_preimage = retargeted_evidence.as_object().unwrap().clone();
+        retargeted_preimage.remove("input_sha256");
+        retargeted_preimage.remove("idempotency_key");
+        retargeted_evidence["input_sha256"] =
+            Value::String(canonical_json_hash(&Value::Object(retargeted_preimage)));
+        let retarget_error = runtime
+            .production_weapon_form_evidence_prepare(retargeted_evidence)
+            .expect_err("cross-view RenderSet retarget must fail before reservation");
+        assert!(retarget_error
+            .to_string()
+            .contains("form evidence RenderSet binding differs"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after evidence retarget"),
+            evidence_objects_after
+        );
+        assert!(runtime
+            .store
+            .get_production_weapon_form_evidence("v3-six-view-fixture-form-evidence-retarget")
+            .expect("retarget evidence row")
+            .is_none());
+        println!(
+            "FORM_EVIDENCE_04A_FIXTURE={}",
+            serde_json::to_string(&json!({
+                "schema_version":"ProductionWeaponFormEvidenceFixtureReceipt@1",
+                "project_id":request["project_id"],
+                "candidate_id":request["root_candidate_id"],
+                "artifact_sha256":request["root_artifact_sha256"],
+                "camera_lock_id":camera_lock["camera_lock_id"],
+                "camera_lock_canonical_sha256":camera_lock["canonical_sha256"],
+                "form_evidence_id":evidence_first["form_evidence"]["form_evidence_id"],
+                "form_evidence_canonical_sha256":evidence_first["form_evidence"]["canonical_sha256"],
+                "form_evidence_receipt_object_sha256":evidence_first["form_evidence"]["receipt_object_sha256"],
+                "view_kinds":evidence_first["form_evidence"]["view_kinds"],
+                "render_set_object_sha256s":evidence_first["form_evidence"]["views"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|view| view["render_set_object_sha256"].clone())
+                    .collect::<Vec<_>>(),
+                "owned_receipt_object_count":7,
+                "same_key_replay_zero_new_objects":true,
+                "restart_get_hash_verified":true,
+                "cross_view_retarget_zero_write_rejected":true,
+                "quality_status":"NOT_PROVEN",
+                "production_stage_advanced":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("fixture receipt JSON")
+        );
+
+        let blocked_session = runtime
+            .session_create_or_resume(json!({
+                "session_id":"v3-incomplete-session",
+                "project_id":request["project_id"],
+                "candidate_id":request["root_candidate_id"],
+                "idempotency_key":"v3-incomplete-session-idempotency",
+                "reference_id":reference.reference_id,
+                "design_spec_id":"v3-incomplete-spec",
+                "reference_canvas_id":"v3-incomplete-canvas",
+                "camera_hash":request["camera_hash"],
+                "evidence_sha256":request["evidence_sha256"],
+                "approved":true,
+                "approval_receipt_id":"v3-incomplete-session-approval",
+                "approval_summary":"Approve incomplete V3 coverage",
+                "approval_expires_at":"9999999999",
+                "authoring_context":v3_fixture_authoring_context(
+                    request["project_id"].as_str().unwrap(),
+                    "v3-incomplete-canvas",
+                    "v3-incomplete-spec",
+                    &reference,
+                    target_sha256,
+                    mask_sha256,
+                    &camera_rig,
+                    request["evidence_sha256"].as_str().unwrap(),
+                    false
+                )
+            }))
+            .expect("incomplete V3 session");
+        let blocked_session = blocked_session["session"]
+            .as_object()
+            .expect("blocked session");
+        let mut blocked_request = request.clone();
+        blocked_request["transition_id"] = Value::String("v3-blocked-transition".to_owned());
+        blocked_request["session_id"] = Value::String("v3-incomplete-session".to_owned());
+        blocked_request["reference_canvas_object_sha256"] =
+            blocked_session["reference_canvas_sha256"].clone();
+        blocked_request["design_spec_object_sha256"] =
+            blocked_session["design_spec_sha256"].clone();
+        blocked_request["approval_receipt_id"] = Value::String("v3-blocked-approval".to_owned());
+        blocked_request["approval_session_id"] = Value::String("v3-incomplete-session".to_owned());
+        blocked_request["input_sha256"] = Value::String("a".repeat(64));
+        let blocked_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before blocked");
+        let blocked_error = runtime
+            .production_stage_transition_v3_prepare(blocked_request)
+            .expect_err("incomplete coverage must block before reservation");
+        assert_eq!(
+            blocked_error.to_string(),
+            "invalid runtime input: BLOCKED_REFERENCE_COVERAGE"
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after blocked"),
+            blocked_before
+        );
+        assert!(runtime
+            .store
+            .get_production_stage_transition_v3("v3-blocked-transition")
+            .expect("blocked transition row")
+            .is_none());
+        assert!(runtime
+            .store
+            .get_production_stage_head_v3(
+                "v3-incomplete-session",
+                request["project_id"].as_str().unwrap(),
+                request["root_candidate_id"].as_str().unwrap()
+            )
+            .expect("blocked head row")
+            .is_none());
+    }
+
+    fn supplied_or_embedded_d1_program() -> Value {
+        if let Some(program_path) = std::env::var_os("FORGECAD_REAL_WEAPON_GEOMETRY_PROGRAM_PATH")
+            .map(std::path::PathBuf::from)
+        {
+            let program_bytes =
+                std::fs::read(program_path).expect("D1 GeometryProgram JSON must be present");
+            let program_value: Value = serde_json::from_slice(&program_bytes)
+                .expect("D1 GeometryProgram JSON must be valid");
+            return program_value
+                .get("geometry_program")
+                .cloned()
+                .unwrap_or(program_value);
+        }
+        crate::production_weapon_d1_seed::materialize("placeholder-project")
+            .expect("embedded first-party D1 seed")
+    }
+
+    #[test]
+    #[ignore = "requires explicitly supplied D1 GeometryProgram"]
+    fn production_weapon_parameter_trials_compile_in_process_before_runtime_ab() {
+        let mut program = supplied_or_embedded_d1_program();
+        program["project_id"] = Value::String("diagnostic-project".to_owned());
+        program["operator_catalog_sha256"] =
+            Value::String(forgecad_geometry_worker::operator_catalog_sha256());
+        program
+            .as_object_mut()
+            .expect("D1 GeometryProgram object")
+            .remove("canonical_sha256");
+        program["canonical_sha256"] = Value::String(
+            forgecad_geometry_worker::geometry_program_v2_draft_hash(&program)
+                .expect("baseline D1 GeometryProgram hash"),
+        );
+        let program_sha256 = program["canonical_sha256"]
+            .as_str()
+            .expect("baseline D1 GeometryProgram canonical hash");
+        let sink_report = crate::production_weapon_assembly_parameter_mutator::production_weapon_assembly_parameter_descriptors(
+            &program,
+            program_sha256,
+        )
+        .expect("baseline D1 parameter sink descriptors");
+        assert_eq!(
+            sink_report
+                .available
+                .iter()
+                .map(|descriptor| descriptor.parameter_id.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "receiver-envelope-width",
+                "receiver-envelope-height",
+                "muzzle-axis-shroud-envelope",
+                "muzzle-axis-emitter-envelope",
+                "muzzle-axis-core-aperture",
+                "stock-open-frame-clearance",
+                "stock-open-frame-angle",
+            ],
+            "the supplied D1 program must expose the exact seven typed sinks before the expensive real-reference run"
+        );
+        let mut trial =
+            crate::production_weapon_assembly_parameter_mutator::production_weapon_assembly_parameter_mutate(
+                &program,
+                "receiver-envelope-width",
+                0.90,
+            )
+            .expect("receiver width mutator");
+        trial["canonical_sha256"] = Value::String(
+            forgecad_geometry_worker::geometry_program_v2_draft_hash(&trial)
+                .expect("receiver width trial hash"),
+        );
+        let artifact = forgecad_geometry_worker::compile_geometry_program(&trial)
+            .expect("receiver width trial direct compile");
+        assert_eq!(artifact.program_sha256, trial["canonical_sha256"]);
+        assert_eq!(artifact.part_ids.len(), 23);
+        let roundtrip: Value = serde_json::from_slice(
+            &serde_json::to_vec(&trial).expect("receiver width trial serialize"),
+        )
+        .expect("receiver width trial parse");
+        let mut roundtrip_draft = roundtrip.clone();
+        roundtrip_draft
+            .as_object_mut()
+            .expect("receiver width trial roundtrip object")
+            .remove("canonical_sha256");
+        let roundtrip_hash =
+            forgecad_geometry_worker::geometry_program_v2_draft_hash(&roundtrip_draft)
+                .expect("receiver width trial roundtrip hash");
+        eprintln!(
+            "receiver width trial hashes in_memory={} roundtrip={}",
+            trial["canonical_sha256"].as_str().unwrap(),
+            roundtrip_hash
+        );
+        forgecad_geometry_worker::compile_geometry_program(&roundtrip)
+            .expect("receiver width trial roundtrip direct compile");
+        let sibling_artifact = crate::geometry_worker::compile_geometry(&trial, None)
+            .expect("receiver width trial sibling compile");
+        assert_eq!(sibling_artifact.program_sha256, artifact.program_sha256);
+        assert_eq!(sibling_artifact.part_ids, artifact.part_ids);
+
+        let mut stock_trial =
+            crate::production_weapon_assembly_parameter_mutator::production_weapon_assembly_parameter_mutate(
+                &program,
+                "stock-open-frame-clearance",
+                0.22,
+            )
+            .expect("stock clearance mutator");
+        stock_trial["canonical_sha256"] = Value::String(
+            forgecad_geometry_worker::geometry_program_v2_draft_hash(&stock_trial)
+                .expect("stock clearance trial hash"),
+        );
+        let stock_artifact = forgecad_geometry_worker::compile_geometry_program(&stock_trial)
+            .expect("stock clearance trial direct compile");
+        let stock_sibling = crate::geometry_worker::compile_geometry(&stock_trial, None)
+            .expect("stock clearance trial sibling compile");
+        assert_eq!(stock_sibling.program_sha256, stock_artifact.program_sha256);
+        assert_eq!(stock_sibling.part_ids, stock_artifact.part_ids);
+    }
+
+    #[test]
+    #[ignore = "requires explicitly supplied D1 GeometryProgram"]
+    fn production_weapon_d1_subject_frame_registration_is_read_only_and_sink_stable() {
+        let program_path = std::env::var_os("FORGECAD_REAL_WEAPON_GEOMETRY_PROGRAM_PATH")
+            .map(std::path::PathBuf::from)
+            .expect(
+                "FORGECAD_REAL_WEAPON_GEOMETRY_PROGRAM_PATH must identify the D1 GeometryProgram",
+            );
+        let program_bytes =
+            std::fs::read(program_path).expect("D1 GeometryProgram JSON must be present");
+        let source_object_sha256 = sha256_hex(&program_bytes);
+        assert_eq!(
+            source_object_sha256,
+            "8f196f3804747ba15d1f5eecdf48f22c75901562b1c86339b15868b4b54e1fdf"
+        );
+        let program_value: Value =
+            serde_json::from_slice(&program_bytes).expect("D1 GeometryProgram JSON must be valid");
+        let mut program = program_value
+            .get("geometry_program")
+            .cloned()
+            .unwrap_or(program_value);
+        program["project_id"] = Value::String("registration-audit-project".to_owned());
+        program["operator_catalog_sha256"] =
+            Value::String(forgecad_geometry_worker::operator_catalog_sha256());
+        program
+            .as_object_mut()
+            .expect("D1 GeometryProgram object")
+            .remove("canonical_sha256");
+        program["canonical_sha256"] = Value::String(
+            forgecad_geometry_worker::geometry_program_v2_draft_hash(&program)
+                .expect("baseline D1 GeometryProgram hash"),
+        );
+        let program_before = program.clone();
+        let program_sha256 = program["canonical_sha256"]
+            .as_str()
+            .expect("D1 program hash")
+            .to_owned();
+        let sink_report_before = crate::production_weapon_assembly_parameter_mutator::production_weapon_assembly_parameter_descriptors(
+            &program,
+            &program_sha256,
+        )
+        .expect("baseline D1 sink descriptors");
+
+        let registration =
+            crate::multiview::camera_rig::production_weapon_subject_frame_registration(&program)
+                .expect("D1 exact semantic-axis registration");
+        assert_eq!(registration["transform"]["kind"], "yaw-180-y");
+        assert_eq!(registration["geometry_program_modified"], false);
+        assert_eq!(registration["depth_modified"], false);
+        assert_eq!(
+            program, program_before,
+            "registration must not mutate D1 program"
+        );
+
+        let source_rig = v3_fixture_camera_rig("registration-audit-project", "candidate-source");
+        let source_rig_sha256 = source_rig["canonical_sha256"]
+            .as_str()
+            .expect("source camera rig hash")
+            .to_owned();
+        let registered_views = source_rig["views"]
+            .as_array()
+            .expect("source rig views")
+            .iter()
+            .map(|view| {
+                let camera = crate::multiview::camera_rig::materialize_registered_weapon_camera(
+                    &view["camera"],
+                    &registration,
+                    &program,
+                )
+                .expect("registered D1 render camera");
+                json!({
+                    "kind":view["kind"],
+                    "subject_camera_hash":view["camera_hash"],
+                    "registered_camera_hash":camera["camera_hash"],
+                    "registered_position_m":camera["transform"]["position_m"],
+                    "registered_target_m":camera["transform"]["target_m"],
+                    "registered_up":camera["transform"]["up"]
+                })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(source_rig["canonical_sha256"], source_rig_sha256);
+        let sink_report_after = crate::production_weapon_assembly_parameter_mutator::production_weapon_assembly_parameter_descriptors(
+            &program,
+            &program_sha256,
+        )
+        .expect("post-registration D1 sink descriptors");
+        let sink_identity = |report: &crate::production_weapon_assembly_parameter_mutator::ProductionWeaponAssemblyParameterDescriptorReport| {
+            report.available.iter().map(|descriptor| json!({
+                "parameter_id":descriptor.parameter_id,
+                "group_id":descriptor.group_id,
+                "mutator_id":descriptor.mutator_id,
+                "current":descriptor.current,
+                "min":descriptor.min,
+                "max":descriptor.max,
+                "step":descriptor.step,
+                "unit":descriptor.unit,
+                "target_part_ids":descriptor.target_part_ids,
+                "source_node_ids":descriptor.source_node_ids,
+                "operator_ids":descriptor.operator_ids,
+                "evidence_requirements":descriptor.evidence_requirements
+            })).collect::<Vec<_>>()
+        };
+        assert_eq!(
+            sink_identity(&sink_report_before),
+            sink_identity(&sink_report_after)
+        );
+        assert_eq!(
+            sink_report_before.unavailable_parameter_ids,
+            sink_report_after.unavailable_parameter_ids
+        );
+        assert_eq!(sink_report_after.available.len(), 7);
+
+        let receipt = json!({
+            "receipt_format":"forgecad-supplemental-evidence-v1",
+            "receipt_kind":"FPS-FORM-04H-SUBJECT-FRAME-REGISTRATION-SOURCE",
+            "status":"PASS_SOURCE_READ_ONLY_PROJECTION",
+            "source_geometry_program_object_sha256":source_object_sha256,
+            "geometry_program_canonical_sha256":program_sha256,
+            "subject_camera_rig_canonical_sha256":source_rig_sha256,
+            "registration":registration,
+            "registered_views":registered_views,
+            "exact_available_sink_count_before":sink_report_before.available.len(),
+            "exact_available_sink_count_after":sink_report_after.available.len(),
+            "geometry_program_unchanged":program == program_before,
+            "geometry_artifact_unchanged":true,
+            "depth_status":"UNKNOWN",
+            "runtime_started":false,
+            "worker_started":false,
+            "sqlite_write_performed":false,
+            "cas_write_performed":false,
+            "candidate_created":false,
+            "production_stage_advanced":false,
+            "candidate_confirmed":false,
+            "version_created":false,
+            "export_performed":false,
+            "public_contract_status":"NOT_ADDED_SUPPLEMENTAL_SOURCE_ONLY",
+            "real_d1_form_quality_status":"NOT_RUN"
+        });
+        println!(
+            "FPS_FORM_SUBJECT_FRAME_REGISTRATION_04H={}",
+            serde_json::to_string(&receipt).expect("04H registration receipt JSON")
+        );
+    }
+
+    #[test]
+    #[ignore = "requires explicitly supplied user reference, D1 GeometryProgram and same-cohort geometry/render workers"]
+    fn production_weapon_form_evidence_real_user_weapon_d1_is_durable_replay_safe_and_coverage_blocked(
+    ) {
+        use base64::Engine as _;
+
+        let source_path = std::env::var_os("FORGECAD_REAL_WEAPON_REFERENCE_PATH")
+            .map(std::path::PathBuf::from)
+            .expect(
+                "FORGECAD_REAL_WEAPON_REFERENCE_PATH must identify the user-authorized reference",
+            );
+        let source_bytes =
+            std::fs::read(&source_path).expect("user-authorized weapon reference must be present");
+        let source_sha256 = sha256_hex(&source_bytes);
+        assert_eq!(
+            source_sha256,
+            "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109"
+        );
+        let form_review_proposal = if let Some(proposal_path) =
+            std::env::var_os("FORGECAD_FORM_REVIEW_V4_PROPOSAL_PATH").map(std::path::PathBuf::from)
+        {
+            let proposal_bytes = std::fs::read(&proposal_path)
+                .expect("explicit reviewed form proposal JSON must be present");
+            assert_eq!(
+                sha256_hex(&proposal_bytes),
+                V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_FILE_SHA256
+            );
+            let proposal: Value = serde_json::from_slice(&proposal_bytes)
+                .expect("explicit reviewed form proposal JSON must be valid");
+            assert_eq!(
+                canonical_json_hash(&proposal),
+                V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_CANONICAL_SHA256
+            );
+            assert_eq!(
+                proposal["overlay_sha256"],
+                V3_REAL_WEAPON_FORM_REVIEW_V4_OVERLAY_SHA256
+            );
+            proposal
+        } else {
+            // The old /tmp proposal was never product state.  The closed
+            // first-party profile contains only the reference annotations the
+            // user approved (six contours, 25 typed flows and six negative
+            // spaces), remains depth UNKNOWN and cannot promote a candidate.
+            crate::production_weapon_d1_review_profile::materialize()
+                .expect("closed D1 reviewed form profile")
+        };
+        let confirmation_path = std::env::var_os("FORGECAD_FORM_REVIEW_CONFIRMATION_PATH")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+                    "../../../../../docs/evidence/mcp010f/production-weapon-form-review-user-confirmation-20260824.json",
+                )
+            });
+        let confirmation_bytes =
+            std::fs::read(confirmation_path).expect("form review confirmation must be present");
+        assert_eq!(
+            sha256_hex(&confirmation_bytes),
+            V3_REAL_WEAPON_FORM_REVIEW_CONFIRMATION_FILE_SHA256
+        );
+        let form_review_confirmation: Value = serde_json::from_slice(&confirmation_bytes)
+            .expect("form review confirmation JSON must be valid");
+        assert_eq!(form_review_confirmation["user_confirmed"], true);
+        assert_eq!(form_review_confirmation["depth_status"], "UNKNOWN");
+        assert_eq!(
+            form_review_confirmation["line_flow_confirmation"]["accepted_mapping_count"],
+            25
+        );
+        let mut program = supplied_or_embedded_d1_program();
+        let program_object = program
+            .as_object_mut()
+            .expect("D1 GeometryProgram must be an object");
+        program_object.insert(
+            "project_id".to_owned(),
+            Value::String("placeholder-project".to_owned()),
+        );
+        program_object.insert(
+            "operator_catalog_sha256".to_owned(),
+            Value::String(forgecad_geometry_worker::operator_catalog_sha256()),
+        );
+        program_object.remove("canonical_sha256");
+
+        // The default remains isolated for ordinary ignored-test use.  A real
+        // D1 evidence run may opt into a fresh on-disk database so the exact
+        // ReferenceEvidence -> candidate -> CameraLock -> FormEvidence ->
+        // FormArt lineage survives the test process and can be independently
+        // reopened.  Refuse an existing database to prevent a nominal replay
+        // from silently mixing cohorts or stale candidate state.
+        let durable_database_path = std::env::var_os("FORGECAD_REAL_WEAPON_RUNTIME_DATABASE_PATH")
+            .map(std::path::PathBuf::from);
+        let runtime = if let Some(database_path) = durable_database_path.as_ref() {
+            assert!(
+                !database_path.exists(),
+                "FORGECAD_REAL_WEAPON_RUNTIME_DATABASE_PATH must be a fresh database path"
+            );
+            if let Some(parent) = database_path.parent() {
+                std::fs::create_dir_all(parent)
+                    .expect("real weapon durable Runtime parent must be creatable");
+            }
+            Runtime::open(database_path).expect("real weapon durable form evidence runtime")
+        } else {
+            Runtime::ephemeral().expect("real weapon form evidence runtime")
+        };
+        let project = runtime
+            .create_project("FPS FORM 04A real user weapon", json!({"profile":"mvp"}))
+            .expect("real weapon form evidence project");
+        program_object.insert(
+            "project_id".to_owned(),
+            Value::String(project.project_id.clone()),
+        );
+        program["canonical_sha256"] = Value::String(
+            forgecad_geometry_worker::geometry_program_v2_draft_hash(&program)
+                .expect("rebound D1 GeometryProgram canonical hash"),
+        );
+
+        let reference = runtime
+            .import_reference(&crate::ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: crate::ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: base64::engine::general_purpose::STANDARD.encode(&source_bytes),
+                },
+                authorization: crate::ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration:
+                        "User-authorized FPS weapon concept board for structural form evidence"
+                            .to_owned(),
+                },
+                expected_sha256: Some(source_sha256.clone()),
+            })
+            .expect("real weapon board import")
+            .reference;
+        let prepared = runtime
+            .prepare_geometry_candidate(
+                &project.project_id,
+                None,
+                json!({
+                    "typed":"geometry",
+                    "reference_id":reference.reference_id,
+                    "geometry_program":program
+                }),
+            )
+            .expect("D1 GeometryProgram candidate");
+        let candidate = prepared
+            .get("candidate")
+            .and_then(Value::as_object)
+            .expect("D1 candidate");
+        let candidate_id = candidate["candidate_id"]
+            .as_str()
+            .expect("D1 candidate id")
+            .to_owned();
+        let candidate_state_sha256 = candidate["canonical_sha256"]
+            .as_str()
+            .expect("D1 candidate state")
+            .to_owned();
+        let artifact_id = candidate["prepared_object_id"]
+            .as_str()
+            .expect("D1 artifact id")
+            .to_owned();
+        let artifact_sha256 = candidate["prepared_object_sha256"]
+            .as_str()
+            .expect("D1 artifact hash")
+            .to_owned();
+        let readback = runtime
+            .artifact_readback(&artifact_sha256, &candidate_id)
+            .expect("D1 ArtifactReadback");
+        assert_eq!(readback["schema_version"], "ArtifactReadback@2");
+        assert_eq!(readback["hard_gate_passed"], true);
+        assert_eq!(readback["validator_status"], "passed");
+        let expected_part_ids = json!([
+            "receiver-main",
+            "receiver-upper",
+            "receiver-lower",
+            "rear-stock",
+            "rear-cap",
+            "grip",
+            "trigger-guard",
+            "underbrace",
+            "top-fin",
+            "top-rail",
+            "bottom-rail",
+            "side-light-left",
+            "side-light-right",
+            "muzzle-shroud",
+            "muzzle-emitter",
+            "muzzle-core",
+            "energy-ring",
+            "energy-core",
+            "core-housing",
+            "side-panel-a",
+            "side-panel-b",
+            "magazine",
+            "rear-light"
+        ]);
+        assert_eq!(
+            readback["part_ids"], expected_part_ids,
+            "real D1 candidate must retain the exact ordered 23-part weapon assembly"
+        );
+        let expected_part_id_vocabulary = expected_part_ids
+            .as_array()
+            .expect("D1 expected Part IDs")
+            .iter()
+            .map(|part_id| {
+                part_id
+                    .as_str()
+                    .expect("D1 expected Part ID string")
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        for part_id in [
+            "rear-stock",
+            "rear-stock-lower-beam",
+            "rear-cap",
+            "grip",
+            "trigger-guard",
+            "muzzle-shroud",
+            "muzzle-emitter",
+            "muzzle-core",
+        ] {
+            assert!(
+                readback["source_node_ids"]
+                    .as_array()
+                    .is_some_and(|nodes| nodes.iter().any(|node| node.as_str() == Some(part_id))),
+                "D1 open-stock/weapon source node missing: {part_id}"
+            );
+        }
+
+        let image = image::load_from_memory(&source_bytes).expect("real weapon board must decode");
+        let (width, height) = (image.width(), image.height());
+        let mut identity_crops =
+            v3_real_weapon_view_crops(width, height).expect("real six identity crop recipe");
+        identity_crops
+            .iter_mut()
+            .find(|crop| crop.kind == "rear-three-quarter")
+            .expect("rear-three-quarter identity crop")
+            .height = 227;
+        let seven_crops =
+            v3_real_weapon_view_crops_with_bottom(width, height).expect("real seven crop recipe");
+        assert_eq!(identity_crops.len(), 6);
+        assert_eq!(seven_crops.len(), 7);
+        let identity_pngs =
+            v3_real_weapon_reference_crop_pngs_for_crops(&source_bytes, identity_crops.clone())
+                .expect("real expanded six identity crop PNGs");
+        let seven_pngs =
+            v3_real_weapon_reference_crop_pngs_seven(&source_bytes).expect("real seven crop PNGs");
+        assert_eq!(identity_pngs.len(), 6);
+        assert_eq!(seven_pngs.len(), 7);
+        let reviewed_proposal_views = if let Some(views) = form_review_proposal["views"].as_object()
+        {
+            views.clone()
+        } else {
+            form_review_proposal["views"]
+                .as_array()
+                .expect("reviewed profile views")
+                .iter()
+                .map(|view| {
+                    (
+                        view["view_kind"]
+                            .as_str()
+                            .expect("reviewed profile view kind")
+                            .to_owned(),
+                        view.clone(),
+                    )
+                })
+                .collect::<Map<String, Value>>()
+        };
+
+        // Keep the board as the single primary ReferenceEvidence.  Each
+        // identity target is nevertheless independently refined: the reviewed
+        // contour points are mapped from its crop into the board coordinate
+        // space before Runtime validation.  This satisfies CameraLock's
+        // primary-reference binding while preserving six independent target
+        // hashes and the separately retained bottom camera-only crop.
+        let automatic = runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id,
+                    "reference_id":reference.reference_id,
+                    "user_confirmed":false
+                }),
+            )
+            .expect("automatic board target")
+            .get("target_sha256")
+            .and_then(Value::as_str)
+            .expect("automatic board target hash")
+            .to_owned();
+        let mut refined_targets = BTreeMap::new();
+        for (index, crop) in identity_crops.iter().enumerate() {
+            let proposal_view = reviewed_proposal_views
+                .get(crop.kind)
+                .expect("reviewed V4 proposal identity view");
+            let (visual_structure, mapped) = v3_real_weapon_confirmed_visual_structure_v4(
+                crop.kind,
+                proposal_view,
+                &form_review_confirmation,
+                *crop,
+                width,
+                height,
+            )
+            .expect("user-confirmed exact V4 visual structure");
+            let min_x = crop.x as f64 / width as f64;
+            let max_x = (crop.x + crop.width) as f64 / width as f64;
+            let min_y = crop.y as f64 / height as f64;
+            let max_y = (crop.y + crop.height) as f64 / height as f64;
+            assert!(mapped.iter().all(|point| {
+                let x = point[0].as_f64().expect("mapped contour x");
+                let y = point[1].as_f64().expect("mapped contour y");
+                x >= min_x && x <= max_x && y >= min_y && y <= max_y
+            }));
+            let refined = runtime
+                .refine_reference_mask(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "base_target_sha256":automatic,
+                        "contour_points":mapped,
+                        "landmarks":[],
+                        "parts":[],
+                        "visual_structure":visual_structure,
+                        "user_confirmed":true
+                    }),
+                )
+                .expect("independent identity refined target");
+            assert_eq!(refined["target"]["source"], "user_refined");
+            assert_eq!(refined["target"]["annotation_status"], "user_confirmed");
+            assert_eq!(
+                refined["target"]["visual_structure"]["review_status"],
+                "user_confirmed"
+            );
+            assert_eq!(refined["target"]["reference_id"], reference.reference_id);
+            assert_eq!(
+                refined["target"]["reference_sha256"],
+                reference.object_sha256
+            );
+            refined_targets.insert(
+                crop.kind.to_owned(),
+                (
+                    refined["target_sha256"]
+                        .as_str()
+                        .expect("refined target hash")
+                        .to_owned(),
+                    refined["mask_sha256"]
+                        .as_str()
+                        .expect("refined mask hash")
+                        .to_owned(),
+                    index,
+                ),
+            );
+        }
+        assert_eq!(refined_targets.len(), 6);
+        assert_eq!(
+            identity_pngs.iter().map(|(_, _, hash, _, _)| hash).count(),
+            6
+        );
+
+        let mut camera_rig = v3_fixture_camera_rig(&project.project_id, &candidate_id);
+        let subject_frame_registration =
+            crate::multiview::camera_rig::production_weapon_subject_frame_registration(&program)
+                .expect("D1 semantic subject-frame registration");
+        let mut comparisons = BTreeMap::new();
+        let mut camera_fit_results: BTreeMap<String, Value> = BTreeMap::new();
+        let mut fitted_view_specs: BTreeMap<String, Value> = BTreeMap::new();
+        let mut fitted_cameras: BTreeMap<String, Value> = BTreeMap::new();
+        // The legacy candidate-level VisualEvidence projection has one current
+        // row. Persist the CameraLock primary (`left`) comparison last while
+        // retaining the contract-defined identity order everywhere else.
+        for kind in [
+            "front",
+            "back",
+            "right",
+            "top",
+            "rear-three-quarter",
+            "left",
+        ] {
+            let crop = identity_crops
+                .iter()
+                .find(|crop| crop.kind == kind)
+                .expect("identity crop by render order");
+            let target = refined_targets
+                .get(crop.kind)
+                .expect("identity target by kind");
+            let view_id = format!("fps-form-04a-{kind}-view", kind = crop.kind);
+            let base_subject_camera = camera_rig["views"]
+                .as_array()
+                .and_then(|views| {
+                    views
+                        .iter()
+                        .find(|view| view["kind"].as_str() == Some(crop.kind))
+                })
+                .expect("identity camera rig view")["camera"]
+                .clone();
+            let base_registered_camera =
+                crate::multiview::camera_rig::materialize_registered_weapon_camera(
+                    &base_subject_camera,
+                    &subject_frame_registration,
+                    &program,
+                )
+                .expect("D1 registered base camera");
+            let mut view_spec = json!({
+                "schema_version":"ReferenceViewSpec@1",
+                "reference_id":reference.reference_id,
+                "reference_sha256":reference.object_sha256,
+                "view_id":view_id,
+                "source_view":expected_reference_source_view(crop.kind).unwrap_or(crop.kind),
+                "image":{
+                    "width":reference.width,
+                    "height":reference.height,
+                    "rotation_degrees":0.0,
+                    "crop":{
+                        "x":crop.x as f64 / width as f64,
+                        "y":crop.y as f64 / height as f64,
+                        "width":crop.width as f64 / width as f64,
+                        "height":crop.height as f64 / height as f64
+                    }
+                },
+                "landmarks":[],
+                "regions":[],
+                "canonical_sha256":""
+            });
+            view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+            let camera_fit = runtime
+                .prepare_camera_fit(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "candidate_id":candidate_id,
+                        "target_sha256":target.0,
+                        "camera":base_registered_camera,
+                        "view_spec":view_spec
+                    }),
+                )
+                .expect("crop-aware identity camera fit");
+            let selected_registered_camera = camera_fit["selected_camera"].clone();
+            // Camera fitting consumes the exact renderer-space camera. Persist
+            // the inverse-projected subject-space camera in CameraLock; the
+            // Runtime-owned registration is a closed 180-degree yaw and is
+            // self-inverse, so restart materialization reproduces the fitted
+            // renderer camera hash exactly.
+            let fitted_subject_camera =
+                crate::multiview::camera_rig::materialize_registered_weapon_camera(
+                    &selected_registered_camera,
+                    &subject_frame_registration,
+                    &program,
+                )
+                .expect("D1 fitted camera inverse registration");
+            // Re-materialize from the exact subject camera that will be
+            // persisted. This normalizes any sub-epsilon fit components and
+            // makes comparison/canvas hashes byte-identical to restart replay.
+            let fitted_camera = crate::multiview::camera_rig::materialize_registered_weapon_camera(
+                &fitted_subject_camera,
+                &subject_frame_registration,
+                &program,
+            )
+            .expect("D1 fitted camera stable registration replay");
+            let fitted_view = camera_rig["views"]
+                .as_array_mut()
+                .and_then(|views| {
+                    views
+                        .iter_mut()
+                        .find(|view| view["kind"].as_str() == Some(crop.kind))
+                })
+                .expect("mutable identity camera rig view");
+            fitted_view["camera_hash"] = fitted_subject_camera["camera_hash"].clone();
+            fitted_view["camera"] = fitted_subject_camera;
+            let comparison = runtime
+                .prepare_reference_comparison(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "candidate_id":candidate_id,
+                        "reference_id":reference.reference_id,
+                        "view_id":view_id,
+                        "view_spec":view_spec,
+                        "camera":fitted_camera,
+                        "target_sha256":target.0
+                    }),
+                )
+                .expect("real six-view comparison");
+            let target_document = runtime
+                .read_silhouette_target(&target.0)
+                .expect("identity target readback");
+            let target_mask = crate::project_reference_mask_to_view(
+                &runtime
+                    .target_mask(&target.0, &target_document)
+                    .expect("identity target mask")
+                    .mask,
+                &view_spec,
+                true,
+            )
+            .expect("identity target crop projection");
+            let model_silhouette_sha256 = comparison["render_set"]["pass_artifacts"]["silhouette"]
+                ["sha256"]
+                .as_str()
+                .expect("model silhouette hash");
+            let model_mask = crate::decode_binary_mask(
+                &runtime
+                    .cas_read(model_silhouette_sha256)
+                    .expect("model silhouette CAS read"),
+            )
+            .expect("model silhouette decode");
+            let target_bbox = crate::bbox(&target_mask).expect("target bbox");
+            let model_bbox = crate::bbox(&model_mask).expect("model bbox");
+            let target_width = target_bbox.2 - target_bbox.0 + 1;
+            let target_height = target_bbox.3 - target_bbox.1 + 1;
+            let model_width = model_bbox.2 - model_bbox.0 + 1;
+            let model_height = model_bbox.3 - model_bbox.1 + 1;
+            let target_centroid = crate::mask_centroid(&target_mask).expect("target centroid");
+            let model_centroid = crate::mask_centroid(&model_mask).expect("model centroid");
+            camera_fit_results.insert(
+                crop.kind.to_owned(),
+                json!({
+                    "status":camera_fit["status"],
+                    "selected_metrics":camera_fit["candidates"][0]["metrics"],
+                    "camera_hash":fitted_camera["camera_hash"],
+                    "target_bbox_px":[target_bbox.0,target_bbox.1,target_bbox.2,target_bbox.3],
+                    "model_bbox_px":[model_bbox.0,model_bbox.1,model_bbox.2,model_bbox.3],
+                    "model_minus_target_edge_delta_px":[
+                        model_bbox.0 as i64-target_bbox.0 as i64,
+                        model_bbox.1 as i64-target_bbox.1 as i64,
+                        model_bbox.2 as i64-target_bbox.2 as i64,
+                        model_bbox.3 as i64-target_bbox.3 as i64
+                    ],
+                    "model_minus_target_size_delta_px":[
+                        model_width as i64-target_width as i64,
+                        model_height as i64-target_height as i64
+                    ],
+                    "model_minus_target_centroid_delta_px":[
+                        crate::stable_visual_metric(model_centroid.0-target_centroid.0),
+                        crate::stable_visual_metric(model_centroid.1-target_centroid.1)
+                    ]
+                }),
+            );
+            fitted_view_specs.insert(crop.kind.to_owned(), view_spec.clone());
+            fitted_cameras.insert(crop.kind.to_owned(), fitted_camera.clone());
+            assert_eq!(
+                comparison["render_set"]["passes"].as_array().map(Vec::len),
+                Some(9)
+            );
+            comparisons.insert(crop.kind.to_owned(), comparison);
+        }
+        camera_rig["canonical_sha256"] = Value::String(String::new());
+        camera_rig["canonical_sha256"] = Value::String(canonical_json_hash(&camera_rig));
+        crate::multiview::camera_rig::validate_camera_rig(
+            &camera_rig,
+            &project.project_id,
+            &candidate_id,
+        )
+        .expect("crop-aware fitted camera rig");
+        assert_eq!(comparisons.len(), 6);
+        assert_eq!(comparisons.values().map(|_| 9_u64).sum::<u64>(), 54);
+
+        // Run exactly one bounded, pure parameter experiment against the same
+        // six reviewed targets and frozen fitted cameras.  The trial candidate
+        // remains isolated in this ephemeral evidence Runtime and is accepted
+        // only when every view is non-regressing and at least one improves.
+        // It never advances the production stage or confirms a candidate.
+        let trial_parameter_id = "stock-open-frame-angle";
+        let trial_parameter_value = 0.12;
+        let mut trial_program =
+            crate::production_weapon_assembly_parameter_mutator::production_weapon_assembly_parameter_mutate(
+                &program,
+                trial_parameter_id,
+                trial_parameter_value,
+            )
+            .expect("bounded stock-open-frame-angle trial");
+        trial_program["canonical_sha256"] = Value::String(
+            forgecad_geometry_worker::geometry_program_v2_draft_hash(&trial_program)
+                .expect("trial GeometryProgram canonical hash"),
+        );
+        let trial_prepared = runtime
+            .prepare_geometry_candidate(
+                &project.project_id,
+                None,
+                json!({
+                    "typed":"geometry",
+                    "reference_id":reference.reference_id,
+                    "geometry_program":trial_program
+                }),
+            )
+            .expect("bounded parameter trial candidate");
+        let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+            .as_str()
+            .expect("trial candidate id")
+            .to_owned();
+        let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+            .as_str()
+            .expect("trial artifact hash")
+            .to_owned();
+        let trial_readback = runtime
+            .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+            .expect("trial ArtifactReadback");
+        assert_eq!(trial_readback["schema_version"], "ArtifactReadback@2");
+        assert_eq!(trial_readback["hard_gate_passed"], true);
+        assert_eq!(trial_readback["validator_status"], "passed");
+        assert_eq!(trial_readback["part_ids"], readback["part_ids"]);
+        let mut trial_view_metrics = BTreeMap::new();
+        let mut trial_negative_space_metrics = BTreeMap::new();
+        let mut trial_part_owned_void_diagnostics = BTreeMap::new();
+        let mut reviewed_region_part_binding_calibrations = BTreeMap::new();
+        let mut all_views_non_regressing = true;
+        let mut any_view_improved = false;
+        let mut all_open_stock_void_metrics_non_regressing = true;
+        let mut any_open_stock_void_metric_improved = false;
+        let mut all_open_stock_owner_bindings_ready = true;
+        let mut any_open_stock_owner_mask_changed = false;
+        for crop in &identity_crops {
+            let kind = crop.kind;
+            let target = refined_targets.get(kind).expect("trial target by kind");
+            let frozen_view_spec = fitted_view_specs.get(kind).expect("frozen trial view spec");
+            let trial_comparison = runtime
+                .prepare_reference_comparison(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "candidate_id":trial_candidate_id,
+                        "reference_id":reference.reference_id,
+                        "view_id":frozen_view_spec["view_id"],
+                        "view_spec":frozen_view_spec,
+                        "camera":fitted_cameras.get(kind).expect("frozen trial camera"),
+                        "target_sha256":target.0
+                    }),
+                )
+                .expect("bounded parameter trial comparison");
+            let baseline_iou = comparisons[kind]["comparison_report"]["metrics"]["silhouette_iou"]
+                .as_f64()
+                .expect("baseline silhouette IoU");
+            let trial_iou = trial_comparison["comparison_report"]["metrics"]["silhouette_iou"]
+                .as_f64()
+                .expect("trial silhouette IoU");
+            let delta = crate::stable_visual_metric(trial_iou - baseline_iou);
+            all_views_non_regressing &= delta >= 0.0;
+            any_view_improved |= delta > 0.0;
+            trial_view_metrics.insert(
+                kind.to_owned(),
+                json!({
+                    "baseline_silhouette_iou":crate::stable_visual_metric(baseline_iou),
+                    "trial_silhouette_iou":crate::stable_visual_metric(trial_iou),
+                    "trial_minus_baseline_silhouette_iou":delta
+                }),
+            );
+            if matches!(kind, "left" | "right" | "rear-three-quarter") {
+                let expected_open_stock_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("negative-space trial view is closed"),
+                };
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("trial target readback");
+                assert_eq!(target_document["source"], "user_refined");
+                assert_eq!(target_document["annotation_status"], "user_confirmed");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("trial target visual structure");
+                assert_eq!(visual_structure["review_status"], "user_confirmed");
+                assert_eq!(
+                    comparisons[kind]["camera"]["camera_hash"],
+                    trial_comparison["camera"]["camera_hash"]
+                );
+                assert_eq!(
+                    comparisons[kind]["camera_object_sha256"],
+                    trial_comparison["camera_object_sha256"]
+                );
+                assert_eq!(
+                    comparisons[kind]["render_set"]["view_id"],
+                    trial_comparison["render_set"]["view_id"]
+                );
+                assert_eq!(
+                    comparisons[kind]["render_set"]["reference_id"],
+                    trial_comparison["render_set"]["reference_id"]
+                );
+                assert_eq!(
+                    comparisons[kind]["render_set"]["render_worker_build_cohort_sha256"],
+                    trial_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                );
+                assert_eq!(
+                    comparisons[kind]["render_set"]["id_palette_definition_sha256"],
+                    trial_comparison["render_set"]["id_palette_definition_sha256"]
+                );
+                assert_eq!(
+                    comparisons[kind]["comparison_report"]["mask"]["sha256"],
+                    trial_comparison["comparison_report"]["mask"]["sha256"]
+                );
+                let crop = crate::reference_view_crop(frozen_view_spec)
+                    .expect("trial negative-space crop");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("trial target mask")
+                        .mask,
+                    frozen_view_spec,
+                    true,
+                )
+                .expect("trial target crop projection");
+                let baseline_silhouette_sha256 = comparisons[kind]["render_set"]["pass_artifacts"]
+                    ["silhouette"]["sha256"]
+                    .as_str()
+                    .expect("baseline silhouette hash");
+                let trial_silhouette_sha256 = trial_comparison["render_set"]["pass_artifacts"]
+                    ["silhouette"]["sha256"]
+                    .as_str()
+                    .expect("trial silhouette hash");
+                let baseline_mask = crate::decode_binary_mask(
+                    &runtime
+                        .cas_read(baseline_silhouette_sha256)
+                        .expect("baseline silhouette CAS read"),
+                )
+                .expect("baseline silhouette decode");
+                let trial_mask = crate::decode_binary_mask(
+                    &runtime
+                        .cas_read(trial_silhouette_sha256)
+                        .expect("trial silhouette CAS read"),
+                )
+                .expect("trial silhouette decode");
+                let baseline_part_id_sha256 = comparisons[kind]["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("baseline Part-ID hash");
+                let trial_part_id_sha256 = trial_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("trial Part-ID hash");
+                let baseline_part_png = runtime
+                    .cas_read(baseline_part_id_sha256)
+                    .expect("baseline Part-ID CAS read");
+                let trial_part_png = runtime
+                    .cas_read(trial_part_id_sha256)
+                    .expect("trial Part-ID CAS read");
+                let baseline_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &baseline_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("baseline exact rear-stock Part-ID mask");
+                let trial_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &trial_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("trial exact rear-stock Part-ID mask");
+                let owner_mask_delta_pixel_count = baseline_owner_mask
+                    .iter()
+                    .zip(trial_owner_mask.iter())
+                    .filter(|(baseline, trial)| baseline != trial)
+                    .count() as u64;
+                any_open_stock_owner_mask_changed |= owner_mask_delta_pixel_count > 0;
+                let baseline_part_owned = crate::production_weapon_form_art_evidence::part_owned_negative_space_diagnostic(
+                    visual_structure,
+                    &target_mask,
+                    &baseline_part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    expected_open_stock_id,
+                    "rear-stock",
+                )
+                .expect("baseline Part-owned open-stock diagnostic");
+                let trial_part_owned = crate::production_weapon_form_art_evidence::part_owned_negative_space_diagnostic(
+                    visual_structure,
+                    &target_mask,
+                    &trial_part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    expected_open_stock_id,
+                    "rear-stock",
+                )
+                .expect("trial Part-owned open-stock diagnostic");
+                let calibration_thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    // Candidate discovery is deliberately permissive here.
+                    // A later authored binding must still require zero owner
+                    // intrusion into the reviewed expected void.
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let baseline_calibration = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding(
+                    visual_structure,
+                    &target_mask,
+                    &baseline_part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    expected_open_stock_id,
+                    None,
+                    &calibration_thresholds,
+                );
+                let trial_calibration = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding(
+                    visual_structure,
+                    &target_mask,
+                    &trial_part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    expected_open_stock_id,
+                    None,
+                    &calibration_thresholds,
+                );
+                let transform_name = |transform: crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform| match transform {
+                    crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity => "identity",
+                    crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::HorizontalFlip => "horizontal-flip",
+                    crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::VerticalFlip => "vertical-flip",
+                    crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Rotate180 => "rotate-180",
+                };
+                let calibration_json = |calibration: &crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingCalibration| {
+                    json!({
+                        "status":calibration.status,
+                        "selected_transform":transform_name(calibration.selected_transform),
+                        "authored_transform":Value::Null,
+                        "promotable":calibration.promotable,
+                        "expected_region_canonical_sha256":calibration.expected_region_canonical_sha256,
+                        "expected_void_pixel_count":calibration.expected_void_pixel_count,
+                        "candidates":calibration.candidates.iter().map(|candidate| json!({
+                            "transform":transform_name(candidate.transform),
+                            "owner_region_pixel_count":candidate.owner_region_pixel_count,
+                            "owner_expected_void_overlap_pixel_count":candidate.owner_expected_void_overlap_pixel_count,
+                            "owner_expected_void_overlap_milli":candidate.owner_expected_void_overlap_milli,
+                            "owner_boundary_adjacency_pixel_count":candidate.owner_boundary_adjacency_pixel_count,
+                            "owner_boundary_adjacency_milli":candidate.owner_boundary_adjacency_milli,
+                            "bbox_edge_error_px":candidate.bbox_edge_error_px,
+                            "centroid_error_px":candidate.centroid_error_px,
+                            "passes_discovery_thresholds":candidate.passes_thresholds
+                        })).collect::<Vec<_>>()
+                    })
+                };
+                reviewed_region_part_binding_calibrations.insert(
+                    kind.to_owned(),
+                    match (&baseline_calibration, &trial_calibration) {
+                        (Ok(baseline), Ok(trial)) => json!({
+                            "baseline":calibration_json(baseline),
+                            "trial":calibration_json(trial),
+                            "same_unique_transform":baseline.selected_transform == trial.selected_transform,
+                            "authored_orientation_contract_present":false,
+                            "status":"EPHEMERAL_TRANSFORM_CANDIDATE",
+                            "promotable":false
+                        }),
+                        _ => json!({
+                            "baseline_error":baseline_calibration.as_ref().err().map(ToString::to_string),
+                            "trial_error":trial_calibration.as_ref().err().map(ToString::to_string),
+                            "authored_orientation_contract_present":false,
+                            "status":"BLOCKED_NO_UNIQUE_TRANSFORM_CANDIDATE",
+                            "promotable":false
+                        }),
+                    },
+                );
+                assert_eq!(
+                    baseline_part_owned.expected_region_canonical_sha256,
+                    trial_part_owned.expected_region_canonical_sha256
+                );
+                let owner_binding_ready =
+                    baseline_part_owned.status == "bound" && trial_part_owned.status == "bound";
+                all_open_stock_owner_bindings_ready &= owner_binding_ready;
+                trial_part_owned_void_diagnostics.insert(
+                    kind.to_owned(),
+                    json!({
+                        "structure_id":expected_open_stock_id,
+                        "owner_part_id":"rear-stock",
+                        "part_id_palette_sha256":comparisons[kind]["render_set"]["id_palette_definition_sha256"],
+                        "baseline_part_id_pass_sha256":baseline_part_id_sha256,
+                        "trial_part_id_pass_sha256":trial_part_id_sha256,
+                        "baseline":{"expected_void_pixel_count":baseline_part_owned.expected_void_pixel_count,"owner_pixel_count":baseline_part_owned.owner_pixel_count,"owner_region_pixel_count":baseline_part_owned.owner_region_pixel_count,"owner_expected_void_overlap_pixel_count":baseline_part_owned.owner_expected_void_overlap_pixel_count,"owner_expected_void_overlap_milli":baseline_part_owned.owner_expected_void_overlap_milli,"owner_boundary_adjacency_pixel_count":baseline_part_owned.owner_boundary_adjacency_pixel_count,"owner_boundary_adjacency_milli":baseline_part_owned.owner_boundary_adjacency_milli,"expected_void_bbox_px":baseline_part_owned.expected_void_bbox_px,"owner_bbox_px":baseline_part_owned.owner_bbox_px,"owner_minus_expected_bbox_edge_delta_px":baseline_part_owned.owner_minus_expected_bbox_edge_delta_px,"owner_minus_expected_centroid_delta_milli_px":baseline_part_owned.owner_minus_expected_centroid_delta_milli_px,"status":baseline_part_owned.status},
+                        "trial":{"expected_void_pixel_count":trial_part_owned.expected_void_pixel_count,"owner_pixel_count":trial_part_owned.owner_pixel_count,"owner_region_pixel_count":trial_part_owned.owner_region_pixel_count,"owner_expected_void_overlap_pixel_count":trial_part_owned.owner_expected_void_overlap_pixel_count,"owner_expected_void_overlap_milli":trial_part_owned.owner_expected_void_overlap_milli,"owner_boundary_adjacency_pixel_count":trial_part_owned.owner_boundary_adjacency_pixel_count,"owner_boundary_adjacency_milli":trial_part_owned.owner_boundary_adjacency_milli,"expected_void_bbox_px":trial_part_owned.expected_void_bbox_px,"owner_bbox_px":trial_part_owned.owner_bbox_px,"owner_minus_expected_bbox_edge_delta_px":trial_part_owned.owner_minus_expected_bbox_edge_delta_px,"owner_minus_expected_centroid_delta_milli_px":trial_part_owned.owner_minus_expected_centroid_delta_milli_px,"status":trial_part_owned.status},
+                        "owner_mask_delta_pixel_count":owner_mask_delta_pixel_count,
+                        "owner_binding_ready":owner_binding_ready,
+                        "diagnostic_only":true,
+                        "promotable":false
+                    }),
+                );
+                let (_, baseline_rows) = crate::production_weapon_form_art_evidence::negative_rows(
+                    Some(visual_structure),
+                    true,
+                    &target_mask,
+                    &baseline_mask,
+                    crop,
+                )
+                .expect("baseline negative-space rows");
+                let (_, trial_rows) = crate::production_weapon_form_art_evidence::negative_rows(
+                    Some(visual_structure),
+                    true,
+                    &target_mask,
+                    &trial_mask,
+                    crop,
+                )
+                .expect("trial negative-space rows");
+                let baseline_row = baseline_rows
+                    .iter()
+                    .find(|row| row.structure_id == expected_open_stock_id)
+                    .expect("baseline open-stock negative-space row");
+                let trial_row = trial_rows
+                    .iter()
+                    .find(|row| row.structure_id == baseline_row.structure_id)
+                    .expect("trial open-stock negative-space row");
+                assert_eq!(baseline_row.status, "observed");
+                assert_eq!(trial_row.status, "observed");
+                assert!(!baseline_row.sealed);
+                assert!(!baseline_row.missing);
+                assert!(!trial_row.sealed);
+                assert!(!trial_row.missing);
+                assert_eq!(
+                    baseline_row.expected_region_canonical_sha256,
+                    trial_row.expected_region_canonical_sha256
+                );
+                let baseline_area_error = (i128::from(baseline_row.area_ratio_milli) - 1000).abs();
+                let trial_area_error = (i128::from(trial_row.area_ratio_milli) - 1000).abs();
+                let row_non_regressing = trial_row.iou_milli >= baseline_row.iou_milli
+                    && trial_row.boundary_f1_milli >= baseline_row.boundary_f1_milli
+                    && trial_area_error <= baseline_area_error
+                    && trial_row.centroid_error_milli <= baseline_row.centroid_error_milli
+                    && !trial_row.sealed
+                    && !trial_row.missing;
+                let row_improved = trial_row.iou_milli > baseline_row.iou_milli
+                    || trial_row.boundary_f1_milli > baseline_row.boundary_f1_milli
+                    || trial_area_error < baseline_area_error
+                    || trial_row.centroid_error_milli < baseline_row.centroid_error_milli;
+                all_open_stock_void_metrics_non_regressing &= row_non_regressing;
+                any_open_stock_void_metric_improved |= row_improved;
+                trial_negative_space_metrics.insert(
+                    kind.to_owned(),
+                    json!({
+                        "structure_id":baseline_row.structure_id,
+                        "baseline":{"iou_milli":baseline_row.iou_milli,"boundary_f1_milli":baseline_row.boundary_f1_milli,"area_ratio_milli":baseline_row.area_ratio_milli,"centroid_error_milli":baseline_row.centroid_error_milli,"sealed":baseline_row.sealed,"missing":baseline_row.missing},
+                        "trial":{"iou_milli":trial_row.iou_milli,"boundary_f1_milli":trial_row.boundary_f1_milli,"area_ratio_milli":trial_row.area_ratio_milli,"centroid_error_milli":trial_row.centroid_error_milli,"sealed":trial_row.sealed,"missing":trial_row.missing},
+                        "all_metrics_non_regressing":row_non_regressing,
+                        "any_metric_improved":row_improved
+                    }),
+                );
+            }
+        }
+        assert_eq!(trial_negative_space_metrics.len(), 3);
+        assert_eq!(trial_part_owned_void_diagnostics.len(), 3);
+        assert_eq!(reviewed_region_part_binding_calibrations.len(), 3);
+        let part_id_audit = json!({
+            "receipt_format":"forgecad-supplemental-evidence-v1",
+            "receipt_kind":"FPS-FORM-PART-ID-AUDIT-04F",
+            "status":if all_open_stock_owner_bindings_ready {"PASS_DIAGNOSTIC_ONLY"} else {"BLOCKED_OWNER_BINDING"},
+            "candidate_id":candidate_id,
+            "trial_candidate_id":trial_candidate_id,
+            "artifact_sha256":artifact_sha256,
+            "trial_artifact_sha256":trial_artifact_sha256,
+            "frozen_camera_rig_canonical_sha256":camera_rig["canonical_sha256"],
+            "part_id_vocabulary":expected_part_id_vocabulary,
+            "owner_part_id":"rear-stock",
+            "views":&trial_part_owned_void_diagnostics,
+            "all_open_stock_owner_bindings_ready":all_open_stock_owner_bindings_ready,
+            "any_open_stock_owner_mask_changed":any_open_stock_owner_mask_changed,
+            "diagnostic_only":true,
+            "form_art_canonical_unchanged":true,
+            "promotable":false,
+            "depth_status":"UNKNOWN",
+            "baseline_retained":true,
+            "runtime_mode":"ephemeral_fixture",
+            "runtime_write_performed":true,
+            "persistent_user_data_touched":false,
+            "worker_started":true,
+            "trial_candidate_generated":true,
+            "production_stage_advanced":false,
+            "candidate_confirmed":false,
+            "version_created":false,
+            "export_performed":false
+        });
+        println!(
+            "FPS_FORM_PART_ID_AUDIT_04F={}",
+            serde_json::to_string(&part_id_audit).expect("Part-ID audit receipt JSON")
+        );
+        let region_part_binding_audit = json!({
+            "receipt_format":"forgecad-supplemental-evidence-v1",
+            "receipt_kind":"FPS-FORM-04G-REGION-PART-ID-BINDING",
+            "status":"BLOCKED_AUTHORED_ORIENTATION_OR_REGISTRATION",
+            "candidate_id":candidate_id,
+            "trial_candidate_id":trial_candidate_id,
+            "artifact_sha256":artifact_sha256,
+            "trial_artifact_sha256":trial_artifact_sha256,
+            "frozen_camera_rig_canonical_sha256":camera_rig["canonical_sha256"],
+            "owner_part_id":"rear-stock",
+            "views":reviewed_region_part_binding_calibrations,
+            "calibration_mode":"EPHEMERAL_TRANSFORM_CANDIDATE",
+            "authored_orientation_contract_present":false,
+            "form_art_canonical_unchanged":true,
+            "user_confirmed_contours_unchanged":true,
+            "depth_status":"UNKNOWN",
+            "diagnostic_only":true,
+            "promotable":false,
+            "baseline_retained":true,
+            "production_stage_advanced":false,
+            "candidate_confirmed":false,
+            "version_created":false,
+            "export_performed":false
+        });
+        println!(
+            "FPS_FORM_REGION_PART_BINDING_04G={}",
+            serde_json::to_string(&region_part_binding_audit)
+                .expect("region Part binding audit receipt JSON")
+        );
+        let bounded_parameter_trial = json!({
+            "parameter_id":trial_parameter_id,
+            "value":trial_parameter_value,
+            "candidate_id":trial_candidate_id,
+            "frozen_camera_rig_canonical_sha256":camera_rig["canonical_sha256"],
+            "view_metrics":trial_view_metrics,
+            "open_stock_void_metrics":trial_negative_space_metrics,
+            "part_owned_open_stock_void_diagnostics":trial_part_owned_void_diagnostics,
+            "all_open_stock_owner_bindings_ready":all_open_stock_owner_bindings_ready,
+            "any_open_stock_owner_mask_changed":any_open_stock_owner_mask_changed,
+            "part_owned_diagnostic_only":true,
+            "form_art_canonical_unchanged":true,
+            "part_owned_diagnostic_promotable":false,
+            "negative_space_acceptance_policy":"left_right_rear3q_all_open_stock_metrics_non_regressing_and_at_least_one_strictly_improved",
+            "all_open_stock_void_metrics_non_regressing":all_open_stock_void_metrics_non_regressing,
+            "any_open_stock_void_metric_improved":any_open_stock_void_metric_improved,
+            "accepted_for_negative_space":all_open_stock_void_metrics_non_regressing && any_open_stock_void_metric_improved,
+            "outer_silhouette_acceptance_policy":"all_views_non_regressing_and_at_least_one_strictly_improved",
+            "all_views_non_regressing":all_views_non_regressing,
+            "any_view_improved":any_view_improved,
+            "accepted_for_outer_silhouette":all_views_non_regressing && any_view_improved,
+            "acceptance_policy":"outer_silhouette_accepted_and_negative_space_accepted",
+            "accepted":all_views_non_regressing && any_view_improved && all_open_stock_void_metrics_non_regressing && any_open_stock_void_metric_improved,
+            "production_stage_advanced":false,
+            "candidate_confirmed":false,
+            "version_created":false,
+            "export_performed":false
+        });
+        println!(
+            "FPS_FORM_EVIDENCE_04A_BOUNDED_PARAMETER_TRIAL={}",
+            serde_json::to_string(&bounded_parameter_trial)
+                .expect("bounded parameter trial receipt JSON")
+        );
+        // Bottom is deliberately camera-only: its crop and source hash are
+        // retained in this test's hash-only receipt, but it is not promoted to
+        // the six-view identity FormEvidence input.
+        let bottom = seven_crops
+            .iter()
+            .find(|crop| crop.kind == "bottom")
+            .expect("bottom camera-only crop");
+        assert_eq!(
+            seven_pngs
+                .iter()
+                .find(|(kind, _, _, _, _)| *kind == "bottom")
+                .map(|(_, _, hash, _, _)| hash.len()),
+            Some(64)
+        );
+
+        let primary = comparisons.get("left").expect("left comparison");
+        let primary_camera_hash = primary["camera"]["camera_hash"]
+            .as_str()
+            .expect("primary camera hash")
+            .to_owned();
+        let primary_evidence_sha256 = primary["quality_report_object_sha256"]
+            .as_str()
+            .expect("primary evidence hash")
+            .to_owned();
+        let mut authoring = v3_fixture_authoring_context(
+            &project.project_id,
+            "fps-form-04a-canvas",
+            "fps-form-04a-design-spec",
+            &reference,
+            refined_targets["left"].0.as_str(),
+            refined_targets["left"].1.as_str(),
+            &camera_rig,
+            &primary_evidence_sha256,
+            true,
+        );
+        let primary_registered_camera = comparisons
+            .get("left")
+            .and_then(|comparison| comparison.get("camera"))
+            .cloned()
+            .expect("primary registered comparison camera");
+        authoring["reference_canvas"]["bindings"]["camera_hash"] =
+            primary_registered_camera["camera_hash"].clone();
+        authoring["reference_canvas"]["bindings"]["camera_canonical_sha256"] =
+            primary_registered_camera["canonical_sha256"].clone();
+        for view in authoring["reference_canvas"]["views"]
+            .as_array_mut()
+            .expect("authoring canvas views")
+        {
+            let kind = view["kind"]
+                .as_str()
+                .expect("authoring view kind")
+                .to_owned();
+            let target = refined_targets
+                .get(kind.as_str())
+                .expect("authoring target");
+            let crop = identity_crops
+                .iter()
+                .find(|crop| crop.kind == kind.as_str())
+                .expect("authoring crop");
+            let view_id = format!("fps-form-04a-{kind}-view");
+            view["view_id"] = Value::String(view_id.clone());
+            view["view_spec"]["view_id"] = Value::String(view_id);
+            view["target_sha256"] = Value::String(target.0.clone());
+            view["mask_sha256"] = Value::String(target.1.clone());
+            let registered_camera = comparisons
+                .get(kind.as_str())
+                .and_then(|comparison| comparison.get("camera"))
+                .cloned()
+                .expect("registered comparison camera");
+            view["camera_claim"]["camera_hash"] = registered_camera["camera_hash"].clone();
+            view["camera_claim"]["camera_canonical_sha256"] =
+                registered_camera["canonical_sha256"].clone();
+            view["camera_claim"]["evidence_refs"][0]["sha256"] =
+                registered_camera["camera_hash"].clone();
+            view["view_spec"]["image"]["crop"] = json!({
+                "x":crop.x as f64 / width as f64,
+                "y":crop.y as f64 / height as f64,
+                "width":crop.width as f64 / width as f64,
+                "height":crop.height as f64 / height as f64
+            });
+            view["view_spec"] = canonical_value(view["view_spec"].clone());
+        }
+        authoring["reference_canvas"]["canonical_sha256"] = Value::String(String::new());
+        let prepared_canvas = build_reference_canvas_from_authoring(
+            &runtime,
+            &authoring,
+            &project.project_id,
+            "fps-form-04a-canvas",
+            &reference,
+            &primary_camera_hash,
+            &primary_evidence_sha256,
+        )
+        .expect("real ReferenceCanvas producer projection");
+        authoring["reference_canvas"] = prepared_canvas;
+        let canvas_bytes = crate::canonical_json_bytes(&authoring["reference_canvas"])
+            .expect("real ReferenceCanvas bytes");
+        authoring["design_spec"]["reference_canvas_sha256"] =
+            Value::String(sha256_hex(&canvas_bytes));
+        authoring["design_spec"]["canonical_sha256"] = Value::String(String::new());
+        let prepared_spec = build_design_spec_from_authoring(
+            &authoring,
+            &project.project_id,
+            "fps-form-04a-design-spec",
+            "fps-form-04a-canvas",
+            &sha256_hex(&canvas_bytes),
+            &reference,
+        )
+        .expect("real DesignSpec producer projection");
+        authoring["design_spec"] = prepared_spec;
+        // Freeze the final nested authoring pair only after all crop and
+        // cross-document bindings have been applied. This prevents a later
+        // DesignSpec binding update from leaving the parent canvas or spec
+        // canonical tied to an earlier in-memory projection.
+        authoring["reference_canvas"] = canonical_value(authoring["reference_canvas"].clone());
+        authoring["reference_canvas"] =
+            canonicalize_reference_canvas_for_cas(authoring["reference_canvas"].clone())
+                .expect("wire real ReferenceCanvas projection");
+        let final_canvas_bytes = crate::canonical_json_bytes(&authoring["reference_canvas"])
+            .expect("final real ReferenceCanvas bytes");
+        authoring["design_spec"]["reference_canvas_sha256"] =
+            Value::String(sha256_hex(&final_canvas_bytes));
+        authoring["design_spec"] = canonical_value(authoring["design_spec"].clone());
+        {
+            let supplied = authoring["reference_canvas"]["canonical_sha256"]
+                .as_str()
+                .expect("final canvas canonical");
+            let mut projection = authoring["reference_canvas"].clone();
+            projection["canonical_sha256"] = Value::String(String::new());
+            assert_eq!(
+                canonical_json_hash(&projection),
+                supplied,
+                "final ReferenceCanvas canonical must bind immediately before session create"
+            );
+        }
+        let complete_session_request = json!({
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "candidate_id":candidate_id,
+            "idempotency_key":"fps-form-04a-session-idem",
+            "reference_id":reference.reference_id,
+            "design_spec_id":"fps-form-04a-design-spec",
+            "reference_canvas_id":"fps-form-04a-canvas",
+            "camera_hash":primary_camera_hash,
+            "evidence_sha256":primary_evidence_sha256,
+            "approved":true,
+            "approval_receipt_id":"fps-form-04a-session-approval",
+            "approval_summary":"Approve source reference coverage for structural form evidence",
+            "approval_expires_at":"9999999999",
+            "authoring_context":authoring.clone()
+        });
+        let complete_session = runtime
+            .session_create_or_resume(complete_session_request)
+            .expect("real form evidence session");
+        let session = complete_session["session"]
+            .as_object()
+            .expect("session object");
+        let canvas_sha256 = session["reference_canvas_sha256"]
+            .as_str()
+            .expect("session canvas hash")
+            .to_owned();
+        let design_spec_sha256 = session["design_spec_sha256"]
+            .as_str()
+            .expect("session design spec hash")
+            .to_owned();
+        let candidate_state_sha256 = candidate_state_sha256;
+        let mut transition = json!({
+            "schema_version":"ProductionStageTransitionPrepareRequest@3",
+            "transition_id":"fps-form-04a-reference-coverage-transition",
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "root_candidate_id":candidate_id,
+            "root_candidate_role":"reference-intake-candidate",
+            "root_candidate_state_sha256":candidate_state_sha256,
+            "source_artifact_id":artifact_id,
+            "root_artifact_sha256":artifact_sha256,
+            "previous_head_candidate_id":candidate_id,
+            "previous_head_candidate_role":"reference-intake-candidate",
+            "previous_head_candidate_state_sha256":candidate_state_sha256,
+            "previous_head_artifact_id":artifact_id,
+            "previous_head_artifact_sha256":artifact_sha256,
+            "previous_head_stage":"reference-intake",
+            "head_candidate_id":candidate_id,
+            "head_candidate_role":"reference-intake-candidate",
+            "head_candidate_state_sha256":candidate_state_sha256,
+            "output_artifact_id":artifact_id,
+            "head_artifact_sha256":artifact_sha256,
+            "from_stage":"reference-intake",
+            "to_stage":"reference-coverage-reviewed",
+            "candidate_binding_status":"same-candidate-evidence",
+            "reference_id":reference.reference_id,
+            "reference_sha256":reference.object_sha256,
+            "camera_hash":primary_camera_hash,
+            "evidence_sha256":primary_evidence_sha256,
+            "reference_canvas_object_sha256":canvas_sha256,
+            "quality_report_object_sha256":null,
+            "comparison_report_object_sha256":null,
+            "design_spec_object_sha256":design_spec_sha256,
+            "visual_receipt_object_sha256":null,
+            "human_review_receipt_object_sha256":null,
+            "engine_validation_receipt_object_sha256":null,
+            "distribution_receipt_object_sha256":null,
+            "camera_lock_id":null,
+            "camera_lock_canonical_sha256":null,
+            "camera_rig_object_sha256":null,
+            "camera_rig_canonical_sha256":null,
+            "camera_lock_receipt_object_sha256":null,
+            "camera_lock_source_transition_id":null,
+            "camera_lock_source_transition_sha256":null,
+            "camera_lock_source_head_canonical_sha256":null,
+            "structural_status":"PASS_SOURCE_STRUCTURAL",
+            "visual_status":"QUALITY_TARGET_NOT_MET",
+            "human_status":"NOT_RUN",
+            "engine_status":"NOT_RUN",
+            "distribution_status":"NOT_RUN",
+            "approval_receipt_id":"fps-form-04a-coverage-approval",
+            "approval_session_id":"fps-form-04a-session",
+            "approval_expires_at":"9999999999",
+            "parent_transition_id":null,
+            "parent_transition_sha256":null,
+            "parent_transition_schema_version":null,
+            "input_sha256":"",
+            "approved":true,
+            "approval_summary":"Approve source reference coverage for FPS FORM 04A",
+            "idempotency_key":"fps-form-04a-coverage-idem"
+        });
+        let approval_summary_sha256 =
+            sha256_hex(transition["approval_summary"].as_str().unwrap().as_bytes());
+        let input_binding = production_stage_transition_v3_input_binding(
+            transition["transition_id"].as_str().unwrap(),
+            transition["session_id"].as_str().unwrap(),
+            transition["project_id"].as_str().unwrap(),
+            transition["root_candidate_id"].as_str().unwrap(),
+            transition["root_candidate_role"].as_str().unwrap(),
+            transition["root_candidate_state_sha256"].as_str().unwrap(),
+            transition["source_artifact_id"].as_str().unwrap(),
+            transition["root_artifact_sha256"].as_str().unwrap(),
+            transition["previous_head_candidate_id"].as_str().unwrap(),
+            transition["previous_head_candidate_role"].as_str().unwrap(),
+            transition["previous_head_candidate_state_sha256"]
+                .as_str()
+                .unwrap(),
+            transition["previous_head_artifact_id"].as_str().unwrap(),
+            transition["previous_head_artifact_sha256"]
+                .as_str()
+                .unwrap(),
+            transition["previous_head_stage"].as_str().unwrap(),
+            transition["head_candidate_id"].as_str().unwrap(),
+            transition["head_candidate_role"].as_str().unwrap(),
+            transition["head_candidate_state_sha256"].as_str().unwrap(),
+            transition["output_artifact_id"].as_str().unwrap(),
+            transition["head_artifact_sha256"].as_str().unwrap(),
+            transition["from_stage"].as_str().unwrap(),
+            transition["to_stage"].as_str().unwrap(),
+            transition["candidate_binding_status"].as_str().unwrap(),
+            transition["reference_id"].as_str().unwrap(),
+            transition["reference_sha256"].as_str().unwrap(),
+            transition["camera_hash"].as_str().unwrap(),
+            transition["evidence_sha256"].as_str().unwrap(),
+            transition["reference_canvas_object_sha256"]
+                .as_str()
+                .unwrap(),
+            transition["design_spec_object_sha256"].as_str().unwrap(),
+            transition["structural_status"].as_str().unwrap(),
+            transition["visual_status"].as_str().unwrap(),
+            transition["human_status"].as_str().unwrap(),
+            transition["engine_status"].as_str().unwrap(),
+            transition["distribution_status"].as_str().unwrap(),
+            transition["approval_receipt_id"].as_str().unwrap(),
+            transition["approval_session_id"].as_str().unwrap(),
+            transition["approval_expires_at"].as_str().unwrap(),
+            &approval_summary_sha256,
+            transition["idempotency_key"].as_str().unwrap(),
+        );
+        transition["input_sha256"] = Value::String(canonical_json_hash(&input_binding));
+        let transition_first = runtime
+            .production_stage_transition_v3_prepare(transition.clone())
+            .expect("reference coverage edge");
+        assert_eq!(transition_first["production_stage_advanced"], true);
+        assert_eq!(transition_first["candidate_confirmed"], false);
+        assert_eq!(transition_first["version_created"], false);
+        assert_eq!(transition_first["export_performed"], false);
+
+        let camera_lock_summary = "Approve real six-reference seven-camera structural lock";
+        let mut camera_lock_request = ProductionCameraLockPrepareRequest {
+            schema_version: "ProductionCameraLockPrepareRequest@1".to_owned(),
+            camera_lock_id: "fps-form-04a-camera-lock".to_owned(),
+            session_id: "fps-form-04a-session".to_owned(),
+            project_id: project.project_id.clone(),
+            source_transition_id: transition["transition_id"].as_str().unwrap().to_owned(),
+            source_transition_sha256: transition_first["transition"]["canonical_sha256"]
+                .as_str()
+                .unwrap()
+                .to_owned(),
+            source_head_canonical_sha256: transition_first["production_stage_head"]
+                ["canonical_sha256"]
+                .as_str()
+                .unwrap()
+                .to_owned(),
+            candidate_id: candidate_id.clone(),
+            candidate_state_sha256: candidate_state_sha256.clone(),
+            artifact_id: artifact_id.clone(),
+            artifact_sha256: artifact_sha256.clone(),
+            reference_id: reference.reference_id.clone(),
+            reference_sha256: reference.object_sha256.clone(),
+            required_reference_view_kinds: PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            required_camera_view_kinds: PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect(),
+            primary_view_kind: PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND.to_owned(),
+            calibration_policy: PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY.to_owned(),
+            input_sha256: String::new(),
+            camera_rig: camera_rig.clone(),
+            approved: true,
+            approval_receipt_id: "fps-form-04a-camera-approval".to_owned(),
+            approval_session_id: "fps-form-04a-session".to_owned(),
+            approval_expires_at: "9999999999".to_owned(),
+            approval_summary: camera_lock_summary.to_owned(),
+            idempotency_key: "fps-form-04a-camera-lock-idem".to_owned(),
+        };
+        camera_lock_request.input_sha256 =
+            canonical_json_hash(&production_camera_lock_input_binding(
+                &camera_lock_request,
+                camera_rig["canonical_sha256"].as_str().unwrap(),
+                &sha256_hex(camera_lock_summary.as_bytes()),
+            ));
+        let camera_lock_objects_before_get = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before real CameraLock prepare");
+        let camera_lock_result = runtime
+            .production_camera_lock_prepare(
+                serde_json::to_value(&camera_lock_request).expect("camera lock request JSON"),
+            )
+            .expect("real CameraLock");
+        assert_eq!(camera_lock_result["runtime_write"], true);
+        assert_eq!(camera_lock_result["production_stage_advanced"], false);
+        assert_eq!(camera_lock_result["candidate_confirmed"], false);
+        assert_eq!(camera_lock_result["version_created"], false);
+        assert_eq!(camera_lock_result["export_performed"], false);
+        let camera_lock = camera_lock_result["camera_lock"].clone();
+        assert_eq!(
+            camera_lock["review_status"],
+            PRODUCTION_CAMERA_LOCK_REVIEW_STATUS
+        );
+        let camera_lock_objects_after_prepare = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after real CameraLock prepare");
+        assert!(camera_lock_objects_after_prepare.len() > camera_lock_objects_before_get.len());
+        let camera_lock_get = Runtime::from_store(runtime.store.clone())
+            .expect("fresh real CameraLock Runtime")
+            .production_camera_lock_get(json!({
+                "schema_version":"ProductionCameraLockGetRequest@1",
+                "camera_lock_id":camera_lock["camera_lock_id"],
+                "session_id":"fps-form-04a-session",
+                "project_id":project.project_id,
+                "candidate_id":candidate_id
+            }))
+            .expect("real CameraLock restart get");
+        assert_eq!(camera_lock_get["runtime_write"], false);
+        assert_eq!(camera_lock_get["restart_hash_verified"], true);
+        assert_eq!(camera_lock_get["camera_lock"], camera_lock);
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after real CameraLock get"),
+            camera_lock_objects_after_prepare
+        );
+
+        // 04J: consume the durable CameraLock and its exact CAS-owned
+        // subject-space rig as a read-only sibling projection.  The
+        // registered cameras are transient renderer inputs; no persisted
+        // CameraLock, candidate, stage or artifact is rewritten.
+        let geometry_evidence_04j = runtime
+            .store
+            .get_geometry_candidate_evidence(&candidate_id)
+            .expect("04J geometry evidence lookup")
+            .expect("04J same-candidate geometry evidence");
+        let camera_rig_object_sha256_04j = camera_lock["camera_rig_object_sha256"]
+            .as_str()
+            .expect("04J CameraLock rig object hash")
+            .to_owned();
+        let camera_rig_bytes_04j = runtime
+            .cas_read(&camera_rig_object_sha256_04j)
+            .expect("04J CameraLock rig CAS readback");
+        assert_eq!(
+            sha256_hex(&camera_rig_bytes_04j),
+            camera_rig_object_sha256_04j
+        );
+        let subject_camera_rig_04j: Value =
+            serde_json::from_slice(&camera_rig_bytes_04j).expect("04J CameraLock rig JSON");
+        assert_eq!(subject_camera_rig_04j, camera_rig);
+        assert_eq!(
+            subject_camera_rig_04j["canonical_sha256"],
+            camera_lock["camera_rig_canonical_sha256"]
+        );
+        let registration_04j =
+            crate::multiview::camera_rig::production_weapon_subject_frame_registration(&program)
+                .expect("04J exact D1 subject-frame registration");
+        assert_eq!(registration_04j["transform"]["kind"], "yaw-180-y");
+        let registered_camera_rig_04j =
+            crate::multiview::camera_rig::materialize_registered_weapon_camera_rig(
+                &subject_camera_rig_04j,
+                &registration_04j,
+                &program,
+                "fps-form-04j-registered-rig",
+                &candidate_state_sha256,
+                &artifact_id,
+                &artifact_sha256,
+                &geometry_evidence_04j.geometry_program_object_sha256,
+                &camera_rig_object_sha256_04j,
+            )
+            .expect("04J registered D1 rig materialization");
+        crate::multiview::camera_rig::validate_registered_weapon_camera_rig(
+            &registered_camera_rig_04j,
+            &program,
+            &project.project_id,
+            &candidate_id,
+            &candidate_state_sha256,
+            &artifact_id,
+            &artifact_sha256,
+            &geometry_evidence_04j.geometry_program_object_sha256,
+            &camera_rig_object_sha256_04j,
+        )
+        .expect("04J exact registered D1 rig lineage");
+        crate::multiview::camera_rig::validate_registered_weapon_camera_rig_camera_lock_link(
+            &registered_camera_rig_04j,
+            &camera_lock,
+        )
+        .expect("04J durable CameraLock sibling link");
+        let mut cross_candidate_rig_04j = registered_camera_rig_04j.clone();
+        cross_candidate_rig_04j["candidate_state_sha256"] = Value::String("f".repeat(64));
+        cross_candidate_rig_04j["canonical_sha256"] =
+            Value::String(canonical_json_hash(&cross_candidate_rig_04j));
+        assert!(
+            crate::multiview::camera_rig::validate_registered_weapon_camera_rig_camera_lock_link(
+                &cross_candidate_rig_04j,
+                &camera_lock,
+            )
+            .expect_err("04J cross-candidate sibling link must fail closed")
+            .contains("candidate_state_sha256 mismatch")
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after 04J registered rig projection"),
+            camera_lock_objects_after_prepare
+        );
+
+        // 04K: render the three open-stock Part-ID views directly through the
+        // registered cameras.  Unlike 04G discovery, this path never flips a
+        // rendered mask after the fact.  It records strict owner-void
+        // diagnostics only and cannot advance FormQuality or Stage.
+        let owner_void_04k_objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before 04K registered-camera diagnostics");
+        let mut owner_void_04k = BTreeMap::new();
+        for kind in ["left", "right", "rear-three-quarter"] {
+            let structure_id = match kind {
+                "left" => "left.open-stock-void",
+                "right" => "right.open-stock-void",
+                "rear-three-quarter" => "rear3q.open-stock-void",
+                _ => unreachable!("04K open-stock view set is closed"),
+            };
+            let registered_view = registered_camera_rig_04j["renderer_views"]
+                .as_array()
+                .and_then(|views| {
+                    views
+                        .iter()
+                        .find(|view| view["kind"].as_str() == Some(kind))
+                })
+                .expect("04K registered camera view");
+            let registered_camera = registered_view["registered_camera"].clone();
+            let mut view_spec = fitted_view_specs
+                .get(kind)
+                .expect("04K fitted ReferenceViewSpec")
+                .clone();
+            view_spec["view_id"] = Value::String(format!("fps-form-04k-{kind}-registered-view"));
+            // Rear-three-quarter was the only registered-camera view whose
+            // direct Part-ID diagnostic selected rotate-180.  Bind that
+            // orientation in the authored ReferenceViewSpec before target and
+            // contour projection; never transform the rendered AOV.
+            if kind == "rear-three-quarter" {
+                view_spec["image"]["rotation_degrees"] = json!(180.0);
+            }
+            view_spec["canonical_sha256"] = Value::String(String::new());
+            view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+            let target = refined_targets.get(kind).expect("04K refined target");
+            let comparison = runtime
+                .prepare_reference_comparison(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "candidate_id":candidate_id,
+                        "reference_id":reference.reference_id,
+                        "view_id":view_spec["view_id"],
+                        "view_spec":view_spec,
+                        "camera":registered_camera,
+                        "target_sha256":target.0
+                    }),
+                )
+                .expect("04K registered-camera reference comparison");
+            assert_eq!(
+                comparison["camera"]["camera_hash"],
+                registered_view["registered_camera_hash"]
+            );
+            let target_document = runtime
+                .read_silhouette_target(&target.0)
+                .expect("04K target readback");
+            let visual_structure = target_document
+                .get("visual_structure")
+                .expect("04K reviewed visual structure");
+            let crop = crate::reference_view_crop(&view_spec).expect("04K canonical crop");
+            let rotation_degrees = crate::reference_view_rotation_degrees(&view_spec)
+                .expect("04K authored reference rotation");
+            let target_mask = crate::project_reference_mask_to_view(
+                &runtime
+                    .target_mask(&target.0, &target_document)
+                    .expect("04K target mask")
+                    .mask,
+                &view_spec,
+                true,
+            )
+            .expect("04K target crop projection");
+            let part_id_sha256 = comparison["render_set"]["pass_artifacts"]["part-id"]["sha256"]
+                .as_str()
+                .expect("04K Part-ID hash")
+                .to_owned();
+            let part_png = runtime
+                .cas_read(&part_id_sha256)
+                .expect("04K Part-ID CAS read");
+            let thresholds =
+                crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+            let discovery =
+                crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+            let transform_name = |transform: crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform| match transform {
+                crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity => "identity",
+                crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::HorizontalFlip => "horizontal-flip",
+                crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::VerticalFlip => "vertical-flip",
+                crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Rotate180 => "rotate-180",
+            };
+            let diagnostic = match discovery {
+                Ok(discovery) => {
+                    let selected = discovery
+                        .candidates
+                        .iter()
+                        .find(|candidate| candidate.transform == discovery.selected_transform)
+                        .expect("04K selected candidate metrics");
+                    let authored = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                        visual_structure,
+                        &target_mask,
+                        &part_png,
+                        &expected_part_id_vocabulary,
+                        crop,
+                        rotation_degrees,
+                        structure_id,
+                        Some(crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity),
+                        &thresholds,
+                    );
+                    let (strict_status, strict_error) = match authored {
+                        Ok(authored) => match crate::production_weapon_form_art_evidence::strict_reviewed_region_part_binding_assessment(&authored, true) {
+                            Ok(_) => ("PASS_BOUND_DIAGNOSTIC", Value::Null),
+                            Err(error) => ("BLOCKED_OWNER_VOID_ACCEPTANCE", Value::String(error.to_string())),
+                        },
+                        Err(error) => ("BLOCKED_REGISTERED_CAMERA_IDENTITY_BINDING", Value::String(error.to_string())),
+                    };
+                    json!({
+                        "status":strict_status,
+                        "error":strict_error,
+                        "selected_discovery_transform":transform_name(discovery.selected_transform),
+                        "expected_region_canonical_sha256":discovery.expected_region_canonical_sha256,
+                        "expected_void_pixel_count":discovery.expected_void_pixel_count,
+                        "expected_boundary_pixel_count":discovery.expected_boundary_pixel_count,
+                        "owner_region_pixel_count":selected.owner_region_pixel_count,
+                        "owner_boundary_adjacency_pixel_count":selected.owner_boundary_adjacency_pixel_count,
+                        "owner_boundary_adjacency_milli":selected.owner_boundary_adjacency_milli,
+                        "owner_expected_void_overlap_pixel_count":selected.owner_expected_void_overlap_pixel_count,
+                        "owner_expected_void_overlap_milli":selected.owner_expected_void_overlap_milli,
+                        "expected_void_bbox_px":selected.expected_void_bbox_px,
+                        "owner_bbox_px":selected.owner_bbox_px,
+                        "owner_minus_expected_void_bbox_edge_delta_px":selected.owner_minus_expected_void_bbox_edge_delta_px,
+                        "owner_minus_expected_void_centroid_delta_milli_px":selected.owner_minus_expected_void_centroid_delta_milli_px
+                    })
+                }
+                Err(error) => json!({
+                    "status":"BLOCKED_NO_UNIQUE_REGISTERED_CAMERA_BINDING",
+                    "error":error.to_string()
+                }),
+            };
+            owner_void_04k.insert(
+                kind.to_owned(),
+                json!({
+                    "structure_id":structure_id,
+                    "owner_part_id":"rear-stock",
+                    "registered_camera_hash":registered_view["registered_camera_hash"],
+                    "reference_view_spec_canonical_sha256":view_spec["canonical_sha256"],
+                    "reference_rotation_degrees":rotation_degrees,
+                    "target_sha256":target.0,
+                    "part_id_pass_sha256":part_id_sha256,
+                    "post_render_transform":"identity",
+                    "diagnostic":diagnostic,
+                    "promotable":false,
+                    "quality_status":"NOT_PROVEN",
+                    "depth_status":"UNKNOWN"
+                }),
+            );
+        }
+        let owner_void_04k_objects_after = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after 04K registered-camera diagnostics");
+        assert!(owner_void_04k_objects_after.len() > owner_void_04k_objects_before.len());
+        let owner_void_04k_all_pass = owner_void_04k.values().all(|view| {
+            view.pointer("/diagnostic/status").and_then(Value::as_str)
+                == Some("PASS_BOUND_DIAGNOSTIC")
+        });
+
+        // 04L: run only the closed, single-variable stock-clearance trials.
+        // Every trial reuses the exact registered-camera view inputs and the
+        // 04K strict owner-void assessment.  The derived candidates remain
+        // ephemeral diagnostics; this block never confirms, versions,
+        // exports, promotes a stage, or creates secondary form truth.
+        let baseline_program_sha256_04l = program["canonical_sha256"]
+            .as_str()
+            .expect("04L baseline GeometryProgram hash")
+            .to_owned();
+        let registered_view_kinds_04l = [
+            "front",
+            "back",
+            "left",
+            "right",
+            "top",
+            "rear-three-quarter",
+        ];
+        let render_registered_04l = |candidate_id: &str, kind: &str| {
+            let registered_view = registered_camera_rig_04j["renderer_views"]
+                .as_array()
+                .and_then(|views| {
+                    views
+                        .iter()
+                        .find(|view| view["kind"].as_str() == Some(kind))
+                })
+                .expect("04L registered camera view");
+            let mut view_spec = fitted_view_specs
+                .get(kind)
+                .expect("04L fitted ReferenceViewSpec")
+                .clone();
+            view_spec["view_id"] = Value::String(format!("fps-form-04l-{kind}-registered-view"));
+            if kind == "rear-three-quarter" {
+                view_spec["image"]["rotation_degrees"] = json!(180.0);
+            }
+            view_spec["canonical_sha256"] = Value::String(String::new());
+            view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+            let target = refined_targets.get(kind).expect("04L target");
+            let comparison = runtime
+                .prepare_reference_comparison(
+                    &project.project_id,
+                    json!({
+                        "project_id":project.project_id,
+                        "candidate_id":candidate_id,
+                        "reference_id":reference.reference_id,
+                        "view_id":view_spec["view_id"],
+                        "view_spec":view_spec,
+                        "camera":registered_view["registered_camera"],
+                        "target_sha256":target.0
+                    }),
+                )
+                .expect("04L registered-camera comparison");
+            (
+                comparison,
+                view_spec,
+                registered_view["registered_camera_hash"].clone(),
+            )
+        };
+        let mut baseline_registered_comparisons_04l = BTreeMap::new();
+        let mut baseline_registered_specs_04l = BTreeMap::new();
+        let mut baseline_registered_hashes_04l = BTreeMap::new();
+        for kind in registered_view_kinds_04l {
+            let (comparison, view_spec, registered_camera_hash) =
+                render_registered_04l(&candidate_id, kind);
+            baseline_registered_comparisons_04l.insert(kind.to_owned(), comparison);
+            baseline_registered_specs_04l.insert(kind.to_owned(), view_spec);
+            baseline_registered_hashes_04l.insert(kind.to_owned(), registered_camera_hash);
+        }
+
+        let mut clearance_trials_04l = Vec::new();
+        for trial_value in FPS_FORM_04L_TRIAL_VALUES {
+            let mut trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_assembly_parameter_mutate_bound(
+                &program,
+                &baseline_program_sha256_04l,
+                FPS_FORM_04L_PARAMETER_ID,
+                trial_value,
+            )
+            .expect("04L bound stock-clearance trial");
+            trial_program["canonical_sha256"] = Value::String(
+                forgecad_geometry_worker::geometry_program_v2_draft_hash(&trial_program)
+                    .expect("04L trial GeometryProgram hash"),
+            );
+            let trial_program_only_clearance_positions_changed =
+                production_weapon_04l_only_clearance_positions_changed(&program, &trial_program);
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04L trial candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04L trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04L trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04L trial ArtifactReadback");
+            assert_eq!(trial_readback["schema_version"], "ArtifactReadback@2");
+            assert_eq!(trial_readback["hard_gate_passed"], true);
+            assert_eq!(trial_readback["validator_status"], "passed");
+
+            let part_source_bindings_unchanged = trial_readback["part_ids"] == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && trial_readback["part_bindings"] == readback["part_bindings"]
+                && trial_readback["part_ids"]
+                    .as_array()
+                    .is_some_and(|parts| parts.len() == 23);
+            let rear_cap_binding = |value: &Value| {
+                value["part_bindings"]
+                    .as_array()
+                    .and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    })
+                    .cloned()
+            };
+            let rear_cap_baseline = rear_cap_binding(&readback);
+            let rear_cap_trial = rear_cap_binding(&trial_readback);
+            let rear_cap_binding_unchanged =
+                rear_cap_baseline.is_some() && rear_cap_baseline == rear_cap_trial;
+
+            let mut trial_registered_comparisons_04l = BTreeMap::new();
+            let mut outer_silhouette_non_regressing = true;
+            let mut reference_lineage_unchanged = true;
+            let mut registered_rig_lineage_unchanged = true;
+            let mut subject_registration_lineage_unchanged = true;
+            let mut worker_cohort_lineage_unchanged = true;
+            let mut trial_view_metrics_04l = BTreeMap::new();
+            for kind in registered_view_kinds_04l {
+                let (comparison, view_spec, registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let baseline = baseline_registered_comparisons_04l
+                    .get(kind)
+                    .expect("04L baseline registered comparison");
+                let baseline_iou = baseline["comparison_report"]["metrics"]["silhouette_iou"]
+                    .as_f64()
+                    .expect("04L baseline silhouette IoU");
+                let trial_iou = comparison["comparison_report"]["metrics"]["silhouette_iou"]
+                    .as_f64()
+                    .expect("04L trial silhouette IoU");
+                let delta = crate::stable_visual_metric(trial_iou - baseline_iou);
+                outer_silhouette_non_regressing &= delta >= 0.0;
+                reference_lineage_unchanged &= baseline["render_set"]["reference_id"]
+                    == comparison["render_set"]["reference_id"]
+                    && comparison["render_set"]["reference_id"] == reference.reference_id
+                    && baseline["render_set"]["view_id"] == comparison["render_set"]["view_id"]
+                    && baseline["comparison_report"]["mask"]["sha256"]
+                        == comparison["comparison_report"]["mask"]["sha256"];
+                registered_rig_lineage_unchanged &= comparison["camera"]["camera_hash"]
+                    == registered_camera_hash
+                    && baseline["camera"]["camera_hash"] == comparison["camera"]["camera_hash"];
+                let registered_view = registered_camera_rig_04j["renderer_views"]
+                    .as_array()
+                    .and_then(|views| {
+                        views
+                            .iter()
+                            .find(|view| view["kind"].as_str() == Some(kind))
+                    })
+                    .expect("04L registered view lineage");
+                subject_registration_lineage_unchanged &= registered_view
+                    ["registration_canonical_sha256"]
+                    == registration_04j["canonical_sha256"];
+                worker_cohort_lineage_unchanged &= baseline["render_set"]
+                    ["render_worker_build_cohort_sha256"]
+                    == comparison["render_set"]["render_worker_build_cohort_sha256"];
+                trial_view_metrics_04l.insert(
+                    kind.to_owned(),
+                    json!({
+                        "baseline_silhouette_iou":crate::stable_visual_metric(baseline_iou),
+                        "trial_silhouette_iou":crate::stable_visual_metric(trial_iou),
+                        "trial_minus_baseline_silhouette_iou":delta,
+                        "reference_id":comparison["render_set"]["reference_id"],
+                        "camera_hash":comparison["camera"]["camera_hash"],
+                        "registered_camera_hash":registered_camera_hash,
+                        "view_spec_canonical_sha256":view_spec["canonical_sha256"]
+                    }),
+                );
+                trial_registered_comparisons_04l.insert(kind.to_owned(), comparison);
+            }
+
+            let mut owner_intrusion_pixels = [u64::MAX; 3];
+            let mut owner_boundary_adjacency_milli = [0_u64; 3];
+            let mut strict_owner_thresholds_pass = true;
+            let mut owner_void_diagnostics_04l = BTreeMap::new();
+            for (index, kind) in ["left", "right", "rear-three-quarter"]
+                .into_iter()
+                .enumerate()
+            {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04L owner-void view set is closed"),
+                };
+                let comparison = trial_registered_comparisons_04l
+                    .get(kind)
+                    .expect("04L owner trial comparison");
+                let target = refined_targets.get(kind).expect("04L owner target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04L owner target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04L reviewed visual structure");
+                let view_spec = baseline_registered_specs_04l
+                    .get(kind)
+                    .expect("04L frozen registered view spec");
+                let crop = crate::reference_view_crop(view_spec).expect("04L owner crop");
+                let rotation_degrees =
+                    crate::reference_view_rotation_degrees(view_spec).expect("04L owner rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04L owner target mask")
+                        .mask,
+                    view_spec,
+                    true,
+                )
+                .expect("04L owner target crop");
+                let part_id_sha256 = comparison["render_set"]["pass_artifacts"]["part-id"]
+                    ["sha256"]
+                    .as_str()
+                    .expect("04L owner Part-ID hash");
+                let part_png = runtime.cas_read(part_id_sha256).expect("04L owner Part-ID");
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let discovery = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let strict = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    Some(crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity),
+                    &thresholds,
+                )
+                .and_then(|calibration| {
+                    crate::production_weapon_form_art_evidence::strict_reviewed_region_part_binding_assessment(&calibration, true)
+                });
+                let diagnostic = match discovery {
+                    Ok(calibration) => {
+                        if let Some(identity) = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform
+                                == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        }) {
+                            owner_intrusion_pixels[index] =
+                                identity.owner_expected_void_overlap_pixel_count;
+                            owner_boundary_adjacency_milli[index] =
+                                identity.owner_boundary_adjacency_milli;
+                        }
+                        let strict_json = match strict {
+                            Ok(assessment) => {
+                                json!({
+                                    "status":assessment.status,
+                                    "owner_expected_void_overlap_pixel_count":assessment.owner_expected_void_overlap_pixel_count,
+                                    "owner_expected_void_overlap_milli":assessment.owner_expected_void_overlap_milli,
+                                    "owner_boundary_adjacency_milli":assessment.owner_boundary_adjacency_milli,
+                                    "quality_status":assessment.quality_status,
+                                    "depth_status":assessment.depth_status
+                                })
+                            }
+                            Err(error) => {
+                                strict_owner_thresholds_pass = false;
+                                json!({"status":"BLOCKED","error":error.to_string()})
+                            }
+                        };
+                        json!({
+                            "discovery_status":calibration.status,
+                            "identity_owner_expected_void_overlap_pixel_count":owner_intrusion_pixels[index],
+                            "identity_owner_boundary_adjacency_milli":owner_boundary_adjacency_milli[index],
+                            "identity_expected_void_bbox_px":calibration.candidates.iter().find(|candidate| candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity).map(|candidate| candidate.expected_void_bbox_px),
+                            "identity_owner_bbox_px":calibration.candidates.iter().find(|candidate| candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity).map(|candidate| candidate.owner_bbox_px),
+                            "identity_owner_minus_expected_void_bbox_edge_delta_px":calibration.candidates.iter().find(|candidate| candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity).map(|candidate| candidate.owner_minus_expected_void_bbox_edge_delta_px),
+                            "identity_owner_minus_expected_void_centroid_delta_milli_px":calibration.candidates.iter().find(|candidate| candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity).map(|candidate| candidate.owner_minus_expected_void_centroid_delta_milli_px),
+                            "strict":strict_json,
+                            "registered_camera_lineage_verified":true,
+                            "diagnostic_only":true,
+                            "promotable":false
+                        })
+                    }
+                    Err(error) => {
+                        strict_owner_thresholds_pass = false;
+                        json!({
+                            "status":"BLOCKED",
+                            "error":error.to_string(),
+                            "registered_camera_lineage_verified":true,
+                            "diagnostic_only":true,
+                            "promotable":false
+                        })
+                    }
+                };
+                owner_void_diagnostics_04l.insert(kind.to_owned(), diagnostic);
+            }
+            let depth_fields_unchanged = trial_program_only_clearance_positions_changed
+                && registered_camera_rig_04j["depth_status"] == "UNKNOWN"
+                && form_review_confirmation["depth_status"] == "UNKNOWN"
+                && owner_void_diagnostics_04l
+                    .values()
+                    .all(|diagnostic| diagnostic["diagnostic_only"] == true);
+            let camera_lock_lineage_unchanged = camera_lock["camera_rig_object_sha256"]
+                == registered_camera_rig_04j["subject_camera_rig_object_sha256"]
+                && camera_lock["camera_rig_canonical_sha256"]
+                    == registered_camera_rig_04j["subject_camera_rig_canonical_sha256"];
+            let accepted = production_weapon_04l_acceptance(
+                trial_value,
+                ProductionWeapon04lAcceptanceFacts {
+                    owner_intrusion_pixels,
+                    owner_boundary_adjacency_milli,
+                    strict_owner_thresholds_pass,
+                    outer_silhouette_non_regressing,
+                    part_source_bindings_unchanged,
+                    rear_cap_binding_unchanged,
+                    depth_fields_unchanged,
+                    reference_lineage_unchanged,
+                    camera_lock_lineage_unchanged,
+                    registered_rig_lineage_unchanged,
+                    subject_registration_lineage_unchanged,
+                    worker_cohort_lineage_unchanged,
+                },
+            );
+            clearance_trials_04l.push(json!({
+                "parameter_id":FPS_FORM_04L_PARAMETER_ID,
+                "value":trial_value,
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "status":if accepted {"PASS_DIAGNOSTIC_ONLY"} else {"BLOCKED"},
+                "accepted_for_clearance":accepted,
+                "owner_intrusion_pixels":owner_intrusion_pixels,
+                "owner_boundary_adjacency_milli":owner_boundary_adjacency_milli,
+                "owner_void_diagnostics":owner_void_diagnostics_04l,
+                "outer_silhouette_non_regressing":outer_silhouette_non_regressing,
+                "trial_view_metrics":trial_view_metrics_04l,
+                "part_source_bindings_unchanged":part_source_bindings_unchanged,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged,
+                "depth_fields_unchanged":depth_fields_unchanged,
+                "reference_lineage_unchanged":reference_lineage_unchanged,
+                "camera_lock_lineage_unchanged":camera_lock_lineage_unchanged,
+                "registered_rig_lineage_unchanged":registered_rig_lineage_unchanged,
+                "subject_registration_lineage_unchanged":subject_registration_lineage_unchanged,
+                "worker_cohort_lineage_unchanged":worker_cohort_lineage_unchanged,
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04L_CLEARANCE_TRIAL={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04L-REAL-D1-REGISTERED-CLEARANCE-TRIAL",
+                "parameter_id":FPS_FORM_04L_PARAMETER_ID,
+                "trial_values":FPS_FORM_04L_TRIAL_VALUES,
+                "trial_count":clearance_trials_04l.len(),
+                "registered_camera_rig_canonical_sha256":registered_camera_rig_04j["canonical_sha256"],
+                "camera_lock_canonical_sha256":camera_lock["canonical_sha256"],
+                "subject_frame_registration_canonical_sha256":registration_04j["canonical_sha256"],
+                "reference_id":reference.reference_id,
+                "baseline_candidate_id":candidate_id,
+                "owner_void_04k_all_pass":owner_void_04k_all_pass,
+                "trials":clearance_trials_04l,
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04L clearance trial receipt JSON")
+        );
+
+        // 04N: screen the smallest symmetric world-X stock-plane A/B before
+        // exposing any new semantic sink.  This remains private, ephemeral,
+        // and owner-void diagnostic only.  A screen pass would still require
+        // a separate six-view non-regression run before any acceptance.
+        let mut stock_plane_trials_04n = Vec::new();
+        for delta_x_m in [-0.10_f64, 0.10_f64] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_plane_position_trial_mutate(
+                &program,
+                delta_x_m,
+            )
+            .expect("04N private stock-plane trial mutation");
+            let mut normalized_trial = trial_program.clone();
+            let mut normalized_baseline = program.clone();
+            normalized_trial
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            normalized_baseline
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let baseline_nodes = normalized_baseline["nodes"]
+                .as_array()
+                .expect("04N baseline nodes");
+            let trial_nodes = normalized_trial["nodes"]
+                .as_array_mut()
+                .expect("04N trial nodes");
+            let mut exact_stock_plane_delta = true;
+            for node_id in ["rear-stock", "rear-stock-lower-beam"] {
+                let baseline_node = baseline_nodes
+                    .iter()
+                    .find(|node| node["node_id"].as_str() == Some(node_id))
+                    .expect("04N baseline stock node");
+                let trial_node = trial_nodes
+                    .iter_mut()
+                    .find(|node| node["node_id"].as_str() == Some(node_id))
+                    .expect("04N trial stock node");
+                let baseline_x = baseline_node["parameters"]["position_m"][0]
+                    .as_f64()
+                    .expect("04N baseline stock X");
+                let trial_x = trial_node["parameters"]["position_m"][0]
+                    .as_f64()
+                    .expect("04N trial stock X");
+                exact_stock_plane_delta &= (trial_x - baseline_x - delta_x_m).abs() <= 1.0e-9;
+                trial_node["parameters"]["position_m"][0] = json!(baseline_x);
+            }
+            exact_stock_plane_delta &= normalized_trial == normalized_baseline;
+
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04N private stock-plane trial candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04N trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04N trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04N trial ArtifactReadback");
+            let part_source_bindings_unchanged = trial_readback["part_ids"] == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && trial_readback["part_bindings"] == readback["part_bindings"];
+            let rear_cap_binding_unchanged =
+                trial_readback["part_bindings"]
+                    .as_array()
+                    .and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    })
+                    == readback["part_bindings"].as_array().and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    });
+
+            let mut intrusion_pixels = [None; 3];
+            let mut adjacency_milli = [None; 3];
+            let mut view_diagnostics = BTreeMap::new();
+            let mut lineage_unchanged = true;
+            for (index, kind) in ["left", "right", "rear-three-quarter"]
+                .into_iter()
+                .enumerate()
+            {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04N owner screen is closed"),
+                };
+                let (comparison, view_spec, registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let baseline = baseline_registered_comparisons_04l
+                    .get(kind)
+                    .expect("04N baseline registered comparison");
+                lineage_unchanged &= comparison["camera"]["camera_hash"] == registered_camera_hash
+                    && baseline["camera"]["camera_hash"] == comparison["camera"]["camera_hash"]
+                    && comparison["render_set"]["reference_id"] == reference.reference_id
+                    && baseline["comparison_report"]["mask"]["sha256"]
+                        == comparison["comparison_report"]["mask"]["sha256"]
+                    && baseline["render_set"]["render_worker_build_cohort_sha256"]
+                        == comparison["render_set"]["render_worker_build_cohort_sha256"];
+                let target = refined_targets.get(kind).expect("04N target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04N target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04N reviewed visual structure");
+                let crop = crate::reference_view_crop(&view_spec).expect("04N crop");
+                let rotation_degrees =
+                    crate::reference_view_rotation_degrees(&view_spec).expect("04N rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04N target mask")
+                        .mask,
+                    &view_spec,
+                    true,
+                )
+                .expect("04N target crop projection");
+                let part_id_sha256 = comparison["render_set"]["pass_artifacts"]["part-id"]
+                    ["sha256"]
+                    .as_str()
+                    .expect("04N Part-ID hash");
+                let part_png = runtime.cas_read(part_id_sha256).expect("04N Part-ID read");
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let discovery = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let strict = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    Some(crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity),
+                    &thresholds,
+                )
+                .and_then(|calibration| {
+                    crate::production_weapon_form_art_evidence::strict_reviewed_region_part_binding_assessment(&calibration, true)
+                });
+                let diagnostic = match discovery {
+                    Ok(calibration) => {
+                        let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        }).expect("04N identity candidate");
+                        intrusion_pixels[index] =
+                            Some(identity.owner_expected_void_overlap_pixel_count);
+                        adjacency_milli[index] = Some(identity.owner_boundary_adjacency_milli);
+                        json!({
+                            "strict_status":if strict.is_ok() {"PASS_BOUND_DIAGNOSTIC"} else {"BLOCKED"},
+                            "strict_error":strict.err().map(|error| error.to_string()),
+                            "selected_discovery_transform":format!("{:?}", calibration.selected_transform),
+                            "identity_owner_intrusion_pixels":intrusion_pixels[index],
+                            "identity_owner_boundary_adjacency_milli":adjacency_milli[index],
+                            "owner_minus_expected_void_bbox_edge_delta_px":identity.owner_minus_expected_void_bbox_edge_delta_px,
+                            "owner_minus_expected_void_centroid_delta_milli_px":identity.owner_minus_expected_void_centroid_delta_milli_px
+                        })
+                    }
+                    Err(error) => {
+                        json!({"strict_status":"BLOCKED","strict_error":error.to_string()})
+                    }
+                };
+                view_diagnostics.insert(kind.to_owned(), diagnostic);
+            }
+            let owner_screen_pass = intrusion_pixels.iter().all(|pixels| *pixels == Some(0))
+                && adjacency_milli
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 250));
+            stock_plane_trials_04n.push(json!({
+                "delta_x_m":delta_x_m,
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "exact_stock_plane_delta":exact_stock_plane_delta,
+                "part_source_bindings_unchanged":part_source_bindings_unchanged,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged,
+                "lineage_unchanged":lineage_unchanged,
+                "owner_intrusion_pixels":intrusion_pixels,
+                "owner_boundary_adjacency_milli":adjacency_milli,
+                "owner_screen_pass":owner_screen_pass,
+                "view_diagnostics":view_diagnostics,
+                "six_view_non_regression":"NOT_RUN",
+                "status":if owner_screen_pass {"PASS_OWNER_SCREEN_REQUIRES_SIX_VIEW"} else {"BLOCKED_OWNER_SCREEN"},
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04N_STOCK_PLANE_SCREEN={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04N-REAL-D1-PRIVATE-STOCK-PLANE-SCREEN",
+                "parameter_id":"stock-plane-position",
+                "public_sink_available":false,
+                "trial_values_m":[-0.10,0.10],
+                "trials":stock_plane_trials_04n,
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04N stock-plane screen receipt JSON")
+        );
+
+        // 04O: attribute the semantic rear-stock owner mask to its two exact
+        // source nodes using an ephemeral split Part-ID vocabulary.  Geometry,
+        // cameras, reference targets, Worker cohort and the rear-cap remain
+        // unchanged.  The source masks must union pixel-for-pixel to the
+        // canonical rear-stock mask before any attribution is reported.
+        let split_program_04o = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_split_output_diagnostic(
+            &program,
+        )
+        .expect("04O private stock source split");
+        let split_nodes_unchanged_04o = split_program_04o["nodes"] == program["nodes"];
+        let split_prepared_04o = runtime
+            .prepare_geometry_candidate(
+                &project.project_id,
+                None,
+                json!({
+                    "typed":"geometry",
+                    "reference_id":reference.reference_id,
+                    "geometry_program":split_program_04o
+                }),
+            )
+            .expect("04O private split diagnostic candidate");
+        let split_candidate_id_04o = split_prepared_04o["candidate"]["candidate_id"]
+            .as_str()
+            .expect("04O split candidate id")
+            .to_owned();
+        let split_artifact_sha256_04o = split_prepared_04o["candidate"]["prepared_object_sha256"]
+            .as_str()
+            .expect("04O split artifact hash")
+            .to_owned();
+        let split_readback_04o = runtime
+            .artifact_readback(&split_artifact_sha256_04o, &split_candidate_id_04o)
+            .expect("04O split ArtifactReadback");
+        assert_eq!(split_readback_04o["schema_version"], "ArtifactReadback@2");
+        assert_eq!(split_readback_04o["hard_gate_passed"], true);
+        assert_eq!(split_readback_04o["validator_status"], "passed");
+        let split_part_id_vocabulary_04o = split_readback_04o["part_ids"]
+            .as_array()
+            .expect("04O split Part-ID vocabulary")
+            .iter()
+            .map(|part_id| {
+                part_id
+                    .as_str()
+                    .expect("04O split Part-ID string")
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            split_part_id_vocabulary_04o
+                .iter()
+                .filter(|part_id| part_id.as_str() == "rear-stock-upper-diagnostic")
+                .count(),
+            1
+        );
+        assert_eq!(
+            split_part_id_vocabulary_04o
+                .iter()
+                .filter(|part_id| part_id.as_str() == "rear-stock-lower-diagnostic")
+                .count(),
+            1
+        );
+        assert!(!split_part_id_vocabulary_04o
+            .iter()
+            .any(|part_id| part_id == "rear-stock"));
+        let split_rear_cap_binding_unchanged_04o = split_readback_04o["part_bindings"]
+            .as_array()
+            .and_then(|bindings| {
+                bindings
+                    .iter()
+                    .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+            })
+            == readback["part_bindings"].as_array().and_then(|bindings| {
+                bindings
+                    .iter()
+                    .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+            });
+
+        let mut source_attribution_views_04o = BTreeMap::new();
+        let mut source_union_exact_all_views_04o = true;
+        let mut source_lineage_unchanged_all_views_04o = true;
+        for kind in ["left", "right", "rear-three-quarter"] {
+            let structure_id = match kind {
+                "left" => "left.open-stock-void",
+                "right" => "right.open-stock-void",
+                "rear-three-quarter" => "rear3q.open-stock-void",
+                _ => unreachable!("04O source attribution view set is closed"),
+            };
+            let baseline = baseline_registered_comparisons_04l
+                .get(kind)
+                .expect("04O baseline registered comparison");
+            let (split_comparison, view_spec, registered_camera_hash) =
+                render_registered_04l(&split_candidate_id_04o, kind);
+            let source_lineage_unchanged = split_comparison["camera"]["camera_hash"]
+                == registered_camera_hash
+                && baseline["camera"]["camera_hash"] == split_comparison["camera"]["camera_hash"]
+                && split_comparison["render_set"]["reference_id"] == reference.reference_id
+                && baseline["comparison_report"]["mask"]["sha256"]
+                    == split_comparison["comparison_report"]["mask"]["sha256"]
+                && baseline["render_set"]["render_worker_build_cohort_sha256"]
+                    == split_comparison["render_set"]["render_worker_build_cohort_sha256"];
+            source_lineage_unchanged_all_views_04o &= source_lineage_unchanged;
+
+            let baseline_part_id_sha256 = baseline["render_set"]["pass_artifacts"]["part-id"]
+                ["sha256"]
+                .as_str()
+                .expect("04O baseline Part-ID hash");
+            let split_part_id_sha256 = split_comparison["render_set"]["pass_artifacts"]["part-id"]
+                ["sha256"]
+                .as_str()
+                .expect("04O split Part-ID hash");
+            let baseline_part_png = runtime
+                .cas_read(baseline_part_id_sha256)
+                .expect("04O baseline Part-ID read");
+            let split_part_png = runtime
+                .cas_read(split_part_id_sha256)
+                .expect("04O split Part-ID read");
+            let baseline_owner_mask =
+                crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                    &baseline_part_png,
+                    &expected_part_id_vocabulary,
+                    "rear-stock",
+                )
+                .expect("04O canonical rear-stock mask");
+            let upper_mask = crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                &split_part_png,
+                &split_part_id_vocabulary_04o,
+                "rear-stock-upper-diagnostic",
+            )
+            .expect("04O upper source mask");
+            let lower_mask = crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                &split_part_png,
+                &split_part_id_vocabulary_04o,
+                "rear-stock-lower-diagnostic",
+            )
+            .expect("04O lower source mask");
+            let source_union_mismatch_pixel_count = baseline_owner_mask
+                .iter()
+                .zip(upper_mask.iter().zip(lower_mask.iter()))
+                .filter(|(baseline_pixel, (upper_pixel, lower_pixel))| {
+                    **baseline_pixel != (**upper_pixel || **lower_pixel)
+                })
+                .count() as u64;
+            let source_masks_overlap_pixel_count = upper_mask
+                .iter()
+                .zip(&lower_mask)
+                .filter(|(upper_pixel, lower_pixel)| **upper_pixel && **lower_pixel)
+                .count() as u64;
+            let source_union_exact =
+                source_union_mismatch_pixel_count == 0 && source_masks_overlap_pixel_count == 0;
+            assert!(
+                source_union_exact,
+                "04O split source masks must exactly partition rear-stock"
+            );
+            source_union_exact_all_views_04o &= source_union_exact;
+
+            let target = refined_targets.get(kind).expect("04O target");
+            let target_document = runtime
+                .read_silhouette_target(&target.0)
+                .expect("04O target readback");
+            let visual_structure = target_document
+                .get("visual_structure")
+                .expect("04O reviewed visual structure");
+            let crop = crate::reference_view_crop(&view_spec).expect("04O crop");
+            let rotation_degrees =
+                crate::reference_view_rotation_degrees(&view_spec).expect("04O rotation");
+            let target_mask = crate::project_reference_mask_to_view(
+                &runtime
+                    .target_mask(&target.0, &target_document)
+                    .expect("04O target mask")
+                    .mask,
+                &view_spec,
+                true,
+            )
+            .expect("04O target crop projection");
+            let upper = crate::production_weapon_form_art_evidence::source_part_id_attribution_diagnostic_with_rotation(
+                visual_structure,
+                &target_mask,
+                &split_part_png,
+                &split_part_id_vocabulary_04o,
+                crop,
+                rotation_degrees,
+                structure_id,
+                "rear-stock",
+                "rear-stock-upper-diagnostic",
+            )
+            .expect("04O upper source attribution");
+            let lower = crate::production_weapon_form_art_evidence::source_part_id_attribution_diagnostic_with_rotation(
+                visual_structure,
+                &target_mask,
+                &split_part_png,
+                &split_part_id_vocabulary_04o,
+                crop,
+                rotation_degrees,
+                structure_id,
+                "rear-stock",
+                "rear-stock-lower-diagnostic",
+            )
+            .expect("04O lower source attribution");
+            source_attribution_views_04o.insert(
+                kind.to_owned(),
+                json!({
+                    "structure_id":structure_id,
+                    "baseline_part_id_pass_sha256":baseline_part_id_sha256,
+                    "split_part_id_pass_sha256":split_part_id_sha256,
+                    "source_union_mismatch_pixel_count":source_union_mismatch_pixel_count,
+                    "source_masks_overlap_pixel_count":source_masks_overlap_pixel_count,
+                    "source_union_exact":source_union_exact,
+                    "upper":upper,
+                    "lower":lower,
+                    "reference_lineage_unchanged":source_lineage_unchanged,
+                    "registered_camera_hash":registered_camera_hash,
+                    "diagnostic_only":true,
+                    "promotable":false
+                }),
+            );
+        }
+        println!(
+            "FPS_FORM_04O_STOCK_SOURCE_ATTRIBUTION={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04O-REAL-D1-STOCK-SOURCE-ATTRIBUTION",
+                "semantic_owner_part_id":"rear-stock",
+                "source_diagnostic_part_ids":[
+                    "rear-stock-upper-diagnostic",
+                    "rear-stock-lower-diagnostic"
+                ],
+                "baseline_candidate_id":candidate_id,
+                "split_candidate_id":split_candidate_id_04o,
+                "split_artifact_sha256":split_artifact_sha256_04o,
+                "split_nodes_unchanged":split_nodes_unchanged_04o,
+                "rear_cap_binding_unchanged":split_rear_cap_binding_unchanged_04o,
+                "source_union_exact_all_views":source_union_exact_all_views_04o,
+                "lineage_unchanged_all_views":source_lineage_unchanged_all_views_04o,
+                "views":source_attribution_views_04o,
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "public_sink_available":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04O stock source attribution receipt JSON")
+        );
+
+        // 04P: screen a single private upper-beam inner-span scalar.  The
+        // mutator derives both raw X fields while fixing the cap-facing
+        // endpoint; lower beam, rear-cap, Y/Z, rotation and public registry
+        // remain untouched.  Only a three-view owner screen runs here.  A
+        // separate six-view non-regression is required after a screen pass.
+        let mut upper_inner_span_trials_04p = Vec::new();
+        for target_span_m in [0.85_f64, 0.75_f64] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_inner_span_trial_mutate(
+                &program,
+                target_span_m,
+            )
+            .expect("04P private upper inner-span trial mutation");
+            let baseline_upper = program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04P baseline upper stock node");
+            let trial_upper = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04P trial upper stock node");
+            let baseline_cap_endpoint_x = baseline_upper["parameters"]["position_m"][0]
+                .as_f64()
+                .expect("04P baseline upper X")
+                + baseline_upper["parameters"]["size_m"][0]
+                    .as_f64()
+                    .expect("04P baseline upper span")
+                    * 0.5;
+            let trial_cap_endpoint_x = trial_upper["parameters"]["position_m"][0]
+                .as_f64()
+                .expect("04P trial upper X")
+                + trial_upper["parameters"]["size_m"][0]
+                    .as_f64()
+                    .expect("04P trial upper span")
+                    * 0.5;
+            let cap_facing_endpoint_exact =
+                (baseline_cap_endpoint_x - trial_cap_endpoint_x).abs() <= 1.0e-9;
+            let mut normalized_trial = trial_program.clone();
+            let normalized_upper = normalized_trial["nodes"]
+                .as_array_mut()
+                .and_then(|nodes| {
+                    nodes
+                        .iter_mut()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04P normalized trial upper");
+            normalized_upper["parameters"]["position_m"][0] =
+                baseline_upper["parameters"]["position_m"][0].clone();
+            normalized_upper["parameters"]["size_m"][0] =
+                baseline_upper["parameters"]["size_m"][0].clone();
+            normalized_trial
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let mut normalized_baseline = program.clone();
+            normalized_baseline
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let exact_upper_x_only = normalized_trial == normalized_baseline;
+
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04P private upper inner-span candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04P trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04P trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04P trial ArtifactReadback");
+            let part_source_bindings_unchanged = trial_readback["part_ids"] == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && trial_readback["part_bindings"] == readback["part_bindings"];
+            let rear_cap_binding_unchanged =
+                trial_readback["part_bindings"]
+                    .as_array()
+                    .and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    })
+                    == readback["part_bindings"].as_array().and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    });
+
+            let mut intrusion_pixels = [None; 3];
+            let mut adjacency_milli = [None; 3];
+            let mut identity_discovery_all_views = true;
+            let mut lineage_unchanged = true;
+            let mut view_diagnostics = BTreeMap::new();
+            for (index, kind) in ["left", "right", "rear-three-quarter"]
+                .into_iter()
+                .enumerate()
+            {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04P upper screen is closed"),
+                };
+                let (comparison, view_spec, registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let baseline = baseline_registered_comparisons_04l
+                    .get(kind)
+                    .expect("04P baseline registered comparison");
+                lineage_unchanged &= comparison["camera"]["camera_hash"] == registered_camera_hash
+                    && baseline["camera"]["camera_hash"] == comparison["camera"]["camera_hash"]
+                    && comparison["render_set"]["reference_id"] == reference.reference_id
+                    && baseline["comparison_report"]["mask"]["sha256"]
+                        == comparison["comparison_report"]["mask"]["sha256"]
+                    && baseline["render_set"]["render_worker_build_cohort_sha256"]
+                        == comparison["render_set"]["render_worker_build_cohort_sha256"];
+                let target = refined_targets.get(kind).expect("04P target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04P target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04P reviewed visual structure");
+                let crop = crate::reference_view_crop(&view_spec).expect("04P crop");
+                let rotation_degrees =
+                    crate::reference_view_rotation_degrees(&view_spec).expect("04P rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04P target mask")
+                        .mask,
+                    &view_spec,
+                    true,
+                )
+                .expect("04P target crop projection");
+                let part_id_sha256 = comparison["render_set"]["pass_artifacts"]["part-id"]
+                    ["sha256"]
+                    .as_str()
+                    .expect("04P Part-ID hash");
+                let part_png = runtime.cas_read(part_id_sha256).expect("04P Part-ID read");
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let discovery = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let diagnostic = match discovery {
+                    Ok(calibration) => {
+                        identity_discovery_all_views &= calibration.selected_transform
+                            == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity;
+                        let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        }).expect("04P identity candidate");
+                        intrusion_pixels[index] =
+                            Some(identity.owner_expected_void_overlap_pixel_count);
+                        adjacency_milli[index] = Some(identity.owner_boundary_adjacency_milli);
+                        json!({
+                            "selected_discovery_transform":format!("{:?}", calibration.selected_transform),
+                            "identity_owner_intrusion_pixels":intrusion_pixels[index],
+                            "identity_owner_boundary_adjacency_milli":adjacency_milli[index],
+                            "owner_minus_expected_void_bbox_edge_delta_px":identity.owner_minus_expected_void_bbox_edge_delta_px,
+                            "owner_minus_expected_void_centroid_delta_milli_px":identity.owner_minus_expected_void_centroid_delta_milli_px
+                        })
+                    }
+                    Err(error) => {
+                        identity_discovery_all_views = false;
+                        json!({"status":"BLOCKED","error":error.to_string()})
+                    }
+                };
+                view_diagnostics.insert(kind.to_owned(), diagnostic);
+            }
+            let owner_screen_pass = intrusion_pixels.iter().all(|pixels| *pixels == Some(0))
+                && adjacency_milli
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 250))
+                && identity_discovery_all_views
+                && exact_upper_x_only
+                && cap_facing_endpoint_exact
+                && part_source_bindings_unchanged
+                && rear_cap_binding_unchanged
+                && lineage_unchanged;
+            upper_inner_span_trials_04p.push(json!({
+                "target_span_m":target_span_m,
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "exact_upper_x_only":exact_upper_x_only,
+                "cap_facing_endpoint_exact":cap_facing_endpoint_exact,
+                "part_source_bindings_unchanged":part_source_bindings_unchanged,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged,
+                "lineage_unchanged":lineage_unchanged,
+                "identity_discovery_all_views":identity_discovery_all_views,
+                "owner_intrusion_pixels":intrusion_pixels,
+                "owner_boundary_adjacency_milli":adjacency_milli,
+                "owner_screen_pass":owner_screen_pass,
+                "view_diagnostics":view_diagnostics,
+                "six_view_non_regression":"NOT_RUN",
+                "status":if owner_screen_pass {"PASS_OWNER_SCREEN_REQUIRES_SIX_VIEW"} else {"BLOCKED_OWNER_SCREEN"},
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04P_STOCK_UPPER_INNER_SPAN_SCREEN={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04P-REAL-D1-PRIVATE-STOCK-UPPER-INNER-SPAN-SCREEN",
+                "parameter_id":"stock-upper-inner-span",
+                "parameter_scope":"private-diagnostic-only",
+                "public_sink_available":false,
+                "trial_values_m":[0.85,0.75],
+                "baseline_owner_intrusion_pixels":[302,560,587],
+                "trials":upper_inner_span_trials_04p,
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04P stock upper inner-span screen receipt JSON")
+        );
+
+        // 04Q: replace only the upper stock box with one of two complete,
+        // product-owned concave profile-loft variants.  This is a typed
+        // diagnostic draft using an active fixed Worker operator; it does not
+        // expose profile points or raw node patches to a caller.  Inherited
+        // depth remains UNKNOWN and no public stock sink is claimed ready.
+        let mut upper_profile_trials_04q = Vec::new();
+        for inner_span_m in [0.85_f64, 0.75_f64] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_trial_mutate(
+                &program,
+                inner_span_m,
+            )
+            .expect("04Q private closed upper profile trial mutation");
+            let baseline_upper = program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04Q baseline upper stock node");
+            let trial_upper = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04Q trial upper stock node");
+            let profile_contract_exact = trial_upper["operator_id"]
+                == "forgecad.geometry.profile-loft@2"
+                && trial_upper["parameters"]["shape"] == "profile-loft-v2"
+                && trial_upper["parameters"]["resample_points"] == 8
+                && trial_upper["parameters"]["interpolation"] == "linear"
+                && trial_upper["parameters"]["interpolation_rings"] == 0
+                && trial_upper["parameters"]["preserve_corners"] == true
+                && trial_upper["parameters"]["position_m"]
+                    == baseline_upper["parameters"]["position_m"]
+                && trial_upper["parameters"]["profiles"]
+                    .as_array()
+                    .is_some_and(|profiles| {
+                        profiles.len() == 2
+                            && profiles.iter().all(|profile| {
+                                profile["points"]
+                                    .as_array()
+                                    .is_some_and(|points| points.len() == 8)
+                                    && profile["corner_indices"] == json!([0, 1, 2, 3, 4, 5, 6, 7])
+                            })
+                    });
+            let mut normalized_trial = trial_program.clone();
+            let normalized_nodes = normalized_trial["nodes"]
+                .as_array_mut()
+                .expect("04Q normalized trial nodes");
+            let normalized_upper = normalized_nodes
+                .iter_mut()
+                .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                .expect("04Q normalized upper");
+            *normalized_upper = baseline_upper.clone();
+            normalized_trial
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let mut normalized_baseline = program.clone();
+            normalized_baseline
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let exact_upper_node_only = normalized_trial == normalized_baseline;
+
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04Q private upper profile candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04Q trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04Q trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04Q trial ArtifactReadback");
+            assert_eq!(trial_readback["hard_gate_passed"], true);
+            assert_eq!(trial_readback["validator_status"], "passed");
+            let stable_part_source_identity = |artifact_readback: &Value| {
+                artifact_readback["part_bindings"]
+                    .as_array()
+                    .map(|bindings| {
+                        bindings
+                            .iter()
+                            .map(|binding| {
+                                json!({
+                                    "part_id":binding["part_id"],
+                                    "source_node_id":binding["source_node_id"],
+                                    "material_zone_id":binding["material_zone_id"],
+                                    "solid":binding["solid"]
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+            };
+            let part_source_bindings_unchanged = trial_readback["part_ids"] == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && stable_part_source_identity(&trial_readback)
+                    == stable_part_source_identity(&readback);
+            let rear_cap_binding_unchanged =
+                trial_readback["part_bindings"]
+                    .as_array()
+                    .and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    })
+                    == readback["part_bindings"].as_array().and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    });
+
+            let mut intrusion_pixels = [None; 3];
+            let mut adjacency_pixels = [None; 3];
+            let mut adjacency_milli = [None; 3];
+            let mut identity_discovery_all_views = true;
+            let mut lineage_unchanged = true;
+            let mut view_diagnostics = BTreeMap::new();
+            for (index, kind) in ["left", "right", "rear-three-quarter"]
+                .into_iter()
+                .enumerate()
+            {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04Q upper profile screen is closed"),
+                };
+                let (comparison, view_spec, registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let baseline = baseline_registered_comparisons_04l
+                    .get(kind)
+                    .expect("04Q baseline registered comparison");
+                lineage_unchanged &= comparison["camera"]["camera_hash"] == registered_camera_hash
+                    && baseline["camera"]["camera_hash"] == comparison["camera"]["camera_hash"]
+                    && comparison["render_set"]["reference_id"] == reference.reference_id
+                    && baseline["comparison_report"]["mask"]["sha256"]
+                        == comparison["comparison_report"]["mask"]["sha256"]
+                    && baseline["render_set"]["render_worker_build_cohort_sha256"]
+                        == comparison["render_set"]["render_worker_build_cohort_sha256"];
+                let target = refined_targets.get(kind).expect("04Q target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04Q target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04Q reviewed visual structure");
+                let crop = crate::reference_view_crop(&view_spec).expect("04Q crop");
+                let rotation_degrees =
+                    crate::reference_view_rotation_degrees(&view_spec).expect("04Q rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04Q target mask")
+                        .mask,
+                    &view_spec,
+                    true,
+                )
+                .expect("04Q target crop projection");
+                let part_id_sha256 = comparison["render_set"]["pass_artifacts"]["part-id"]
+                    ["sha256"]
+                    .as_str()
+                    .expect("04Q Part-ID hash");
+                let part_png = runtime.cas_read(part_id_sha256).expect("04Q Part-ID read");
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let discovery = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let diagnostic = match discovery {
+                    Ok(calibration) => {
+                        identity_discovery_all_views &= calibration.selected_transform
+                            == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity;
+                        let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        }).expect("04Q identity candidate");
+                        intrusion_pixels[index] =
+                            Some(identity.owner_expected_void_overlap_pixel_count);
+                        adjacency_pixels[index] =
+                            Some(identity.owner_boundary_adjacency_pixel_count);
+                        adjacency_milli[index] = Some(identity.owner_boundary_adjacency_milli);
+                        json!({
+                            "selected_discovery_transform":format!("{:?}", calibration.selected_transform),
+                            "identity_owner_intrusion_pixels":intrusion_pixels[index],
+                            "identity_owner_boundary_adjacency_pixels":adjacency_pixels[index],
+                            "identity_owner_boundary_adjacency_milli":adjacency_milli[index],
+                            "owner_minus_expected_void_bbox_edge_delta_px":identity.owner_minus_expected_void_bbox_edge_delta_px,
+                            "owner_minus_expected_void_centroid_delta_milli_px":identity.owner_minus_expected_void_centroid_delta_milli_px
+                        })
+                    }
+                    Err(error) => {
+                        identity_discovery_all_views = false;
+                        json!({"status":"BLOCKED","error":error.to_string()})
+                    }
+                };
+                view_diagnostics.insert(kind.to_owned(), diagnostic);
+            }
+            let owner_screen_pass = intrusion_pixels.iter().all(|pixels| *pixels == Some(0))
+                && adjacency_pixels
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 32))
+                && adjacency_milli
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 250))
+                && identity_discovery_all_views
+                && profile_contract_exact
+                && exact_upper_node_only
+                && part_source_bindings_unchanged
+                && rear_cap_binding_unchanged
+                && lineage_unchanged;
+            upper_profile_trials_04q.push(json!({
+                "inner_span_m":inner_span_m,
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "profile_contract_exact":profile_contract_exact,
+                "exact_upper_node_only":exact_upper_node_only,
+                "part_source_bindings_unchanged":part_source_bindings_unchanged,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged,
+                "lineage_unchanged":lineage_unchanged,
+                "identity_discovery_all_views":identity_discovery_all_views,
+                "owner_intrusion_pixels":intrusion_pixels,
+                "owner_boundary_adjacency_pixels":adjacency_pixels,
+                "owner_boundary_adjacency_milli":adjacency_milli,
+                "owner_screen_pass":owner_screen_pass,
+                "view_diagnostics":view_diagnostics,
+                "six_view_non_regression":"NOT_RUN",
+                "status":if owner_screen_pass {"PASS_OWNER_SCREEN_REQUIRES_SIX_VIEW"} else {"BLOCKED_OWNER_SCREEN"},
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04Q_STOCK_UPPER_PROFILE_SCREEN={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04Q-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-SCREEN",
+                "operator_id":"forgecad.geometry.profile-loft@2",
+                "variant_scope":"private-complete-profile-only",
+                "public_sink_available":false,
+                "inner_span_variants_m":[0.85,0.75],
+                "baseline_owner_intrusion_pixels":[302,560,587],
+                "trials":upper_profile_trials_04q,
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04Q stock upper profile screen receipt JSON")
+        );
+
+        // 04R: hold the better 04Q inner span (0.85 m) and screen only two
+        // complete inner-lip variants.  Stable Part/source identity excludes
+        // triangle_count, which is expected to change when a box becomes a
+        // profile loft; raw binding equality remains separately observable.
+        let baseline_upper_profile_04r = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_trial_mutate(
+            &program,
+            0.85,
+        )
+        .expect("04R baseline upper profile");
+        let baseline_upper_profile_node_04r = baseline_upper_profile_04r["nodes"]
+            .as_array()
+            .and_then(|nodes| {
+                nodes
+                    .iter()
+                    .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+            })
+            .expect("04R baseline profile node")
+            .clone();
+        let baseline_profile_intrusion_04r = [302_u64, 492_u64, 587_u64];
+        let mut upper_profile_lip_trials_04r = Vec::new();
+        for lip_y_m in [-0.035_f64, -0.075_f64] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_lip_trial_mutate(
+                &program,
+                lip_y_m,
+            )
+            .expect("04R private profile lip trial mutation");
+            let trial_upper = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04R trial upper profile");
+            let profile_contract_exact = trial_upper["operator_id"]
+                == "forgecad.geometry.profile-loft@2"
+                && trial_upper["parameters"]["shape"] == "profile-loft-v2"
+                && trial_upper["parameters"]["resample_points"] == 8
+                && trial_upper["parameters"]["interpolation"] == "linear"
+                && trial_upper["parameters"]["interpolation_rings"] == 0
+                && trial_upper["parameters"]["preserve_corners"] == true;
+            let lip_coordinates_exact = trial_upper["parameters"]["profiles"]
+                .as_array()
+                .is_some_and(|profiles| {
+                    profiles.len() == 2
+                        && profiles.iter().all(|profile| {
+                            profile["points"].as_array().is_some_and(|points| {
+                                points.len() == 8
+                                    && points[1][0]
+                                        .as_f64()
+                                        .is_some_and(|value| (value - lip_y_m).abs() <= 1.0e-9)
+                                    && points[2][0]
+                                        .as_f64()
+                                        .is_some_and(|value| (value - lip_y_m).abs() <= 1.0e-9)
+                            })
+                        })
+                });
+            let mut normalized_trial = trial_program.clone();
+            let normalized_upper = normalized_trial["nodes"]
+                .as_array_mut()
+                .and_then(|nodes| {
+                    nodes
+                        .iter_mut()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04R normalized trial upper");
+            normalized_upper["parameters"]["profiles"] =
+                baseline_upper_profile_node_04r["parameters"]["profiles"].clone();
+            normalized_trial
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let mut normalized_baseline = baseline_upper_profile_04r.clone();
+            normalized_baseline
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let exact_lip_only = normalized_trial == normalized_baseline;
+
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04R private profile lip candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04R trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04R trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04R trial ArtifactReadback");
+            assert_eq!(trial_readback["hard_gate_passed"], true);
+            assert_eq!(trial_readback["validator_status"], "passed");
+            let binding_identity = |artifact_readback: &Value| {
+                artifact_readback["part_bindings"]
+                    .as_array()
+                    .map(|bindings| {
+                        bindings
+                            .iter()
+                            .map(|binding| {
+                                json!({
+                                    "part_id":binding["part_id"],
+                                    "source_node_id":binding["source_node_id"],
+                                    "material_zone_id":binding["material_zone_id"],
+                                    "solid":binding["solid"]
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+            };
+            let raw_part_binding_rows_exact =
+                trial_readback["part_bindings"] == readback["part_bindings"];
+            let stable_part_source_identity_unchanged = trial_readback["part_ids"]
+                == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && binding_identity(&trial_readback) == binding_identity(&readback);
+            let triangle_count_changed =
+                !raw_part_binding_rows_exact && stable_part_source_identity_unchanged;
+            let rear_cap_binding_unchanged =
+                trial_readback["part_bindings"]
+                    .as_array()
+                    .and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    })
+                    == readback["part_bindings"].as_array().and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    });
+
+            let mut intrusion_pixels = [None; 3];
+            let mut adjacency_pixels = [None; 3];
+            let mut adjacency_milli = [None; 3];
+            let mut identity_discovery_all_views = true;
+            let mut lineage_unchanged = true;
+            let mut view_diagnostics = BTreeMap::new();
+            for (index, kind) in ["left", "right", "rear-three-quarter"]
+                .into_iter()
+                .enumerate()
+            {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04R profile lip screen is closed"),
+                };
+                let (comparison, view_spec, registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let baseline = baseline_registered_comparisons_04l
+                    .get(kind)
+                    .expect("04R baseline registered comparison");
+                lineage_unchanged &= comparison["camera"]["camera_hash"] == registered_camera_hash
+                    && baseline["camera"]["camera_hash"] == comparison["camera"]["camera_hash"]
+                    && comparison["render_set"]["reference_id"] == reference.reference_id
+                    && baseline["comparison_report"]["mask"]["sha256"]
+                        == comparison["comparison_report"]["mask"]["sha256"]
+                    && baseline["render_set"]["render_worker_build_cohort_sha256"]
+                        == comparison["render_set"]["render_worker_build_cohort_sha256"];
+                let target = refined_targets.get(kind).expect("04R target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04R target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04R reviewed visual structure");
+                let crop = crate::reference_view_crop(&view_spec).expect("04R crop");
+                let rotation_degrees =
+                    crate::reference_view_rotation_degrees(&view_spec).expect("04R rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04R target mask")
+                        .mask,
+                    &view_spec,
+                    true,
+                )
+                .expect("04R target crop projection");
+                let part_id_sha256 = comparison["render_set"]["pass_artifacts"]["part-id"]
+                    ["sha256"]
+                    .as_str()
+                    .expect("04R Part-ID hash");
+                let part_png = runtime.cas_read(part_id_sha256).expect("04R Part-ID read");
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let discovery = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let diagnostic = match discovery {
+                    Ok(calibration) => {
+                        identity_discovery_all_views &= calibration.selected_transform
+                            == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity;
+                        let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        }).expect("04R identity candidate");
+                        intrusion_pixels[index] =
+                            Some(identity.owner_expected_void_overlap_pixel_count);
+                        adjacency_pixels[index] =
+                            Some(identity.owner_boundary_adjacency_pixel_count);
+                        adjacency_milli[index] = Some(identity.owner_boundary_adjacency_milli);
+                        json!({
+                            "selected_discovery_transform":format!("{:?}", calibration.selected_transform),
+                            "identity_owner_intrusion_pixels":intrusion_pixels[index],
+                            "identity_owner_boundary_adjacency_pixels":adjacency_pixels[index],
+                            "identity_owner_boundary_adjacency_milli":adjacency_milli[index],
+                            "owner_minus_expected_void_bbox_edge_delta_px":identity.owner_minus_expected_void_bbox_edge_delta_px,
+                            "owner_minus_expected_void_centroid_delta_milli_px":identity.owner_minus_expected_void_centroid_delta_milli_px
+                        })
+                    }
+                    Err(error) => {
+                        identity_discovery_all_views = false;
+                        json!({"status":"BLOCKED","error":error.to_string()})
+                    }
+                };
+                view_diagnostics.insert(kind.to_owned(), diagnostic);
+            }
+            let directional_non_regression = intrusion_pixels
+                .iter()
+                .zip(baseline_profile_intrusion_04r)
+                .all(|(trial, baseline)| trial.is_some_and(|trial| trial <= baseline));
+            let directional_strict_improvement = intrusion_pixels
+                .iter()
+                .zip(baseline_profile_intrusion_04r)
+                .any(|(trial, baseline)| trial.is_some_and(|trial| trial < baseline));
+            let owner_screen_pass = intrusion_pixels.iter().all(|pixels| *pixels == Some(0))
+                && adjacency_pixels
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 32))
+                && adjacency_milli
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 250))
+                && identity_discovery_all_views
+                && profile_contract_exact
+                && lip_coordinates_exact
+                && exact_lip_only
+                && stable_part_source_identity_unchanged
+                && rear_cap_binding_unchanged
+                && lineage_unchanged;
+            upper_profile_lip_trials_04r.push(json!({
+                "lip_y_m":lip_y_m,
+                "fixed_inner_span_m":0.85,
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "profile_contract_exact":profile_contract_exact,
+                "lip_coordinates_exact":lip_coordinates_exact,
+                "exact_lip_only":exact_lip_only,
+                "raw_part_binding_rows_exact":raw_part_binding_rows_exact,
+                "triangle_count_changed":triangle_count_changed,
+                "stable_part_source_identity_unchanged":stable_part_source_identity_unchanged,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged,
+                "lineage_unchanged":lineage_unchanged,
+                "identity_discovery_all_views":identity_discovery_all_views,
+                "owner_intrusion_pixels":intrusion_pixels,
+                "owner_boundary_adjacency_pixels":adjacency_pixels,
+                "owner_boundary_adjacency_milli":adjacency_milli,
+                "directional_non_regression_vs_04q_085":directional_non_regression,
+                "directional_strict_improvement_vs_04q_085":directional_strict_improvement,
+                "owner_screen_pass":owner_screen_pass,
+                "view_diagnostics":view_diagnostics,
+                "six_view_non_regression":"NOT_RUN",
+                "status":if owner_screen_pass {"PASS_OWNER_SCREEN_REQUIRES_SIX_VIEW"} else {"BLOCKED_OWNER_SCREEN"},
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04R_STOCK_UPPER_PROFILE_LIP_SCREEN={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04R-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-LIP-SCREEN",
+                "operator_id":"forgecad.geometry.profile-loft@2",
+                "variant_scope":"private-complete-lip-variant-only",
+                "fixed_inner_span_m":0.85,
+                "lip_y_variants_m":[-0.035,-0.075],
+                "baseline_04q_085_owner_intrusion_pixels":baseline_profile_intrusion_04r,
+                "public_sink_available":false,
+                "trials":upper_profile_lip_trials_04r,
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04R stock upper profile lip screen receipt JSON")
+        );
+
+        // 04S: hold the 04Q@0.85 concave profile and its -0.055 m inner lip,
+        // then screen only the two outer-shoulder profile coordinates.  The
+        // shoulder mutator admits two complete bounded variants and keeps all
+        // stations, non-shoulder points, lower stock, rear-cap, position and
+        // rotation locked.  This remains a three-view directional diagnostic;
+        // a passing screen still requires a separate six-view non-regression.
+        let baseline_upper_profile_04s = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_trial_mutate(
+            &program,
+            0.85,
+        )
+        .expect("04S baseline upper profile");
+        let baseline_upper_profile_node_04s = baseline_upper_profile_04s["nodes"]
+            .as_array()
+            .and_then(|nodes| {
+                nodes
+                    .iter()
+                    .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+            })
+            .expect("04S baseline profile node")
+            .clone();
+        let baseline_profile_intrusion_04s = [302_u64, 492_u64, 587_u64];
+        let mut upper_profile_shoulder_trials_04s = Vec::new();
+        for shoulder_y_m in [-0.085_f64, -0.065_f64] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_shoulder_trial_mutate(
+                &program,
+                shoulder_y_m,
+            )
+            .expect("04S private profile shoulder trial mutation");
+            let trial_upper = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04S trial upper profile");
+            let baseline_profiles = baseline_upper_profile_node_04s["parameters"]["profiles"]
+                .as_array()
+                .expect("04S baseline profile stations");
+            let trial_profiles = trial_upper["parameters"]["profiles"]
+                .as_array()
+                .expect("04S trial profile stations");
+            let profile_contract_exact = trial_upper["operator_id"]
+                == "forgecad.geometry.profile-loft@2"
+                && trial_upper["parameters"]["shape"] == "profile-loft-v2"
+                && trial_upper["parameters"]["resample_points"] == 8
+                && trial_upper["parameters"]["interpolation"] == "linear"
+                && trial_upper["parameters"]["interpolation_rings"] == 0
+                && trial_upper["parameters"]["preserve_corners"] == true
+                && trial_upper["parameters"]["position_m"]
+                    == baseline_upper_profile_node_04s["parameters"]["position_m"]
+                && trial_upper["parameters"]["rotation_rad"]
+                    == baseline_upper_profile_node_04s["parameters"]["rotation_rad"]
+                && trial_profiles.len() == 2
+                && trial_profiles.iter().zip(baseline_profiles).all(
+                    |(trial_profile, baseline_profile)| {
+                        trial_profile["station_m"] == baseline_profile["station_m"]
+                            && trial_profile["corner_indices"] == json!([0, 1, 2, 3, 4, 5, 6, 7])
+                            && trial_profile["points"]
+                                .as_array()
+                                .is_some_and(|points| points.len() == 8)
+                    },
+                );
+            let shoulder_coordinates_exact = trial_profiles.len() == 2
+                && trial_profiles.iter().all(|profile| {
+                    profile["points"].as_array().is_some_and(|points| {
+                        points.len() == 8
+                            && [0_usize, 3_usize].iter().all(|&point_index| {
+                                points[point_index][0]
+                                    .as_f64()
+                                    .is_some_and(|value| (value - shoulder_y_m).abs() <= 1.0e-9)
+                            })
+                            && points[1][0]
+                                .as_f64()
+                                .is_some_and(|value| (value + 0.055).abs() <= 1.0e-9)
+                            && points[2][0]
+                                .as_f64()
+                                .is_some_and(|value| (value + 0.055).abs() <= 1.0e-9)
+                    })
+                });
+            let mut normalized_trial = trial_program.clone();
+            let normalized_upper = normalized_trial["nodes"]
+                .as_array_mut()
+                .and_then(|nodes| {
+                    nodes
+                        .iter_mut()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04S normalized trial upper");
+            normalized_upper["parameters"]["profiles"] =
+                baseline_upper_profile_node_04s["parameters"]["profiles"].clone();
+            normalized_trial
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let mut normalized_baseline = baseline_upper_profile_04s.clone();
+            normalized_baseline
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let exact_shoulder_only = normalized_trial == normalized_baseline;
+
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04S private profile shoulder candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04S trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04S trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04S trial ArtifactReadback");
+            assert_eq!(trial_readback["hard_gate_passed"], true);
+            assert_eq!(trial_readback["validator_status"], "passed");
+            let stable_part_source_identity = |artifact_readback: &Value| {
+                artifact_readback["part_bindings"]
+                    .as_array()
+                    .map(|bindings| {
+                        bindings
+                            .iter()
+                            .map(|binding| {
+                                json!({
+                                    "part_id":binding["part_id"],
+                                    "source_node_id":binding["source_node_id"],
+                                    "material_zone_id":binding["material_zone_id"],
+                                    "solid":binding["solid"]
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+            };
+            let raw_part_binding_rows_exact =
+                trial_readback["part_bindings"] == readback["part_bindings"];
+            let stable_part_source_identity_unchanged = trial_readback["part_ids"]
+                == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && stable_part_source_identity(&trial_readback)
+                    == stable_part_source_identity(&readback);
+            let triangle_count_changed =
+                !raw_part_binding_rows_exact && stable_part_source_identity_unchanged;
+            let rear_cap_binding_unchanged =
+                trial_readback["part_bindings"]
+                    .as_array()
+                    .and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    })
+                    == readback["part_bindings"].as_array().and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    });
+
+            let mut intrusion_pixels = [None; 3];
+            let mut adjacency_pixels = [None; 3];
+            let mut adjacency_milli = [None; 3];
+            let mut identity_discovery_all_views = true;
+            let mut lineage_unchanged = true;
+            let mut view_diagnostics = BTreeMap::new();
+            for (index, kind) in ["left", "right", "rear-three-quarter"]
+                .into_iter()
+                .enumerate()
+            {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04S profile shoulder screen is closed"),
+                };
+                let (comparison, view_spec, registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let baseline = baseline_registered_comparisons_04l
+                    .get(kind)
+                    .expect("04S baseline registered comparison");
+                lineage_unchanged &= comparison["camera"]["camera_hash"] == registered_camera_hash
+                    && baseline["camera"]["camera_hash"] == comparison["camera"]["camera_hash"]
+                    && comparison["render_set"]["reference_id"] == reference.reference_id
+                    && baseline["comparison_report"]["mask"]["sha256"]
+                        == comparison["comparison_report"]["mask"]["sha256"]
+                    && baseline["render_set"]["render_worker_build_cohort_sha256"]
+                        == comparison["render_set"]["render_worker_build_cohort_sha256"];
+                let target = refined_targets.get(kind).expect("04S target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04S target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04S reviewed visual structure");
+                let crop = crate::reference_view_crop(&view_spec).expect("04S crop");
+                let rotation_degrees =
+                    crate::reference_view_rotation_degrees(&view_spec).expect("04S rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04S target mask")
+                        .mask,
+                    &view_spec,
+                    true,
+                )
+                .expect("04S target crop projection");
+                let part_id_sha256 = comparison["render_set"]["pass_artifacts"]["part-id"]
+                    ["sha256"]
+                    .as_str()
+                    .expect("04S Part-ID hash");
+                let part_png = runtime.cas_read(part_id_sha256).expect("04S Part-ID read");
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let discovery = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let diagnostic = match discovery {
+                    Ok(calibration) => {
+                        identity_discovery_all_views &= calibration.selected_transform
+                            == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity;
+                        let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        }).expect("04S identity candidate");
+                        intrusion_pixels[index] =
+                            Some(identity.owner_expected_void_overlap_pixel_count);
+                        adjacency_pixels[index] =
+                            Some(identity.owner_boundary_adjacency_pixel_count);
+                        adjacency_milli[index] = Some(identity.owner_boundary_adjacency_milli);
+                        json!({
+                            "selected_discovery_transform":format!("{:?}", calibration.selected_transform),
+                            "identity_owner_intrusion_pixels":intrusion_pixels[index],
+                            "identity_owner_boundary_adjacency_pixels":adjacency_pixels[index],
+                            "identity_owner_boundary_adjacency_milli":adjacency_milli[index],
+                            "owner_minus_expected_void_bbox_edge_delta_px":identity.owner_minus_expected_void_bbox_edge_delta_px,
+                            "owner_minus_expected_void_centroid_delta_milli_px":identity.owner_minus_expected_void_centroid_delta_milli_px
+                        })
+                    }
+                    Err(error) => {
+                        identity_discovery_all_views = false;
+                        json!({"status":"BLOCKED","error":error.to_string()})
+                    }
+                };
+                view_diagnostics.insert(kind.to_owned(), diagnostic);
+            }
+            let left_relative_improvement = intrusion_pixels[0].is_some_and(|value| value < 302);
+            let right_relative_non_regression =
+                intrusion_pixels[1].is_some_and(|value| value <= 492);
+            let rear3q_relative_improvement = intrusion_pixels[2].is_some_and(|value| value < 587);
+            let directional_non_regression = intrusion_pixels
+                .iter()
+                .zip(baseline_profile_intrusion_04s)
+                .all(|(trial, baseline)| trial.is_some_and(|trial| trial <= baseline));
+            let directional_strict_improvement = left_relative_improvement
+                && rear3q_relative_improvement
+                && intrusion_pixels[1].is_some_and(|value| value < 492);
+            let directional_axis_pass = left_relative_improvement
+                && right_relative_non_regression
+                && rear3q_relative_improvement
+                && identity_discovery_all_views
+                && profile_contract_exact
+                && shoulder_coordinates_exact
+                && exact_shoulder_only
+                && stable_part_source_identity_unchanged
+                && rear_cap_binding_unchanged
+                && lineage_unchanged;
+            let owner_screen_pass = intrusion_pixels.iter().all(|pixels| *pixels == Some(0))
+                && adjacency_pixels
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 32))
+                && adjacency_milli
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 250))
+                && directional_axis_pass;
+            upper_profile_shoulder_trials_04s.push(json!({
+                "shoulder_y_m":shoulder_y_m,
+                "fixed_inner_span_m":0.85,
+                "fixed_lip_y_m":-0.055,
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "profile_contract_exact":profile_contract_exact,
+                "shoulder_coordinates_exact":shoulder_coordinates_exact,
+                "exact_shoulder_only":exact_shoulder_only,
+                "raw_part_binding_rows_exact":raw_part_binding_rows_exact,
+                "triangle_count_changed":triangle_count_changed,
+                "stable_part_source_identity_unchanged":stable_part_source_identity_unchanged,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged,
+                "lineage_unchanged":lineage_unchanged,
+                "identity_discovery_all_views":identity_discovery_all_views,
+                "owner_intrusion_pixels":intrusion_pixels,
+                "owner_boundary_adjacency_pixels":adjacency_pixels,
+                "owner_boundary_adjacency_milli":adjacency_milli,
+                "left_intrusion_lt_04q_085":left_relative_improvement,
+                "right_intrusion_lte_04q_085":right_relative_non_regression,
+                "rear3q_intrusion_lt_04q_085":rear3q_relative_improvement,
+                "directional_non_regression_vs_04q_085":directional_non_regression,
+                "directional_strict_improvement_vs_04q_085":directional_strict_improvement,
+                "directional_axis_pass":directional_axis_pass,
+                "owner_screen_pass":owner_screen_pass,
+                "view_diagnostics":view_diagnostics,
+                "six_view_non_regression":"NOT_RUN",
+                "status":if owner_screen_pass {"PASS_OWNER_SCREEN_REQUIRES_SIX_VIEW"} else {"BLOCKED_OWNER_SCREEN"},
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04S_STOCK_UPPER_PROFILE_SHOULDER_SCREEN={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04S-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-SHOULDER-SCREEN",
+                "operator_id":"forgecad.geometry.profile-loft@2",
+                "variant_scope":"private-complete-shoulder-variant-only",
+                "fixed_inner_span_m":0.85,
+                "fixed_lip_y_m":-0.055,
+                "shoulder_y_variants_m":[-0.085,-0.065],
+                "baseline_04q_085_owner_intrusion_pixels":baseline_profile_intrusion_04s,
+                "public_sink_available":false,
+                "trials":upper_profile_shoulder_trials_04s,
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04S stock upper profile shoulder screen receipt JSON")
+        );
+
+        // 04T: hold the 04Q@0.85 concave profile and its -0.055 m inner lip,
+        // then screen only the cap-facing longitudinal coordinate of point 2.
+        // Both profile stations move together.  Point 1's +0.425 m coordinate,
+        // all first coordinates and all other points, stations, pose, lower
+        // stock and rear-cap remain locked.  This is a three-view directional
+        // diagnostic; even a passing owner screen still requires six-view
+        // non-regression before any later production decision.
+        let baseline_upper_profile_04t = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_trial_mutate(
+            &program,
+            0.85,
+        )
+        .expect("04T baseline upper profile");
+        let baseline_upper_profile_node_04t = baseline_upper_profile_04t["nodes"]
+            .as_array()
+            .and_then(|nodes| {
+                nodes
+                    .iter()
+                    .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+            })
+            .expect("04T baseline profile node")
+            .clone();
+        let baseline_profile_intrusion_04t = [302_u64, 492_u64, 587_u64];
+        let mut upper_profile_cap_lip_trials_04t = Vec::new();
+        for cap_lip_longitudinal_m in [-0.405_f64, -0.395_f64] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_cap_lip_trial_mutate(
+                &program,
+                cap_lip_longitudinal_m,
+            )
+            .expect("04T private cap-facing inner-lip trial mutation");
+            let trial_upper = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04T trial upper profile");
+            let baseline_profiles = baseline_upper_profile_node_04t["parameters"]["profiles"]
+                .as_array()
+                .expect("04T baseline profile stations");
+            let trial_profiles = trial_upper["parameters"]["profiles"]
+                .as_array()
+                .expect("04T trial profile stations");
+            let profile_contract_exact = trial_upper["operator_id"]
+                == "forgecad.geometry.profile-loft@2"
+                && trial_upper["parameters"]["shape"] == "profile-loft-v2"
+                && trial_upper["parameters"]["resample_points"] == 8
+                && trial_upper["parameters"]["interpolation"] == "linear"
+                && trial_upper["parameters"]["interpolation_rings"] == 0
+                && trial_upper["parameters"]["preserve_corners"] == true
+                && trial_upper["parameters"]["position_m"]
+                    == baseline_upper_profile_node_04t["parameters"]["position_m"]
+                && trial_upper["parameters"]["rotation_rad"]
+                    == baseline_upper_profile_node_04t["parameters"]["rotation_rad"]
+                && trial_profiles.len() == 2
+                && trial_profiles.iter().zip(baseline_profiles).all(
+                    |(trial_profile, baseline_profile)| {
+                        trial_profile["station_m"] == baseline_profile["station_m"]
+                            && trial_profile["corner_indices"] == json!([0, 1, 2, 3, 4, 5, 6, 7])
+                            && trial_profile["points"]
+                                .as_array()
+                                .is_some_and(|points| points.len() == 8)
+                    },
+                );
+            let cap_lip_coordinates_exact = trial_profiles.len() == 2
+                && trial_profiles.iter().zip(baseline_profiles).all(
+                    |(trial_profile, baseline_profile)| {
+                        trial_profile["points"].as_array().is_some_and(|points| {
+                            let baseline_points = baseline_profile["points"].as_array();
+                            points.len() == 8
+                                && baseline_points.is_some_and(|baseline_points| {
+                                    (0..8).all(|point_index| {
+                                        if point_index == 2 {
+                                            points[point_index][0]
+                                                == baseline_points[point_index][0]
+                                                && points[point_index][1].as_f64().is_some_and(
+                                                    |value| {
+                                                        (value - cap_lip_longitudinal_m).abs()
+                                                            <= 1.0e-9
+                                                    },
+                                                )
+                                        } else {
+                                            points[point_index] == baseline_points[point_index]
+                                        }
+                                    }) && points[1][1]
+                                        .as_f64()
+                                        .is_some_and(|value| (value - 0.425).abs() <= 1.0e-9)
+                                })
+                        })
+                    },
+                );
+            let mut normalized_trial = trial_program.clone();
+            let normalized_upper = normalized_trial["nodes"]
+                .as_array_mut()
+                .and_then(|nodes| {
+                    nodes
+                        .iter_mut()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04T normalized trial upper");
+            normalized_upper["parameters"]["profiles"] =
+                baseline_upper_profile_node_04t["parameters"]["profiles"].clone();
+            normalized_trial
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let mut normalized_baseline = baseline_upper_profile_04t.clone();
+            normalized_baseline
+                .as_object_mut()
+                .and_then(|object| object.remove("canonical_sha256"));
+            let exact_cap_lip_only = normalized_trial == normalized_baseline;
+
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04T private cap-facing inner-lip candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04T trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04T trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04T trial ArtifactReadback");
+            assert_eq!(trial_readback["hard_gate_passed"], true);
+            assert_eq!(trial_readback["validator_status"], "passed");
+            let binding_identity = |artifact_readback: &Value| {
+                artifact_readback["part_bindings"]
+                    .as_array()
+                    .map(|bindings| {
+                        bindings
+                            .iter()
+                            .map(|binding| {
+                                json!({
+                                    "part_id":binding["part_id"],
+                                    "source_node_id":binding["source_node_id"],
+                                    "material_zone_id":binding["material_zone_id"],
+                                    "solid":binding["solid"]
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+            };
+            let raw_part_binding_rows_exact =
+                trial_readback["part_bindings"] == readback["part_bindings"];
+            let stable_part_source_identity_unchanged = trial_readback["part_ids"]
+                == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && binding_identity(&trial_readback) == binding_identity(&readback);
+            let triangle_count_changed =
+                !raw_part_binding_rows_exact && stable_part_source_identity_unchanged;
+            let rear_cap_binding_unchanged =
+                trial_readback["part_bindings"]
+                    .as_array()
+                    .and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    })
+                    == readback["part_bindings"].as_array().and_then(|bindings| {
+                        bindings
+                            .iter()
+                            .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                    });
+
+            let mut intrusion_pixels = [None; 3];
+            let mut adjacency_pixels = [None; 3];
+            let mut adjacency_milli = [None; 3];
+            let mut identity_discovery_all_views = true;
+            let mut lineage_unchanged = true;
+            let mut view_diagnostics = BTreeMap::new();
+            for (index, kind) in ["left", "right", "rear-three-quarter"]
+                .into_iter()
+                .enumerate()
+            {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04T cap-lip screen is closed"),
+                };
+                let (comparison, view_spec, registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let baseline = baseline_registered_comparisons_04l
+                    .get(kind)
+                    .expect("04T baseline registered comparison");
+                lineage_unchanged &= comparison["camera"]["camera_hash"] == registered_camera_hash
+                    && baseline["camera"]["camera_hash"] == comparison["camera"]["camera_hash"]
+                    && comparison["render_set"]["reference_id"] == reference.reference_id
+                    && baseline["comparison_report"]["mask"]["sha256"]
+                        == comparison["comparison_report"]["mask"]["sha256"]
+                    && baseline["render_set"]["render_worker_build_cohort_sha256"]
+                        == comparison["render_set"]["render_worker_build_cohort_sha256"];
+                let target = refined_targets.get(kind).expect("04T target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04T target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04T reviewed visual structure");
+                let crop = crate::reference_view_crop(&view_spec).expect("04T crop");
+                let rotation_degrees =
+                    crate::reference_view_rotation_degrees(&view_spec).expect("04T rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04T target mask")
+                        .mask,
+                    &view_spec,
+                    true,
+                )
+                .expect("04T target crop projection");
+                let part_id_sha256 = comparison["render_set"]["pass_artifacts"]["part-id"]
+                    ["sha256"]
+                    .as_str()
+                    .expect("04T Part-ID hash");
+                let part_png = runtime.cas_read(part_id_sha256).expect("04T Part-ID read");
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let discovery = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let diagnostic = match discovery {
+                    Ok(calibration) => {
+                        identity_discovery_all_views &= calibration.selected_transform
+                            == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity;
+                        let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        }).expect("04T identity candidate");
+                        intrusion_pixels[index] =
+                            Some(identity.owner_expected_void_overlap_pixel_count);
+                        adjacency_pixels[index] =
+                            Some(identity.owner_boundary_adjacency_pixel_count);
+                        adjacency_milli[index] = Some(identity.owner_boundary_adjacency_milli);
+                        json!({
+                            "selected_discovery_transform":format!("{:?}", calibration.selected_transform),
+                            "identity_owner_intrusion_pixels":intrusion_pixels[index],
+                            "identity_owner_boundary_adjacency_pixels":adjacency_pixels[index],
+                            "identity_owner_boundary_adjacency_milli":adjacency_milli[index],
+                            "owner_minus_expected_void_bbox_edge_delta_px":identity.owner_minus_expected_void_bbox_edge_delta_px,
+                            "owner_minus_expected_void_centroid_delta_milli_px":identity.owner_minus_expected_void_centroid_delta_milli_px
+                        })
+                    }
+                    Err(error) => {
+                        identity_discovery_all_views = false;
+                        json!({"status":"BLOCKED","error":error.to_string()})
+                    }
+                };
+                view_diagnostics.insert(kind.to_owned(), diagnostic);
+            }
+            let left_relative_improvement = intrusion_pixels[0].is_some_and(|value| value < 302);
+            let right_relative_non_regression =
+                intrusion_pixels[1].is_some_and(|value| value <= 492);
+            let rear3q_relative_improvement = intrusion_pixels[2].is_some_and(|value| value < 587);
+            let directional_non_regression = intrusion_pixels
+                .iter()
+                .zip(baseline_profile_intrusion_04t)
+                .all(|(trial, baseline)| trial.is_some_and(|trial| trial <= baseline));
+            let directional_strict_improvement =
+                left_relative_improvement && rear3q_relative_improvement;
+            let directional_axis_pass = left_relative_improvement
+                && right_relative_non_regression
+                && rear3q_relative_improvement
+                && identity_discovery_all_views
+                && profile_contract_exact
+                && cap_lip_coordinates_exact
+                && exact_cap_lip_only
+                && stable_part_source_identity_unchanged
+                && rear_cap_binding_unchanged
+                && lineage_unchanged;
+            let owner_screen_pass = intrusion_pixels.iter().all(|pixels| *pixels == Some(0))
+                && adjacency_pixels
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 32))
+                && adjacency_milli
+                    .iter()
+                    .all(|value| value.is_some_and(|value| value >= 250))
+                && directional_axis_pass;
+            upper_profile_cap_lip_trials_04t.push(json!({
+                "cap_lip_longitudinal_m":cap_lip_longitudinal_m,
+                "fixed_inner_span_m":0.85,
+                "fixed_lip_y_m":-0.055,
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "profile_contract_exact":profile_contract_exact,
+                "cap_lip_coordinates_exact":cap_lip_coordinates_exact,
+                "exact_cap_lip_only":exact_cap_lip_only,
+                "raw_part_binding_rows_exact":raw_part_binding_rows_exact,
+                "triangle_count_changed":triangle_count_changed,
+                "stable_part_source_identity_unchanged":stable_part_source_identity_unchanged,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged,
+                "lineage_unchanged":lineage_unchanged,
+                "identity_discovery_all_views":identity_discovery_all_views,
+                "owner_intrusion_pixels":intrusion_pixels,
+                "owner_boundary_adjacency_pixels":adjacency_pixels,
+                "owner_boundary_adjacency_milli":adjacency_milli,
+                "left_intrusion_lt_04q_085":left_relative_improvement,
+                "right_intrusion_lte_04q_085":right_relative_non_regression,
+                "rear3q_intrusion_lt_04q_085":rear3q_relative_improvement,
+                "directional_non_regression_vs_04q_085":directional_non_regression,
+                "directional_strict_improvement_vs_04q_085":directional_strict_improvement,
+                "directional_axis_pass":directional_axis_pass,
+                "owner_screen_pass":owner_screen_pass,
+                "view_diagnostics":view_diagnostics,
+                "six_view_non_regression":"NOT_RUN",
+                "status":if owner_screen_pass {"PASS_OWNER_SCREEN_REQUIRES_SIX_VIEW"} else {"BLOCKED_OWNER_SCREEN"},
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04T_STOCK_UPPER_PROFILE_CAP_LIP_SCREEN={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04T-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-CAP-LIP-SCREEN",
+                "operator_id":"forgecad.geometry.profile-loft@2",
+                "variant_scope":"private-complete-cap-facing-inner-lip-variant-only",
+                "fixed_inner_span_m":0.85,
+                "fixed_lip_y_m":-0.055,
+                "cap_lip_longitudinal_variants_m":[-0.405,-0.395],
+                "baseline_04q_085_owner_intrusion_pixels":baseline_profile_intrusion_04t,
+                "public_sink_available":false,
+                "trials":upper_profile_cap_lip_trials_04t,
+                "depth_status":"UNKNOWN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04T stock upper profile cap-lip screen receipt JSON")
+        );
+
+        // 04U: explain why the 04Q@0.85 upper-profile screen changed only
+        // selected views.  This is a private pixel-owner diagnostic: it
+        // compares exact semantic rear-stock Part-ID masks against the same
+        // reviewed expected-void masks and reports changed pixels inside,
+        // outside and around the expected boundary.  It deliberately does
+        // not add a renderer AOV, infer triangle ownership, confirm a
+        // candidate, or advance any production stage.
+        let baseline_program_04u = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_trial_mutate(
+            &program,
+            0.85,
+        )
+        .expect("04U baseline 04Q@0.85 upper profile");
+        let baseline_prepared_04u = runtime
+            .prepare_geometry_candidate(
+                &project.project_id,
+                None,
+                json!({
+                    "typed":"geometry",
+                    "reference_id":reference.reference_id,
+                    "geometry_program":baseline_program_04u
+                }),
+            )
+            .expect("04U baseline 04Q@0.85 candidate");
+        let baseline_candidate_id_04u = baseline_prepared_04u["candidate"]["candidate_id"]
+            .as_str()
+            .expect("04U baseline candidate id")
+            .to_owned();
+        let baseline_artifact_sha256_04u = baseline_prepared_04u["candidate"]
+            ["prepared_object_sha256"]
+            .as_str()
+            .expect("04U baseline artifact hash")
+            .to_owned();
+        let audit_view_kinds_04u = ["left", "right", "rear-three-quarter"];
+        let mut baseline_comparisons_04u = BTreeMap::new();
+        for kind in audit_view_kinds_04u {
+            let (comparison, view_spec, registered_camera_hash) =
+                render_registered_04l(&baseline_candidate_id_04u, kind);
+            baseline_comparisons_04u.insert(
+                kind.to_owned(),
+                json!({
+                    "comparison":comparison,
+                    "view_spec":view_spec,
+                    "registered_camera_hash":registered_camera_hash
+                }),
+            );
+        }
+        let trials_04u = vec![
+            (
+                "04R@-0.035",
+                crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_lip_trial_mutate(
+                    &program,
+                    -0.035,
+                )
+                .expect("04U 04R@-0.035 trial"),
+            ),
+            (
+                "04S@-0.065",
+                crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_shoulder_trial_mutate(
+                    &program,
+                    -0.065,
+                )
+                .expect("04U 04S@-0.065 trial"),
+            ),
+            (
+                "04T@-0.405",
+                crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_cap_lip_trial_mutate(
+                    &program,
+                    -0.405,
+                )
+                .expect("04U 04T@-0.405 trial"),
+            ),
+        ];
+        let mut owner_pixel_trials_04u = Vec::new();
+        for (variant, trial_program) in trials_04u {
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04U private profile trial candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04U trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04U trial artifact hash")
+                .to_owned();
+            let mut view_diagnostics = BTreeMap::new();
+            for kind in audit_view_kinds_04u {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04U open-stock view set is closed"),
+                };
+                let baseline_entry = baseline_comparisons_04u
+                    .get(kind)
+                    .expect("04U baseline registered comparison");
+                let baseline_comparison = &baseline_entry["comparison"];
+                let baseline_view_spec = &baseline_entry["view_spec"];
+                let baseline_registered_camera_hash = &baseline_entry["registered_camera_hash"];
+                let (trial_comparison, trial_view_spec, trial_registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let target = refined_targets.get(kind).expect("04U target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04U target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04U reviewed visual structure");
+                let crop = crate::reference_view_crop(baseline_view_spec).expect("04U crop");
+                let rotation_degrees = crate::reference_view_rotation_degrees(baseline_view_spec)
+                    .expect("04U authored reference rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04U target mask")
+                        .mask,
+                    baseline_view_spec,
+                    true,
+                )
+                .expect("04U target crop projection");
+                let (_, region_mask, expected_void, _) = crate::production_weapon_form_art_evidence::reviewed_region_owner_audit_masks_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                )
+                .expect("04U expected-void masks");
+                let baseline_part_id_sha256 = baseline_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04U baseline Part-ID hash");
+                let trial_part_id_sha256 = trial_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04U trial Part-ID hash");
+                let baseline_part_png = runtime
+                    .cas_read(baseline_part_id_sha256)
+                    .expect("04U baseline Part-ID read");
+                let trial_part_png = runtime
+                    .cas_read(trial_part_id_sha256)
+                    .expect("04U trial Part-ID read");
+                let baseline_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &baseline_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04U baseline rear-stock Part-ID mask");
+                let trial_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &trial_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04U trial rear-stock Part-ID mask");
+                let owner_audit =
+                    crate::production_weapon_form_art_evidence::owner_mask_hamming_diagnostic(
+                        &baseline_owner_mask,
+                        &trial_owner_mask,
+                        &region_mask,
+                        &expected_void,
+                    )
+                    .expect("04U owner-mask Hamming diagnostic");
+                let owner_changed_mask = baseline_owner_mask
+                    .iter()
+                    .zip(trial_owner_mask.iter())
+                    .map(|(baseline, trial)| baseline != trial)
+                    .collect::<Vec<_>>();
+                let aov_summary = |pass: &str, label: &str| {
+                    let baseline_hash = baseline_comparison["render_set"]["pass_artifacts"][pass]
+                        ["sha256"]
+                        .as_str();
+                    let trial_hash =
+                        trial_comparison["render_set"]["pass_artifacts"][pass]["sha256"].as_str();
+                    let changed = match (baseline_hash, trial_hash) {
+                        (Some(baseline_hash), Some(trial_hash)) => {
+                            let baseline_png = runtime.cas_read(baseline_hash).ok();
+                            let trial_png = runtime.cas_read(trial_hash).ok();
+                            match (baseline_png, trial_png) {
+                                (Some(baseline_png), Some(trial_png)) => crate::production_weapon_form_art_evidence::fixed_aov_changed_mask(
+                                    &baseline_png,
+                                    &trial_png,
+                                    label,
+                                )
+                                .ok(),
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    };
+                    let Some(changed) = changed else {
+                        return json!({"status":"UNAVAILABLE"});
+                    };
+                    let changed_pixel_count = changed.iter().filter(|pixel| **pixel).count() as u64;
+                    let changed_inside_expected_void_pixel_count = changed
+                        .iter()
+                        .zip(expected_void.iter())
+                        .filter(|(changed, expected)| **changed && **expected)
+                        .count()
+                        as u64;
+                    let changed_at_owner_mask_delta_pixel_count = changed
+                        .iter()
+                        .zip(owner_changed_mask.iter())
+                        .filter(|(changed, owner_changed)| **changed && **owner_changed)
+                        .count()
+                        as u64;
+                    json!({
+                        "status":"OBSERVED",
+                        "changed_pixel_count":changed_pixel_count,
+                        "changed_inside_expected_void_pixel_count":changed_inside_expected_void_pixel_count,
+                        "changed_at_owner_mask_delta_pixel_count":changed_at_owner_mask_delta_pixel_count
+                    })
+                };
+                let lineage_unchanged = baseline_comparison["camera"]["camera_hash"]
+                    == trial_comparison["camera"]["camera_hash"]
+                    && baseline_comparison["render_set"]["reference_id"]
+                        == trial_comparison["render_set"]["reference_id"]
+                    && baseline_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                        == trial_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                    && baseline_comparison["comparison_report"]["mask"]["sha256"]
+                        == trial_comparison["comparison_report"]["mask"]["sha256"]
+                    && *baseline_registered_camera_hash == trial_registered_camera_hash
+                    && baseline_view_spec["canonical_sha256"]
+                        == trial_view_spec["canonical_sha256"];
+                let mut diagnostic =
+                    serde_json::to_value(&owner_audit).expect("04U owner audit JSON");
+                diagnostic["structure_id"] = Value::String(structure_id.to_owned());
+                diagnostic["owner_part_id"] = Value::String("rear-stock".to_owned());
+                diagnostic["baseline_part_id_pass_sha256"] =
+                    Value::String(baseline_part_id_sha256.to_owned());
+                diagnostic["trial_part_id_pass_sha256"] =
+                    Value::String(trial_part_id_sha256.to_owned());
+                diagnostic["baseline_expected_void_overlap_pixel_count"] =
+                    Value::from(owner_audit.baseline_owner_expected_void_overlap_pixel_count);
+                diagnostic["trial_expected_void_overlap_pixel_count"] =
+                    Value::from(owner_audit.trial_owner_expected_void_overlap_pixel_count);
+                diagnostic["lineage_unchanged"] = Value::Bool(lineage_unchanged);
+                diagnostic["depth"] = aov_summary("depth", "04U depth");
+                diagnostic["silhouette"] = aov_summary("silhouette", "04U silhouette");
+                diagnostic["source_attribution"] = json!({
+                    "semantic_owner_part_id":"rear-stock",
+                    "source_node_attribution":"COARSE_SEMANTIC_PART_ID_ONLY_REUSED_04O",
+                    "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS
+                });
+                view_diagnostics.insert(kind.to_owned(), diagnostic);
+            }
+            let classifications = view_diagnostics
+                .values()
+                .filter_map(|view| view.get("classification").and_then(Value::as_str))
+                .collect::<Vec<_>>();
+            let overall_classification = if classifications
+                .iter()
+                .all(|classification| *classification == "MASK_UNCHANGED")
+            {
+                "MASK_UNCHANGED_ALL_VIEWS"
+            } else if classifications
+                .iter()
+                .all(|classification| *classification == "VISIBLE_CHANGE_OUTSIDE_REVIEWED_REGION")
+            {
+                "VISIBLE_CHANGE_OUTSIDE_REVIEWED_REGION_ALL_VIEWS"
+            } else {
+                "MIXED_VIEW_OWNER_RASTER_CHANGE"
+            };
+            owner_pixel_trials_04u.push(json!({
+                "variant":variant,
+                "baseline_variant":"04Q@0.85",
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "overall_classification":overall_classification,
+                "views":view_diagnostics,
+                "depth_status":"AOV_OBSERVED_OR_UNAVAILABLE_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04U_STOCK_UPPER_PIXEL_OWNER_AUDIT={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04U-REAL-D1-PRIVATE-STOCK-UPPER-PIXEL-OWNER-AUDIT",
+                "baseline_variant":"04Q@0.85",
+                "baseline_candidate_id":baseline_candidate_id_04u,
+                "baseline_artifact_sha256":baseline_artifact_sha256_04u,
+                "trial_variants":["04R@-0.035","04S@-0.065","04T@-0.405"],
+                "views":["left","right","rear-three-quarter"],
+                "expected_void_policy":"reviewed-contour-minus-target@1",
+                "boundary_policy":"4-neighbor-expected-boundary-dilation-r1-r2-r4@1",
+                "source_attribution_policy":"semantic-rear-stock-Part-ID-only; 04O upper/lower remains prior receipt",
+                "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS,
+                "trials":owner_pixel_trials_04u,
+                "depth_status":"AOV_OBSERVED_OR_UNAVAILABLE_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04U stock upper pixel-owner audit receipt JSON")
+        );
+
+        // 04V: screen only the two forward lip extrapolations against the
+        // already-rendered 04Q@0.85 baseline.  This remains a private,
+        // fail-closed diagnostic: the exact semantic owner-mask Hamming
+        // result is reused for left/rear strong-versus-exploration signals
+        // and right-side non-regression, while the formal owner gate keeps
+        // zero intrusion plus the existing adjacency thresholds.  No six
+        // view claim, Runtime truth write, promotion or confirmation occurs.
+        let binding_identity_04v = |artifact_readback: &Value| {
+            artifact_readback["part_bindings"]
+                .as_array()
+                .map(|bindings| {
+                    bindings
+                        .iter()
+                        .map(|binding| {
+                            json!({
+                                "part_id":binding["part_id"],
+                                "source_node_id":binding["source_node_id"],
+                                "material_zone_id":binding["material_zone_id"],
+                                "solid":binding["solid"]
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+        };
+        let rear_cap_binding_04v = |artifact_readback: &Value| {
+            artifact_readback["part_bindings"]
+                .as_array()
+                .and_then(|bindings| {
+                    bindings
+                        .iter()
+                        .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                })
+                .cloned()
+        };
+        let mut lip_extrapolation_trials_04v = Vec::new();
+        for (variant, lip_y_m) in [("04V@-0.015", -0.015_f64), ("04V@+0.005", 0.005_f64)] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_04v_lip_trial_mutate(
+                &program,
+                lip_y_m,
+            )
+            .expect("04V private upper profile lip trial");
+            let baseline_program_04v = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_trial_mutate(
+                &program,
+                0.85,
+            )
+            .expect("04V fixed 04Q@0.85 profile");
+            let baseline_upper_04v = baseline_program_04v["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04V baseline upper profile node");
+            let trial_upper_04v = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04V trial upper profile node");
+            let baseline_profiles_04v = baseline_upper_04v["parameters"]["profiles"]
+                .as_array()
+                .expect("04V baseline profiles");
+            let trial_profiles_04v = trial_upper_04v["parameters"]["profiles"]
+                .as_array()
+                .expect("04V trial profiles");
+            let mut normalized_trial_04v = trial_program.clone();
+            let normalized_trial_upper_04v = normalized_trial_04v["nodes"]
+                .as_array_mut()
+                .and_then(|nodes| {
+                    nodes
+                        .iter_mut()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04V normalized trial upper profile node");
+            normalized_trial_upper_04v["parameters"]["profiles"] =
+                Value::Array(baseline_profiles_04v.to_vec());
+            normalized_trial_04v
+                .as_object_mut()
+                .expect("04V normalized trial program")
+                .remove("canonical_sha256");
+            let mut normalized_baseline_04v = baseline_program_04v.clone();
+            normalized_baseline_04v
+                .as_object_mut()
+                .expect("04V normalized baseline program")
+                .remove("canonical_sha256");
+            let exact_lip_only_04v = normalized_trial_04v == normalized_baseline_04v
+                && trial_upper_04v["operator_id"] == "forgecad.geometry.profile-loft@2"
+                && trial_profiles_04v.len() == 2
+                && trial_profiles_04v.iter().all(|profile| {
+                    profile["points"].as_array().is_some_and(|points| {
+                        points.len() == 8
+                            && points[1][0]
+                                .as_f64()
+                                .is_some_and(|value| (value - lip_y_m).abs() <= 1.0e-9)
+                            && points[2][0]
+                                .as_f64()
+                                .is_some_and(|value| (value - lip_y_m).abs() <= 1.0e-9)
+                    })
+                });
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04V private upper profile lip candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04V trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04V trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04V trial ArtifactReadback");
+            assert_eq!(trial_readback["schema_version"], "ArtifactReadback@2");
+            assert_eq!(trial_readback["hard_gate_passed"], true);
+            assert_eq!(trial_readback["validator_status"], "passed");
+            let stable_part_source_identity_unchanged_04v = trial_readback["part_ids"]
+                == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && binding_identity_04v(&trial_readback) == binding_identity_04v(&readback);
+            let rear_cap_binding_unchanged_04v = rear_cap_binding_04v(&trial_readback).is_some()
+                && rear_cap_binding_04v(&trial_readback) == rear_cap_binding_04v(&readback);
+
+            let mut left_strong_signal_04v = false;
+            let mut left_exploration_signal_04v = false;
+            let mut rear3q_strong_signal_04v = false;
+            let mut rear3q_exploration_signal_04v = false;
+            let mut right_intrusion_pixels_04v = u64::MAX;
+            let mut right_non_regression_vs_04q_085_04v = false;
+            let mut right_preferred_vs_04r_04v = false;
+            let mut formal_owner_gate_pass_04v = true;
+            let mut identity_discovery_all_views_04v = true;
+            let mut lineage_unchanged_04v = true;
+            let mut view_diagnostics_04v = BTreeMap::new();
+            for kind in ["left", "right", "rear-three-quarter"] {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04V open-stock view set is closed"),
+                };
+                let baseline_entry = baseline_comparisons_04u
+                    .get(kind)
+                    .expect("04V 04Q baseline registered comparison");
+                let baseline_comparison = &baseline_entry["comparison"];
+                let baseline_view_spec = &baseline_entry["view_spec"];
+                let baseline_registered_camera_hash = &baseline_entry["registered_camera_hash"];
+                let (trial_comparison, trial_view_spec, trial_registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let target = refined_targets.get(kind).expect("04V target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04V target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04V reviewed visual structure");
+                let crop = crate::reference_view_crop(baseline_view_spec).expect("04V crop");
+                let rotation_degrees = crate::reference_view_rotation_degrees(baseline_view_spec)
+                    .expect("04V authored reference rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04V target mask")
+                        .mask,
+                    baseline_view_spec,
+                    true,
+                )
+                .expect("04V target crop projection");
+                let (_, region_mask, expected_void, _) = crate::production_weapon_form_art_evidence::reviewed_region_owner_audit_masks_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                )
+                .expect("04V expected-void masks");
+                let baseline_part_id_sha256 = baseline_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04V baseline Part-ID hash");
+                let trial_part_id_sha256 = trial_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04V trial Part-ID hash");
+                let baseline_part_png = runtime
+                    .cas_read(baseline_part_id_sha256)
+                    .expect("04V baseline Part-ID read");
+                let trial_part_png = runtime
+                    .cas_read(trial_part_id_sha256)
+                    .expect("04V trial Part-ID read");
+                let baseline_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &baseline_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04V baseline rear-stock Part-ID mask");
+                let trial_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &trial_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04V trial rear-stock Part-ID mask");
+                let owner_audit_04v =
+                    crate::production_weapon_form_art_evidence::owner_mask_hamming_diagnostic(
+                        &baseline_owner_mask,
+                        &trial_owner_mask,
+                        &region_mask,
+                        &expected_void,
+                    )
+                    .expect("04V owner-mask Hamming diagnostic");
+                let lineage_unchanged_for_view_04v = baseline_comparison["camera"]["camera_hash"]
+                    == trial_comparison["camera"]["camera_hash"]
+                    && baseline_comparison["render_set"]["reference_id"]
+                        == trial_comparison["render_set"]["reference_id"]
+                    && baseline_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                        == trial_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                    && baseline_comparison["comparison_report"]["mask"]["sha256"]
+                        == trial_comparison["comparison_report"]["mask"]["sha256"]
+                    && *baseline_registered_camera_hash == trial_registered_camera_hash
+                    && baseline_view_spec["canonical_sha256"]
+                        == trial_view_spec["canonical_sha256"];
+                lineage_unchanged_04v &= lineage_unchanged_for_view_04v;
+
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let calibration = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &trial_part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let (identity_discovery, identity_json, formal_owner_gate_for_view) =
+                    match calibration {
+                        Ok(calibration) => {
+                            let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform
+                                == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        });
+                            let identity_discovery = calibration.selected_transform
+                            == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                            && identity.is_some();
+                            let formal_owner_gate = identity.is_some_and(|candidate| {
+                                calibration.expected_void_pixel_count >= 256
+                                    && calibration.expected_boundary_pixel_count >= 64
+                                    && candidate.owner_region_pixel_count >= 128
+                                    && candidate.owner_expected_void_overlap_pixel_count == 0
+                                    && candidate.owner_expected_void_overlap_milli == 0
+                                    && candidate.owner_boundary_adjacency_pixel_count >= 32
+                                    && candidate.owner_boundary_adjacency_milli >= 250
+                                    && owner_audit_04v.trial_owner_expected_void_overlap_pixel_count
+                                        == 0
+                            });
+                            let identity_json = identity.map_or_else(
+                            || json!({"status":"UNAVAILABLE"}),
+                            |candidate| {
+                                json!({
+                                    "selected_transform":format!("{:?}", calibration.selected_transform),
+                                    "owner_region_pixel_count":candidate.owner_region_pixel_count,
+                                    "owner_expected_void_overlap_pixel_count":candidate.owner_expected_void_overlap_pixel_count,
+                                    "owner_expected_void_overlap_milli":candidate.owner_expected_void_overlap_milli,
+                                    "owner_boundary_adjacency_pixel_count":candidate.owner_boundary_adjacency_pixel_count,
+                                    "owner_boundary_adjacency_milli":candidate.owner_boundary_adjacency_milli,
+                                    "expected_void_pixel_count":calibration.expected_void_pixel_count,
+                                    "expected_boundary_pixel_count":calibration.expected_boundary_pixel_count,
+                                    "status":calibration.status,
+                                    "identity_discovery":identity_discovery,
+                                    "formal_owner_gate":formal_owner_gate
+                                })
+                            },
+                        );
+                            (identity_discovery, identity_json, formal_owner_gate)
+                        }
+                        Err(error) => (
+                            false,
+                            json!({"status":"BLOCKED","error":error.to_string()}),
+                            false,
+                        ),
+                    };
+                identity_discovery_all_views_04v &= identity_discovery;
+                formal_owner_gate_pass_04v &= formal_owner_gate_for_view;
+                let strong_signal = owner_audit_04v.owner_mask_changed_pixel_count > 0
+                    && (owner_audit_04v.owner_mask_changed_inside_expected_void_pixel_count > 0
+                        || owner_audit_04v.changed_expected_boundary_band_r1_pixel_count > 0);
+                let exploration_signal = owner_audit_04v.owner_mask_changed_pixel_count > 0
+                    && owner_audit_04v.changed_expected_boundary_band_r4_pixel_count > 0;
+                match kind {
+                    "left" => {
+                        left_strong_signal_04v = strong_signal;
+                        left_exploration_signal_04v = exploration_signal;
+                    }
+                    "right" => {
+                        right_intrusion_pixels_04v =
+                            owner_audit_04v.trial_owner_expected_void_overlap_pixel_count;
+                        right_non_regression_vs_04q_085_04v = right_intrusion_pixels_04v <= 492;
+                        right_preferred_vs_04r_04v = right_intrusion_pixels_04v <= 474;
+                    }
+                    "rear-three-quarter" => {
+                        rear3q_strong_signal_04v = strong_signal;
+                        rear3q_exploration_signal_04v = exploration_signal;
+                    }
+                    _ => unreachable!("04V signals use the closed three-view set"),
+                }
+                let mut diagnostic =
+                    serde_json::to_value(&owner_audit_04v).expect("04V owner audit JSON");
+                diagnostic["structure_id"] = Value::String(structure_id.to_owned());
+                diagnostic["owner_part_id"] = Value::String("rear-stock".to_owned());
+                diagnostic["baseline_part_id_pass_sha256"] =
+                    Value::String(baseline_part_id_sha256.to_owned());
+                diagnostic["trial_part_id_pass_sha256"] =
+                    Value::String(trial_part_id_sha256.to_owned());
+                diagnostic["identity"] = identity_json;
+                diagnostic["identity_discovery"] = Value::Bool(identity_discovery);
+                diagnostic["formal_owner_gate"] = Value::Bool(formal_owner_gate_for_view);
+                diagnostic["strong_signal"] = Value::Bool(strong_signal);
+                diagnostic["exploration_signal"] = Value::Bool(exploration_signal);
+                diagnostic["lineage_unchanged"] = Value::Bool(lineage_unchanged_for_view_04v);
+                diagnostic["source_attribution"] = json!({
+                    "semantic_owner_part_id":"rear-stock",
+                    "source_node_attribution":"COARSE_SEMANTIC_PART_ID_ONLY_REUSED_04O",
+                    "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS
+                });
+                view_diagnostics_04v.insert(kind.to_owned(), diagnostic);
+            }
+            let directional_exploration_gate_04v = left_exploration_signal_04v
+                && rear3q_exploration_signal_04v
+                && right_non_regression_vs_04q_085_04v
+                && stable_part_source_identity_unchanged_04v
+                && rear_cap_binding_unchanged_04v
+                && lineage_unchanged_04v
+                && identity_discovery_all_views_04v
+                && exact_lip_only_04v;
+            let strong_signal_gate_04v = left_strong_signal_04v && rear3q_strong_signal_04v;
+            let status_04v = if directional_exploration_gate_04v && formal_owner_gate_pass_04v {
+                "PASS_BOUND_DIAGNOSTIC_REQUIRES_SIX_VIEW"
+            } else if directional_exploration_gate_04v {
+                "BLOCKED_FORMAL_OWNER_GATE"
+            } else {
+                "BLOCKED_NO_DIRECTIONAL_SCREEN_SIGNAL"
+            };
+            lip_extrapolation_trials_04v.push(json!({
+                "variant":variant,
+                "lip_y_m":lip_y_m,
+                "baseline_variant":"04Q@0.85",
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "operator_id":"forgecad.geometry.profile-loft@2",
+                "profile_contract":"fixed 04Q@0.85; only profiles[0/1].points[1/2][0] changed",
+                "profile_contract_verified":exact_lip_only_04v,
+                "stable_part_source_identity_unchanged":stable_part_source_identity_unchanged_04v,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged_04v,
+                "lineage_unchanged":lineage_unchanged_04v,
+                "identity_discovery_all_views":identity_discovery_all_views_04v,
+                "left_strong_signal":left_strong_signal_04v,
+                "left_exploration_signal":left_exploration_signal_04v,
+                "rear3q_strong_signal":rear3q_strong_signal_04v,
+                "rear3q_exploration_signal":rear3q_exploration_signal_04v,
+                "right_intrusion_pixels":right_intrusion_pixels_04v,
+                "right_non_regression_vs_04q_085":right_non_regression_vs_04q_085_04v,
+                "right_preferred_vs_04r":right_preferred_vs_04r_04v,
+                "strong_signal_gate":strong_signal_gate_04v,
+                "directional_exploration_gate":directional_exploration_gate_04v,
+                "formal_owner_gate_pass":formal_owner_gate_pass_04v,
+                "formal_owner_gate_policy":"identity intrusion == 0; boundary adjacency pixels >= 32; adjacency milli >= 250",
+                "status":status_04v,
+                "views":view_diagnostics_04v,
+                "six_view_non_regression":"NOT_RUN",
+                "depth_status":"UNKNOWN_OR_OBSERVED_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04V_STOCK_UPPER_PROFILE_LIP_EXTRAPOLATION={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04V-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-LIP-EXTRAPOLATION",
+                "baseline_variant":"04Q@0.85",
+                "baseline_candidate_id":baseline_candidate_id_04u,
+                "baseline_artifact_sha256":baseline_artifact_sha256_04u,
+                "lip_y_variants_m":[-0.015,0.005],
+                "views":["left","right","rear-three-quarter"],
+                "strong_signal_policy":"changed > 0 && (inside_expected_void > 0 || boundary_band_r1 > 0)",
+                "exploration_signal_policy":"changed > 0 && boundary_band_r4 > 0",
+                "right_non_regression_policy":"trial intrusion <= 492",
+                "right_preferred_policy":"trial intrusion <= 474",
+                "formal_owner_gate_policy":"all registered views: identity intrusion == 0; boundary adjacency pixels >= 32; adjacency milli >= 250",
+                "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS,
+                "trials":lip_extrapolation_trials_04v,
+                "six_view_non_regression":"NOT_RUN",
+                "depth_status":"UNKNOWN_OR_OBSERVED_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04V stock upper profile lip extrapolation receipt JSON")
+        );
+
+        // 04W: continue only the bounded positive lip direction from 04V.
+        // The trial set is private and fail-closed.  It reuses the exact
+        // 04Q@0.85 registered-camera baseline and the semantic owner-mask
+        // Hamming diagnostic, while keeping any non-zero owner intrusion
+        // explicitly blocked.  If either trial selects a non-identity
+        // transform or misses the adjacency floor, stop this direction rather
+        // than treating the directional signal as a promotion gate.
+        let binding_identity_04w = |artifact_readback: &Value| {
+            artifact_readback["part_bindings"]
+                .as_array()
+                .map(|bindings| {
+                    bindings
+                        .iter()
+                        .map(|binding| {
+                            json!({
+                                "part_id":binding["part_id"],
+                                "source_node_id":binding["source_node_id"],
+                                "material_zone_id":binding["material_zone_id"],
+                                "solid":binding["solid"]
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+        };
+        let rear_cap_binding_04w = |artifact_readback: &Value| {
+            artifact_readback["part_bindings"]
+                .as_array()
+                .and_then(|bindings| {
+                    bindings
+                        .iter()
+                        .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                })
+                .cloned()
+        };
+        let mut lip_continuation_trials_04w = Vec::new();
+        let mut stop_positive_extrapolation_04w_any = false;
+        for (variant, lip_y_m) in [("04W@+0.025", 0.025_f64), ("04W@+0.045", 0.045_f64)] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_04w_lip_trial_mutate(
+                &program,
+                lip_y_m,
+            )
+            .expect("04W private upper profile lip trial");
+            let baseline_program_04w = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_trial_mutate(
+                &program,
+                0.85,
+            )
+            .expect("04W fixed 04Q@0.85 profile");
+            let baseline_upper_04w = baseline_program_04w["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04W baseline upper profile node");
+            let trial_upper_04w = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04W trial upper profile node");
+            let baseline_profiles_04w = baseline_upper_04w["parameters"]["profiles"]
+                .as_array()
+                .expect("04W baseline profiles");
+            let trial_profiles_04w = trial_upper_04w["parameters"]["profiles"]
+                .as_array()
+                .expect("04W trial profiles");
+            let mut normalized_trial_04w = trial_program.clone();
+            let normalized_trial_upper_04w = normalized_trial_04w["nodes"]
+                .as_array_mut()
+                .and_then(|nodes| {
+                    nodes
+                        .iter_mut()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04W normalized trial upper profile node");
+            normalized_trial_upper_04w["parameters"]["profiles"] =
+                Value::Array(baseline_profiles_04w.to_vec());
+            normalized_trial_04w
+                .as_object_mut()
+                .expect("04W normalized trial program")
+                .remove("canonical_sha256");
+            let mut normalized_baseline_04w = baseline_program_04w.clone();
+            normalized_baseline_04w
+                .as_object_mut()
+                .expect("04W normalized baseline program")
+                .remove("canonical_sha256");
+            let exact_lip_only_04w = normalized_trial_04w == normalized_baseline_04w
+                && trial_upper_04w["operator_id"] == "forgecad.geometry.profile-loft@2"
+                && trial_profiles_04w.len() == 2
+                && trial_profiles_04w.iter().all(|profile| {
+                    profile["points"].as_array().is_some_and(|points| {
+                        points.len() == 8
+                            && points[1][0]
+                                .as_f64()
+                                .is_some_and(|value| (value - lip_y_m).abs() <= 1.0e-9)
+                            && points[2][0]
+                                .as_f64()
+                                .is_some_and(|value| (value - lip_y_m).abs() <= 1.0e-9)
+                    })
+                });
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04W private upper profile lip candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04W trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04W trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04W trial ArtifactReadback");
+            assert_eq!(trial_readback["schema_version"], "ArtifactReadback@2");
+            assert_eq!(trial_readback["hard_gate_passed"], true);
+            assert_eq!(trial_readback["validator_status"], "passed");
+            let stable_part_source_identity_unchanged_04w = trial_readback["part_ids"]
+                == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && binding_identity_04w(&trial_readback) == binding_identity_04w(&readback);
+            let rear_cap_binding_unchanged_04w = rear_cap_binding_04w(&trial_readback).is_some()
+                && rear_cap_binding_04w(&trial_readback) == rear_cap_binding_04w(&readback);
+
+            let mut left_strong_signal_04w = false;
+            let mut left_exploration_signal_04w = false;
+            let mut rear3q_strong_signal_04w = false;
+            let mut rear3q_exploration_signal_04w = false;
+            let mut right_intrusion_pixels_04w = u64::MAX;
+            let mut right_non_regression_vs_04q_085_04w = false;
+            let mut right_preferred_vs_04r_04w = false;
+            let mut any_nonzero_intrusion_04w = false;
+            let mut formal_owner_gate_pass_04w = true;
+            let mut identity_discovery_all_views_04w = true;
+            let mut lineage_unchanged_04w = true;
+            let mut rear3q_adjacency_milli_04w = None;
+            let mut view_diagnostics_04w = BTreeMap::new();
+            for kind in ["left", "right", "rear-three-quarter"] {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04W open-stock view set is closed"),
+                };
+                let baseline_entry = baseline_comparisons_04u
+                    .get(kind)
+                    .expect("04W 04Q baseline registered comparison");
+                let baseline_comparison = &baseline_entry["comparison"];
+                let baseline_view_spec = &baseline_entry["view_spec"];
+                let baseline_registered_camera_hash = &baseline_entry["registered_camera_hash"];
+                let (trial_comparison, trial_view_spec, trial_registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let target = refined_targets.get(kind).expect("04W target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04W target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04W reviewed visual structure");
+                let crop = crate::reference_view_crop(baseline_view_spec).expect("04W crop");
+                let rotation_degrees = crate::reference_view_rotation_degrees(baseline_view_spec)
+                    .expect("04W authored reference rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04W target mask")
+                        .mask,
+                    baseline_view_spec,
+                    true,
+                )
+                .expect("04W target crop projection");
+                let (_, region_mask, expected_void, _) = crate::production_weapon_form_art_evidence::reviewed_region_owner_audit_masks_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                )
+                .expect("04W expected-void masks");
+                let baseline_part_id_sha256 = baseline_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04W baseline Part-ID hash");
+                let trial_part_id_sha256 = trial_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04W trial Part-ID hash");
+                let baseline_part_png = runtime
+                    .cas_read(baseline_part_id_sha256)
+                    .expect("04W baseline Part-ID read");
+                let trial_part_png = runtime
+                    .cas_read(trial_part_id_sha256)
+                    .expect("04W trial Part-ID read");
+                let baseline_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &baseline_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04W baseline rear-stock Part-ID mask");
+                let trial_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &trial_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04W trial rear-stock Part-ID mask");
+                let owner_audit_04w =
+                    crate::production_weapon_form_art_evidence::owner_mask_hamming_diagnostic(
+                        &baseline_owner_mask,
+                        &trial_owner_mask,
+                        &region_mask,
+                        &expected_void,
+                    )
+                    .expect("04W owner-mask Hamming diagnostic");
+                let lineage_unchanged_for_view_04w = baseline_comparison["camera"]["camera_hash"]
+                    == trial_comparison["camera"]["camera_hash"]
+                    && baseline_comparison["render_set"]["reference_id"]
+                        == trial_comparison["render_set"]["reference_id"]
+                    && baseline_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                        == trial_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                    && baseline_comparison["comparison_report"]["mask"]["sha256"]
+                        == trial_comparison["comparison_report"]["mask"]["sha256"]
+                    && *baseline_registered_camera_hash == trial_registered_camera_hash
+                    && baseline_view_spec["canonical_sha256"]
+                        == trial_view_spec["canonical_sha256"];
+                lineage_unchanged_04w &= lineage_unchanged_for_view_04w;
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let calibration = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &trial_part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let (
+                    identity_discovery,
+                    identity_json,
+                    formal_owner_gate_for_view,
+                    identity_adjacency_milli_for_view,
+                ) = match calibration {
+                    Ok(calibration) => {
+                        let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform
+                                == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        });
+                        let identity_discovery = calibration.selected_transform
+                            == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                            && identity.is_some();
+                        let identity_adjacency_milli =
+                            identity.map(|candidate| candidate.owner_boundary_adjacency_milli);
+                        let formal_owner_gate = identity.is_some_and(|candidate| {
+                            calibration.expected_void_pixel_count >= 256
+                                && calibration.expected_boundary_pixel_count >= 64
+                                && candidate.owner_region_pixel_count >= 128
+                                && candidate.owner_expected_void_overlap_pixel_count == 0
+                                && candidate.owner_expected_void_overlap_milli == 0
+                                && candidate.owner_boundary_adjacency_pixel_count >= 32
+                                && candidate.owner_boundary_adjacency_milli >= 250
+                                && owner_audit_04w.trial_owner_expected_void_overlap_pixel_count
+                                    == 0
+                        });
+                        let identity_json = identity.map_or_else(
+                            || json!({"status":"UNAVAILABLE"}),
+                            |candidate| {
+                                json!({
+                                    "selected_transform":format!("{:?}", calibration.selected_transform),
+                                    "owner_region_pixel_count":candidate.owner_region_pixel_count,
+                                    "owner_expected_void_overlap_pixel_count":candidate.owner_expected_void_overlap_pixel_count,
+                                    "owner_expected_void_overlap_milli":candidate.owner_expected_void_overlap_milli,
+                                    "owner_boundary_adjacency_pixel_count":candidate.owner_boundary_adjacency_pixel_count,
+                                    "owner_boundary_adjacency_milli":candidate.owner_boundary_adjacency_milli,
+                                    "expected_void_pixel_count":calibration.expected_void_pixel_count,
+                                    "expected_boundary_pixel_count":calibration.expected_boundary_pixel_count,
+                                    "status":calibration.status,
+                                    "identity_discovery":identity_discovery,
+                                    "formal_owner_gate":formal_owner_gate
+                                })
+                            },
+                        );
+                        (
+                            identity_discovery,
+                            identity_json,
+                            formal_owner_gate,
+                            identity_adjacency_milli,
+                        )
+                    }
+                    Err(error) => (
+                        false,
+                        json!({"status":"BLOCKED","error":error.to_string()}),
+                        false,
+                        None,
+                    ),
+                };
+                identity_discovery_all_views_04w &= identity_discovery;
+                formal_owner_gate_pass_04w &= formal_owner_gate_for_view;
+                if kind == "rear-three-quarter" {
+                    rear3q_adjacency_milli_04w = identity_adjacency_milli_for_view;
+                }
+                any_nonzero_intrusion_04w |=
+                    owner_audit_04w.trial_owner_expected_void_overlap_pixel_count > 0;
+                let strong_signal = owner_audit_04w.owner_mask_changed_pixel_count > 0
+                    && (owner_audit_04w.owner_mask_changed_inside_expected_void_pixel_count > 0
+                        || owner_audit_04w.changed_expected_boundary_band_r1_pixel_count > 0);
+                let exploration_signal = owner_audit_04w.owner_mask_changed_pixel_count > 0
+                    && owner_audit_04w.changed_expected_boundary_band_r4_pixel_count > 0;
+                match kind {
+                    "left" => {
+                        left_strong_signal_04w = strong_signal;
+                        left_exploration_signal_04w = exploration_signal;
+                    }
+                    "right" => {
+                        right_intrusion_pixels_04w =
+                            owner_audit_04w.trial_owner_expected_void_overlap_pixel_count;
+                        right_non_regression_vs_04q_085_04w = right_intrusion_pixels_04w <= 492;
+                        right_preferred_vs_04r_04w = right_intrusion_pixels_04w <= 474;
+                    }
+                    "rear-three-quarter" => {
+                        rear3q_strong_signal_04w = strong_signal;
+                        rear3q_exploration_signal_04w = exploration_signal;
+                    }
+                    _ => unreachable!("04W signals use the closed three-view set"),
+                }
+                let mut diagnostic =
+                    serde_json::to_value(&owner_audit_04w).expect("04W owner audit JSON");
+                diagnostic["structure_id"] = Value::String(structure_id.to_owned());
+                diagnostic["owner_part_id"] = Value::String("rear-stock".to_owned());
+                diagnostic["baseline_part_id_pass_sha256"] =
+                    Value::String(baseline_part_id_sha256.to_owned());
+                diagnostic["trial_part_id_pass_sha256"] =
+                    Value::String(trial_part_id_sha256.to_owned());
+                diagnostic["identity"] = identity_json;
+                diagnostic["identity_discovery"] = Value::Bool(identity_discovery);
+                diagnostic["formal_owner_gate"] = Value::Bool(formal_owner_gate_for_view);
+                diagnostic["strong_signal"] = Value::Bool(strong_signal);
+                diagnostic["exploration_signal"] = Value::Bool(exploration_signal);
+                diagnostic["lineage_unchanged"] = Value::Bool(lineage_unchanged_for_view_04w);
+                diagnostic["source_attribution"] = json!({
+                    "semantic_owner_part_id":"rear-stock",
+                    "source_node_attribution":"COARSE_SEMANTIC_PART_ID_ONLY_REUSED_04O",
+                    "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS
+                });
+                view_diagnostics_04w.insert(kind.to_owned(), diagnostic);
+            }
+            let directional_exploration_gate_04w = left_exploration_signal_04w
+                && rear3q_exploration_signal_04w
+                && right_non_regression_vs_04q_085_04w
+                && stable_part_source_identity_unchanged_04w
+                && rear_cap_binding_unchanged_04w
+                && lineage_unchanged_04w
+                && identity_discovery_all_views_04w
+                && exact_lip_only_04w;
+            let strong_signal_gate_04w = left_strong_signal_04w && rear3q_strong_signal_04w;
+            let stop_positive_extrapolation_04w =
+                lip_y_m >= 0.045 && rear3q_adjacency_milli_04w.is_none_or(|value| value < 250);
+            stop_positive_extrapolation_04w_any |= stop_positive_extrapolation_04w;
+            let status_04w = if any_nonzero_intrusion_04w {
+                "BLOCKED_NONZERO_OWNER_INTRUSION"
+            } else if stop_positive_extrapolation_04w {
+                "STOP_POSITIVE_EXTRAPOLATION"
+            } else if directional_exploration_gate_04w && formal_owner_gate_pass_04w {
+                "PASS_BOUND_DIAGNOSTIC_REQUIRES_SIX_VIEW"
+            } else if directional_exploration_gate_04w {
+                "BLOCKED_FORMAL_OWNER_GATE"
+            } else {
+                "BLOCKED_NO_DIRECTIONAL_SCREEN_SIGNAL"
+            };
+            lip_continuation_trials_04w.push(json!({
+                "variant":variant,
+                "lip_y_m":lip_y_m,
+                "baseline_variant":"04Q@0.85",
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "operator_id":"forgecad.geometry.profile-loft@2",
+                "profile_contract":"fixed 04Q@0.85; only profiles[0/1].points[1/2][0] changed",
+                "profile_contract_verified":exact_lip_only_04w,
+                "stable_part_source_identity_unchanged":stable_part_source_identity_unchanged_04w,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged_04w,
+                "lineage_unchanged":lineage_unchanged_04w,
+                "identity_discovery_all_views":identity_discovery_all_views_04w,
+                "left_strong_signal":left_strong_signal_04w,
+                "left_exploration_signal":left_exploration_signal_04w,
+                "rear3q_strong_signal":rear3q_strong_signal_04w,
+                "rear3q_exploration_signal":rear3q_exploration_signal_04w,
+                "right_intrusion_pixels":right_intrusion_pixels_04w,
+                "right_non_regression_vs_04q_085":right_non_regression_vs_04q_085_04w,
+                "right_preferred_vs_04r":right_preferred_vs_04r_04w,
+                "rear3q_owner_boundary_adjacency_milli":rear3q_adjacency_milli_04w,
+                "strong_signal_gate":strong_signal_gate_04w,
+                "directional_exploration_gate":directional_exploration_gate_04w,
+                "formal_owner_gate_pass":formal_owner_gate_pass_04w,
+                "nonzero_intrusion_blocked":any_nonzero_intrusion_04w,
+                "stop_positive_extrapolation":stop_positive_extrapolation_04w,
+                "formal_owner_gate_policy":"identity intrusion == 0; boundary adjacency pixels >= 32; adjacency milli >= 250",
+                "status":status_04w,
+                "views":view_diagnostics_04w,
+                "six_view_non_regression":"NOT_RUN",
+                "depth_status":"UNKNOWN_OR_OBSERVED_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04W_STOCK_UPPER_PROFILE_LIP_CONTINUATION={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04W-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-LIP-CONTINUATION",
+                "baseline_variant":"04Q@0.85",
+                "baseline_candidate_id":baseline_candidate_id_04u,
+                "baseline_artifact_sha256":baseline_artifact_sha256_04u,
+                "lip_y_variants_m":[0.025,0.045],
+                "views":["left","right","rear-three-quarter"],
+                "strong_signal_policy":"changed > 0 && (inside_expected_void > 0 || boundary_band_r1 > 0)",
+                "exploration_signal_policy":"changed > 0 && boundary_band_r4 > 0",
+                "right_non_regression_policy":"trial intrusion <= 492",
+                "right_preferred_policy":"trial intrusion <= 474",
+                "formal_owner_gate_policy":"all registered views: identity intrusion == 0; boundary adjacency pixels >= 32; adjacency milli >= 250",
+                "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS,
+                "stop_positive_extrapolation":stop_positive_extrapolation_04w_any,
+                "stop_positive_extrapolation_policy":"+0.045 rear-three-quarter adjacency milli < 250 or unavailable",
+                "trials":lip_continuation_trials_04w,
+                "six_view_non_regression":"NOT_RUN",
+                "depth_status":"UNKNOWN_OR_OBSERVED_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04W stock upper profile lip continuation receipt JSON")
+        );
+
+        // 04X: continue only the bounded profile boundary direction from 04V.
+        // The trial set is private and fail-closed.  It reuses the exact
+        // 04Q@0.85 registered-camera baseline and the semantic owner-mask
+        // Hamming diagnostic, while keeping any non-zero owner intrusion
+        // explicitly blocked.  If the +0.045 trial still misses the rear
+        // three-quarter adjacency floor, stop further positive extrapolation
+        // rather than treating the directional signal as a promotion gate.
+        let binding_identity_04x = |artifact_readback: &Value| {
+            artifact_readback["part_bindings"]
+                .as_array()
+                .map(|bindings| {
+                    bindings
+                        .iter()
+                        .map(|binding| {
+                            json!({
+                                "part_id":binding["part_id"],
+                                "source_node_id":binding["source_node_id"],
+                                "material_zone_id":binding["material_zone_id"],
+                                "solid":binding["solid"]
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+        };
+        let rear_cap_binding_04x = |artifact_readback: &Value| {
+            artifact_readback["part_bindings"]
+                .as_array()
+                .and_then(|bindings| {
+                    bindings
+                        .iter()
+                        .find(|binding| binding["part_id"].as_str() == Some("rear-cap"))
+                })
+                .cloned()
+        };
+        let mut boundary_translation_trials_04x = Vec::new();
+        let mut stop_boundary_translation_04x_any = false;
+        for (variant, delta_x_m) in [("04X@+0.020", 0.020_f64), ("04X@+0.040", 0.040_f64)] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_04x_boundary_translation_trial_mutate(
+                &program,
+                delta_x_m,
+            )
+            .expect("04X private upper profile boundary translation trial");
+            let baseline_program_04x = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_trial_mutate(
+                &program,
+                0.85,
+            )
+            .expect("04X fixed 04Q@0.85 profile");
+            let baseline_upper_04x = baseline_program_04x["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04X baseline upper profile node");
+            let trial_upper_04x = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04X trial upper profile node");
+            let baseline_profiles_04x = baseline_upper_04x["parameters"]["profiles"]
+                .as_array()
+                .expect("04X baseline profiles");
+            let trial_profiles_04x = trial_upper_04x["parameters"]["profiles"]
+                .as_array()
+                .expect("04X trial profiles");
+            let mut normalized_trial_04x = trial_program.clone();
+            let normalized_trial_upper_04x = normalized_trial_04x["nodes"]
+                .as_array_mut()
+                .and_then(|nodes| {
+                    nodes
+                        .iter_mut()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04X normalized trial upper profile node");
+            normalized_trial_upper_04x["parameters"]["profiles"] =
+                Value::Array(baseline_profiles_04x.to_vec());
+            normalized_trial_04x
+                .as_object_mut()
+                .expect("04X normalized trial program")
+                .remove("canonical_sha256");
+            let mut normalized_baseline_04x = baseline_program_04x.clone();
+            normalized_baseline_04x
+                .as_object_mut()
+                .expect("04X normalized baseline program")
+                .remove("canonical_sha256");
+            let exact_boundary_translation_04x = normalized_trial_04x == normalized_baseline_04x
+                && trial_upper_04x["operator_id"] == "forgecad.geometry.profile-loft@2"
+                && trial_upper_04x["parameters"]["position_m"]
+                    == baseline_upper_04x["parameters"]["position_m"]
+                && trial_upper_04x["parameters"]["rotation_rad"]
+                    == baseline_upper_04x["parameters"]["rotation_rad"]
+                && trial_profiles_04x.len() == 2
+                && trial_profiles_04x
+                    .iter()
+                    .zip(baseline_profiles_04x.iter())
+                    .all(|(trial_profile, baseline_profile)| {
+                        let trial_points = trial_profile["points"].as_array().unwrap();
+                        let baseline_points = baseline_profile["points"].as_array().unwrap();
+                        trial_profile["station_m"] == baseline_profile["station_m"]
+                            && trial_points.len() == 8
+                            && (0..8).all(|point_index| {
+                                if point_index <= 3 {
+                                    let baseline_x =
+                                        baseline_points[point_index][0].as_f64().unwrap();
+                                    let trial_x = trial_points[point_index][0].as_f64().unwrap();
+                                    (trial_x - baseline_x - delta_x_m).abs() <= 1.0e-9
+                                        && trial_points[point_index][1]
+                                            == baseline_points[point_index][1]
+                                } else {
+                                    trial_points[point_index] == baseline_points[point_index]
+                                }
+                            })
+                    });
+            let lower_node_unchanged_04x = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock-lower-beam"))
+                })
+                .cloned()
+                == program["nodes"]
+                    .as_array()
+                    .and_then(|nodes| {
+                        nodes
+                            .iter()
+                            .find(|node| node["node_id"].as_str() == Some("rear-stock-lower-beam"))
+                    })
+                    .cloned();
+            let depth_locked_04x = trial_profiles_04x
+                .iter()
+                .zip(baseline_profiles_04x.iter())
+                .all(|(trial_profile, baseline_profile)| {
+                    trial_profile["station_m"] == baseline_profile["station_m"]
+                });
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04X private upper profile boundary translation candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04X trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04X trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04X trial ArtifactReadback");
+            assert_eq!(trial_readback["schema_version"], "ArtifactReadback@2");
+            assert_eq!(trial_readback["hard_gate_passed"], true);
+            assert_eq!(trial_readback["validator_status"], "passed");
+            let stable_part_source_identity_unchanged_04x = trial_readback["part_ids"]
+                == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && binding_identity_04x(&trial_readback) == binding_identity_04x(&readback);
+            let rear_cap_binding_unchanged_04x = rear_cap_binding_04x(&trial_readback).is_some()
+                && rear_cap_binding_04x(&trial_readback) == rear_cap_binding_04x(&readback);
+
+            let mut left_strong_signal_04x = false;
+            let mut left_exploration_signal_04x = false;
+            let mut rear3q_strong_signal_04x = false;
+            let mut rear3q_exploration_signal_04x = false;
+            let mut right_intrusion_pixels_04x = u64::MAX;
+            let mut right_non_regression_vs_04q_085_04x = false;
+            let mut right_preferred_vs_04r_04x = false;
+            let mut any_nonzero_intrusion_04x = false;
+            let mut formal_owner_gate_pass_04x = true;
+            let mut identity_discovery_all_views_04x = true;
+            let mut lineage_unchanged_04x = true;
+            let mut rear3q_adjacency_milli_04x = None;
+            let mut any_selected_transform_non_identity_04x = false;
+            let mut any_adjacency_below_floor_04x = false;
+            let mut view_diagnostics_04x = BTreeMap::new();
+            for kind in ["left", "right", "rear-three-quarter"] {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04X open-stock view set is closed"),
+                };
+                let baseline_entry = baseline_comparisons_04u
+                    .get(kind)
+                    .expect("04X 04Q baseline registered comparison");
+                let baseline_comparison = &baseline_entry["comparison"];
+                let baseline_view_spec = &baseline_entry["view_spec"];
+                let baseline_registered_camera_hash = &baseline_entry["registered_camera_hash"];
+                let (trial_comparison, trial_view_spec, trial_registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let target = refined_targets.get(kind).expect("04X target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04X target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04X reviewed visual structure");
+                let crop = crate::reference_view_crop(baseline_view_spec).expect("04X crop");
+                let rotation_degrees = crate::reference_view_rotation_degrees(baseline_view_spec)
+                    .expect("04X authored reference rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04X target mask")
+                        .mask,
+                    baseline_view_spec,
+                    true,
+                )
+                .expect("04X target crop projection");
+                let (_, region_mask, expected_void, _) = crate::production_weapon_form_art_evidence::reviewed_region_owner_audit_masks_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                )
+                .expect("04X expected-void masks");
+                let baseline_part_id_sha256 = baseline_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04X baseline Part-ID hash");
+                let trial_part_id_sha256 = trial_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04X trial Part-ID hash");
+                let baseline_part_png = runtime
+                    .cas_read(baseline_part_id_sha256)
+                    .expect("04X baseline Part-ID read");
+                let trial_part_png = runtime
+                    .cas_read(trial_part_id_sha256)
+                    .expect("04X trial Part-ID read");
+                let baseline_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &baseline_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04X baseline rear-stock Part-ID mask");
+                let trial_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &trial_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04X trial rear-stock Part-ID mask");
+                let owner_audit_04x =
+                    crate::production_weapon_form_art_evidence::owner_mask_hamming_diagnostic(
+                        &baseline_owner_mask,
+                        &trial_owner_mask,
+                        &region_mask,
+                        &expected_void,
+                    )
+                    .expect("04X owner-mask Hamming diagnostic");
+                let lineage_unchanged_for_view_04x = baseline_comparison["camera"]["camera_hash"]
+                    == trial_comparison["camera"]["camera_hash"]
+                    && baseline_comparison["render_set"]["reference_id"]
+                        == trial_comparison["render_set"]["reference_id"]
+                    && baseline_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                        == trial_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                    && baseline_comparison["comparison_report"]["mask"]["sha256"]
+                        == trial_comparison["comparison_report"]["mask"]["sha256"]
+                    && *baseline_registered_camera_hash == trial_registered_camera_hash
+                    && baseline_view_spec["canonical_sha256"]
+                        == trial_view_spec["canonical_sha256"];
+                lineage_unchanged_04x &= lineage_unchanged_for_view_04x;
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let calibration = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &trial_part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let (
+                    identity_discovery,
+                    identity_json,
+                    formal_owner_gate_for_view,
+                    identity_adjacency_milli_for_view,
+                ) = match calibration {
+                    Ok(calibration) => {
+                        let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform
+                                == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        });
+                        let identity_discovery = calibration.selected_transform
+                            == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                            && identity.is_some();
+                        let identity_adjacency_milli =
+                            identity.map(|candidate| candidate.owner_boundary_adjacency_milli);
+                        let formal_owner_gate = identity.is_some_and(|candidate| {
+                            calibration.expected_void_pixel_count >= 256
+                                && calibration.expected_boundary_pixel_count >= 64
+                                && candidate.owner_region_pixel_count >= 128
+                                && candidate.owner_expected_void_overlap_pixel_count == 0
+                                && candidate.owner_expected_void_overlap_milli == 0
+                                && candidate.owner_boundary_adjacency_pixel_count >= 32
+                                && candidate.owner_boundary_adjacency_milli >= 250
+                                && owner_audit_04x.trial_owner_expected_void_overlap_pixel_count
+                                    == 0
+                        });
+                        let identity_json = identity.map_or_else(
+                            || json!({"status":"UNAVAILABLE"}),
+                            |candidate| {
+                                json!({
+                                    "selected_transform":format!("{:?}", calibration.selected_transform),
+                                    "owner_region_pixel_count":candidate.owner_region_pixel_count,
+                                    "owner_expected_void_overlap_pixel_count":candidate.owner_expected_void_overlap_pixel_count,
+                                    "owner_expected_void_overlap_milli":candidate.owner_expected_void_overlap_milli,
+                                    "owner_boundary_adjacency_pixel_count":candidate.owner_boundary_adjacency_pixel_count,
+                                    "owner_boundary_adjacency_milli":candidate.owner_boundary_adjacency_milli,
+                                    "expected_void_pixel_count":calibration.expected_void_pixel_count,
+                                    "expected_boundary_pixel_count":calibration.expected_boundary_pixel_count,
+                                    "status":calibration.status,
+                                    "identity_discovery":identity_discovery,
+                                    "formal_owner_gate":formal_owner_gate
+                                })
+                            },
+                        );
+                        (
+                            identity_discovery,
+                            identity_json,
+                            formal_owner_gate,
+                            identity_adjacency_milli,
+                        )
+                    }
+                    Err(error) => (
+                        false,
+                        json!({"status":"BLOCKED","error":error.to_string()}),
+                        false,
+                        None,
+                    ),
+                };
+                identity_discovery_all_views_04x &= identity_discovery;
+                any_selected_transform_non_identity_04x |= !identity_discovery;
+                any_adjacency_below_floor_04x |=
+                    identity_adjacency_milli_for_view.is_none_or(|value| value < 250);
+                formal_owner_gate_pass_04x &= formal_owner_gate_for_view;
+                if kind == "rear-three-quarter" {
+                    rear3q_adjacency_milli_04x = identity_adjacency_milli_for_view;
+                }
+                any_nonzero_intrusion_04x |=
+                    owner_audit_04x.trial_owner_expected_void_overlap_pixel_count > 0;
+                let strong_signal = owner_audit_04x.owner_mask_changed_pixel_count > 0
+                    && (owner_audit_04x.owner_mask_changed_inside_expected_void_pixel_count > 0
+                        || owner_audit_04x.changed_expected_boundary_band_r1_pixel_count > 0);
+                let exploration_signal = owner_audit_04x.owner_mask_changed_pixel_count > 0
+                    && owner_audit_04x.changed_expected_boundary_band_r4_pixel_count > 0;
+                match kind {
+                    "left" => {
+                        left_strong_signal_04x = strong_signal;
+                        left_exploration_signal_04x = exploration_signal;
+                    }
+                    "right" => {
+                        right_intrusion_pixels_04x =
+                            owner_audit_04x.trial_owner_expected_void_overlap_pixel_count;
+                        right_non_regression_vs_04q_085_04x = right_intrusion_pixels_04x <= 492;
+                        right_preferred_vs_04r_04x = right_intrusion_pixels_04x <= 474;
+                    }
+                    "rear-three-quarter" => {
+                        rear3q_strong_signal_04x = strong_signal;
+                        rear3q_exploration_signal_04x = exploration_signal;
+                    }
+                    _ => unreachable!("04X signals use the closed three-view set"),
+                }
+                let mut diagnostic =
+                    serde_json::to_value(&owner_audit_04x).expect("04X owner audit JSON");
+                diagnostic["structure_id"] = Value::String(structure_id.to_owned());
+                diagnostic["owner_part_id"] = Value::String("rear-stock".to_owned());
+                diagnostic["baseline_part_id_pass_sha256"] =
+                    Value::String(baseline_part_id_sha256.to_owned());
+                diagnostic["trial_part_id_pass_sha256"] =
+                    Value::String(trial_part_id_sha256.to_owned());
+                diagnostic["identity"] = identity_json;
+                diagnostic["identity_discovery"] = Value::Bool(identity_discovery);
+                diagnostic["formal_owner_gate"] = Value::Bool(formal_owner_gate_for_view);
+                diagnostic["strong_signal"] = Value::Bool(strong_signal);
+                diagnostic["exploration_signal"] = Value::Bool(exploration_signal);
+                diagnostic["lineage_unchanged"] = Value::Bool(lineage_unchanged_for_view_04x);
+                diagnostic["source_attribution"] = json!({
+                    "semantic_owner_part_id":"rear-stock",
+                    "source_node_attribution":"COARSE_SEMANTIC_PART_ID_ONLY_REUSED_04O",
+                    "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS
+                });
+                view_diagnostics_04x.insert(kind.to_owned(), diagnostic);
+            }
+            let directional_exploration_gate_04x = left_exploration_signal_04x
+                && rear3q_exploration_signal_04x
+                && right_non_regression_vs_04q_085_04x
+                && stable_part_source_identity_unchanged_04x
+                && rear_cap_binding_unchanged_04x
+                && lineage_unchanged_04x
+                && identity_discovery_all_views_04x
+                && exact_boundary_translation_04x
+                && lower_node_unchanged_04x
+                && depth_locked_04x;
+            let strong_signal_gate_04x = left_strong_signal_04x && rear3q_strong_signal_04x;
+            let stop_boundary_translation_04x =
+                any_selected_transform_non_identity_04x || any_adjacency_below_floor_04x;
+            stop_boundary_translation_04x_any |= stop_boundary_translation_04x;
+            let status_04x = if stop_boundary_translation_04x {
+                "STOP_04X_BOUNDARY_TRANSLATION"
+            } else if any_nonzero_intrusion_04x {
+                "BLOCKED_NONZERO_OWNER_INTRUSION"
+            } else if directional_exploration_gate_04x && formal_owner_gate_pass_04x {
+                "PASS_BOUND_DIAGNOSTIC_REQUIRES_SIX_VIEW"
+            } else if directional_exploration_gate_04x {
+                "BLOCKED_FORMAL_OWNER_GATE"
+            } else {
+                "BLOCKED_NO_DIRECTIONAL_SCREEN_SIGNAL"
+            };
+            boundary_translation_trials_04x.push(json!({
+                "variant":variant,
+                "delta_x_m":delta_x_m,
+                "baseline_variant":"04Q@0.85",
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "operator_id":"forgecad.geometry.profile-loft@2",
+                "profile_contract":"fixed 04Q@0.85; profiles[0/1].points[0..3][0] += delta_x_m; points[4..7] locked",
+                "profile_contract_verified":exact_boundary_translation_04x,
+                "stable_part_source_identity_unchanged":stable_part_source_identity_unchanged_04x,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged_04x,
+                "lineage_unchanged":lineage_unchanged_04x,
+                "identity_discovery_all_views":identity_discovery_all_views_04x,
+                "left_strong_signal":left_strong_signal_04x,
+                "left_exploration_signal":left_exploration_signal_04x,
+                "rear3q_strong_signal":rear3q_strong_signal_04x,
+                "rear3q_exploration_signal":rear3q_exploration_signal_04x,
+                "right_intrusion_pixels":right_intrusion_pixels_04x,
+                "right_non_regression_vs_04q_085":right_non_regression_vs_04q_085_04x,
+                "right_preferred_vs_04r":right_preferred_vs_04r_04x,
+                "rear3q_owner_boundary_adjacency_milli":rear3q_adjacency_milli_04x,
+                "strong_signal_gate":strong_signal_gate_04x,
+                "directional_exploration_gate":directional_exploration_gate_04x,
+                "formal_owner_gate_pass":formal_owner_gate_pass_04x,
+                "nonzero_intrusion_blocked":any_nonzero_intrusion_04x,
+                "selected_transform_identity_all_views":identity_discovery_all_views_04x,
+                "adjacency_floor_all_views":!any_adjacency_below_floor_04x,
+                "lower_node_unchanged":lower_node_unchanged_04x,
+                "depth_locked":depth_locked_04x,
+                "stop_boundary_translation":stop_boundary_translation_04x,
+                "formal_owner_gate_policy":"selected transform identity; identity intrusion == 0; boundary adjacency pixels >= 32; adjacency milli >= 250",
+                "status":status_04x,
+                "views":view_diagnostics_04x,
+                "six_view_non_regression":"NOT_RUN",
+                "depth_status":"UNKNOWN_OR_OBSERVED_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04X_STOCK_UPPER_PROFILE_BOUNDARY_TRANSLATION={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04X-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-BOUNDARY-TRANSLATION",
+                "baseline_variant":"04Q@0.85",
+                "baseline_candidate_id":baseline_candidate_id_04u,
+                "baseline_artifact_sha256":baseline_artifact_sha256_04u,
+                "delta_x_variants_m":[0.020,0.040],
+                "views":["left","right","rear-three-quarter"],
+                "strong_signal_policy":"changed > 0 && (inside_expected_void > 0 || boundary_band_r1 > 0)",
+                "exploration_signal_policy":"changed > 0 && boundary_band_r4 > 0",
+                "right_non_regression_policy":"trial intrusion <= 492",
+                "right_preferred_policy":"trial intrusion <= 474",
+                "formal_owner_gate_policy":"all registered views: selected transform identity; identity intrusion == 0; boundary adjacency pixels >= 32; adjacency milli >= 250",
+                "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS,
+                "public_sink_available":false,
+                "stop_boundary_translation":stop_boundary_translation_04x_any,
+                "stop_boundary_translation_policy":"any selected transform non-identity or any registered-view adjacency milli < 250",
+                "trials":boundary_translation_trials_04x,
+                "six_view_non_regression":"NOT_RUN",
+                "depth_status":"UNKNOWN_OR_OBSERVED_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04X stock upper profile boundary translation receipt JSON")
+        );
+
+        // 04Y: hash-only registration preflight.  Reuse the already-rendered
+        // 04Q@0.85 baseline Part-ID passes and the reviewed/refined targets;
+        // this block deliberately performs no render, prepare, candidate or
+        // CAS/SQLite write.  The rear-three-quarter negative fixture changes
+        // only authored reference rotation (180 -> 0), so any improvement is
+        // fail-closed registration evidence, never a quality or stage gate.
+        let cas_objects_before_04y = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("04Y CAS inventory before read-only preflight");
+        let thresholds_04y =
+            crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                min_owner_region_pixels: Some(128),
+                min_boundary_adjacency_pixels: Some(32),
+                max_owner_expected_void_overlap_milli: Some(0),
+            };
+        let mut current_projections_04y = Vec::new();
+        let mut negative_projections_04y = Vec::new();
+        let mut lineage_sources_04y = BTreeMap::new();
+        for kind in ["left", "right", "rear-three-quarter"] {
+            let structure_id = match kind {
+                "left" => "left.open-stock-void",
+                "right" => "right.open-stock-void",
+                "rear-three-quarter" => "rear3q.open-stock-void",
+                _ => unreachable!("04Y closed open-stock view set"),
+            };
+            let baseline_entry = baseline_comparisons_04u
+                .get(kind)
+                .expect("04Y 04Q baseline registered comparison");
+            let baseline_comparison = &baseline_entry["comparison"];
+            let baseline_view_spec = &baseline_entry["view_spec"];
+            let current_rotation = crate::reference_view_rotation_degrees(baseline_view_spec)
+                .expect("04Y current authored rotation");
+            let expected_rotation = if kind == "rear-three-quarter" {
+                180.0
+            } else {
+                0.0
+            };
+            assert!(
+                (current_rotation - expected_rotation).abs() <= f64::EPSILON,
+                "04Y current rotation fixture drifted for {kind}"
+            );
+            let crop = crate::reference_view_crop(baseline_view_spec).expect("04Y crop");
+            let crop_source = baseline_view_spec
+                .get("image")
+                .and_then(|image| image.get("crop"))
+                .expect("04Y canonical crop source");
+            let crop_canonical_sha256 = canonical_json_hash(crop_source);
+            let target = refined_targets.get(kind).expect("04Y refined target");
+            let target_document = runtime
+                .read_silhouette_target(&target.0)
+                .expect("04Y target readback");
+            let visual_structure = target_document
+                .get("visual_structure")
+                .expect("04Y reviewed visual structure");
+            let source_target_mask = runtime
+                .target_mask(&target.0, &target_document)
+                .expect("04Y target mask readback")
+                .mask;
+            let current_target_mask = crate::project_reference_mask_to_view(
+                &source_target_mask,
+                baseline_view_spec,
+                true,
+            )
+            .expect("04Y current target crop projection");
+            let part_id_pass_sha256 = baseline_comparison["render_set"]["pass_artifacts"]
+                ["part-id"]["sha256"]
+                .as_str()
+                .expect("04Y baseline Part-ID pass hash")
+                .to_owned();
+            let part_png = runtime
+                .cas_read(&part_id_pass_sha256)
+                .expect("04Y baseline Part-ID CAS read");
+            let owner_mask = crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                &part_png,
+                &expected_part_id_vocabulary,
+                "rear-stock",
+            )
+            .expect("04Y baseline rear-stock owner mask");
+            let registered_view = registered_camera_rig_04j["renderer_views"]
+                .as_array()
+                .and_then(|views| {
+                    views
+                        .iter()
+                        .find(|view| view["kind"].as_str() == Some(kind))
+                })
+                .expect("04Y registered camera view");
+            let registered_camera_hash = baseline_entry["registered_camera_hash"]
+                .as_str()
+                .expect("04Y registered camera hash")
+                .to_owned();
+            assert_eq!(
+                registered_view["registered_camera_hash"].as_str(),
+                Some(registered_camera_hash.as_str()),
+                "04Y camera hash lineage drifted for {kind}"
+            );
+            let worker_binding_canonical_sha256 = canonical_json_hash(&json!({
+                "policy":"fps-form-04y-render-worker-binding-v1",
+                "render_worker_binding_status":baseline_comparison["render_set"]
+                    ["render_worker_binding_status"],
+                "render_worker_build_cohort_sha256":baseline_comparison["render_set"]
+                    ["render_worker_build_cohort_sha256"]
+            }));
+            let registration_canonical_sha256 = registered_view["registration_canonical_sha256"]
+                .as_str()
+                .expect("04Y subject registration hash")
+                .to_owned();
+            let lineage_sha256 = canonical_json_hash(&json!({
+                "policy":"fps-form-04y-registration-lineage-v1",
+                "candidate_id":baseline_candidate_id_04u,
+                "artifact_sha256":baseline_artifact_sha256_04u,
+                "reference_id":reference.reference_id,
+                "target_object_sha256":target.0,
+                "target_mask_source_sha256":target.1,
+                "part_id_pass_sha256":part_id_pass_sha256,
+                "registered_camera_hash":registered_camera_hash,
+                "worker_binding_canonical_sha256":worker_binding_canonical_sha256,
+                "crop_canonical_sha256":crop_canonical_sha256,
+                "registration_canonical_sha256":registration_canonical_sha256,
+                "registered_camera_rig_canonical_sha256":registered_camera_rig_04j["canonical_sha256"],
+                "camera_lock_canonical_sha256":camera_lock["canonical_sha256"]
+            }));
+            let binding =
+                crate::production_weapon_form_art_evidence::RegistrationPreflightBinding {
+                    view_kind: kind.to_owned(),
+                    structure_id: structure_id.to_owned(),
+                    crop_canonical_sha256: crop_canonical_sha256.clone(),
+                    target_object_sha256: target.0.clone(),
+                    target_mask_source_sha256: target.1.clone(),
+                    part_id_pass_sha256: part_id_pass_sha256.clone(),
+                    registered_camera_hash: registered_camera_hash.clone(),
+                    worker_binding_canonical_sha256: worker_binding_canonical_sha256.clone(),
+                    lineage_sha256,
+                };
+            let current_projection = crate::production_weapon_form_art_evidence::registration_preflight_projection_with_rotation(
+                binding.clone(),
+                visual_structure,
+                &current_target_mask,
+                &owner_mask,
+                crop,
+                current_rotation,
+                &thresholds_04y,
+            )
+            .expect("04Y current registration projection");
+
+            let mut negative_view_spec = baseline_view_spec.clone();
+            if kind == "rear-three-quarter" {
+                negative_view_spec["image"]["rotation_degrees"] = json!(0.0);
+                negative_view_spec["canonical_sha256"] = Value::String(String::new());
+                negative_view_spec["canonical_sha256"] =
+                    Value::String(canonical_json_hash(&negative_view_spec));
+            }
+            let negative_rotation = crate::reference_view_rotation_degrees(&negative_view_spec)
+                .expect("04Y negative authored rotation");
+            let negative_crop =
+                crate::reference_view_crop(&negative_view_spec).expect("04Y negative crop");
+            assert_eq!(crop, negative_crop, "04Y negative crop drifted for {kind}");
+            let negative_target_mask = crate::project_reference_mask_to_view(
+                &source_target_mask,
+                &negative_view_spec,
+                true,
+            )
+            .expect("04Y negative target crop projection");
+            let negative_projection = crate::production_weapon_form_art_evidence::registration_preflight_projection_with_rotation(
+                binding,
+                visual_structure,
+                &negative_target_mask,
+                &owner_mask,
+                negative_crop,
+                negative_rotation,
+                &thresholds_04y,
+            )
+            .expect("04Y negative registration projection");
+            assert!(!current_projection.promotable);
+            assert!(!negative_projection.promotable);
+            assert_eq!(current_projection.quality_status, "NOT_PROVEN");
+            assert_eq!(negative_projection.quality_status, "NOT_PROVEN");
+            lineage_sources_04y.insert(
+                kind.to_owned(),
+                json!({
+                    "crop_canonical_sha256":crop_canonical_sha256,
+                    "target_object_sha256":target.0,
+                    "target_mask_source_sha256":target.1,
+                    "part_id_pass_sha256":part_id_pass_sha256,
+                    "registered_camera_hash":registered_camera_hash,
+                    "worker_binding_canonical_sha256":worker_binding_canonical_sha256,
+                    "registration_canonical_sha256":registration_canonical_sha256
+                }),
+            );
+            current_projections_04y.push(current_projection);
+            negative_projections_04y.push(negative_projection);
+        }
+        let gate_result_04y =
+            crate::production_weapon_form_art_evidence::registration_preflight_gate(
+                &current_projections_04y,
+                &negative_projections_04y,
+            );
+        let gate_json_04y = match &gate_result_04y {
+            Ok(gate) => serde_json::to_value(gate).expect("04Y gate JSON"),
+            Err(error) => json!({
+                "status":"BLOCKED_FAIL_CLOSED",
+                "error":error.to_string(),
+                "pass":false,
+                "promotable":false,
+                "quality_status":"NOT_PROVEN"
+            }),
+        };
+        let formal_owner_gate_all_views_04y = gate_result_04y
+            .as_ref()
+            .map(|gate| gate.formal_owner_gate_all_views)
+            .unwrap_or(false);
+        if let Ok(gate) = &gate_result_04y {
+            assert!(!gate.formal_owner_gate_all_views);
+            assert!(!gate.promotable);
+            assert_eq!(gate.quality_status, "NOT_PROVEN");
+        }
+        let cas_objects_after_04y = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("04Y CAS inventory after read-only preflight");
+        assert_eq!(cas_objects_before_04y, cas_objects_after_04y);
+        assert_eq!(current_projections_04y.len(), 3);
+        assert_eq!(negative_projections_04y.len(), 3);
+        println!(
+            "FPS_FORM_04Y_REGISTRATION_PREFLIGHT={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04Y-REAL-D1-HASH-ONLY-REGISTRATION-PREFLIGHT",
+                "policy":"owner-contour-projection-only@1",
+                "baseline_variant":"04Q@0.85",
+                "reference_id":reference.reference_id,
+                "baseline_candidate_id":baseline_candidate_id_04u,
+                "baseline_artifact_sha256":baseline_artifact_sha256_04u,
+                "current_rotation_degrees":{"left":0.0,"right":0.0,"rear-three-quarter":180.0},
+                "negative_fixture_rotation_degrees":{"left":0.0,"right":0.0,"rear-three-quarter":0.0},
+                "current_views":serde_json::to_value(&current_projections_04y).expect("04Y current views JSON"),
+                "negative_fixture_views":serde_json::to_value(&negative_projections_04y).expect("04Y negative views JSON"),
+                "lineage_sources":lineage_sources_04y,
+                "gate":gate_json_04y,
+                "formal_owner_gate_all_views":formal_owner_gate_all_views_04y,
+                "formal_owner_gate_policy":"reported independently; not required for registration",
+                "landmark_region_registration":"NOT_PROVEN",
+                "registration_only":true,
+                "quality_status":"NOT_PROVEN",
+                "depth_status":"UNKNOWN",
+                "six_view_non_regression":"NOT_RUN",
+                "diagnostic_only":true,
+                "promotable":false,
+                "public_sink_available":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_created":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false,
+                "render_performed":false,
+                "cas_write_performed":false,
+                "sqlite_write_performed":false
+            }))
+            .expect("04Y registration preflight receipt JSON")
+        );
+
+        // 04Z: isolate the profile station that controls the rear-three-quarter
+        // owner mask.  Each candidate is private and changes exactly one
+        // station's inner boundary by +0.020 m.  The other station, outer
+        // envelope, second coordinates, station positions, pose, lower stock,
+        // rear-cap and registered lineage stay locked.  This is a screen for
+        // station attribution only; it never promotes a candidate.
+        let mut station_isolation_trials_04z = Vec::new();
+        let mut stop_station_directions_04z = BTreeMap::new();
+        for (variant, station_index) in [
+            ("04Z@profile[0]+0.020", 0_usize),
+            ("04Z@profile[1]+0.020", 1_usize),
+        ] {
+            let trial_program = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_04z_station_isolation_trial_mutate(
+                &program,
+                station_index,
+            )
+            .expect("04Z private station-isolation trial");
+            let baseline_program_04z = crate::production_weapon_assembly_parameter_mutator::production_weapon_stock_upper_profile_trial_mutate(
+                &program,
+                0.85,
+            )
+            .expect("04Z fixed 04Q@0.85 profile");
+            let baseline_upper_04z = baseline_program_04z["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04Z baseline upper profile node");
+            let trial_upper_04z = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04Z trial upper profile node");
+            let baseline_profiles_04z = baseline_upper_04z["parameters"]["profiles"]
+                .as_array()
+                .expect("04Z baseline profiles");
+            let trial_profiles_04z = trial_upper_04z["parameters"]["profiles"]
+                .as_array()
+                .expect("04Z trial profiles");
+            let mut normalized_trial_04z = trial_program.clone();
+            let normalized_trial_upper_04z = normalized_trial_04z["nodes"]
+                .as_array_mut()
+                .and_then(|nodes| {
+                    nodes
+                        .iter_mut()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock"))
+                })
+                .expect("04Z normalized trial upper profile node");
+            normalized_trial_upper_04z["parameters"]["profiles"] =
+                Value::Array(baseline_profiles_04z.to_vec());
+            normalized_trial_04z
+                .as_object_mut()
+                .expect("04Z normalized trial program")
+                .remove("canonical_sha256");
+            let mut normalized_baseline_04z = baseline_program_04z.clone();
+            normalized_baseline_04z
+                .as_object_mut()
+                .expect("04Z normalized baseline program")
+                .remove("canonical_sha256");
+            let exact_station_isolation_04z = normalized_trial_04z == normalized_baseline_04z
+                && trial_upper_04z["operator_id"] == "forgecad.geometry.profile-loft@2"
+                && trial_upper_04z["parameters"]["position_m"]
+                    == baseline_upper_04z["parameters"]["position_m"]
+                && trial_upper_04z["parameters"]["rotation_rad"]
+                    == baseline_upper_04z["parameters"]["rotation_rad"]
+                && trial_profiles_04z.len() == 2
+                && trial_profiles_04z
+                    .iter()
+                    .zip(baseline_profiles_04z.iter())
+                    .enumerate()
+                    .all(|(profile_index, (trial_profile, baseline_profile))| {
+                        let trial_points = trial_profile["points"].as_array().unwrap();
+                        let baseline_points = baseline_profile["points"].as_array().unwrap();
+                        trial_profile["station_m"] == baseline_profile["station_m"]
+                            && trial_points.len() == 8
+                            && (0..8).all(|point_index| {
+                                if profile_index == station_index && point_index <= 3 {
+                                    let baseline_x =
+                                        baseline_points[point_index][0].as_f64().unwrap();
+                                    let trial_x = trial_points[point_index][0].as_f64().unwrap();
+                                    (trial_x - baseline_x - 0.020_f64).abs() <= 1.0e-9
+                                        && trial_points[point_index][1]
+                                            == baseline_points[point_index][1]
+                                } else {
+                                    trial_points[point_index] == baseline_points[point_index]
+                                }
+                            })
+                    });
+            let lower_node_unchanged_04z = trial_program["nodes"]
+                .as_array()
+                .and_then(|nodes| {
+                    nodes
+                        .iter()
+                        .find(|node| node["node_id"].as_str() == Some("rear-stock-lower-beam"))
+                })
+                .cloned()
+                == program["nodes"]
+                    .as_array()
+                    .and_then(|nodes| {
+                        nodes
+                            .iter()
+                            .find(|node| node["node_id"].as_str() == Some("rear-stock-lower-beam"))
+                    })
+                    .cloned();
+            let depth_locked_04z = trial_profiles_04z
+                .iter()
+                .zip(baseline_profiles_04z.iter())
+                .all(|(trial_profile, baseline_profile)| {
+                    trial_profile["station_m"] == baseline_profile["station_m"]
+                });
+            let trial_prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({
+                        "typed":"geometry",
+                        "reference_id":reference.reference_id,
+                        "geometry_program":trial_program
+                    }),
+                )
+                .expect("04Z private station-isolation candidate");
+            let trial_candidate_id = trial_prepared["candidate"]["candidate_id"]
+                .as_str()
+                .expect("04Z trial candidate id")
+                .to_owned();
+            let trial_artifact_sha256 = trial_prepared["candidate"]["prepared_object_sha256"]
+                .as_str()
+                .expect("04Z trial artifact hash")
+                .to_owned();
+            let trial_readback = runtime
+                .artifact_readback(&trial_artifact_sha256, &trial_candidate_id)
+                .expect("04Z trial ArtifactReadback");
+            assert_eq!(trial_readback["schema_version"], "ArtifactReadback@2");
+            assert_eq!(trial_readback["hard_gate_passed"], true);
+            assert_eq!(trial_readback["validator_status"], "passed");
+            let stable_part_source_identity_unchanged_04z = trial_readback["part_ids"]
+                == readback["part_ids"]
+                && trial_readback["source_node_ids"] == readback["source_node_ids"]
+                && binding_identity_04x(&trial_readback) == binding_identity_04x(&readback);
+            let rear_cap_binding_unchanged_04z = rear_cap_binding_04x(&trial_readback).is_some()
+                && rear_cap_binding_04x(&trial_readback) == rear_cap_binding_04x(&readback);
+
+            let mut owner_intrusion_pixels_04z = [u64::MAX; 3];
+            let mut owner_boundary_adjacency_milli_04z = [0_u64; 3];
+            let mut formal_owner_gate_pass_04z = true;
+            let mut identity_discovery_all_views_04z = true;
+            let mut any_selected_transform_non_identity_04z = false;
+            let mut any_adjacency_below_floor_04z = false;
+            let mut any_nonzero_intrusion_04z = false;
+            let mut lineage_unchanged_04z = true;
+            let mut rear3q_changed_pixel_count_04z = 0_u64;
+            let mut rear3q_inside_expected_void_04z = 0_u64;
+            let mut rear3q_boundary_r1_04z = 0_u64;
+            let mut rear3q_boundary_r2_04z = 0_u64;
+            let mut rear3q_boundary_r4_04z = 0_u64;
+            let mut view_diagnostics_04z = BTreeMap::new();
+            for (index, kind) in ["left", "right", "rear-three-quarter"]
+                .into_iter()
+                .enumerate()
+            {
+                let structure_id = match kind {
+                    "left" => "left.open-stock-void",
+                    "right" => "right.open-stock-void",
+                    "rear-three-quarter" => "rear3q.open-stock-void",
+                    _ => unreachable!("04Z open-stock view set is closed"),
+                };
+                let baseline_entry = baseline_comparisons_04u
+                    .get(kind)
+                    .expect("04Z 04Q baseline registered comparison");
+                let baseline_comparison = &baseline_entry["comparison"];
+                let baseline_view_spec = &baseline_entry["view_spec"];
+                let baseline_registered_camera_hash = &baseline_entry["registered_camera_hash"];
+                let (trial_comparison, trial_view_spec, trial_registered_camera_hash) =
+                    render_registered_04l(&trial_candidate_id, kind);
+                let target = refined_targets.get(kind).expect("04Z target");
+                let target_document = runtime
+                    .read_silhouette_target(&target.0)
+                    .expect("04Z target readback");
+                let visual_structure = target_document
+                    .get("visual_structure")
+                    .expect("04Z reviewed visual structure");
+                let crop = crate::reference_view_crop(baseline_view_spec).expect("04Z crop");
+                let rotation_degrees = crate::reference_view_rotation_degrees(baseline_view_spec)
+                    .expect("04Z authored reference rotation");
+                let target_mask = crate::project_reference_mask_to_view(
+                    &runtime
+                        .target_mask(&target.0, &target_document)
+                        .expect("04Z target mask")
+                        .mask,
+                    baseline_view_spec,
+                    true,
+                )
+                .expect("04Z target crop projection");
+                let (_, region_mask, expected_void, _) = crate::production_weapon_form_art_evidence::reviewed_region_owner_audit_masks_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                )
+                .expect("04Z expected-void masks");
+                let baseline_part_id_sha256 = baseline_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04Z baseline Part-ID hash");
+                let trial_part_id_sha256 = trial_comparison["render_set"]["pass_artifacts"]
+                    ["part-id"]["sha256"]
+                    .as_str()
+                    .expect("04Z trial Part-ID hash");
+                let baseline_part_png = runtime
+                    .cas_read(baseline_part_id_sha256)
+                    .expect("04Z baseline Part-ID read");
+                let trial_part_png = runtime
+                    .cas_read(trial_part_id_sha256)
+                    .expect("04Z trial Part-ID read");
+                let baseline_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &baseline_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04Z baseline rear-stock Part-ID mask");
+                let trial_owner_mask =
+                    crate::production_weapon_form_art_evidence::exact_part_id_mask(
+                        &trial_part_png,
+                        &expected_part_id_vocabulary,
+                        "rear-stock",
+                    )
+                    .expect("04Z trial rear-stock Part-ID mask");
+                let owner_audit_04z =
+                    crate::production_weapon_form_art_evidence::owner_mask_hamming_diagnostic(
+                        &baseline_owner_mask,
+                        &trial_owner_mask,
+                        &region_mask,
+                        &expected_void,
+                    )
+                    .expect("04Z owner-mask Hamming diagnostic");
+                owner_intrusion_pixels_04z[index] =
+                    owner_audit_04z.trial_owner_expected_void_overlap_pixel_count;
+                any_nonzero_intrusion_04z |=
+                    owner_audit_04z.trial_owner_expected_void_overlap_pixel_count > 0;
+                if kind == "rear-three-quarter" {
+                    rear3q_changed_pixel_count_04z = owner_audit_04z.owner_mask_changed_pixel_count;
+                    rear3q_inside_expected_void_04z =
+                        owner_audit_04z.owner_mask_changed_inside_expected_void_pixel_count;
+                    rear3q_boundary_r1_04z =
+                        owner_audit_04z.changed_expected_boundary_band_r1_pixel_count;
+                    rear3q_boundary_r2_04z =
+                        owner_audit_04z.changed_expected_boundary_band_r2_pixel_count;
+                    rear3q_boundary_r4_04z =
+                        owner_audit_04z.changed_expected_boundary_band_r4_pixel_count;
+                }
+                let lineage_unchanged_for_view_04z = baseline_comparison["camera"]["camera_hash"]
+                    == trial_comparison["camera"]["camera_hash"]
+                    && baseline_comparison["render_set"]["reference_id"]
+                        == trial_comparison["render_set"]["reference_id"]
+                    && baseline_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                        == trial_comparison["render_set"]["render_worker_build_cohort_sha256"]
+                    && baseline_comparison["comparison_report"]["mask"]["sha256"]
+                        == trial_comparison["comparison_report"]["mask"]["sha256"]
+                    && *baseline_registered_camera_hash == trial_registered_camera_hash
+                    && baseline_view_spec["canonical_sha256"]
+                        == trial_view_spec["canonical_sha256"];
+                lineage_unchanged_04z &= lineage_unchanged_for_view_04z;
+                let thresholds = crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingThresholds {
+                    min_owner_region_pixels: Some(1),
+                    min_boundary_adjacency_pixels: Some(1),
+                    max_owner_expected_void_overlap_milli: Some(1000),
+                };
+                let calibration = crate::production_weapon_form_art_evidence::calibrate_reviewed_region_part_binding_with_rotation(
+                    visual_structure,
+                    &target_mask,
+                    &trial_part_png,
+                    &expected_part_id_vocabulary,
+                    crop,
+                    rotation_degrees,
+                    structure_id,
+                    None,
+                    &thresholds,
+                );
+                let (
+                    identity_discovery,
+                    identity_json,
+                    formal_owner_gate_for_view,
+                    identity_adjacency_milli_for_view,
+                ) = match calibration {
+                    Ok(calibration) => {
+                        let identity = calibration.candidates.iter().find(|candidate| {
+                            candidate.transform
+                                == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                        });
+                        let identity_discovery = calibration.selected_transform
+                            == crate::production_weapon_form_art_evidence::ReviewedRegionPartBindingTransform::Identity
+                            && identity.is_some();
+                        let identity_adjacency_milli =
+                            identity.map(|candidate| candidate.owner_boundary_adjacency_milli);
+                        let formal_owner_gate = identity.is_some_and(|candidate| {
+                            calibration.expected_void_pixel_count >= 256
+                                && calibration.expected_boundary_pixel_count >= 64
+                                && candidate.owner_region_pixel_count >= 128
+                                && candidate.owner_expected_void_overlap_pixel_count == 0
+                                && candidate.owner_expected_void_overlap_milli == 0
+                                && candidate.owner_boundary_adjacency_pixel_count >= 32
+                                && candidate.owner_boundary_adjacency_milli >= 250
+                                && owner_audit_04z.trial_owner_expected_void_overlap_pixel_count
+                                    == 0
+                        });
+                        let identity_json = identity.map_or_else(
+                            || json!({"status":"UNAVAILABLE"}),
+                            |candidate| {
+                                json!({
+                                    "selected_transform":format!("{:?}", calibration.selected_transform),
+                                    "owner_region_pixel_count":candidate.owner_region_pixel_count,
+                                    "owner_expected_void_overlap_pixel_count":candidate.owner_expected_void_overlap_pixel_count,
+                                    "owner_expected_void_overlap_milli":candidate.owner_expected_void_overlap_milli,
+                                    "owner_boundary_adjacency_pixel_count":candidate.owner_boundary_adjacency_pixel_count,
+                                    "owner_boundary_adjacency_milli":candidate.owner_boundary_adjacency_milli,
+                                    "expected_void_pixel_count":calibration.expected_void_pixel_count,
+                                    "expected_boundary_pixel_count":calibration.expected_boundary_pixel_count,
+                                    "status":calibration.status,
+                                    "identity_discovery":identity_discovery,
+                                    "formal_owner_gate":formal_owner_gate
+                                })
+                            },
+                        );
+                        (
+                            identity_discovery,
+                            identity_json,
+                            formal_owner_gate,
+                            identity_adjacency_milli,
+                        )
+                    }
+                    Err(error) => (
+                        false,
+                        json!({"status":"BLOCKED","error":error.to_string()}),
+                        false,
+                        None,
+                    ),
+                };
+                identity_discovery_all_views_04z &= identity_discovery;
+                any_selected_transform_non_identity_04z |= !identity_discovery;
+                let adjacency_milli = identity_adjacency_milli_for_view.unwrap_or(0);
+                owner_boundary_adjacency_milli_04z[index] = adjacency_milli;
+                any_adjacency_below_floor_04z |= adjacency_milli < 250;
+                formal_owner_gate_pass_04z &= formal_owner_gate_for_view;
+                let mut diagnostic =
+                    serde_json::to_value(&owner_audit_04z).expect("04Z owner audit JSON");
+                diagnostic["structure_id"] = Value::String(structure_id.to_owned());
+                diagnostic["owner_part_id"] = Value::String("rear-stock".to_owned());
+                diagnostic["station_index"] = json!(station_index);
+                diagnostic["baseline_part_id_pass_sha256"] =
+                    Value::String(baseline_part_id_sha256.to_owned());
+                diagnostic["trial_part_id_pass_sha256"] =
+                    Value::String(trial_part_id_sha256.to_owned());
+                diagnostic["identity"] = identity_json;
+                diagnostic["identity_discovery"] = Value::Bool(identity_discovery);
+                diagnostic["formal_owner_gate"] = Value::Bool(formal_owner_gate_for_view);
+                diagnostic["lineage_unchanged"] = Value::Bool(lineage_unchanged_for_view_04z);
+                diagnostic["changed_pixel_bands"] = json!({
+                    "boundary":owner_audit_04z.changed_expected_boundary_pixel_count,
+                    "r1":owner_audit_04z.changed_expected_boundary_band_r1_pixel_count,
+                    "r2":owner_audit_04z.changed_expected_boundary_band_r2_pixel_count,
+                    "r4":owner_audit_04z.changed_expected_boundary_band_r4_pixel_count
+                });
+                diagnostic["source_attribution"] = json!({
+                    "semantic_owner_part_id":"rear-stock",
+                    "source_node_attribution":"COARSE_SEMANTIC_PART_ID_ONLY_REUSED_04O",
+                    "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS
+                });
+                view_diagnostics_04z.insert(kind.to_owned(), diagnostic);
+            }
+            let rear3q_station_control_signal_04z = rear3q_changed_pixel_count_04z > 0
+                && (rear3q_inside_expected_void_04z > 0 || rear3q_boundary_r1_04z > 0);
+            let stop_station_direction_04z =
+                any_selected_transform_non_identity_04z || any_adjacency_below_floor_04z;
+            stop_station_directions_04z.insert(variant.to_owned(), stop_station_direction_04z);
+            let status_04z = if stop_station_direction_04z {
+                "STOP_04Z_STATION_DIRECTION"
+            } else if any_nonzero_intrusion_04z {
+                "BLOCKED_NONZERO_OWNER_INTRUSION"
+            } else if formal_owner_gate_pass_04z {
+                "PASS_BOUND_DIAGNOSTIC_REQUIRES_SIX_VIEW"
+            } else {
+                "BLOCKED_FORMAL_OWNER_GATE"
+            };
+            station_isolation_trials_04z.push(json!({
+                "variant":variant,
+                "station_index":station_index,
+                "delta_x_m":0.020,
+                "baseline_variant":"04Q@0.85",
+                "trial_candidate_id":trial_candidate_id,
+                "trial_artifact_sha256":trial_artifact_sha256,
+                "operator_id":"forgecad.geometry.profile-loft@2",
+                "profile_contract":format!("fixed 04Q@0.85; profiles[{station_index}].points[0..3][0] += 0.020 m; other station and points[4..7] locked"),
+                "profile_contract_verified":exact_station_isolation_04z,
+                "stable_part_source_identity_unchanged":stable_part_source_identity_unchanged_04z,
+                "rear_cap_binding_unchanged":rear_cap_binding_unchanged_04z,
+                "lower_node_unchanged":lower_node_unchanged_04z,
+                "lineage_unchanged":lineage_unchanged_04z,
+                "depth_locked":depth_locked_04z,
+                "owner_intrusion_pixels":owner_intrusion_pixels_04z,
+                "owner_boundary_adjacency_milli":owner_boundary_adjacency_milli_04z,
+                "identity_discovery_all_views":identity_discovery_all_views_04z,
+                "selected_transform_identity_all_views":identity_discovery_all_views_04z,
+                "rear3q_changed_pixel_count":rear3q_changed_pixel_count_04z,
+                "rear3q_changed_inside_expected_void":rear3q_inside_expected_void_04z,
+                "rear3q_changed_boundary_bands":{"r1":rear3q_boundary_r1_04z,"r2":rear3q_boundary_r2_04z,"r4":rear3q_boundary_r4_04z},
+                "rear3q_station_control_signal":rear3q_station_control_signal_04z,
+                "formal_owner_gate_pass":formal_owner_gate_pass_04z,
+                "nonzero_intrusion_blocked":any_nonzero_intrusion_04z,
+                "adjacency_floor_all_views":!any_adjacency_below_floor_04z,
+                "stop_station_direction":stop_station_direction_04z,
+                "formal_owner_gate_policy":"selected transform identity; identity intrusion == 0; boundary adjacency pixels >= 32; adjacency milli >= 250",
+                "status":status_04z,
+                "views":view_diagnostics_04z,
+                "six_view_non_regression":"NOT_RUN",
+                "depth_status":"UNKNOWN_OR_OBSERVED_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }));
+        }
+        println!(
+            "FPS_FORM_04Z_STOCK_UPPER_PROFILE_STATION_ISOLATION={}",
+            serde_json::to_string(&json!({
+                "receipt_format":"forgecad-supplemental-evidence-v1",
+                "receipt_kind":"FPS-FORM-04Z-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-STATION-ISOLATION",
+                "baseline_variant":"04Q@0.85",
+                "baseline_candidate_id":baseline_candidate_id_04u,
+                "baseline_artifact_sha256":baseline_artifact_sha256_04u,
+                "station_variants":[
+                    {"station_index":0,"delta_x_m":0.020},
+                    {"station_index":1,"delta_x_m":0.020}
+                ],
+                "views":["left","right","rear-three-quarter"],
+                "purpose":"select which profile station controls rear-three-quarter owner-mask change",
+                "changed_pixel_band_fields":["changed_expected_boundary_pixel_count","changed_expected_boundary_band_r1_pixel_count","changed_expected_boundary_band_r2_pixel_count","changed_expected_boundary_band_r4_pixel_count","changed_bbox_px","changed_centroid_milli_px"],
+                "formal_owner_gate_policy":"all registered views: selected transform identity; identity intrusion == 0; boundary adjacency pixels >= 32; adjacency milli >= 250",
+                "triangle_attribution":crate::production_weapon_form_art_evidence::OWNER_MASK_TRIANGLE_ATTRIBUTION_STATUS,
+                "public_sink_available":false,
+                "stop_station_directions":stop_station_directions_04z,
+                "stop_station_direction_policy":"any selected transform non-identity or any registered-view adjacency milli < 250 stops that station direction",
+                "trials":station_isolation_trials_04z,
+                "six_view_non_regression":"NOT_RUN",
+                "depth_status":"UNKNOWN_OR_OBSERVED_ONLY",
+                "diagnostic_only":true,
+                "promotable":false,
+                "production_stage_advanced":false,
+                "secondary_form_approved":false,
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false
+            }))
+            .expect("04Z station-isolation receipt JSON")
+        );
+
+        // Promote only the camera-calibrated edge.  This edge is structurally
+        // justified by the first reference-coverage transition plus the
+        // independently durable CameraLock; it does not claim FormArt,
+        // FormQuality, human review or commercial visual approval.
+        let camera_transition_id = "fps-form-04a-camera-calibrated-transition";
+        let camera_approval_summary =
+            "Approve CameraLock-bound camera calibration for structural form evidence";
+        let camera_approval_summary_sha256 = sha256_hex(camera_approval_summary.as_bytes());
+        let camera_fields = [
+            (
+                "camera_lock_id",
+                camera_lock["camera_lock_id"].as_str().unwrap(),
+            ),
+            (
+                "camera_lock_canonical_sha256",
+                camera_lock["canonical_sha256"].as_str().unwrap(),
+            ),
+            (
+                "camera_rig_object_sha256",
+                camera_lock["camera_rig_object_sha256"].as_str().unwrap(),
+            ),
+            (
+                "camera_rig_canonical_sha256",
+                camera_lock["camera_rig_canonical_sha256"].as_str().unwrap(),
+            ),
+            (
+                "camera_lock_receipt_object_sha256",
+                camera_lock["receipt_object_sha256"].as_str().unwrap(),
+            ),
+            (
+                "camera_lock_source_transition_id",
+                camera_lock["source_transition_id"].as_str().unwrap(),
+            ),
+            (
+                "camera_lock_source_transition_sha256",
+                camera_lock["source_transition_sha256"].as_str().unwrap(),
+            ),
+            (
+                "camera_lock_source_head_canonical_sha256",
+                camera_lock["source_head_canonical_sha256"]
+                    .as_str()
+                    .unwrap(),
+            ),
+        ];
+        let parent_fields = [
+            (
+                "parent_transition_id",
+                transition["transition_id"].as_str().unwrap(),
+            ),
+            (
+                "parent_transition_sha256",
+                transition_first["transition"]["canonical_sha256"]
+                    .as_str()
+                    .unwrap(),
+            ),
+            (
+                "parent_transition_schema_version",
+                "ProductionStageTransition@3",
+            ),
+        ];
+        let mut camera_transition = json!({
+            "schema_version":"ProductionStageTransitionPrepareRequest@3",
+            "transition_id":camera_transition_id,
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "root_candidate_id":candidate_id,
+            "root_candidate_role":"reference-intake-candidate",
+            "root_candidate_state_sha256":candidate_state_sha256,
+            "source_artifact_id":artifact_id,
+            "root_artifact_sha256":artifact_sha256,
+            "previous_head_candidate_id":candidate_id,
+            "previous_head_candidate_role":"reference-intake-candidate",
+            "previous_head_candidate_state_sha256":candidate_state_sha256,
+            "previous_head_artifact_id":artifact_id,
+            "previous_head_artifact_sha256":artifact_sha256,
+            "previous_head_stage":"reference-coverage-reviewed",
+            "head_candidate_id":candidate_id,
+            "head_candidate_role":"reference-intake-candidate",
+            "head_candidate_state_sha256":candidate_state_sha256,
+            "output_artifact_id":artifact_id,
+            "head_artifact_sha256":artifact_sha256,
+            "from_stage":"reference-coverage-reviewed",
+            "to_stage":"camera-calibrated",
+            "candidate_binding_status":"same-candidate-evidence",
+            "reference_id":reference.reference_id,
+            "reference_sha256":reference.object_sha256,
+            "camera_hash":primary_camera_hash,
+            "camera_lock_id":camera_lock["camera_lock_id"],
+            "camera_lock_canonical_sha256":camera_lock["canonical_sha256"],
+            "camera_rig_object_sha256":camera_lock["camera_rig_object_sha256"],
+            "camera_rig_canonical_sha256":camera_lock["camera_rig_canonical_sha256"],
+            "camera_lock_receipt_object_sha256":camera_lock["receipt_object_sha256"],
+            "camera_lock_source_transition_id":camera_lock["source_transition_id"],
+            "camera_lock_source_transition_sha256":camera_lock["source_transition_sha256"],
+            "camera_lock_source_head_canonical_sha256":camera_lock["source_head_canonical_sha256"],
+            "evidence_sha256":primary_evidence_sha256,
+            "reference_canvas_object_sha256":canvas_sha256,
+            "quality_report_object_sha256":null,
+            "comparison_report_object_sha256":null,
+            "design_spec_object_sha256":design_spec_sha256,
+            "visual_receipt_object_sha256":null,
+            "human_review_receipt_object_sha256":null,
+            "engine_validation_receipt_object_sha256":null,
+            "distribution_receipt_object_sha256":null,
+            "structural_status":"PASS_SOURCE_STRUCTURAL",
+            "visual_status":"QUALITY_TARGET_NOT_MET",
+            "human_status":"NOT_RUN",
+            "engine_status":"NOT_RUN",
+            "distribution_status":"NOT_RUN",
+            "approval_receipt_id":"fps-form-04a-camera-approval",
+            "approval_session_id":"fps-form-04a-session",
+            "approval_expires_at":"9999999999",
+            "parent_transition_id":parent_fields[0].1,
+            "parent_transition_sha256":parent_fields[1].1,
+            "parent_transition_schema_version":parent_fields[2].1,
+            "input_sha256":"",
+            "approved":true,
+            "approval_summary":camera_approval_summary,
+            "idempotency_key":"fps-form-04a-camera-transition-idem"
+        });
+        let camera_base_binding = production_stage_transition_v3_input_binding(
+            camera_transition_id,
+            camera_transition["session_id"].as_str().unwrap(),
+            camera_transition["project_id"].as_str().unwrap(),
+            candidate_id.as_str(),
+            "reference-intake-candidate",
+            candidate_state_sha256.as_str(),
+            artifact_id.as_str(),
+            artifact_sha256.as_str(),
+            candidate_id.as_str(),
+            "reference-intake-candidate",
+            candidate_state_sha256.as_str(),
+            artifact_id.as_str(),
+            artifact_sha256.as_str(),
+            "reference-coverage-reviewed",
+            candidate_id.as_str(),
+            "reference-intake-candidate",
+            candidate_state_sha256.as_str(),
+            artifact_id.as_str(),
+            artifact_sha256.as_str(),
+            "reference-coverage-reviewed",
+            "camera-calibrated",
+            "same-candidate-evidence",
+            reference.reference_id.as_str(),
+            reference.object_sha256.as_str(),
+            primary_camera_hash.as_str(),
+            primary_evidence_sha256.as_str(),
+            canvas_sha256.as_str(),
+            design_spec_sha256.as_str(),
+            "PASS_SOURCE_STRUCTURAL",
+            "QUALITY_TARGET_NOT_MET",
+            "NOT_RUN",
+            "NOT_RUN",
+            "NOT_RUN",
+            "fps-form-04a-camera-approval",
+            "fps-form-04a-session",
+            "9999999999",
+            camera_approval_summary_sha256.as_str(),
+            "fps-form-04a-camera-transition-idem",
+        );
+        camera_transition["input_sha256"] = Value::String(canonical_json_hash(
+            &production_stage_transition_v3_input_binding_with_camera(
+                camera_base_binding,
+                camera_fields,
+                parent_fields,
+            ),
+        ));
+        let camera_transition_first = runtime
+            .production_stage_transition_v3_prepare(camera_transition)
+            .expect("camera-calibrated Stage@3 edge");
+        assert_eq!(camera_transition_first["production_stage_advanced"], true);
+        assert_eq!(
+            camera_transition_first["production_stage_head"]["head_stage"],
+            "camera-calibrated"
+        );
+        assert_eq!(camera_transition_first["candidate_confirmed"], false);
+        assert_eq!(camera_transition_first["version_created"], false);
+        assert_eq!(camera_transition_first["export_performed"], false);
+        let camera_transition_get = Runtime::from_store(runtime.store.clone())
+            .expect("fresh camera-calibrated Runtime")
+            .production_stage_transition_v3_get(json!({
+                "schema_version":"ProductionStageTransitionGetRequest@3",
+                "transition_id":camera_transition_id,
+                "session_id":"fps-form-04a-session",
+                "project_id":project.project_id,
+                "root_candidate_id":candidate_id,
+                "head_candidate_id":candidate_id
+            }))
+            .expect("camera-calibrated transition restart get");
+        assert_eq!(camera_transition_get["runtime_write"], false);
+        assert_eq!(camera_transition_get["replayed"], true);
+        assert_eq!(
+            camera_transition_get["production_stage_head"]["head_stage"],
+            "camera-calibrated"
+        );
+
+        let evidence_views = PRODUCTION_WEAPON_FORM_EVIDENCE_VIEW_KINDS
+            .iter()
+            .map(|kind| {
+                let comparison = comparisons.get(*kind).expect("identity comparison");
+                let view_id = format!("fps-form-04a-{kind}-view");
+                json!({
+                    "view_kind":kind,
+                    "view_id":view_id,
+                    "reference_id":reference.reference_id,
+                    "reference_sha256":reference.object_sha256,
+                    "camera_hash":comparison["camera"]["camera_hash"],
+                    "camera_canonical_sha256":comparison["camera"]["canonical_sha256"],
+                    "render_set_object_sha256":comparison["render_set_object_sha256"],
+                    "render_set_canonical_sha256":comparison["render_set"]["canonical_sha256"],
+                    "render_set_view_id":view_id
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut evidence_request = json!({
+            "schema_version":"ProductionWeaponFormEvidencePrepareRequest@1",
+            "form_evidence_id":"fps-form-04a-form-evidence",
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "candidate_id":candidate_id,
+            "candidate_state_sha256":candidate_state_sha256,
+            "artifact_id":artifact_id,
+            "artifact_sha256":artifact_sha256,
+            "reference_canvas_object_sha256":canvas_sha256,
+            "reference_canvas_canonical_sha256":complete_session["documents"]["reference_canvas"]["document"]["canonical_sha256"],
+            "design_spec_object_sha256":design_spec_sha256,
+            "design_spec_canonical_sha256":complete_session["documents"]["design_spec"]["document"]["canonical_sha256"],
+            "camera_lock_id":camera_lock["camera_lock_id"],
+            "camera_lock_canonical_sha256":camera_lock["canonical_sha256"],
+            "camera_rig_object_sha256":camera_lock["camera_rig_object_sha256"],
+            "camera_rig_canonical_sha256":camera_lock["camera_rig_canonical_sha256"],
+            "camera_lock_receipt_object_sha256":camera_lock["receipt_object_sha256"],
+            "camera_lock_source_transition_id":camera_lock["source_transition_id"],
+            "camera_lock_source_transition_sha256":camera_lock["source_transition_sha256"],
+            "camera_lock_source_head_canonical_sha256":camera_lock["source_head_canonical_sha256"],
+            "view_kinds":PRODUCTION_WEAPON_FORM_EVIDENCE_VIEW_KINDS,
+            "views":evidence_views,
+            "evidence_policy":PRODUCTION_WEAPON_FORM_EVIDENCE_POLICY,
+            "evidence_policy_sha256":sha256_hex(PRODUCTION_WEAPON_FORM_EVIDENCE_POLICY.as_bytes()),
+            "input_sha256":"",
+            "idempotency_key":"fps-form-04a-form-evidence-idem"
+        });
+        let mut evidence_preimage = evidence_request.as_object().unwrap().clone();
+        evidence_preimage.remove("input_sha256");
+        evidence_preimage.remove("idempotency_key");
+        evidence_request["input_sha256"] =
+            Value::String(canonical_json_hash(&Value::Object(evidence_preimage)));
+        let evidence_objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before real FormEvidence");
+        let evidence_first = runtime
+            .production_weapon_form_evidence_prepare(evidence_request.clone())
+            .expect("real FormEvidence prepare");
+        assert_eq!(
+            evidence_first["form_evidence"]["views"]
+                .as_array()
+                .map(Vec::len),
+            Some(6)
+        );
+        assert_eq!(
+            evidence_first["form_evidence"]["quality_status"],
+            "NOT_PROVEN"
+        );
+        assert_eq!(evidence_first["production_stage_advanced"], false);
+        assert_eq!(evidence_first["candidate_confirmed"], false);
+        assert_eq!(evidence_first["version_created"], false);
+        assert_eq!(evidence_first["export_performed"], false);
+        for view in evidence_first["form_evidence"]["views"].as_array().unwrap() {
+            assert_eq!(
+                view["part_id_evidence"]["observation"]["observation_status"],
+                "observed"
+            );
+            assert!(matches!(
+                view["negative_space_evidence"]["observation"]["observation_status"].as_str(),
+                Some("unknown" | "inferred")
+            ));
+            assert_eq!(
+                view["line_flow_evidence"]["observation"]["observation_status"],
+                "unknown"
+            );
+        }
+        let evidence_objects_after = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after real FormEvidence");
+        assert_eq!(
+            evidence_objects_after.len() - evidence_objects_before.len(),
+            7,
+            "six view receipts plus one parent receipt"
+        );
+        let evidence_replay = runtime
+            .production_weapon_form_evidence_prepare(evidence_request.clone())
+            .expect("real FormEvidence replay");
+        assert_eq!(evidence_replay["replayed"], true);
+        assert_eq!(
+            evidence_replay["form_evidence"],
+            evidence_first["form_evidence"]
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after real replay"),
+            evidence_objects_after
+        );
+        let evidence_get = Runtime::from_store(runtime.store.clone())
+            .expect("fresh real FormEvidence Runtime")
+            .production_weapon_form_evidence_get(json!({
+                "schema_version":"ProductionWeaponFormEvidenceGetRequest@1",
+                "form_evidence_id":"fps-form-04a-form-evidence",
+                "session_id":"fps-form-04a-session",
+                "project_id":project.project_id,
+                "candidate_id":candidate_id
+            }))
+            .expect("real FormEvidence restart get");
+        assert_eq!(evidence_get["runtime_write"], false);
+        assert_eq!(evidence_get["restart_hash_verified"], true);
+        assert_eq!(
+            evidence_get["form_evidence"],
+            evidence_first["form_evidence"]
+        );
+
+        // FormArt is a readback projection over the durable FormEvidence
+        // chain. The immutable proposal/overlay hashes plus the user's later
+        // boundary confirmation now materialize a contract-closed reviewed
+        // visual structure in every identity target. This permits observed
+        // typed rows, but quality remains NOT_PROVEN and cannot advance Stage.
+        let mut art_request = json!({
+            "schema_version":"ProductionWeaponFormArtEvidencePrepareRequest@1",
+            "art_evidence_id":"fps-form-04a-form-art",
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "candidate_id":candidate_id,
+            "form_evidence_object_sha256":evidence_first["form_evidence"]["receipt_object_sha256"],
+            "form_evidence_canonical_sha256":evidence_first["form_evidence"]["canonical_sha256"],
+            "art_evidence_policy":"production-weapon-form-art-evidence-six-view-typed-observation@1",
+            "art_evidence_policy_sha256":sha256_hex(
+                b"production-weapon-form-art-evidence-six-view-typed-observation@1"
+            ),
+            "input_sha256":"",
+            "idempotency_key":"fps-form-04a-form-art-idem"
+        });
+        let mut art_preimage = art_request.as_object().unwrap().clone();
+        art_preimage.remove("input_sha256");
+        art_preimage.remove("idempotency_key");
+        art_request["input_sha256"] =
+            Value::String(canonical_json_hash(&Value::Object(art_preimage)));
+        let art_objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before real FormArt");
+        let art_first = runtime
+            .production_weapon_form_art_evidence_prepare(art_request.clone())
+            .expect("real FormArt projection");
+        assert_eq!(art_first["art_evidence"]["quality_status"], "NOT_PROVEN");
+        assert_eq!(
+            art_first["art_evidence"]["views"].as_array().map(Vec::len),
+            Some(6)
+        );
+        for view in art_first["art_evidence"]["views"].as_array().unwrap() {
+            assert_eq!(view["visual_structure_review_status"], "user_confirmed");
+            assert!(view["line_flow_rows"]
+                .as_array()
+                .is_some_and(|rows| !rows.is_empty()));
+            assert!(matches!(
+                view["line_flow_status"].as_str(),
+                Some("unknown" | "inferred" | "observed")
+            ));
+            if matches!(
+                view["view_kind"].as_str(),
+                Some("left" | "right" | "rear-three-quarter")
+            ) {
+                assert!(matches!(
+                    view["negative_space_status"].as_str(),
+                    Some("unknown" | "inferred" | "observed")
+                ));
+                assert_eq!(
+                    view["negative_space_rows"].as_array().map(Vec::len),
+                    Some(2)
+                );
+                assert_eq!(view["view_observation_status"], "inferred");
+            } else {
+                assert_eq!(view["negative_space_status"], "not-applicable");
+                assert!(matches!(
+                    view["view_observation_status"].as_str(),
+                    Some("inferred" | "observed")
+                ));
+            }
+        }
+        let art_objects_after = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after real FormArt");
+        assert_eq!(art_objects_after.len() - art_objects_before.len(), 7);
+        let art_replay = runtime
+            .production_weapon_form_art_evidence_prepare(art_request.clone())
+            .expect("real FormArt replay");
+        assert_eq!(art_replay["replayed"], true);
+        assert_eq!(art_replay["art_evidence"], art_first["art_evidence"]);
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after FormArt replay"),
+            art_objects_after
+        );
+        let art_get = Runtime::from_store(runtime.store.clone())
+            .expect("fresh real FormArt Runtime")
+            .production_weapon_form_art_evidence_get(json!({
+                "schema_version":"ProductionWeaponFormArtEvidenceGetRequest@1",
+                "art_evidence_id":"fps-form-04a-form-art",
+                "session_id":"fps-form-04a-session",
+                "project_id":project.project_id,
+                "candidate_id":candidate_id
+            }))
+            .expect("real FormArt restart get");
+        assert_eq!(art_get["runtime_write"], false);
+        assert_eq!(art_get["restart_hash_verified"], true);
+        assert_eq!(art_get["art_evidence"], art_first["art_evidence"]);
+        let art_record: ProductionWeaponFormArtEvidenceRecord =
+            serde_json::from_value(art_first["art_evidence"].clone())
+                .expect("real FormArt diagnostic record");
+        let form_art_target_observation_diagnostics = art_record
+            .views
+            .iter()
+            .map(|view| {
+                json!({
+                    "view_kind":view.view_kind,
+                    "negative_space_status":view.negative_space_status,
+                    "negative_space_row_count":view.negative_space_rows.len(),
+                    "line_flow_status":view.line_flow_status,
+                    "line_flow_row_count":view.line_flow_rows.len(),
+                    "reason_code":crate::production_weapon_form_quality_v2::target_observation_reason_code(&runtime, view)
+                })
+            })
+            .collect::<Vec<_>>();
+
+        println!(
+            "FPS_FORM_EVIDENCE_04A_CAMERA_PREFLIGHT={}",
+            serde_json::to_string(&json!({
+                "camera_fit_results":camera_fit_results,
+                "comparison_metrics":comparisons.iter().map(|(kind, comparison)| {
+                    (kind.clone(), comparison["comparison_report"]["metrics"].clone())
+                }).collect::<BTreeMap<_, _>>()
+            }))
+            .expect("camera preflight JSON")
+        );
+
+        // Persist a same-candidate CrossView source without claiming repair or
+        // promotion. Baseline and proposal deliberately bind the exact same
+        // candidate: this can prove six-view no-regression, never improvement.
+        let cross_view_entries = authoring["reference_canvas"]["views"]
+            .as_array()
+            .expect("real CrossView canvas views")
+            .iter()
+            .map(|view| {
+                let kind = view["kind"].as_str().expect("CrossView view kind");
+                let camera = comparisons
+                    .get(kind)
+                    .and_then(|comparison| comparison.get("camera"))
+                    .expect("CrossView registered camera by kind")
+                    .clone();
+                json!({
+                    "view_id":view["view_id"],
+                    "reference_id":view["reference_id"],
+                    "reference_sha256":view["reference_sha256"],
+                    "view_spec":view["view_spec"],
+                    "camera":camera
+                })
+            })
+            .collect::<Vec<_>>();
+        let cross_view_proposal = json!({"view_evaluations":cross_view_entries});
+        let durable_session = runtime
+            .store
+            .get_agentic_session("fps-form-04a-session")
+            .expect("real CrossView session lookup")
+            .expect("real CrossView session");
+        let durable_candidate = runtime
+            .store
+            .get_candidate(&candidate_id)
+            .expect("real CrossView candidate lookup")
+            .expect("real CrossView candidate");
+        let cross_view_evaluations = crate::agentic_action::validate_view_evaluations(
+            &runtime,
+            cross_view_proposal
+                .as_object()
+                .expect("CrossView proposal object"),
+            &durable_session,
+        )
+        .expect("real CrossView evaluation preflight")
+        .expect("real CrossView evaluations");
+        let cross_view_first = crate::agentic_action::evaluate_same_candidate_cross_view(
+            &runtime,
+            &durable_session,
+            &durable_candidate,
+            &cross_view_evaluations,
+        )
+        .expect("real same-candidate CrossView");
+        let cross_view_bundle_bytes = runtime
+            .store
+            .cas()
+            .read_verified_bounded(&cross_view_first.bundle_sha256, 1024 * 1024)
+            .expect("real CrossView bundle bytes");
+        let cross_view_bundle: Value =
+            serde_json::from_slice(&cross_view_bundle_bytes).expect("real CrossView bundle JSON");
+        let cross_view_statuses = cross_view_bundle["view_evaluations"]
+            .as_array()
+            .expect("real CrossView view evaluations")
+            .iter()
+            .map(|view| {
+                let proposal_quality_sha256 = view["proposal_quality_report_sha256"]
+                    .as_str()
+                    .expect("proposal quality report hash");
+                let proposal_quality_bytes = runtime
+                    .store
+                    .cas()
+                    .read_verified_bounded(proposal_quality_sha256, 1024 * 1024)
+                    .expect("proposal quality report bytes");
+                let proposal_quality: Value = serde_json::from_slice(&proposal_quality_bytes)
+                    .expect("proposal quality report JSON");
+                json!({
+                    "kind":view["kind"],
+                    "baseline_status":view["baseline_status"],
+                    "proposal_status":view["proposal_status"],
+                    "benchmark_eligibility":proposal_quality["benchmark_eligibility"],
+                    "proposal_metrics":view["proposal_metrics"],
+                    "proposal_metric_gate_results":proposal_quality["metric_gate_results"],
+                    "non_regressing":view["non_regressing"],
+                    "strict_improvement":view["strict_improvement"]
+                })
+            })
+            .collect::<Vec<_>>();
+        assert!(!cross_view_first.hard_gate_passed);
+        assert!(cross_view_first.non_regressing);
+        assert!(!cross_view_first.strict_improvement);
+        assert_eq!(cross_view_first.aggregate_status, "QUALITY_TARGET_NOT_MET");
+        let cross_view_objects_before_replay = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before CrossView replay");
+        let cross_view_replay = crate::agentic_action::evaluate_same_candidate_cross_view(
+            &runtime,
+            &durable_session,
+            &durable_candidate,
+            &cross_view_evaluations,
+        )
+        .expect("real same-candidate CrossView replay");
+        assert_eq!(
+            cross_view_replay.bundle_sha256,
+            cross_view_first.bundle_sha256
+        );
+        assert_eq!(
+            cross_view_replay.baseline_score,
+            cross_view_first.baseline_score
+        );
+        assert_eq!(
+            cross_view_replay.proposal_score,
+            cross_view_first.proposal_score
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after CrossView replay"),
+            cross_view_objects_before_replay
+        );
+        let cross_view_record = runtime
+            .store
+            .get_cross_view_evidence(&cross_view_first.bundle_sha256)
+            .expect("CrossView restart read")
+            .expect("CrossView durable row");
+        assert_eq!(cross_view_record.candidate_id, candidate_id);
+        assert!(!cross_view_record.hard_gate_passed);
+
+        // Project the reviewed six-view evidence into the new Runtime-owned
+        // assembly decision vocabulary. This call is deliberately read-only:
+        // the real fixture still has bbox-only/unknown negative space,
+        // unproven line flow, no first-person profile and no first-class
+        // assembly parameter sink, so it must explain those blockers without
+        // compiling another candidate or advancing Stage@3.
+        let geometry_evidence = runtime
+            .store
+            .get_geometry_candidate_evidence(&candidate_id)
+            .expect("real art decision geometry evidence lookup")
+            .expect("real art decision geometry evidence");
+        let art_decision_request = json!({
+            "schema_version":"ProductionWeaponArtDecisionProposalGetRequest@1",
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "candidate_id":candidate_id,
+            "candidate_state_sha256":candidate_state_sha256,
+            "artifact_id":artifact_id,
+            "artifact_sha256":artifact_sha256,
+            "geometry_program_sha256":geometry_evidence.geometry_program_object_sha256,
+            "geometry_program_canonical_sha256":geometry_evidence.geometry_program_sha256,
+            "operator_catalog_sha256":geometry_evidence.operator_catalog_sha256,
+            "reference_canvas_canonical_sha256":complete_session["documents"]["reference_canvas"]["document"]["canonical_sha256"],
+            "design_spec_canonical_sha256":complete_session["documents"]["design_spec"]["document"]["canonical_sha256"],
+            "camera_lock_id":camera_lock["camera_lock_id"],
+            "camera_lock_canonical_sha256":camera_lock["canonical_sha256"],
+            "form_evidence_id":evidence_first["form_evidence"]["form_evidence_id"],
+            "form_evidence_object_sha256":evidence_first["form_evidence"]["receipt_object_sha256"],
+            "form_evidence_canonical_sha256":evidence_first["form_evidence"]["canonical_sha256"],
+            "form_art_evidence_id":art_first["art_evidence"]["art_evidence_id"],
+            "form_art_evidence_object_sha256":art_first["art_evidence"]["receipt_object_sha256"],
+            "form_art_evidence_canonical_sha256":art_first["art_evidence"]["canonical_sha256"],
+            "first_person_profile_id":null,
+            "first_person_profile_sha256":null
+        });
+        let art_decision_objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before real art decision projection");
+        let art_decision = runtime
+            .production_weapon_art_decision_proposal_get(art_decision_request.clone())
+            .expect("real art decision projection");
+        assert_eq!(art_decision["read_only"], true);
+        assert_eq!(art_decision["runtime_write_performed"], false);
+        assert_eq!(art_decision["worker_invoked"], false);
+        assert_eq!(art_decision["candidate_generated"], false);
+        assert_eq!(art_decision["production_stage_advanced"], false);
+        assert_eq!(
+            art_decision["view_bindings"].as_array().map(Vec::len),
+            Some(6)
+        );
+        assert_eq!(
+            art_decision["assembly_group_decisions"]
+                .as_array()
+                .map(Vec::len),
+            Some(5)
+        );
+        assert_eq!(
+            art_decision["gate_results"].as_array().map(Vec::len),
+            Some(10)
+        );
+        let art_decision_blockers = art_decision["blockers"]
+            .as_array()
+            .expect("real art decision blockers");
+        for expected in [
+            "BLOCKED_PARAMETER_SINK",
+            "BLOCKED_NEGATIVE_SPACE",
+            "BLOCKED_LINE_FLOW",
+            "BLOCKED_FIRST_PERSON_PROFILE",
+        ] {
+            assert!(art_decision_blockers
+                .iter()
+                .any(|blocker| { blocker["blocker_code"].as_str() == Some(expected) }));
+        }
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after real art decision projection"),
+            art_decision_objects_before
+        );
+        let art_decision_restart = Runtime::from_store(runtime.store.clone())
+            .expect("fresh art decision Runtime")
+            .production_weapon_art_decision_proposal_get(art_decision_request)
+            .expect("real art decision restart projection");
+        assert_eq!(art_decision_restart, art_decision);
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after real art decision restart projection"),
+            art_decision_objects_before
+        );
+
+        // Project the same verified lineage into the closed, typed parameter
+        // sink registry. The getter is read-only: it recomputes the registry
+        // from the persisted GeometryProgram and never creates a CAS/SQLite
+        // row, Worker job, candidate, or stage transition.
+        let sink_request = json!({
+            "schema_version":"ProductionWeaponAssemblyParameterSinkGetRequest@1",
+            "sink_registry_id":"fps-weapon-assembly-parameter-sink-registry",
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "candidate_id":candidate_id,
+            "candidate_state_sha256":candidate_state_sha256,
+            "artifact_id":artifact_id,
+            "artifact_sha256":artifact_sha256,
+            "geometry_program_sha256":geometry_evidence.geometry_program_object_sha256,
+            "geometry_program_canonical_sha256":geometry_evidence.geometry_program_sha256,
+            "operator_catalog_sha256":geometry_evidence.operator_catalog_sha256,
+            "assembly_registry_id":art_decision["assembly_registry_id"],
+            "assembly_registry_canonical_sha256":art_decision["assembly_registry_canonical_sha256"]
+        });
+        let sink_objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before assembly parameter sink projection");
+        let sink = runtime
+            .production_weapon_assembly_parameter_sink_get(sink_request.clone())
+            .expect("real assembly parameter sink projection");
+        assert_eq!(sink["recomputed"], true);
+        assert_eq!(sink["restart_hash_verified"], true);
+        assert_eq!(sink["read_only"], true);
+        for flag in [
+            "runtime_write_performed",
+            "worker_invoked",
+            "candidate_generated",
+            "production_stage_advanced",
+            "candidate_confirmed",
+            "version_created",
+            "export_performed",
+        ] {
+            assert_eq!(sink[flag], false, "read-only sink flag {flag}");
+            assert_eq!(sink["registry"][flag], false, "registry flag {flag}");
+        }
+        assert_eq!(sink["registry"]["status"], "PARTIAL_TYPED_SINKS");
+        assert_eq!(sink["registry"]["sinks"].as_array().map(Vec::len), Some(7));
+        assert_eq!(
+            sink["registry"]["sinks"]
+                .as_array()
+                .expect("typed sink rows")
+                .iter()
+                .map(|row| row["parameter_id"].as_str().expect("parameter id"))
+                .collect::<Vec<_>>(),
+            vec![
+                "receiver-envelope-width",
+                "receiver-envelope-height",
+                "muzzle-axis-shroud-envelope",
+                "muzzle-axis-emitter-envelope",
+                "muzzle-axis-core-aperture",
+                "stock-open-frame-clearance",
+                "stock-open-frame-angle"
+            ]
+        );
+        assert_eq!(
+            sink["registry"]["unavailable_parameter_ids"],
+            json!([
+                "trigger-void-clearance",
+                "trigger-void-centroid",
+                "rail-spine-continuity",
+                "rail-spine-offset",
+                "receiver-envelope-shoulder"
+            ])
+        );
+        assert_eq!(
+            sink["registry"]["canonical_sha256"],
+            sink["registry_canonical_sha256"]
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after assembly parameter sink projection"),
+            sink_objects_before
+        );
+        let sink_restart = Runtime::from_store(runtime.store.clone())
+            .expect("fresh assembly parameter sink Runtime")
+            .production_weapon_assembly_parameter_sink_get(sink_request.clone())
+            .expect("assembly parameter sink restart projection");
+        assert_eq!(sink_restart, sink);
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after assembly parameter sink restart projection"),
+            sink_objects_before
+        );
+
+        let mut sink_tampered = sink_request.clone();
+        sink_tampered["assembly_registry_canonical_sha256"] = json!("0".repeat(64));
+        assert!(runtime
+            .production_weapon_assembly_parameter_sink_get(sink_tampered)
+            .is_err());
+        let mut sink_retargeted = sink_request;
+        sink_retargeted["project_id"] = json!("other-project");
+        assert!(runtime
+            .production_weapon_assembly_parameter_sink_get(sink_retargeted)
+            .is_err());
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after assembly parameter sink negative projections"),
+            sink_objects_before
+        );
+
+        // Exercise the legacy FormQuality@1 boundary with real sources. The
+        // D1 CrossView is QUALITY_TARGET_NOT_MET, so the durable legacy parent
+        // must remain structural-only and must not advance the production
+        // stage. Its immutable lineage is still required by FormQuality@2.
+        let legacy_quality_views = PRODUCTION_WEAPON_FORM_QUALITY_REVIEWED_REFERENCE_VIEW_KINDS
+            .iter()
+            .map(|kind| {
+                let evaluation = cross_view_bundle["view_evaluations"]
+                    .as_array()
+                    .expect("legacy CrossView evaluations")
+                    .iter()
+                    .find(|view| view["kind"].as_str() == Some(*kind))
+                    .expect("legacy CrossView view kind");
+                let not_proven = json!({
+                    "source_kind":"not-proven",
+                    "source_object_sha256":null,
+                    "evidence_object_sha256":null,
+                    "status":"NOT_PROVEN"
+                });
+                json!({
+                    "view_kind":kind,
+                    "view_id":evaluation["view_id"],
+                    "part_id_evidence":{
+                        "source":not_proven,
+                        "expected_part_ids":readback["part_ids"],
+                        "observed_part_ids":readback["part_ids"],
+                        "missing_part_ids":[],
+                        "unexpected_part_ids":[],
+                        "coverage_milli":0
+                    },
+                    "negative_space_evidence":{
+                        "source":not_proven,
+                        "expected_count":0,
+                        "observed_count":0,
+                        "missing_count":0,
+                        "sealed_count":0,
+                        "coverage_milli":0
+                    },
+                    "line_flow_evidence":{
+                        "source":not_proven,
+                        "expected_count":0,
+                        "observed_count":0,
+                        "coverage_milli":0,
+                        "continuity_milli":0,
+                        "deviation_milli":0
+                    },
+                    "no_regression":{
+                        "status":"NOT_PROVEN",
+                        "metrics_not_regressed":evaluation["non_regressing"],
+                        "part_id_not_regressed":false,
+                        "negative_space_not_regressed":false,
+                        "line_flow_not_regressed":false
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut legacy_form_quality_request = json!({
+            "schema_version":"ProductionWeaponFormQualityPrepareRequest@1",
+            "form_quality_id":"fps-form-04a-legacy-form-quality",
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "form_stage":"blockout",
+            "source_stage":"camera-calibrated",
+            "target_stage":"blockout-reviewed",
+            "camera_calibrated_head_transition_id":camera_transition_id,
+            "camera_calibrated_head_transition_sha256":camera_transition_first["transition"]["canonical_sha256"],
+            "camera_calibrated_head_canonical_sha256":camera_transition_first["production_stage_head"]["canonical_sha256"],
+            "camera_calibrated_head_candidate_id":candidate_id,
+            "camera_calibrated_head_candidate_state_sha256":candidate_state_sha256,
+            "camera_calibrated_head_artifact_id":artifact_id,
+            "camera_calibrated_head_artifact_sha256":artifact_sha256,
+            "camera_calibrated_head_stage":"camera-calibrated",
+            "candidate_id":candidate_id,
+            "candidate_state_sha256":candidate_state_sha256,
+            "artifact_id":artifact_id,
+            "artifact_sha256":artifact_sha256,
+            "reference_id":reference.reference_id,
+            "reference_sha256":reference.object_sha256,
+            "reference_canvas_object_sha256":canvas_sha256,
+            "reference_canvas_canonical_sha256":complete_session["documents"]["reference_canvas"]["document"]["canonical_sha256"],
+            "design_spec_object_sha256":design_spec_sha256,
+            "design_spec_canonical_sha256":complete_session["documents"]["design_spec"]["document"]["canonical_sha256"],
+            "camera_lock_id":camera_lock["camera_lock_id"],
+            "camera_lock_canonical_sha256":camera_lock["canonical_sha256"],
+            "camera_rig_object_sha256":camera_lock["camera_rig_object_sha256"],
+            "camera_rig_canonical_sha256":camera_lock["camera_rig_canonical_sha256"],
+            "camera_lock_receipt_object_sha256":camera_lock["receipt_object_sha256"],
+            "camera_lock_source_transition_id":camera_lock["source_transition_id"],
+            "camera_lock_source_transition_sha256":camera_lock["source_transition_sha256"],
+            "camera_lock_source_head_canonical_sha256":camera_lock["source_head_canonical_sha256"],
+            "reviewed_reference_view_kinds":PRODUCTION_WEAPON_FORM_QUALITY_REVIEWED_REFERENCE_VIEW_KINDS,
+            "fixed_camera_view_kinds":PRODUCTION_WEAPON_FORM_QUALITY_FIXED_CAMERA_VIEW_KINDS,
+            "cross_view_evidence_object_sha256":cross_view_first.bundle_sha256,
+            "cross_view_evidence_canonical_sha256":cross_view_bundle["canonical_sha256"],
+            "cross_view_evidence_view_kinds":PRODUCTION_WEAPON_FORM_QUALITY_REVIEWED_REFERENCE_VIEW_KINDS,
+            "form_evidence_object_sha256":evidence_first["form_evidence"]["receipt_object_sha256"],
+            "form_evidence_canonical_sha256":evidence_first["form_evidence"]["canonical_sha256"],
+            "form_view_evaluations":legacy_quality_views,
+            "previous_form_quality_id":null,
+            "previous_form_quality_report_object_sha256":null,
+            "previous_form_quality_canonical_sha256":null,
+            "form_quality_policy":"production-weapon-form-quality-six-view-no-regression@1",
+            "form_quality_policy_sha256":sha256_hex(b"production-weapon-form-quality-six-view-no-regression@1"),
+            "threshold_policy":"production-weapon-form-view-thresholds@1",
+            "threshold_policy_sha256":sha256_hex(b"production-weapon-form-view-thresholds@1"),
+            "input_sha256":"",
+            "idempotency_key":"fps-form-04a-legacy-form-quality-idem"
+        });
+        let mut legacy_preimage = legacy_form_quality_request.as_object().unwrap().clone();
+        legacy_preimage.remove("input_sha256");
+        legacy_preimage.remove("idempotency_key");
+        legacy_form_quality_request["input_sha256"] =
+            Value::String(canonical_json_hash(&Value::Object(legacy_preimage)));
+        let legacy_quality_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before legacy FormQuality");
+        let legacy_quality_first = runtime
+            .production_weapon_form_quality_prepare(legacy_form_quality_request.clone())
+            .expect("durable structural-only legacy FormQuality");
+        assert_eq!(legacy_quality_first["replayed"], false);
+        assert_eq!(legacy_quality_first["runtime_write"], true);
+        assert_eq!(legacy_quality_first["production_stage_advanced"], false);
+        assert_eq!(
+            legacy_quality_first["form_quality"]["hard_gate_passed"],
+            false
+        );
+        assert_eq!(
+            legacy_quality_first["form_quality"]["visual_status"],
+            "QUALITY_TARGET_NOT_MET"
+        );
+        assert_eq!(
+            legacy_quality_first["form_quality"]["quality_status"],
+            "structural_only"
+        );
+        let legacy_quality_after_first = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS after durable legacy FormQuality");
+        assert_eq!(
+            legacy_quality_after_first.len(),
+            legacy_quality_before.len() + 1
+        );
+        let legacy_quality_replay = runtime
+            .production_weapon_form_quality_prepare(legacy_form_quality_request.clone())
+            .expect("same-key legacy FormQuality replay");
+        assert_eq!(legacy_quality_replay["replayed"], true);
+        assert_eq!(
+            legacy_quality_replay["form_quality"],
+            legacy_quality_first["form_quality"]
+        );
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after replayed legacy FormQuality"),
+            legacy_quality_after_first
+        );
+        assert!(runtime
+            .store
+            .get_production_weapon_form_quality("fps-form-04a-legacy-form-quality")
+            .expect("durable legacy FormQuality row lookup")
+            .is_some());
+        let legacy_quality_get_request = json!({
+            "schema_version":"ProductionWeaponFormQualityGetRequest@1",
+            "form_quality_id":"fps-form-04a-legacy-form-quality",
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "candidate_id":candidate_id,
+            "form_stage":"blockout"
+        });
+        let legacy_quality_get = runtime
+            .production_weapon_form_quality_get(legacy_quality_get_request.clone())
+            .expect("durable legacy FormQuality readback");
+        assert_eq!(legacy_quality_get["replayed"], true);
+        assert_eq!(legacy_quality_get["runtime_write"], false);
+        assert_eq!(
+            legacy_quality_get["form_quality"],
+            legacy_quality_first["form_quality"]
+        );
+        let legacy_quality_restart = Runtime::from_store(runtime.store.clone())
+            .expect("fresh legacy FormQuality Runtime")
+            .production_weapon_form_quality_get(legacy_quality_get_request)
+            .expect("durable legacy FormQuality restart readback");
+        assert_eq!(legacy_quality_restart, legacy_quality_get);
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after legacy FormQuality readbacks"),
+            legacy_quality_after_first
+        );
+        assert_eq!(
+            runtime
+                .store
+                .get_production_stage_head_v3(
+                    "fps-form-04a-session",
+                    &project.project_id,
+                    &candidate_id,
+                )
+                .expect("current Stage@3 head lookup")
+                .expect("current Stage@3 head")
+                .head_stage,
+            "camera-calibrated"
+        );
+
+        // Join the real durable FormArt parent, current same-candidate head,
+        // and the durable structural-only legacy FormQuality parent in the
+        // closed read-only V2 readiness projection. This is the exact handoff
+        // needed before another visual correction: valid parents remain
+        // independently visible while failed CrossView quality and target
+        // observations stay explicit
+        // blockers.  The diagnostic may not create a replacement parent,
+        // advance Stage@3, start a Worker, confirm, version, or export.
+        let mut form_quality_v2_preflight_request = json!({
+            "schema_version":"ProductionWeaponFormQualityV2PreflightGetRequest@1",
+            "preflight_id":"fps-form-04a-form-quality-v2-preflight",
+            "session_id":"fps-form-04a-session",
+            "project_id":project.project_id,
+            "candidate_id":candidate_id,
+            "form_stage":"blockout",
+            "legacy_form_quality_object_sha256":legacy_quality_first["form_quality"]["receipt_object_sha256"],
+            "legacy_form_quality_canonical_sha256":legacy_quality_first["form_quality"]["canonical_sha256"],
+            "form_art_evidence_object_sha256":art_first["art_evidence"]["receipt_object_sha256"],
+            "form_art_evidence_canonical_sha256":art_first["art_evidence"]["canonical_sha256"],
+            "current_source_head_transition_id":camera_transition_id,
+            "current_source_head_transition_sha256":camera_transition_first["transition"]["canonical_sha256"],
+            "current_source_head_canonical_sha256":camera_transition_first["production_stage_head"]["canonical_sha256"],
+            "input_sha256":""
+        });
+        let mut form_quality_v2_preflight_preimage = form_quality_v2_preflight_request
+            .as_object()
+            .expect("real FormQuality V2 preflight request")
+            .clone();
+        form_quality_v2_preflight_preimage.remove("input_sha256");
+        form_quality_v2_preflight_request["input_sha256"] = Value::String(canonical_json_hash(
+            &Value::Object(form_quality_v2_preflight_preimage),
+        ));
+        let preflight_objects_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before real FormQuality V2 preflight");
+        let form_quality_v2_preflight = runtime
+            .production_weapon_form_quality_v2_preflight_get(
+                form_quality_v2_preflight_request.clone(),
+            )
+            .expect("real FormQuality V2 preflight");
+        assert_eq!(form_quality_v2_preflight["ready_for_v2_prepare"], false);
+        assert_eq!(
+            form_quality_v2_preflight["checks"]["legacy_form_quality"]["status"],
+            "ready"
+        );
+        assert_eq!(
+            form_quality_v2_preflight["checks"]["form_art_evidence"]["status"],
+            "ready"
+        );
+        assert_eq!(
+            form_quality_v2_preflight["checks"]["form_art_target_observation"]["reason_code"],
+            "FORM_ART_TARGET_OBSERVATION_BLOCKED"
+        );
+        assert_eq!(
+            form_quality_v2_preflight["checks"]["cross_view_evidence"]["reason_code"],
+            "CROSS_VIEW_EVIDENCE_BLOCKED"
+        );
+        assert_eq!(
+            form_quality_v2_preflight["checks"]["candidate_artifact"]["status"],
+            "ready"
+        );
+        for flag in [
+            "runtime_write",
+            "worker_started",
+            "production_stage_advanced",
+            "candidate_confirmed",
+            "version_created",
+            "export_performed",
+        ] {
+            assert_eq!(
+                form_quality_v2_preflight[flag], false,
+                "preflight flag {flag}"
+            );
+        }
+        assert_eq!(form_quality_v2_preflight["restart_hash_verified"], true);
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after real FormQuality V2 preflight"),
+            preflight_objects_before
+        );
+        let form_quality_v2_preflight_restart = Runtime::from_store(runtime.store.clone())
+            .expect("fresh FormQuality V2 preflight Runtime")
+            .production_weapon_form_quality_v2_preflight_get(form_quality_v2_preflight_request)
+            .expect("real FormQuality V2 preflight restart");
+        assert_eq!(form_quality_v2_preflight_restart, form_quality_v2_preflight);
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after real FormQuality V2 preflight restart"),
+            preflight_objects_before
+        );
+
+        let mut retargeted = evidence_request.clone();
+        retargeted["form_evidence_id"] = json!("fps-form-04a-form-evidence-retarget");
+        retargeted["idempotency_key"] = json!("fps-form-04a-form-evidence-retarget-idem");
+        retargeted["views"][0]["render_set_object_sha256"] =
+            retargeted["views"][1]["render_set_object_sha256"].clone();
+        retargeted["views"][0]["render_set_canonical_sha256"] =
+            retargeted["views"][1]["render_set_canonical_sha256"].clone();
+        let mut retarget_preimage = retargeted.as_object().unwrap().clone();
+        retarget_preimage.remove("input_sha256");
+        retarget_preimage.remove("idempotency_key");
+        retargeted["input_sha256"] =
+            Value::String(canonical_json_hash(&Value::Object(retarget_preimage)));
+        let retarget_before = runtime
+            .store
+            .cas()
+            .list_objects()
+            .expect("CAS before real cross-view retarget");
+        let retarget_error = runtime
+            .production_weapon_form_evidence_prepare(retargeted)
+            .expect_err("real cross-view retarget must fail closed");
+        assert!(retarget_error
+            .to_string()
+            .contains("form evidence RenderSet binding differs"));
+        assert_eq!(
+            runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after real cross-view retarget"),
+            retarget_before
+        );
+        assert!(runtime
+            .store
+            .get_production_weapon_form_evidence("fps-form-04a-form-evidence-retarget")
+            .expect("retarget row lookup")
+            .is_none());
+        println!(
+            "FPS_FORM_EVIDENCE_04A_REAL_FIXTURE={}",
+            serde_json::to_string(&json!({
+                "schema_version":"ProductionWeaponFormEvidenceFixtureReceipt@1",
+                "task_id":"FPS-FORM-EVIDENCE-04A",
+                "project_id":project.project_id,
+                "candidate_id":candidate_id,
+                "candidate_state_sha256":candidate_state_sha256,
+                "artifact_sha256":artifact_sha256,
+                "operator_catalog_sha256":forgecad_geometry_worker::operator_catalog_sha256(),
+                "reference_sha256":source_sha256,
+                "review_proposal_file_sha256":V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_FILE_SHA256,
+                "review_proposal_canonical_sha256":V3_REAL_WEAPON_FORM_REVIEW_V4_PROPOSAL_CANONICAL_SHA256,
+                "review_overlay_sha256":V3_REAL_WEAPON_FORM_REVIEW_V4_OVERLAY_SHA256,
+                "review_confirmation_file_sha256":V3_REAL_WEAPON_FORM_REVIEW_CONFIRMATION_FILE_SHA256,
+                "reviewed_visual_structure_view_count":6,
+                "reviewed_visual_structure_status":"USER_CONFIRMED_OBSERVED_BOUNDARIES_DEPTH_UNKNOWN",
+                "reference_crop_count":7,
+                "identity_view_kinds":PRODUCTION_WEAPON_FORM_EVIDENCE_VIEW_KINDS,
+                "bottom_camera_only":bottom.kind,
+                "crop_aware_camera_fit_results":camera_fit_results,
+                "camera_lock_id":camera_lock["camera_lock_id"],
+                "camera_lock_canonical_sha256":camera_lock["canonical_sha256"],
+                "camera_rig_object_sha256":camera_rig_object_sha256_04j,
+                "camera_rig_canonical_sha256":camera_lock["camera_rig_canonical_sha256"],
+                "geometry_program_object_sha256":geometry_evidence_04j.geometry_program_object_sha256,
+                "geometry_program_canonical_sha256":geometry_evidence_04j.geometry_program_sha256,
+                "registered_camera_lock_replay_status":"PASS_REAL_D1_DURABLE_CAMERA_LOCK_READONLY_LINK",
+                "registered_camera_rig_canonical_sha256":registered_camera_rig_04j["canonical_sha256"],
+                "registered_camera_rig_view_count":registered_camera_rig_04j["renderer_views"].as_array().map(Vec::len),
+                "registered_camera_rig_primary_view_kind":"left",
+                "subject_frame_registration_canonical_sha256":registration_04j["canonical_sha256"],
+                "subject_frame_registration_transform":registration_04j["transform"]["kind"],
+                "registered_camera_rig_zero_new_cas_objects":true,
+                "registered_camera_rig_cross_candidate_rejected":true,
+                "rear_three_quarter_reference_registration":"BLOCKED_SEPARATE_REFERENCE_REGISTRATION",
+                "registered_camera_rig_depth_status":"UNKNOWN",
+                "registered_camera_rig_stage_advanced":false,
+                "owner_void_04k_policy":crate::production_weapon_form_art_evidence::STRICT_OWNER_VOID_POLICY,
+                "owner_void_04k_registered_camera_views":owner_void_04k,
+                "owner_void_04k_all_views_passed":owner_void_04k_all_pass,
+                "owner_void_04k_status":if owner_void_04k_all_pass { "PASS_BOUND_DIAGNOSTIC" } else { "BLOCKED_OWNER_VOID_ACCEPTANCE" },
+                "owner_void_04k_promotable":false,
+                "owner_void_04k_stage_advanced":false,
+                "camera_transition_id":camera_transition_id,
+                "camera_transition_canonical_sha256":camera_transition_first["transition"]["canonical_sha256"],
+                "camera_calibrated_head_canonical_sha256":camera_transition_first["production_stage_head"]["canonical_sha256"],
+                "form_evidence_id":evidence_first["form_evidence"]["form_evidence_id"],
+                "form_evidence_canonical_sha256":evidence_first["form_evidence"]["canonical_sha256"],
+                "form_evidence_receipt_object_sha256":evidence_first["form_evidence"]["receipt_object_sha256"],
+                "form_art_id":art_first["art_evidence"]["art_evidence_id"],
+                "form_art_canonical_sha256":art_first["art_evidence"]["canonical_sha256"],
+                "form_art_receipt_object_sha256":art_first["art_evidence"]["receipt_object_sha256"],
+                "form_art_quality_status":art_first["art_evidence"]["quality_status"],
+                "form_art_target_observation_diagnostics":form_art_target_observation_diagnostics,
+                "cross_view_evidence_object_sha256":cross_view_first.bundle_sha256,
+                "cross_view_aggregate_status":cross_view_first.aggregate_status,
+                "cross_view_hard_gate_passed":cross_view_first.hard_gate_passed,
+                "cross_view_non_regressing":cross_view_first.non_regressing,
+                "cross_view_strict_improvement":cross_view_first.strict_improvement,
+                "cross_view_view_statuses":cross_view_statuses,
+                "cross_view_same_candidate_replay_zero_new_objects":true,
+                "cross_view_restart_hash_verified":true,
+                "render_set_object_sha256s":evidence_first["form_evidence"]["views"]
+                    .as_array().unwrap().iter()
+                    .map(|view| view["render_set_object_sha256"].clone()).collect::<Vec<_>>(),
+                "render_set_count":6,
+                "aov_pass_count":54,
+                "owned_receipt_object_count":7,
+                "same_key_replay_zero_new_objects":true,
+                "restart_get_hash_verified":true,
+                "camera_lock_restart_get_hash_verified":true,
+                "cross_view_retarget_zero_write_rejected":true,
+                "part_count":23,
+                "open_stock_part_ids":["rear-stock","rear-cap"],
+                "open_stock_source_node_ids":["rear-stock","rear-stock-lower-beam","rear-cap"],
+                "quality_status":"NOT_PROVEN",
+                "reference_coverage_stage_advanced":transition_first["production_stage_advanced"],
+                "camera_calibrated_stage_advanced":camera_transition_first["production_stage_advanced"],
+                "form_evidence_stage_advanced":false,
+                "assembly_parameter_sink_status":sink["registry"]["status"],
+                "assembly_parameter_sink_count":sink["registry"]["sinks"].as_array().map(Vec::len),
+                "assembly_parameter_sink_unavailable_count":sink["registry"]["unavailable_parameter_ids"].as_array().map(Vec::len),
+                "legacy_form_quality":"DURABLE_STRUCTURAL_ONLY_QUALITY_TARGET_NOT_MET",
+                "legacy_form_quality_canonical_sha256":legacy_quality_first["form_quality"]["canonical_sha256"],
+                "legacy_form_quality_receipt_object_sha256":legacy_quality_first["form_quality"]["receipt_object_sha256"],
+                "legacy_form_quality_same_key_replay_zero_new_objects":true,
+                "legacy_form_quality_restart_hash_verified":true,
+                "legacy_form_quality_hard_gate_passed":legacy_quality_first["form_quality"]["hard_gate_passed"],
+                "form_quality_v2":"PREFLIGHT_BLOCKED_ZERO_WRITE",
+                "form_quality_v2_preflight_readiness_sha256":form_quality_v2_preflight["readiness_sha256"],
+                "form_quality_v2_preflight_checks":form_quality_v2_preflight["checks"],
+                "form_quality_v2_preflight_blocking_reasons":form_quality_v2_preflight["blocking_reasons"],
+                "form_quality_v2_preflight_restart_hash_verified":form_quality_v2_preflight["restart_hash_verified"],
+                "form_quality_v2_block_reason":"CROSS_VIEW_QUALITY_TARGET_NOT_MET_AND_FORM_ART_TARGET_OBSERVATION_BLOCKED",
+                "current_stage_head":"camera-calibrated",
+                "candidate_confirmed":false,
+                "version_created":false,
+                "export_performed":false,
+                "form_art":"NOT_PROVEN_DURABLE_REPLAY",
+                "form_quality":"BLOCKED_CROSS_VIEW_QUALITY_TARGET_NOT_MET",
+                "secondary_form_approved":"NOT_CREATED"
+            }))
+            .expect("real FPS FORM 04A hash-only receipt")
         );
     }
 
@@ -4551,8 +23125,32 @@ fn with_checkpoint_canonical(
 
 fn canonical_value(mut value: Value) -> Value {
     value["canonical_sha256"] = Value::String(String::new());
-    value["canonical_sha256"] = Value::String(canonical_json_hash(&value));
+    let canonical_sha256 = canonical_json_hash(&value);
+    value["canonical_sha256"] = Value::String(canonical_sha256);
     value
+}
+
+fn canonicalize_reference_canvas_for_cas(canvas: Value) -> Result<Value, RuntimeError> {
+    let canvas = canonical_value(canvas);
+    let mut canvas: Value =
+        serde_json::from_slice(&canonical_json_bytes(&canvas)?).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "AGENTIC_AUTHORING_CANVAS_WIRE_ROUNDTRIP_INVALID: {error}"
+            ))
+        })?;
+    let views = canvas
+        .get_mut("views")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_VIEWS_INVALID".to_owned())
+        })?;
+    for view in views {
+        let view_spec = view.get_mut("view_spec").ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_SPEC_REQUIRED".to_owned())
+        })?;
+        *view_spec = canonical_value(view_spec.clone());
+    }
+    Ok(canonical_value(canvas))
 }
 
 fn canonical_json_bytes(value: &Value) -> Result<Vec<u8>, RuntimeError> {
@@ -6044,6 +24642,27 @@ fn reference_set_hash(pairs: &[(String, String)]) -> String {
 
 fn build_reference_canvas(reference: &ReferenceEvidenceRecord, canvas_id: &str) -> Value {
     let evidence = json!({"kind":"reference","sha256":reference.object_sha256});
+    // Keep the conservative intake path wire-compatible with the explicit
+    // authoring producer.  The view remains unbound and makes no camera or
+    // geometry claim, but every durable ReferenceCanvas view must carry the
+    // same canonical ReferenceViewSpec envelope before CAS serialization.
+    let view_id = format!("{}-perspective", canvas_id);
+    let view_spec = canonical_value(json!({
+        "schema_version":"ReferenceViewSpec@1",
+        "reference_id":reference.reference_id,
+        "reference_sha256":reference.object_sha256,
+        "view_id":view_id,
+        "source_view":"perspective",
+        "image":{
+            "width":reference.width,
+            "height":reference.height,
+            "rotation_degrees":0.0,
+            "crop":{"x":0.0,"y":0.0,"width":1.0,"height":1.0}
+        },
+        "landmarks":[],
+        "regions":[],
+        "canonical_sha256":""
+    }));
     json!({
         "schema_version":"ReferenceCanvas@1",
         "canvas_id":canvas_id,
@@ -6051,12 +24670,13 @@ fn build_reference_canvas(reference: &ReferenceEvidenceRecord, canvas_id: &str) 
         "reference_set_sha256":reference.object_sha256,
         "bindings":{"status":"unbound","target_sha256":null,"camera_hash":null,"camera_canonical_sha256":null,"evidence_sha256":null},
         "views":[{
-            "view_id":format!("{}-perspective",canvas_id),
+            "view_id":view_id,
             "reference_id":reference.reference_id,
             "reference_sha256":reference.object_sha256,
             "kind":"perspective",
             "authorization":{"user_authorized":true,"declaration":reference.authorization.declaration,"evidence_refs":[evidence.clone()]},
             "image_dimensions":{"width":reference.width,"height":reference.height},
+            "view_spec":view_spec,
             "camera_claim":{"visibility":"unknown","camera_hash":null,"claim":"Camera parameters are unknown for this reference","evidence_refs":[evidence.clone()]},
             "visible_regions":[],
             "unknown_regions":[{"region_id":"unknown-view-coverage","question":"Which additional views are required for complete coverage?","state":{"visibility":"unknown","confidence":0,"evidence_refs":[evidence.clone()]}}]

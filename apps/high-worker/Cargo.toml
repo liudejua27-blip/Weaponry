@@ -1,0 +1,26 @@
+[package]
+name = "forgecad-high-worker"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+# The accepted Manifold C ABI is already statically built by the product
+# Geometry Worker.  Keep High's module opt-in so the default binary remains
+# fail-closed when a build cohort has not explicitly enabled that backend.
+manifold-backend = ["dep:forgecad-geometry-worker"]
+
+[lib]
+name = "forgecad_high_worker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "forgecad-high-worker"
+path = "src/main.rs"
+
+[dependencies]
+forgecad-worker-protocol = { path = "../desktop/src-tauri/crates/forgecad-worker-protocol" }
+forgecad-geometry-worker = { path = "../geometry-worker", optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"

@@ -26,8 +26,13 @@ const MAX_SWEEP_POINTS: usize = 128;
 const SURFACE_PATCH_CONTROL_POINTS: usize = 16;
 const MAX_SUBD_CONTROL_POINTS: usize = 256;
 const MAX_SUBD_CREASE_EDGES: usize = 128;
-const MAX_AUTHORING_ELEMENTS: usize = 1536;
-const MAX_AUTHORING_FACES: usize = 512;
+// `authoring-mesh@1` is also the fixed lowering target for Runtime-owned
+// production foundation meshes.  Keep the surface decisively bounded, but
+// large enough for a real editable game-asset source instead of only the
+// historical small topology probes.  The enclosing GeometryProgram still
+// enforces the 250k triangle, 96 MiB transport and 512 MiB Worker ceilings.
+const MAX_AUTHORING_ELEMENTS: usize = 65_536;
+const MAX_AUTHORING_FACES: usize = 32_768;
 const VENT_ARRAY_FRAME_SEAM_GAP_M: f32 = 1.0e-4;
 const RECESSED_CHANNEL_MAX_STATIONS: usize = 32;
 const RECESSED_CHANNEL_MIN_SEGMENT_M: f32 = 1.0e-5;
@@ -538,10 +543,33 @@ impl ValidatedOperator {
                 }
             }
             Self::PanelV2 {
+                size_m,
+                thickness_m,
+                inset_m,
+                recess_depth_m,
+                border_width_m,
+                bevel_m,
                 bevel_segments,
                 support_loop_count,
+                support_loop_width_m,
                 ..
-            } => 16 * *bevel_segments as u64 + 16 * *support_loop_count as u64 + 28,
+            } => u64::try_from(
+                recessed_panel_v2_mesh(
+                    *size_m,
+                    *thickness_m,
+                    *inset_m,
+                    *recess_depth_m,
+                    *border_width_m,
+                    *bevel_m,
+                    *bevel_segments,
+                    *support_loop_count,
+                    *support_loop_width_m,
+                )?
+                .indices
+                .len()
+                    / 3,
+            )
+            .map_err(|_| GeometryError::Invalid("panel@2 triangle count overflow".to_owned()))?,
             Self::VentArray { slot_count, .. } => 12 * (*slot_count as u64 + 2),
             Self::VentArrayV2 {
                 slot_count,
@@ -5540,12 +5568,13 @@ fn push_triangle(
     c: [f32; 3],
 ) -> Result<(), GeometryError> {
     let cross = cross3(subtract3(b, a), subtract3(c, a));
-    let normal = normalize(cross);
-    if !finite3(normal) || length3(cross) <= 1.0e-8 {
+    let cross_length = length3(cross);
+    if !finite3(cross) || !cross_length.is_finite() || cross_length <= 1.0e-8 {
         return Err(GeometryError::Invalid(
             "operator emitted a degenerate triangle".to_owned(),
         ));
     }
+    let normal = scale3(cross, 1.0 / cross_length);
     let base = mesh.positions.len() as u32;
     mesh.positions.extend([a, b, c]);
     mesh.normals.extend([normal; 3]);
@@ -5616,7 +5645,6 @@ fn recessed_panel_v2_mesh(
     let half_y = size_m[1] / 2.0;
     let top_z = thickness_m / 2.0;
     let bottom_z = -thickness_m / 2.0;
-    let floor_z = top_z - recess_depth_m;
     let outer_side = rect_ring(half_x, half_y, top_z - bevel_m);
     let outer_top = rect_ring(half_x - bevel_m, half_y - bevel_m, top_z);
     let border_outer = rect_ring(half_x - inset_m, half_y - inset_m, top_z);
@@ -5625,16 +5653,17 @@ fn recessed_panel_v2_mesh(
         half_y - inset_m - border_width_m,
         top_z,
     );
-    let floor = rect_ring(
-        half_x - inset_m - border_width_m - bevel_m,
-        half_y - inset_m - border_width_m - bevel_m,
-        floor_z,
-    );
     let back = rect_ring(half_x, half_y, bottom_z);
+    let support_span = support_loop_count as f32 * support_loop_width_m;
+    let minimum_strip_span = (bevel_m / bevel_segments as f32)
+        .min(support_loop_width_m)
+        .min(inset_m - bevel_m - support_span)
+        .min(border_width_m - support_span);
+    let panel_edge_segments = panel_edge_segments(size_m, minimum_strip_span);
 
     let mut mesh = empty_mesh();
     // The outer wall connects the full back footprint to the upper bevel.
-    push_ring_strip(&mut mesh, back, outer_side)?;
+    push_topology_safe_ring_strip(&mut mesh, back, outer_side, panel_edge_segments)?;
 
     // Outer bevel: the source edge transitions through exactly the requested
     // segment count, so increasing bevel_segments produces real support
@@ -5647,7 +5676,7 @@ fn recessed_panel_v2_mesh(
             half_y - bevel_m * t,
             top_z - bevel_m + bevel_m * t,
         );
-        push_ring_strip(&mut mesh, previous, ring)?;
+        push_topology_safe_ring_strip(&mut mesh, previous, ring, panel_edge_segments)?;
         previous = ring;
     }
 
@@ -5656,10 +5685,10 @@ fn recessed_panel_v2_mesh(
     for loop_index in 1..=support_loop_count {
         let inset = support_loop_width_m * loop_index as f32;
         let ring = rect_ring(half_x - bevel_m - inset, half_y - bevel_m - inset, top_z);
-        push_ring_strip(&mut mesh, previous, ring)?;
+        push_topology_safe_ring_strip(&mut mesh, previous, ring, panel_edge_segments)?;
         previous = ring;
     }
-    push_ring_strip(&mut mesh, previous, border_outer)?;
+    push_topology_safe_ring_strip(&mut mesh, previous, border_outer, panel_edge_segments)?;
 
     // Border band with a second set of support loops immediately outside the
     // recessed edge. The two loop families keep both the outer silhouette and
@@ -5668,10 +5697,10 @@ fn recessed_panel_v2_mesh(
     for loop_index in 1..=support_loop_count {
         let inset = inset_m + support_loop_width_m * loop_index as f32;
         let ring = rect_ring(half_x - inset, half_y - inset, top_z);
-        push_ring_strip(&mut mesh, previous, ring)?;
+        push_topology_safe_ring_strip(&mut mesh, previous, ring, panel_edge_segments)?;
         previous = ring;
     }
-    push_ring_strip(&mut mesh, previous, recess_start)?;
+    push_topology_safe_ring_strip(&mut mesh, previous, recess_start, panel_edge_segments)?;
 
     // Inner bevel descends into the recessed floor.
     let mut previous = recess_start;
@@ -5682,16 +5711,17 @@ fn recessed_panel_v2_mesh(
             half_y - inset_m - border_width_m - bevel_m * t,
             top_z - recess_depth_m * t,
         );
-        push_ring_strip(&mut mesh, previous, ring)?;
+        push_topology_safe_ring_strip(&mut mesh, previous, ring, panel_edge_segments)?;
         previous = ring;
     }
 
     // Close the recessed floor and the back. Winding is explicit so the
     // strict readback can verify outward-facing, manifold topology.
-    push_triangle(&mut mesh, floor[0], floor[1], floor[2])?;
-    push_triangle(&mut mesh, floor[0], floor[2], floor[3])?;
-    push_triangle(&mut mesh, back[0], back[2], back[1])?;
-    push_triangle(&mut mesh, back[0], back[3], back[2])?;
+    // Reuse the final bevel ring verbatim. Recomputing the same decimal
+    // coordinates through a separate arithmetic path can create sub-micron
+    // T-junctions after rotation and strict welded readback.
+    push_subdivided_rect_face(&mut mesh, previous, panel_edge_segments, false)?;
+    push_subdivided_rect_face(&mut mesh, back, panel_edge_segments, true)?;
     Ok(mesh)
 }
 
@@ -5704,15 +5734,129 @@ fn rect_ring(half_x: f32, half_y: f32, z: f32) -> [[f32; 3]; 4] {
     ]
 }
 
-fn push_ring_strip(
+// Keep automatic panel subdivision below both the per-Part 512-face ceiling
+// and the 1 MiB explicit-topology response budget, while reducing the former
+// 80+ long-strip aspect ratios to a bounded production-safe target.
+const PANEL_MAX_TRIANGLE_ASPECT_TARGET: f32 = 16.0;
+const PANEL_MAX_EDGE_SEGMENTS: usize = 32;
+
+fn panel_edge_segments(size_m: [f32; 3], minimum_strip_span: f32) -> [usize; 4] {
+    let span = minimum_strip_span.max(1.0e-5);
+    let x_segments = ((size_m[0] / (span * PANEL_MAX_TRIANGLE_ASPECT_TARGET)).ceil() as usize)
+        .clamp(1, PANEL_MAX_EDGE_SEGMENTS);
+    let y_segments = ((size_m[1] / (span * PANEL_MAX_TRIANGLE_ASPECT_TARGET)).ceil() as usize)
+        .clamp(1, PANEL_MAX_EDGE_SEGMENTS);
+    [x_segments, y_segments, x_segments, y_segments]
+}
+
+fn lerp3(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
+    if t <= 0.0 {
+        return a;
+    }
+    if t >= 1.0 {
+        return b;
+    }
+    let stable_component = |left: f32, right: f32| {
+        let interpolated = left as f64 + (right as f64 - left as f64) * t as f64;
+        ((interpolated * 10_000_000.0).round() / 10_000_000.0) as f32
+    };
+    [
+        stable_component(a[0], b[0]),
+        stable_component(a[1], b[1]),
+        stable_component(a[2], b[2]),
+    ]
+}
+
+fn lerp3_ratio(a: [f32; 3], b: [f32; 3], numerator: usize, denominator: usize) -> [f32; 3] {
+    if numerator == 0 {
+        return a;
+    }
+    if numerator == denominator {
+        return b;
+    }
+    let t = numerator as f64 / denominator as f64;
+    let stable_component = |left: f32, right: f32| {
+        let interpolated = left as f64 + (right as f64 - left as f64) * t;
+        ((interpolated * 10_000_000.0).round() / 10_000_000.0) as f32
+    };
+    [
+        stable_component(a[0], b[0]),
+        stable_component(a[1], b[1]),
+        stable_component(a[2], b[2]),
+    ]
+}
+
+fn push_topology_safe_ring_strip(
     mesh: &mut PrimitiveNodeMesh,
     outer: [[f32; 3]; 4],
     inner: [[f32; 3]; 4],
+    segment_counts: [usize; 4],
 ) -> Result<(), GeometryError> {
     for index in 0..4 {
         let next = (index + 1) % 4;
-        push_triangle(&mut *mesh, outer[index], outer[next], inner[next])?;
-        push_triangle(&mut *mesh, outer[index], inner[next], inner[index])?;
+        for segment in 0..segment_counts[index] {
+            let a = lerp3_ratio(outer[index], outer[next], segment, segment_counts[index]);
+            let b = lerp3_ratio(
+                outer[index],
+                outer[next],
+                segment + 1,
+                segment_counts[index],
+            );
+            let c = lerp3_ratio(
+                inner[index],
+                inner[next],
+                segment + 1,
+                segment_counts[index],
+            );
+            let d = lerp3_ratio(inner[index], inner[next], segment, segment_counts[index]);
+            push_triangle(&mut *mesh, a, b, c)?;
+            push_triangle(&mut *mesh, a, c, d)?;
+        }
+    }
+    Ok(())
+}
+
+fn push_subdivided_rect_face(
+    mesh: &mut PrimitiveNodeMesh,
+    corners: [[f32; 3]; 4],
+    edge_segments: [usize; 4],
+    reverse: bool,
+) -> Result<(), GeometryError> {
+    let u_segments = edge_segments[0].max(edge_segments[2]);
+    let v_segments = edge_segments[1].max(edge_segments[3]);
+    let point = |u_index: usize, v_index: usize| {
+        if v_index == 0 {
+            return lerp3_ratio(corners[0], corners[1], u_index, u_segments);
+        }
+        if v_index == v_segments {
+            return lerp3_ratio(corners[2], corners[3], u_segments - u_index, u_segments);
+        }
+        if u_index == 0 {
+            return lerp3_ratio(corners[3], corners[0], v_segments - v_index, v_segments);
+        }
+        if u_index == u_segments {
+            return lerp3_ratio(corners[1], corners[2], v_index, v_segments);
+        }
+        let u = u_index as f32 / u_segments as f32;
+        let v = v_index as f32 / v_segments as f32;
+        let row0 = lerp3(corners[0], corners[1], u);
+        let row1 = lerp3(corners[3], corners[2], u);
+        lerp3(row0, row1, v)
+    };
+    for v_index in 0..v_segments {
+        for u_index in 0..u_segments {
+            let a = point(u_index, v_index);
+            let b = point(u_index + 1, v_index);
+            let c = point(u_index + 1, v_index + 1);
+            let d = point(u_index, v_index + 1);
+            if reverse {
+                push_triangle(&mut *mesh, a, c, b)?;
+                push_triangle(&mut *mesh, a, d, c)?;
+            } else {
+                push_triangle(&mut *mesh, a, b, c)?;
+                push_triangle(&mut *mesh, a, c, d)?;
+            }
+        }
     }
     Ok(())
 }
@@ -8165,7 +8309,10 @@ mod tests {
             &BTreeMap::new(),
         )
         .expect("panel@2 should validate");
-        assert_eq!(triangle_count, 92);
+        assert!(
+            triangle_count > 92,
+            "topology-safe edge subdivisions were not emitted"
+        );
         let mesh = compile_operator(
             &operation,
             &BTreeMap::new(),
@@ -8251,6 +8398,41 @@ mod tests {
             &BTreeMap::new(),
         )
         .is_err());
+    }
+
+    #[test]
+    fn panel_v2_long_narrow_production_profile_remains_closed() {
+        let parameters = json!({
+            "shape":"panel",
+            "size_m":[1.3,0.25,0.1],
+            "thickness_m":0.1,
+            "inset_m":0.045,
+            "recess_depth_m":0.02,
+            "border_width_m":0.035,
+            "bevel_m":0.015,
+            "bevel_segments":1,
+            "support_loop_count":1,
+            "support_loop_width_m":0.015,
+            "position_m":[0.62,1.78,0.47],
+            "rotation_rad":[0.0,0.0,-0.04]
+        });
+        let (operation, triangle_count) = validate_operator(
+            "forgecad.geometry.panel@2",
+            &[],
+            parameters.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .expect("long narrow panel should validate");
+        let mesh = compile_operator(
+            &operation,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            250_000,
+            10_000,
+        )
+        .expect("long narrow panel mesh");
+        assert_eq!(mesh.indices.len() / 3, triangle_count as usize);
+        validate_closed_triangle_mesh(&mesh).expect("long narrow panel must remain closed");
     }
 
     #[test]

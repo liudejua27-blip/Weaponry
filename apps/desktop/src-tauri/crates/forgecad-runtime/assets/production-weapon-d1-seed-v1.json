@@ -1,0 +1,144 @@
+{
+  "schema_version": "GeometryProgram@2",
+  "project_id": "production-weapon-d1-seed",
+  "representation_plan_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "operator_catalog_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "units": {
+    "length": "meter",
+    "angle": "radian",
+    "coordinate_system": "right-handed-y-up"
+  },
+  "budgets": {
+    "max_nodes": 64,
+    "max_triangles": 50000,
+    "max_glb_bytes": 8388608,
+    "max_worker_memory_bytes": 536870912,
+    "max_runtime_ms": 10000
+  },
+  "nodes": [
+    {
+      "node_id": "receiver-main",
+      "operator_id": "forgecad.geometry.longitudinal-section-loft@1",
+      "inputs": [],
+      "parameters": {
+        "position_m": [-0.05, 1.48, 0.0],
+        "rotation_rad": [0.0, 0.0, 0.0],
+        "sections": [
+          {"points": [[-0.203, -0.22], [0.203, -0.22], [0.29, 0.0], [0.203, 0.22], [-0.203, 0.22], [-0.29, 0.0]], "station_m": -1.775},
+          {"points": [[-0.203, -0.28], [0.203, -0.28], [0.29, 0.0], [0.203, 0.28], [-0.203, 0.28], [-0.29, 0.0]], "station_m": -1.45},
+          {"points": [[-0.203, -0.36], [0.203, -0.36], [0.29, 0.0], [0.203, 0.36], [-0.203, 0.36], [-0.29, 0.0]], "station_m": -0.8},
+          {"points": [[-0.203, -0.41], [0.203, -0.41], [0.29, 0.0], [0.203, 0.41], [-0.203, 0.41], [-0.29, 0.0]], "station_m": 0.0},
+          {"points": [[-0.203, -0.38], [0.203, -0.38], [0.29, 0.0], [0.203, 0.38], [-0.203, 0.38], [-0.29, 0.0]], "station_m": 0.75},
+          {"points": [[-0.203, -0.32], [0.203, -0.32], [0.29, 0.0], [0.203, 0.32], [-0.203, 0.32], [-0.29, 0.0]], "station_m": 1.3},
+          {"points": [[-0.203, -0.26], [0.203, -0.26], [0.29, 0.0], [0.203, 0.26], [-0.203, 0.26], [-0.29, 0.0]], "station_m": 1.775}
+        ],
+        "shape": "longitudinal-section-loft"
+      }
+    },
+    {
+      "node_id": "receiver-upper",
+      "operator_id": "forgecad.geometry.primitive@2",
+      "inputs": [],
+      "parameters": {"position_m": [-0.25, 1.88, 0.0], "rotation_rad": [0.0, 0.0, 0.0], "shape": "box", "size_m": [2.85, 0.2, 0.92]}
+    },
+    {
+      "node_id": "receiver-lower",
+      "operator_id": "forgecad.geometry.longitudinal-section-loft@1",
+      "inputs": [],
+      "parameters": {
+        "position_m": [0.05, 1.08, 0.0],
+        "rotation_rad": [0.0, 0.0, 0.0],
+        "sections": [
+          {"points": [[-0.063, -0.18], [0.063, -0.18], [0.09, 0.0], [0.063, 0.18], [-0.063, 0.18], [-0.09, 0.0]], "station_m": -1.325},
+          {"points": [[-0.063, -0.23], [0.063, -0.23], [0.09, 0.0], [0.063, 0.23], [-0.063, 0.23], [-0.09, 0.0]], "station_m": -1.0},
+          {"points": [[-0.063, -0.31], [0.063, -0.31], [0.09, 0.0], [0.063, 0.31], [-0.063, 0.31], [-0.09, 0.0]], "station_m": -0.5},
+          {"points": [[-0.063, -0.38], [0.063, -0.38], [0.09, 0.0], [0.063, 0.38], [-0.063, 0.38], [-0.09, 0.0]], "station_m": 0.0},
+          {"points": [[-0.063, -0.34], [0.063, -0.34], [0.09, 0.0], [0.063, 0.34], [-0.063, 0.34], [-0.09, 0.0]], "station_m": 0.55},
+          {"points": [[-0.063, -0.27], [0.063, -0.27], [0.09, 0.0], [0.063, 0.27], [-0.063, 0.27], [-0.09, 0.0]], "station_m": 1.0},
+          {"points": [[-0.063, -0.2], [0.063, -0.2], [0.09, 0.0], [0.063, 0.2], [-0.063, 0.2], [-0.09, 0.0]], "station_m": 1.325}
+        ],
+        "shape": "longitudinal-section-loft"
+      }
+    },
+    {"node_id": "rear-stock", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [2.05, 1.68, 0.0], "rotation_rad": [0.0, 0.0, 0.0], "shape": "box", "size_m": [0.95, 0.22, 0.86]}},
+    {"node_id": "rear-cap", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [2.57, 1.4, 0.0], "rotation_rad": [0.0, 0.0, 0.0], "shape": "box", "size_m": [0.2, 0.98, 0.92]}},
+    {"node_id": "grip", "operator_id": "forgecad.geometry.profile-extrude@1", "inputs": [], "parameters": {"depth_m": 0.42, "position_m": [1.34, 0.58, 0.0], "profile": [[-0.19, -0.42], [0.07, -0.46], [0.17, 0.34], [0.1, 0.46], [-0.16, 0.42], [-0.11, 0.12]], "rotation_rad": [0.0, 0.0, -0.12], "shape": "profile-extrude"}},
+    {"node_id": "trigger-guard", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [1.4, 0.98, 0.0], "rotation_rad": [0.0, 0.0, 0.0], "shape": "box", "size_m": [0.48, 0.12, 0.5]}},
+    {"node_id": "underbrace", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [-0.55, 1.25, 0.0], "rotation_rad": [0.0, 0.0, 0.08], "shape": "box", "size_m": [1.55, 0.14, 0.72]}},
+    {"node_id": "top-fin", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [-0.63, 2.1, 0.0], "rotation_rad": [0.0, 0.0, -0.03], "shape": "box", "size_m": [1.45, 0.12, 0.34]}},
+    {"node_id": "top-rail", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [-0.35, 2.0, 0.43], "rotation_rad": [0.0, 0.0, 0.0], "shape": "box", "size_m": [2.2, 0.09, 0.12]}},
+    {"node_id": "bottom-rail", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [-0.25, 0.95, -0.43], "rotation_rad": [0.0, 0.0, 0.0], "shape": "box", "size_m": [2.3, 0.09, 0.12]}},
+    {
+      "node_id": "side-light-left",
+      "operator_id": "forgecad.geometry.recessed-channel@1",
+      "inputs": [],
+      "parameters": {
+        "edge_bevel_m": 0.003, "end_transition_m": 0.06, "floor_width_ratio": 0.55, "path_frame": "planar-xy-z-up@1", "position_m": [0.0, 0.0, 0.47], "rotation_rad": [0.0, 0.0, 0.0], "shape": "recessed-channel", "start_transition_m": 0.06,
+        "stations": [
+          {"depth_m": 0.055, "point_m": [-1.5, 1.47, 0.0], "width_m": 0.1},
+          {"depth_m": 0.05833333333333334, "point_m": [-1.1166666666666667, 1.48, 0.0], "width_m": 0.11},
+          {"depth_m": 0.061666666666666675, "point_m": [-0.7333333333333333, 1.49, 0.0], "width_m": 0.12},
+          {"depth_m": 0.065, "point_m": [-0.35, 1.5, 0.0], "width_m": 0.13},
+          {"depth_m": 0.061666666666666675, "point_m": [-0.04000000000000003, 1.49, 0.0], "width_m": 0.12000000000000002},
+          {"depth_m": 0.058333333333333334, "point_m": [0.2699999999999999, 1.48, 0.0], "width_m": 0.11},
+          {"depth_m": 0.055, "point_m": [0.58, 1.47, 0.0], "width_m": 0.1}
+        ],
+        "transition_segments": 1
+      }
+    },
+    {
+      "node_id": "side-light-right",
+      "operator_id": "forgecad.geometry.recessed-channel@1",
+      "inputs": [],
+      "parameters": {
+        "edge_bevel_m": 0.003, "end_transition_m": 0.06, "floor_width_ratio": 0.55, "path_frame": "planar-xy-z-up@1", "position_m": [0.0, 0.0, -0.47], "rotation_rad": [0.0, 3.141592653589793, 0.0], "shape": "recessed-channel", "start_transition_m": 0.06,
+        "stations": [
+          {"depth_m": 0.055, "point_m": [-0.58, 1.47, 0.0], "width_m": 0.1},
+          {"depth_m": 0.05833333333333334, "point_m": [-0.27, 1.48, 0.0], "width_m": 0.11},
+          {"depth_m": 0.061666666666666675, "point_m": [0.03999999999999998, 1.49, 0.0], "width_m": 0.12},
+          {"depth_m": 0.065, "point_m": [0.35, 1.5, 0.0], "width_m": 0.13},
+          {"depth_m": 0.061666666666666675, "point_m": [0.7333333333333334, 1.49, 0.0], "width_m": 0.12000000000000002},
+          {"depth_m": 0.058333333333333334, "point_m": [1.1166666666666667, 1.48, 0.0], "width_m": 0.11},
+          {"depth_m": 0.055, "point_m": [1.5, 1.47, 0.0], "width_m": 0.1}
+        ],
+        "transition_segments": 1
+      }
+    },
+    {"node_id": "muzzle-shroud", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [-1.88, 1.48, 0.0], "rotation_rad": [0.0, 0.0, 0.0], "shape": "box", "size_m": [0.72, 0.62, 0.9]}},
+    {"node_id": "muzzle-emitter", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"height_m": 0.48, "position_m": [-2.28, 1.48, 0.0], "radial_segments": 20, "radius_m": 0.3, "rotation_rad": [0.0, 0.0, 1.5708], "shape": "cylinder"}},
+    {"node_id": "muzzle-core", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"height_m": 0.56, "position_m": [-2.28, 1.48, 0.0], "radial_segments": 20, "radius_m": 0.14, "rotation_rad": [0.0, 0.0, 1.5708], "shape": "cylinder"}},
+    {"node_id": "energy-ring", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"height_m": 0.16, "position_m": [0.54, 1.48, 0.43], "radial_segments": 24, "radius_m": 0.44, "rotation_rad": [0.0, 0.0, 1.5708], "shape": "cylinder"}},
+    {"node_id": "energy-core", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"latitude_segments": 8, "longitude_segments": 16, "position_m": [0.54, 1.48, 0.54], "radius_m": 0.26, "rotation_rad": [0.0, 0.0, 0.0], "shape": "sphere"}},
+    {"node_id": "core-housing", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [0.54, 1.48, 0.48], "rotation_rad": [0.0, 0.0, 0.0], "shape": "box", "size_m": [0.62, 0.62, 0.18]}},
+    {"node_id": "side-panel-a", "operator_id": "forgecad.geometry.panel@2", "inputs": [], "parameters": {"bevel_m": 0.015, "bevel_segments": 1, "border_width_m": 0.035, "inset_m": 0.045, "position_m": [0.62, 1.78, 0.47], "recess_depth_m": 0.02, "rotation_rad": [0.0, 0.0, -0.04], "shape": "panel", "size_m": [1.3, 0.25, 0.1], "support_loop_count": 1, "support_loop_width_m": 0.015, "thickness_m": 0.1}},
+    {"node_id": "side-panel-b", "operator_id": "forgecad.geometry.panel@2", "inputs": [], "parameters": {"bevel_m": 0.012, "bevel_segments": 1, "border_width_m": 0.026, "inset_m": 0.036, "position_m": [1.02, 1.18, -0.47], "recess_depth_m": 0.018, "rotation_rad": [0.0, 3.141592653589793, 0.05], "shape": "panel", "size_m": [1.12, 0.18, 0.12], "support_loop_count": 1, "support_loop_width_m": 0.012, "thickness_m": 0.12}},
+    {"node_id": "magazine", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [0.94, 0.84, 0.0], "rotation_rad": [0.0, 0.0, -0.18], "shape": "box", "size_m": [0.62, 0.42, 0.42]}},
+    {"node_id": "rear-light", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [2.2, 1.48, 0.46], "rotation_rad": [0.0, 0.0, 0.0], "shape": "box", "size_m": [0.1, 0.32, 0.12]}},
+    {"node_id": "rear-stock-lower-beam", "operator_id": "forgecad.geometry.primitive@2", "inputs": [], "parameters": {"position_m": [2.02, 1.15, 0.0], "rotation_rad": [0.0, 0.0, 0.16], "shape": "box", "size_m": [0.9, 0.16, 0.72]}}
+  ],
+  "part_outputs": [
+    {"part_id": "receiver-main", "input_node_ids": ["receiver-main"], "material_zone_id": "zone-white-shell", "solid": true},
+    {"part_id": "receiver-upper", "input_node_ids": ["receiver-upper"], "material_zone_id": "zone-white-shell", "solid": true},
+    {"part_id": "receiver-lower", "input_node_ids": ["receiver-lower"], "material_zone_id": "zone-black-mechanical", "solid": true},
+    {"part_id": "rear-stock", "input_node_ids": ["rear-stock", "rear-stock-lower-beam"], "material_zone_id": "zone-white-shell", "solid": true},
+    {"part_id": "rear-cap", "input_node_ids": ["rear-cap"], "material_zone_id": "zone-gold-accent", "solid": true},
+    {"part_id": "grip", "input_node_ids": ["grip"], "material_zone_id": "zone-black-mechanical", "solid": true},
+    {"part_id": "trigger-guard", "input_node_ids": ["trigger-guard"], "material_zone_id": "zone-black-mechanical", "solid": true},
+    {"part_id": "underbrace", "input_node_ids": ["underbrace"], "material_zone_id": "zone-gold-accent", "solid": true},
+    {"part_id": "top-fin", "input_node_ids": ["top-fin"], "material_zone_id": "zone-gold-accent", "solid": true},
+    {"part_id": "top-rail", "input_node_ids": ["top-rail"], "material_zone_id": "zone-black-mechanical", "solid": true},
+    {"part_id": "bottom-rail", "input_node_ids": ["bottom-rail"], "material_zone_id": "zone-black-mechanical", "solid": true},
+    {"part_id": "side-light-left", "input_node_ids": ["side-light-left"], "material_zone_id": "zone-amber-emissive", "solid": true},
+    {"part_id": "side-light-right", "input_node_ids": ["side-light-right"], "material_zone_id": "zone-amber-emissive", "solid": true},
+    {"part_id": "muzzle-shroud", "input_node_ids": ["muzzle-shroud"], "material_zone_id": "zone-white-shell", "solid": true},
+    {"part_id": "muzzle-emitter", "input_node_ids": ["muzzle-emitter"], "material_zone_id": "zone-gold-accent", "solid": true},
+    {"part_id": "muzzle-core", "input_node_ids": ["muzzle-core"], "material_zone_id": "zone-amber-emissive", "solid": true},
+    {"part_id": "energy-ring", "input_node_ids": ["energy-ring"], "material_zone_id": "zone-gold-accent", "solid": true},
+    {"part_id": "energy-core", "input_node_ids": ["energy-core"], "material_zone_id": "zone-amber-emissive", "solid": true},
+    {"part_id": "core-housing", "input_node_ids": ["core-housing"], "material_zone_id": "zone-black-mechanical", "solid": true},
+    {"part_id": "side-panel-a", "input_node_ids": ["side-panel-a"], "material_zone_id": "zone-gold-accent", "solid": true},
+    {"part_id": "side-panel-b", "input_node_ids": ["side-panel-b"], "material_zone_id": "zone-white-shell", "solid": true},
+    {"part_id": "magazine", "input_node_ids": ["magazine"], "material_zone_id": "zone-black-mechanical", "solid": true},
+    {"part_id": "rear-light", "input_node_ids": ["rear-light"], "material_zone_id": "zone-amber-emissive", "solid": true}
+  ]
+}

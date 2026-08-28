@@ -1,5 +1,7 @@
 # ForgeCAD 硬切重置与迁移清单
 
+> 2026-08-25 商业质量计划不恢复旧 Provider、工作台、Blender Runtime、任意脚本或第二状态写者。未来新增的 High/Low/UV/Bake/Material/FPS executors 必须走 additive 原子任务和独立 Gate；本轮文档同步不授权删除、迁移或清理任何脏工作树文件。
+
 版本：2026-08-13
 状态：历史硬切已完成；后续 MVP 执行以 `MVP_DELIVERY_PLAN.md` 为准；ADR-0026 后续要求 active/archive 模块边界清晰，废弃材料先隔离再删除
 决策依据：[ADR-0025](ADR/0025-codex-only-mcp-3d-runtime.md)、[ADR-0026](ADR/0026-agentic-design-runtime.md)

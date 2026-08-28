@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-art-decision-proposal-get-result.schema.json",
+  "title": "ProductionWeaponArtDecisionProposalGetResult@1",
+  "description": "Hash-bound read-only art-decision projection over the six reviewed views and five closed assembly groups. It can return explicit blockers for the current real fixture, but cannot compile geometry, invoke a Worker, create a candidate, advance a stage, confirm, version or export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "proposal_projection_id",
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "artifact_id",
+    "artifact_sha256",
+    "geometry_program_sha256",
+    "geometry_program_canonical_sha256",
+    "operator_catalog_sha256",
+    "assembly_registry_id",
+    "assembly_registry_canonical_sha256",
+    "reference_canvas_canonical_sha256",
+    "design_spec_canonical_sha256",
+    "camera_lock_id",
+    "camera_lock_canonical_sha256",
+    "form_evidence_id",
+    "form_evidence_object_sha256",
+    "form_evidence_canonical_sha256",
+    "form_art_evidence_id",
+    "form_art_evidence_object_sha256",
+    "form_art_evidence_canonical_sha256",
+    "first_person_profile_id",
+    "first_person_profile_sha256",
+    "view_bindings",
+    "assembly_group_decisions",
+    "objective_policy",
+    "gate_results",
+    "blockers",
+    "proposal_status",
+    "read_only",
+    "runtime_write_performed",
+    "worker_invoked",
+    "candidate_generated",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "replayed",
+    "restart_hash_verified",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponArtDecisionProposalGetResult@1"},
+    "proposal_projection_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "assembly_registry_id": {"$ref": "#/$defs/id"},
+    "assembly_registry_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_canvas_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "design_spec_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_lock_id": {"$ref": "#/$defs/id"},
+    "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "form_evidence_id": {"$ref": "#/$defs/id"},
+    "form_evidence_object_sha256": {"$ref": "#/$defs/sha256"},
+    "form_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "form_art_evidence_id": {"$ref": "#/$defs/id"},
+    "form_art_evidence_object_sha256": {"$ref": "#/$defs/sha256"},
+    "form_art_evidence_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "first_person_profile_id": {"$ref": "#/$defs/nullable_id"},
+    "first_person_profile_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "view_bindings": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": false,
+      "prefixItems": [
+        {"$ref": "#/$defs/view_binding"},
+        {"$ref": "#/$defs/view_binding"},
+        {"$ref": "#/$defs/view_binding"},
+        {"$ref": "#/$defs/view_binding"},
+        {"$ref": "#/$defs/view_binding"},
+        {"$ref": "#/$defs/view_binding"}
+      ],
+      "allOf": [
+        {"contains": {"type": "object", "properties": {"view_kind": {"const": "front"}}}},
+        {"contains": {"type": "object", "properties": {"view_kind": {"const": "back"}}}},
+        {"contains": {"type": "object", "properties": {"view_kind": {"const": "left"}}}},
+        {"contains": {"type": "object", "properties": {"view_kind": {"const": "right"}}}},
+        {"contains": {"type": "object", "properties": {"view_kind": {"const": "top"}}}},
+        {"contains": {"type": "object", "properties": {"view_kind": {"const": "rear-three-quarter"}}}}
+      ]
+    },
+    "assembly_group_decisions": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": false,
+      "prefixItems": [
+        {"$ref": "#/$defs/assembly_group_decision"},
+        {"$ref": "#/$defs/assembly_group_decision"},
+        {"$ref": "#/$defs/assembly_group_decision"},
+        {"$ref": "#/$defs/assembly_group_decision"},
+        {"$ref": "#/$defs/assembly_group_decision"}
+      ],
+      "allOf": [
+        {"contains": {"type": "object", "properties": {"group_id": {"const": "receiver-envelope"}}}},
+        {"contains": {"type": "object", "properties": {"group_id": {"const": "muzzle-axis"}}}},
+        {"contains": {"type": "object", "properties": {"group_id": {"const": "stock-open-frame"}}}},
+        {"contains": {"type": "object", "properties": {"group_id": {"const": "trigger-void"}}}},
+        {"contains": {"type": "object", "properties": {"group_id": {"const": "rail-spine"}}}}
+      ]
+    },
+    "objective_policy": {"const": "assembly-form-search-negative-space-line-flow-first-person@1"},
+    "gate_results": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": false,
+      "prefixItems": [
+        {"$ref": "#/$defs/gate_result"},
+        {"$ref": "#/$defs/gate_result"},
+        {"$ref": "#/$defs/gate_result"},
+        {"$ref": "#/$defs/gate_result"},
+        {"$ref": "#/$defs/gate_result"},
+        {"$ref": "#/$defs/gate_result"},
+        {"$ref": "#/$defs/gate_result"},
+        {"$ref": "#/$defs/gate_result"},
+        {"$ref": "#/$defs/gate_result"},
+        {"$ref": "#/$defs/gate_result"}
+      ],
+      "allOf": [
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "lineage"}}}},
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "reference-annotation"}}}},
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "camera"}}}},
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "assembly-registry"}}}},
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "parameter-sink"}}}},
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "negative-space"}}}},
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "line-flow"}}}},
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "first-person-readability"}}}},
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "candidate-search-critic"}}}},
+        {"contains": {"type": "object", "properties": {"gate_id": {"const": "surface-scope"}}}}
+      ]
+    },
+    "blockers": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/blocker"}
+    },
+    "proposal_status": {
+      "enum": [
+        "READY_ASSEMBLY_FORM_SEARCH",
+        "BLOCKED_LINEAGE",
+        "BLOCKED_REFERENCE_ANNOTATION",
+        "BLOCKED_CAMERA",
+        "BLOCKED_NEGATIVE_SPACE",
+        "BLOCKED_LINE_FLOW",
+        "BLOCKED_FIRST_PERSON_PROFILE",
+        "BLOCKED_ASSEMBLY_REGISTRY",
+        "BLOCKED_PARAMETER_SINK",
+        "NO_STRICT_MULTI_VIEW_IMPROVEMENT"
+      ]
+    },
+    "read_only": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "worker_invoked": {"const": false},
+    "candidate_generated": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "replayed": {"type": "boolean"},
+    "restart_hash_verified": {"const": true},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_id": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "nullable_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "view_kind": {
+      "enum": ["front", "back", "left", "right", "top", "rear-three-quarter"]
+    },
+    "observation_status": {
+      "enum": ["observed", "inferred", "unknown"]
+    },
+    "view_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_kind",
+        "view_id",
+        "reference_id",
+        "reference_sha256",
+        "camera_hash",
+        "camera_canonical_sha256",
+        "render_set_object_sha256",
+        "render_set_canonical_sha256",
+        "form_evidence_view_receipt_object_sha256",
+        "form_evidence_view_receipt_canonical_sha256",
+        "form_art_evidence_view_receipt_object_sha256",
+        "form_art_evidence_view_receipt_canonical_sha256",
+        "target_sha256",
+        "visual_structure_canonical_sha256",
+        "part_id_status",
+        "negative_space_status",
+        "line_flow_status",
+        "view_observation_status"
+      ],
+      "properties": {
+        "view_kind": {"$ref": "#/$defs/view_kind"},
+        "view_id": {"$ref": "#/$defs/id"},
+        "reference_id": {"$ref": "#/$defs/id"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "camera_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "render_set_object_sha256": {"$ref": "#/$defs/sha256"},
+        "render_set_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "form_evidence_view_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+        "form_evidence_view_receipt_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "form_art_evidence_view_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+        "form_art_evidence_view_receipt_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "target_sha256": {"$ref": "#/$defs/sha256"},
+        "visual_structure_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "part_id_status": {"$ref": "#/$defs/observation_status"},
+        "negative_space_status": {"enum": ["observed", "inferred", "unknown", "not-applicable"]},
+        "line_flow_status": {"enum": ["observed", "inferred", "unknown", "not-applicable"]},
+        "view_observation_status": {"$ref": "#/$defs/observation_status"}
+      }
+    },
+    "operator_id": {
+      "enum": [
+        "forgecad.geometry.primitive@2",
+        "forgecad.geometry.profile-extrude@1",
+        "forgecad.geometry.profile-loft@1",
+        "forgecad.geometry.profile-loft@2",
+        "forgecad.geometry.multi-loop-profile-loft@1",
+        "forgecad.geometry.longitudinal-section-loft@1",
+        "forgecad.geometry.subd-cage@1",
+        "forgecad.geometry.subd-cage@2",
+        "forgecad.geometry.authoring-mesh@1",
+        "forgecad.geometry.surface-patch@1",
+        "forgecad.geometry.surface-shell@1",
+        "forgecad.geometry.revolve@1",
+        "forgecad.geometry.tube-sweep@1",
+        "forgecad.geometry.transform@2",
+        "forgecad.geometry.mirror@1",
+        "forgecad.geometry.array@1",
+        "forgecad.geometry.bevel@1",
+        "forgecad.geometry.bevel@2",
+        "forgecad.geometry.normal-policy@1",
+        "forgecad.geometry.panel@1",
+        "forgecad.geometry.panel@2",
+        "forgecad.geometry.vent-array@1",
+        "forgecad.geometry.vent-array@2",
+        "forgecad.geometry.recessed-channel@1",
+        "forgecad.geometry.energy-core@1",
+        "forgecad.geometry.joint-stack@1",
+        "forgecad.geometry.part-output@1",
+        "forgecad.geometry.boolean@1"
+      ]
+    },
+    "invariant": {
+      "enum": [
+        "shared-axis",
+        "coaxial",
+        "mirror-symmetric",
+        "clearance-min",
+        "enclosed-void",
+        "continuous-spine"
+      ]
+    },
+    "blocker_code": {
+      "enum": [
+        "BLOCKED_LINEAGE",
+        "BLOCKED_REFERENCE_ANNOTATION",
+        "BLOCKED_CAMERA",
+        "BLOCKED_NEGATIVE_SPACE",
+        "BLOCKED_LINE_FLOW",
+        "BLOCKED_FIRST_PERSON_PROFILE",
+        "BLOCKED_ASSEMBLY_REGISTRY",
+        "BLOCKED_PARAMETER_SINK",
+        "NO_STRICT_MULTI_VIEW_IMPROVEMENT"
+      ]
+    },
+    "assembly_group_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_id",
+        "status",
+        "part_ids",
+        "source_node_ids",
+        "parameter_ids",
+        "allowed_operator_ids",
+        "coupling_mode",
+        "invariants",
+        "affected_view_kinds",
+        "blocker_codes"
+      ],
+      "properties": {
+        "group_id": {"enum": ["receiver-envelope", "muzzle-axis", "stock-open-frame", "trigger-void", "rail-spine"]},
+        "status": {"enum": ["READY_FOR_SEARCH", "BLOCKED_PARAMETER_SINK", "BLOCKED_ASSEMBLY_REGISTRY", "NOT_RUN"]},
+        "part_ids": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "source_node_ids": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "parameter_ids": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "allowed_operator_ids": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/operator_id"}},
+        "coupling_mode": {"enum": ["independent", "linked", "mirror"]},
+        "invariants": {"type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/invariant"}},
+        "affected_view_kinds": {"const": ["front", "back", "left", "right", "top", "rear-three-quarter"]},
+        "blocker_codes": {"type": "array", "maxItems": 9, "uniqueItems": true, "items": {"$ref": "#/$defs/blocker_code"}}
+      }
+    },
+    "gate_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate_id", "status", "evidence_sha256", "blocker_codes"],
+      "properties": {
+        "gate_id": {"enum": ["lineage", "reference-annotation", "camera", "assembly-registry", "parameter-sink", "negative-space", "line-flow", "first-person-readability", "candidate-search-critic", "surface-scope"]},
+        "status": {"enum": ["PASS", "BLOCKED", "NOT_RUN", "LOCKED"]},
+        "evidence_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "blocker_codes": {"type": "array", "maxItems": 9, "uniqueItems": true, "items": {"$ref": "#/$defs/blocker_code"}}
+      }
+    },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocker_code", "scope", "group_id", "view_kind", "evidence_sha256"],
+      "properties": {
+        "blocker_code": {"$ref": "#/$defs/blocker_code"},
+        "scope": {"enum": ["global", "assembly", "view"]},
+        "group_id": {"$ref": "#/$defs/nullable_id"},
+        "view_kind": {"anyOf": [{"$ref": "#/$defs/view_kind"}, {"type": "null"}]},
+        "evidence_sha256": {"$ref": "#/$defs/nullable_sha256"}
+      }
+    }
+  }
+}

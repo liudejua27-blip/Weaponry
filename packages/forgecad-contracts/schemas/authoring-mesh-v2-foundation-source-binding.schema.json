@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-v2-foundation-source-binding.schema.json",
+  "title": "AuthoringMeshV2FoundationSourceBinding@1",
+  "description": "Runtime-derived per-Part binding from one project-bound persisted WeaponFoundation import to one AuthoringMesh V2 genesis. It carries hashes and compact identities only; it never embeds topology or accepts candidate, version, export or promotion state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "materialization_id", "record_id",
+    "foundation_request_id", "foundation_request_sha256", "foundation_result_object_sha256",
+    "topology_object_sha256", "socket_map_object_sha256", "rig_map_object_sha256",
+    "fps_presentation_package_object_sha256", "source_asset_id", "source_asset_sha256",
+    "source_asset_role", "part_id", "material_zone_id", "source_part_topology_sha256",
+    "authoring_mesh_id", "authoring_mesh_lineage_id", "authoring_mesh_revision_id", "binding_policy",
+    "materialization_profile", "source_only", "quality_status", "review_status",
+    "canonicalization_policy", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringMeshV2FoundationSourceBinding@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "materialization_id": {"$ref": "#/$defs/id"},
+    "record_id": {"$ref": "#/$defs/id"},
+    "foundation_request_id": {"$ref": "#/$defs/id"},
+    "foundation_request_sha256": {"$ref": "#/$defs/sha256"},
+    "foundation_result_object_sha256": {"$ref": "#/$defs/sha256"},
+    "topology_object_sha256": {"$ref": "#/$defs/sha256"},
+    "socket_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "rig_map_object_sha256": {"$ref": "#/$defs/sha256"},
+    "fps_presentation_package_object_sha256": {"$ref": "#/$defs/sha256"},
+    "source_asset_id": {"$ref": "#/$defs/asset_id"},
+    "source_asset_sha256": {"$ref": "#/$defs/sha256"},
+    "source_asset_role": {"$ref": "#/$defs/asset_role"},
+    "part_id": {"$ref": "#/$defs/id"},
+    "material_zone_id": {"$ref": "#/$defs/id"},
+    "source_part_topology_sha256": {"$ref": "#/$defs/sha256"},
+    "authoring_mesh_id": {"$ref": "#/$defs/id"},
+    "authoring_mesh_lineage_id": {"$ref": "#/$defs/id"},
+    "authoring_mesh_revision_id": {"$ref": "#/$defs/id"},
+    "binding_policy": {"const": "foundation-import-part-to-authoring-mesh-v2-source@1"},
+    "materialization_profile": {"const": "part-bounded-authoring-mesh-v2-genesis@1"},
+    "source_only": {"const": true},
+    "quality_status": {"const": "structural_only"},
+    "review_status": {"const": "DRAFT_UNREVIEWED"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "asset_id": {"enum": ["pichuliru-weapon-west", "lightning-low-pbr", "wrad-arms"]},
+    "asset_role": {"enum": ["rigged-weapon-semantic-source", "high-low-bake-pbr-animation-benchmark", "first-person-armature-source"]}
+  }
+}

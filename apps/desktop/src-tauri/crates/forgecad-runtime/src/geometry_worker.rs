@@ -11,8 +11,10 @@
 
 use forgecad_contracts::{build_cohort_sha256, is_sha256};
 use forgecad_worker_protocol::{
+    validate_native_high_glb_materialize_payload, validate_native_high_glb_materialize_result,
     validate_response, WorkerRequest, WorkerResponse, MAX_WORKER_REQUEST_BYTES,
-    MAX_WORKER_RESPONSE_BYTES, MAX_WORKER_STDERR_BYTES, WORKER_PROTOCOL,
+    MAX_WORKER_RESPONSE_BYTES, MAX_WORKER_STDERR_BYTES, NATIVE_HIGH_GLB_MATERIALIZE_ENTRY,
+    NATIVE_HIGH_GLB_MATERIALIZE_OPERATION, WORKER_PROTOCOL,
 };
 use serde_json::{json, Value};
 use std::ffi::CString;
@@ -26,6 +28,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const GEOMETRY_WORKER_BINARY: &str = "forgecad-geometry-worker";
+const HIGH_WORKER_BINARY: &str = "forgecad-high-worker";
 const WORKER_WALL_TIMEOUT: Duration = Duration::from_secs(10);
 const FICTIONAL_ENERGY_WEAPON_2K_WALL_TIMEOUT: Duration = Duration::from_secs(120);
 // Darwin's `wait4(2)` reports `ru_maxrss` in bytes. This is deliberately a
@@ -82,6 +85,12 @@ pub(crate) enum GeometryWorkerError {
     PeakRssBudgetExceeded,
 }
 
+fn protocol_at(_stage: &'static str) -> GeometryWorkerError {
+    #[cfg(test)]
+    eprintln!("FORGECAD_GEOMETRY_WORKER_PROTOCOL_STAGE={_stage}");
+    GeometryWorkerError::Protocol
+}
+
 /// The generic sibling launcher returns the typed result together with the
 /// identity reported by the child. Callers that only need the payload should
 /// keep using `execute_sibling_worker`; evidence-producing adapters can retain
@@ -123,7 +132,10 @@ pub(crate) fn compile_geometry(
         payload,
         execution_budget,
     )?;
-    let object = strict_object(&worker.result)?;
+    let object = worker
+        .result
+        .as_object()
+        .ok_or_else(|| protocol_at("compile.result_object"))?;
     require_exact_keys(
         object,
         &[
@@ -141,7 +153,7 @@ pub(crate) fn compile_geometry(
     if object.get("schema_version").and_then(Value::as_str) != Some("GeometryWorkerResult@1")
         || object.get("mime").and_then(Value::as_str) != Some("model/gltf-binary")
     {
-        return Err(GeometryWorkerError::Protocol);
+        return Err(protocol_at("compile.result_schema_or_mime"));
     }
     let program_sha256 = required_sha256(object.get("program_sha256"))?;
     if program_sha256 != expected_program_sha256 {
@@ -151,14 +163,14 @@ pub(crate) fn compile_geometry(
         .get("glb_base64")
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
-        .ok_or(GeometryWorkerError::Protocol)?;
+        .ok_or_else(|| protocol_at("compile.glb_base64"))?;
     let glb = base64::Engine::decode(
         &base64::engine::general_purpose::STANDARD,
         encoded.as_bytes(),
     )
-    .map_err(|_| GeometryWorkerError::Protocol)?;
+    .map_err(|_| protocol_at("compile.glb_decode"))?;
     if glb.is_empty() || glb.len() > 64 * 1024 * 1024 {
-        return Err(GeometryWorkerError::Protocol);
+        return Err(protocol_at("compile.glb_size"));
     }
     let part_ids = strict_identifier_array(object.get("part_ids"))?;
     let material_zone_ids = strict_identifier_array(object.get("material_zone_ids"))?;
@@ -166,7 +178,7 @@ pub(crate) fn compile_geometry(
         .get("triangle_count")
         .and_then(Value::as_u64)
         .filter(|value| *value > 0)
-        .ok_or(GeometryWorkerError::Protocol)?;
+        .ok_or_else(|| protocol_at("compile.triangle_count"))?;
     let uv_status = status(object.get("uv_status"))?;
     let tangent_status = status(object.get("tangent_status"))?;
     Ok(GeometryArtifact {
@@ -216,6 +228,91 @@ pub(crate) fn geometry_program_hash(draft: &Value) -> Result<Value, GeometryWork
         "operator_catalog_sha256":operator_catalog_sha256,
         "validation_status":"passed"
     }))
+}
+
+/// Run the fixed, bounded Low-retopology source operation.
+///
+/// The caller supplies only the closed Worker payload.  Binary identity,
+/// command-line entrypoint, timeout and resource gates remain Runtime-owned.
+/// The returned projection has not been persisted and cannot advance a
+/// production stage by itself.
+pub(crate) fn production_weapon_low_retopology(
+    payload: &Value,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
+    execute_sibling_worker_with_metadata(
+        GEOMETRY_WORKER_BINARY,
+        forgecad_worker_protocol::PRODUCTION_WEAPON_LOW_RETOPOLOGY_OPERATION,
+        payload.clone(),
+    )
+}
+
+/// Run the fixed topology-correspondent Cage-offset source operation.
+///
+/// As with Low retopology, this is a transient Worker projection until a
+/// Runtime-owned CAS reservation and Store transaction commit the bundle.
+pub(crate) fn production_weapon_cage_offset(
+    payload: &Value,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
+    execute_sibling_worker_with_metadata(
+        GEOMETRY_WORKER_BINARY,
+        forgecad_worker_protocol::PRODUCTION_WEAPON_CAGE_OFFSET_OPERATION,
+        payload.clone(),
+    )
+}
+
+/// Run the fixed 2K High/Low/Cage geometric-bake operation.
+///
+/// The request cannot select a binary, entrypoint, timeout, environment or
+/// resource budget.  The longer wall-clock allowance is reserved only for
+/// this closed first-party 2K operation; its result is still transient until
+/// Runtime independently validates it and commits the owned CAS roots.
+pub(crate) fn production_weapon_geometric_bake_2k(
+    payload: &Value,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
+    execute_sibling_worker_with_metadata_and_budget(
+        GEOMETRY_WORKER_BINARY,
+        forgecad_worker_protocol::PRODUCTION_WEAPON_GEOMETRIC_BAKE_OPERATION,
+        payload.clone(),
+        ExecutionBudget {
+            wall_timeout: FICTIONAL_ENERGY_WEAPON_2K_WALL_TIMEOUT,
+            accepted_peak_rss_budget_bytes: ACCEPTED_WORKER_PEAK_RSS_BUDGET_BYTES,
+        },
+    )
+}
+
+/// Run the fixed Native High sibling as a transient structural projection.
+///
+/// This transport does not admit the returned JSON into CAS, create or
+/// retarget a candidate, advance ProductionStage, or materialize a GLB. Those
+/// remain a later Runtime-owned producer transaction after strict artifact
+/// readback exists. The sibling binary, entrypoint, timeout, memory acceptance
+/// gate and same-build cohort check are not caller controlled.
+pub(crate) fn production_weapon_native_high(
+    payload: &Value,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
+    execute_sibling_worker_with_metadata(
+        HIGH_WORKER_BINARY,
+        forgecad_worker_protocol::NATIVE_HIGH_WORKER_OPERATION,
+        payload.clone(),
+    )
+}
+
+/// Run the fixed Native High → embedded GLB sibling as a transient structural
+/// projection. The wrapper validates the closed request/result shape but does
+/// not write CAS/SQLite, alter a candidate, or advance a Runtime stage.
+pub(crate) fn production_weapon_native_high_glb_materialize(
+    payload: &Value,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
+    validate_native_high_glb_materialize_payload(payload)
+        .map_err(|_| GeometryWorkerError::Protocol)?;
+    let result = execute_sibling_worker_with_metadata(
+        HIGH_WORKER_BINARY,
+        NATIVE_HIGH_GLB_MATERIALIZE_OPERATION,
+        payload.clone(),
+    )?;
+    validate_native_high_glb_materialize_result(&result.result)
+        .map_err(|_| GeometryWorkerError::Protocol)?;
+    Ok(result)
 }
 
 pub(crate) fn boolean_operand_lineage(
@@ -365,6 +462,20 @@ pub(crate) fn execute_sibling_worker_with_metadata(
     )
 }
 
+/// Launch the closed first-party Hero UV producer through its dedicated
+/// entrypoint.  Keeping this wrapper next to the generic launcher ensures the
+/// Runtime cannot accidentally route the durable UV request through the
+/// default Worker mode or bypass its cohort/resource gates.
+pub(crate) fn production_weapon_hero_uv_layout(
+    payload: Value,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
+    execute_sibling_worker_with_metadata(
+        GEOMETRY_WORKER_BINARY,
+        forgecad_worker_protocol::PRODUCTION_WEAPON_HERO_UV_LAYOUT_OPERATION,
+        payload,
+    )
+}
+
 fn execute_sibling_worker_with_budget(
     worker_binary: &str,
     operation: &str,
@@ -392,15 +503,35 @@ fn execute_sibling_worker_with_metadata_and_budget(
         operation: operation.to_owned(),
         payload,
     };
-    let input = serde_json::to_vec(&request).map_err(|_| GeometryWorkerError::Protocol)?;
+    let input = serde_json::to_vec(&request).map_err(|_| protocol_at("spawn.request_serialize"))?;
     if input.is_empty() || input.len() > MAX_WORKER_REQUEST_BYTES {
-        return Err(GeometryWorkerError::Protocol);
+        return Err(protocol_at("spawn.request_size"));
     }
     // The only extended profile is the closed first-party 2K surface bake.
     // Select a fixed sibling entry point so the Worker can install the
     // matching CPU rlimit before it reads request bytes. Generic geometry
     // remains on the ten-second entry point.
-    let worker_args = if execution_budget.wall_timeout == FICTIONAL_ENERGY_WEAPON_2K_WALL_TIMEOUT {
+    let worker_args = if operation == forgecad_worker_protocol::NATIVE_HIGH_WORKER_OPERATION {
+        [forgecad_worker_protocol::NATIVE_HIGH_WORKER_ENTRY]
+    } else if operation == NATIVE_HIGH_GLB_MATERIALIZE_OPERATION {
+        [NATIVE_HIGH_GLB_MATERIALIZE_ENTRY]
+    } else if operation
+        == forgecad_worker_protocol::PRODUCTION_WEAPON_HIGH_LOW_CAGE_DIAGNOSTIC_OPERATION
+    {
+        [forgecad_worker_protocol::PRODUCTION_WEAPON_HIGH_LOW_CAGE_DIAGNOSTIC_ENTRY]
+    } else if operation
+        == forgecad_worker_protocol::PRODUCTION_WEAPON_HIGH_LOW_CAGE_ARTIFACT_PRODUCER_OPERATION
+    {
+        [forgecad_worker_protocol::PRODUCTION_WEAPON_HIGH_LOW_CAGE_ARTIFACT_PRODUCER_ENTRY]
+    } else if operation == forgecad_worker_protocol::PRODUCTION_WEAPON_LOW_RETOPOLOGY_OPERATION {
+        [forgecad_worker_protocol::PRODUCTION_WEAPON_LOW_RETOPOLOGY_ENTRY]
+    } else if operation == forgecad_worker_protocol::PRODUCTION_WEAPON_LOW_QUAD_DRAFT_OPERATION {
+        [forgecad_worker_protocol::PRODUCTION_WEAPON_LOW_QUAD_DRAFT_ENTRY]
+    } else if operation == forgecad_worker_protocol::PRODUCTION_WEAPON_HERO_UV_LAYOUT_OPERATION {
+        [forgecad_worker_protocol::PRODUCTION_WEAPON_HERO_UV_LAYOUT_ENTRY]
+    } else if operation == forgecad_worker_protocol::PRODUCTION_WEAPON_CAGE_OFFSET_OPERATION {
+        [forgecad_worker_protocol::PRODUCTION_WEAPON_CAGE_OFFSET_ENTRY]
+    } else if execution_budget.wall_timeout == FICTIONAL_ENERGY_WEAPON_2K_WALL_TIMEOUT {
         ["--isolated-once-2k"]
     } else {
         ["--isolated-once"]
@@ -418,15 +549,24 @@ fn execute_sibling_worker_with_metadata_and_budget(
     // The post-hoc peak-RSS gate above intentionally runs before parsing the
     // child output. A result that exceeded the budget therefore cannot become
     // an artifact, reach CAS, or create a candidate.
-    let response = parse_worker_response(&child.stdout)?;
-    validate_response(&response, &request.request_id).map_err(|_| GeometryWorkerError::Protocol)?;
+    let response =
+        parse_worker_response(&child.stdout).map_err(|_| protocol_at("spawn.response_parse"))?;
+    validate_response(&response, &request.request_id)
+        .map_err(|_| protocol_at("spawn.response_validate"))?;
     if response.build_cohort_sha256 != build_cohort_sha256() {
-        return Err(GeometryWorkerError::Protocol);
+        eprintln!(
+            "FORGECAD_GEOMETRY_WORKER_PROTOCOL_STAGE=spawn.cohort expected={:?} actual={:?}",
+            build_cohort_sha256(),
+            response.build_cohort_sha256
+        );
+        return Err(protocol_at("spawn.cohort"));
     }
     let build_cohort_sha256 = response.build_cohort_sha256.clone();
     classify_completed_worker_response(&child, &response)?;
     Ok(SiblingWorkerResult {
-        result: response.result.ok_or(GeometryWorkerError::Protocol)?,
+        result: response
+            .result
+            .ok_or_else(|| protocol_at("spawn.result_missing"))?,
         build_cohort_sha256,
     })
 }
@@ -495,7 +635,7 @@ fn require_exact_keys(
         || allowed.iter().any(|key| !value.contains_key(*key))
         || value.keys().any(|key| !allowed.contains(&key.as_str()))
     {
-        return Err(GeometryWorkerError::Protocol);
+        return Err(protocol_at("result.exact_keys"));
     }
     Ok(())
 }
@@ -505,7 +645,7 @@ fn required_sha256(value: Option<&Value>) -> Result<String, GeometryWorkerError>
         .and_then(Value::as_str)
         .filter(|value| is_sha256(value))
         .map(str::to_owned)
-        .ok_or(GeometryWorkerError::Protocol)
+        .ok_or_else(|| protocol_at("result.required_sha256"))
 }
 
 fn required_identifier(value: Option<&Value>) -> Result<String, GeometryWorkerError> {
@@ -519,14 +659,14 @@ fn required_identifier(value: Option<&Value>) -> Result<String, GeometryWorkerEr
                     .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
         })
         .map(str::to_owned)
-        .ok_or(GeometryWorkerError::Protocol)
+        .ok_or_else(|| protocol_at("result.required_identifier"))
 }
 
 fn strict_identifier_array(value: Option<&Value>) -> Result<Vec<String>, GeometryWorkerError> {
     let values = value
         .and_then(Value::as_array)
         .filter(|values| !values.is_empty() && values.len() <= 512)
-        .ok_or(GeometryWorkerError::Protocol)?;
+        .ok_or_else(|| protocol_at("result.identifier_array"))?;
     values
         .iter()
         .map(|value| required_identifier(Some(value)))
@@ -537,7 +677,7 @@ fn status(value: Option<&Value>) -> Result<String, GeometryWorkerError> {
     match value.and_then(Value::as_str) {
         Some("passed") => Ok("passed".to_owned()),
         Some("failed") => Ok("failed".to_owned()),
-        _ => Err(GeometryWorkerError::Protocol),
+        _ => Err(protocol_at("result.status")),
     }
 }
 
@@ -921,7 +1061,14 @@ fn parse_worker_response(stdout: &[u8]) -> Result<WorkerResponse, GeometryWorker
         // protocol rejection that would hide the process failure.
         return Err(GeometryWorkerError::Crashed);
     }
-    serde_json::from_slice::<WorkerResponse>(stdout).map_err(|_| GeometryWorkerError::Protocol)
+    serde_json::from_slice::<WorkerResponse>(stdout).map_err(|_| {
+        #[cfg(test)]
+        eprintln!(
+            "FORGECAD_GEOMETRY_WORKER_PROTOCOL_STAGE=parse.response_json stdout_bytes={}",
+            stdout.len()
+        );
+        GeometryWorkerError::Protocol
+    })
 }
 
 fn bounded_worker_error_message(message: &str) -> String {
@@ -952,7 +1099,7 @@ fn classify_completed_worker_response(
         let error = response
             .error
             .as_ref()
-            .ok_or(GeometryWorkerError::Protocol)?;
+            .ok_or_else(|| protocol_at("classify.failed_missing_error"))?;
         return if child.exit_code != 0 {
             Err(GeometryWorkerError::RejectedWithDetails {
                 code: error.code.clone(),
@@ -962,6 +1109,12 @@ fn classify_completed_worker_response(
             // A failed envelope with a successful process status violates the
             // one-shot Worker contract. Keep it fail-closed as protocol drift
             // instead of treating it as a genuine Worker rejection.
+            #[cfg(test)]
+            eprintln!(
+                "FORGECAD_GEOMETRY_WORKER_PROTOCOL_STAGE=classify.failed_exit_zero code={} message={}",
+                error.code,
+                bounded_worker_error_message(&error.message)
+            );
             Err(GeometryWorkerError::Protocol)
         };
     }

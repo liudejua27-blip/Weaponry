@@ -1,10 +1,34 @@
+#![recursion_limit = "256"]
+
 mod agentic_action_tools;
 mod agentic_orchestrator_tools;
 mod agentic_tools;
 mod agentic_write_tools;
+mod authoring_mesh_durable_tools;
+mod authoring_mesh_identity_lineage_tools;
+mod authoring_mesh_topology_edit_tools;
+mod authoring_mesh_v2_durable_tools;
 mod cross_view_promotion_tools;
+mod fps_presentation_package_v2_candidate_tools;
+mod fps_presentation_package_v2_tools;
+mod hero_uv_durable_tools;
+mod low_quad_durable_tools;
+mod native_high_durable_tools;
 mod optimization_tools;
+mod production_camera_lock_registration_lineage_tools;
+mod production_weapon_form_art_baseline_materializer_tools;
+mod production_weapon_form_art_baseline_preflight_tools;
+mod production_weapon_form_art_composite_evidence_tools;
+mod production_weapon_form_art_composite_proposal_tools;
+mod production_weapon_form_art_failure_diagnostic_tools;
+mod production_weapon_form_art_mesh_proposal_tools;
+mod production_weapon_form_art_repair_plan_tools;
+mod production_weapon_formal_high_tools;
+mod production_weapon_high_low_bake_tools;
+mod production_weapon_owner_reviewed_void_calibration_tools;
 mod supervisor;
+mod weapon_foundation_authoring_materialization_tools;
+mod weapon_foundation_tools;
 
 #[cfg(test)]
 use forgecad_runtime::MCP_PROTOCOL_VERSION;
@@ -26,6 +50,7 @@ const PONYTAIL_PREFLIGHT_SKILL_ID: &str = "ponytail-preflight";
 const PONYTAIL_PREFLIGHT_VERSION: &str = "0.1.0";
 const PONYTAIL_PREFLIGHT_REQUIRED: &str = "PONYTAIL_PREFLIGHT_REQUIRED: call skill_get with ponytail-preflight@0.1.0 before using ForgeCAD design tools or another Skill";
 const READ_MODEL_MCP_WIRE_MAX_BYTES: usize = 1024 * 1024;
+const HERO_UV_MCP_WIRE_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 enum Backend {
     #[allow(dead_code)]
@@ -755,6 +780,58 @@ fn agentic_action_write_tool_names() -> Vec<String> {
     agentic_action_tools::write_tool_names()
 }
 
+fn authoring_mesh_durable_write_tool_names() -> Vec<String> {
+    authoring_mesh_durable_tools::write_tool_names()
+}
+
+fn authoring_mesh_v2_durable_write_tool_names() -> Vec<String> {
+    authoring_mesh_v2_durable_tools::write_tool_names()
+}
+
+fn production_weapon_form_art_mesh_proposal_write_tool_names() -> Vec<String> {
+    production_weapon_form_art_mesh_proposal_tools::write_tool_names()
+}
+
+fn production_weapon_form_art_composite_proposal_write_tool_names() -> Vec<String> {
+    production_weapon_form_art_composite_proposal_tools::write_tool_names()
+}
+
+fn production_weapon_form_art_composite_evidence_write_tool_names() -> Vec<String> {
+    production_weapon_form_art_composite_evidence_tools::write_tool_names()
+}
+
+fn production_weapon_form_art_baseline_write_tool_names() -> Vec<String> {
+    production_weapon_form_art_baseline_materializer_tools::write_tool_names()
+}
+
+fn native_high_durable_write_tool_names() -> Vec<String> {
+    native_high_durable_tools::write_tool_names()
+}
+
+fn low_quad_durable_write_tool_names() -> Vec<String> {
+    low_quad_durable_tools::write_tool_names()
+}
+
+fn hero_uv_durable_write_tool_names() -> Vec<String> {
+    hero_uv_durable_tools::write_tool_names()
+}
+
+fn production_weapon_high_low_bake_write_tool_names() -> Vec<String> {
+    production_weapon_high_low_bake_tools::write_tool_names()
+}
+
+fn production_weapon_formal_high_write_tool_names() -> Vec<String> {
+    production_weapon_formal_high_tools::write_tool_names()
+}
+
+fn production_camera_lock_registration_lineage_write_tool_names() -> Vec<String> {
+    production_camera_lock_registration_lineage_tools::write_tool_names()
+}
+
+fn authoring_mesh_identity_lineage_write_tool_names() -> Vec<String> {
+    authoring_mesh_identity_lineage_tools::write_tool_names()
+}
+
 fn optimization_write_tool_names() -> Vec<String> {
     optimization_tools::write_tool_names()
 }
@@ -803,11 +880,28 @@ fn is_write_tool(name: &str) -> bool {
         || is_mcp009_write_tool(name)
         || is_mcp010c_write_tool(name)
         || is_mcp010f_write_tool(name)
+        || authoring_mesh_durable_tools::is_write_tool(name)
+        || authoring_mesh_v2_durable_tools::is_write_tool(name)
+        || production_weapon_form_art_baseline_materializer_tools::is_write_tool(name)
+        || production_weapon_form_art_composite_proposal_tools::is_write_tool(name)
+        || production_weapon_form_art_composite_evidence_tools::is_write_tool(name)
+        || production_weapon_form_art_mesh_proposal_tools::is_write_tool(name)
+        || native_high_durable_tools::is_write_tool(name)
+        || low_quad_durable_tools::is_write_tool(name)
+        || hero_uv_durable_tools::is_write_tool(name)
+        || production_camera_lock_registration_lineage_tools::is_write_tool(name)
+        || production_weapon_formal_high_tools::is_write_tool(name)
+        || production_weapon_high_low_bake_tools::is_write_tool(name)
+        || authoring_mesh_identity_lineage_tools::is_write_tool(name)
         || optimization_tools::is_write_tool(name)
         || agentic_orchestrator_tools::is_write_tool(name)
         || agentic_action_tools::is_write_tool(name)
         || cross_view_promotion_tools::is_write_tool(name)
         || agentic_write_tools::is_write_tool(name)
+        || weapon_foundation_authoring_materialization_tools::is_write_tool(name)
+        || fps_presentation_package_v2_tools::is_write_tool(name)
+        || fps_presentation_package_v2_candidate_tools::is_write_tool(name)
+        || weapon_foundation_tools::is_write_tool(name)
 }
 
 fn all_write_tool_names() -> Vec<String> {
@@ -818,11 +912,28 @@ fn all_write_tool_names() -> Vec<String> {
     names.extend(mcp009_write_tool_names());
     names.extend(mcp010c_write_tool_names());
     names.extend(mcp010f_write_tool_names());
+    names.extend(authoring_mesh_durable_write_tool_names());
+    names.extend(authoring_mesh_v2_durable_write_tool_names());
+    names.extend(production_weapon_form_art_baseline_write_tool_names());
+    names.extend(production_weapon_form_art_composite_proposal_write_tool_names());
+    names.extend(production_weapon_form_art_composite_evidence_write_tool_names());
+    names.extend(production_weapon_form_art_mesh_proposal_write_tool_names());
+    names.extend(native_high_durable_write_tool_names());
+    names.extend(low_quad_durable_write_tool_names());
+    names.extend(hero_uv_durable_write_tool_names());
+    names.extend(production_camera_lock_registration_lineage_write_tool_names());
+    names.extend(production_weapon_formal_high_write_tool_names());
+    names.extend(production_weapon_high_low_bake_write_tool_names());
+    names.extend(authoring_mesh_identity_lineage_write_tool_names());
     names.extend(optimization_write_tool_names());
     names.extend(agentic_orchestrator_write_tool_names());
     names.extend(agentic_action_write_tool_names());
     names.extend(cross_view_promotion_write_tool_names());
     names.extend(agentic_write_tool_names());
+    names.extend(weapon_foundation_authoring_materialization_tools::write_tool_names());
+    names.extend(fps_presentation_package_v2_tools::write_tool_names());
+    names.extend(fps_presentation_package_v2_candidate_tools::write_tool_names());
+    names.extend(weapon_foundation_tools::write_tool_names());
     names
 }
 
@@ -836,11 +947,28 @@ fn tools_with_writes(writes_enabled: bool) -> Vec<Value> {
         tools.extend(mcp009_write_tools());
         tools.extend(mcp010c_write_tools());
         tools.extend(mcp010f_write_tools());
+        tools.extend(authoring_mesh_durable_tools::write_tools());
+        tools.extend(authoring_mesh_v2_durable_tools::write_tools());
+        tools.extend(production_weapon_form_art_baseline_materializer_tools::write_tools());
+        tools.extend(production_weapon_form_art_composite_proposal_tools::write_tools());
+        tools.extend(production_weapon_form_art_composite_evidence_tools::write_tools());
+        tools.extend(production_weapon_form_art_mesh_proposal_tools::write_tools());
+        tools.extend(native_high_durable_tools::write_tools());
+        tools.extend(low_quad_durable_tools::write_tools());
+        tools.extend(hero_uv_durable_tools::write_tools());
+        tools.extend(production_camera_lock_registration_lineage_tools::write_tools());
+        tools.extend(production_weapon_formal_high_tools::write_tools());
+        tools.extend(production_weapon_high_low_bake_tools::write_tools());
+        tools.extend(authoring_mesh_identity_lineage_tools::write_tools());
         tools.extend(optimization_tools::write_tools());
         tools.extend(agentic_orchestrator_tools::write_tools());
         tools.extend(agentic_action_tools::write_tools());
         tools.extend(cross_view_promotion_tools::write_tools());
         tools.extend(agentic_write_tools::write_tools());
+        tools.extend(weapon_foundation_authoring_materialization_tools::write_tools());
+        tools.extend(fps_presentation_package_v2_tools::write_tools());
+        tools.extend(fps_presentation_package_v2_candidate_tools::write_tools());
+        tools.extend(weapon_foundation_tools::write_tools());
     }
     tools.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
     tools
@@ -878,15 +1006,9 @@ fn read_only_tools() -> Vec<Value> {
             true,
         ),
         tool(
-            "authoring_topology_get",
-            "Read exact candidate-bound source V/E/Loop/Face data from one direct authoring-mesh@1 Part. This is a bounded structural read model, not evaluated GLB topology, BMesh, persistent editing or visual-quality evidence.",
-            authoring_topology_request_schema(),
-            true,
-        ),
-        tool(
-            "authoring_mesh_edit_preview",
-            "Apply one bounded translate-vertices or single-face-extrude edit to a transient candidate-bound authoring program and return deterministic Worker hashes/readback without writing CAS, candidates or versions.",
-            authoring_mesh_edit_preview_schema(),
+            "authoring_mesh_get",
+            "Read one exact candidate-bound AuthoringMesh@1 half-edge source/evaluated projection by artifact readback lineage. This is a bounded structural_only read; it performs no Runtime write, does not advance ProductionStage, and does not claim visual, human, engine or export quality.",
+            authoring_mesh_request_schema(),
             true,
         ),
         tool(
@@ -1675,8 +1797,30 @@ fn read_only_tools() -> Vec<Value> {
     ];
     tools.extend(agentic_tools::read_tools());
     tools.extend(agentic_action_tools::read_tools());
+    tools.extend(authoring_mesh_durable_tools::read_tools());
+    tools.extend(authoring_mesh_v2_durable_tools::read_tools());
+    tools.extend(production_weapon_form_art_baseline_materializer_tools::read_tools());
+    tools.extend(production_weapon_form_art_baseline_preflight_tools::read_tools());
+    tools.extend(production_weapon_form_art_composite_proposal_tools::read_tools());
+    tools.extend(production_weapon_form_art_composite_evidence_tools::read_tools());
+    tools.extend(production_weapon_form_art_repair_plan_tools::read_tools());
+    tools.extend(production_weapon_form_art_failure_diagnostic_tools::read_tools());
+    tools.extend(production_weapon_form_art_mesh_proposal_tools::read_tools());
+    tools.extend(production_weapon_owner_reviewed_void_calibration_tools::read_tools());
+    tools.extend(native_high_durable_tools::read_tools());
+    tools.extend(low_quad_durable_tools::read_tools());
+    tools.extend(hero_uv_durable_tools::read_tools());
+    tools.extend(production_camera_lock_registration_lineage_tools::read_tools());
+    tools.extend(production_weapon_formal_high_tools::read_tools());
+    tools.extend(production_weapon_high_low_bake_tools::read_tools());
+    tools.extend(authoring_mesh_identity_lineage_tools::read_tools());
+    tools.extend(authoring_mesh_topology_edit_tools::read_tools());
     tools.extend(optimization_tools::read_tools());
     tools.extend(agentic_write_tools::read_tools());
+    tools.extend(weapon_foundation_tools::read_tools());
+    tools.extend(weapon_foundation_authoring_materialization_tools::read_tools());
+    tools.extend(fps_presentation_package_v2_tools::read_tools());
+    tools.extend(fps_presentation_package_v2_candidate_tools::read_tools());
     tools
 }
 
@@ -1736,6 +1880,10 @@ fn sha256_property() -> Value {
     json!({"type":"string","pattern":"^[0-9a-f]{64}$"})
 }
 
+fn authoring_mesh_identifier_property() -> Value {
+    json!({"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"})
+}
+
 fn render_evidence_integrity_request_schema() -> Value {
     json!({
         "type":"object",
@@ -1787,93 +1935,29 @@ fn subdivision_artifact_lineage_sidecar_request_schema() -> Value {
     })
 }
 
-fn authoring_topology_request_schema() -> Value {
+fn authoring_mesh_request_schema() -> Value {
     json!({
         "type":"object",
         "additionalProperties":false,
         "required":[
             "schema_version","project_id","candidate_id","artifact_id",
-            "artifact_readback_sha256",
-            "program_sha256","operator_catalog_sha256","readback_config_sha256",
-            "authoring_node_id","part_id","authoring_topology_policy_sha256",
-            "max_response_bytes"
+            "artifact_readback_sha256","program_sha256","operator_catalog_sha256",
+            "readback_config_sha256","authoring_node_id","part_id",
+            "authoring_mesh_policy_sha256","max_response_bytes"
         ],
         "properties":{
-            "schema_version":{"const":"AuthoringTopologyRequest@1"},
-            "project_id":id_property(),
-            "candidate_id":id_property(),
+            "schema_version":{"const":"AuthoringMeshRequest@1"},
+            "project_id":authoring_mesh_identifier_property(),
+            "candidate_id":authoring_mesh_identifier_property(),
             "artifact_id":sha256_property(),
             "artifact_readback_sha256":sha256_property(),
             "program_sha256":sha256_property(),
             "operator_catalog_sha256":sha256_property(),
             "readback_config_sha256":sha256_property(),
-            "authoring_node_id":id_property(),
-            "part_id":id_property(),
-            "authoring_topology_policy_sha256":{"const":"a6fb36a530e49537673b66d65ecb6e4fb4f51ffb3e7d01a0980be71f28cb367d"},
+            "authoring_node_id":authoring_mesh_identifier_property(),
+            "part_id":authoring_mesh_identifier_property(),
+            "authoring_mesh_policy_sha256":{"const":"aa72cadabba90ddb43dd0014cfa434ab9b13f4e072b09258072f37334c72e709"},
             "max_response_bytes":{"const":1048576}
-        }
-    })
-}
-
-fn authoring_mesh_edit_preview_schema() -> Value {
-    json!({
-        "type":"object",
-        "additionalProperties":false,
-        "required":["schema_version","topology_request","base_topology_sha256","edit","edit_policy_sha256","input_sha256"],
-        "properties":{
-            "schema_version":{"const":"AuthoringMeshEditPreviewRequest@1"},
-            "topology_request":authoring_topology_request_schema(),
-            "base_topology_sha256":sha256_property(),
-            "edit":{
-                "oneOf":[
-                    {
-                        "type":"object","additionalProperties":false,
-                        "required":["operation","vertex_ids","delta_m"],
-                        "properties":{
-                            "operation":{"const":"translate_vertices"},
-                            "vertex_ids":{"type":"array","minItems":1,"maxItems":64,"uniqueItems":true,"items":id_property()},
-                            "delta_m":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-1.0,"maximum":1.0}}
-                        }
-                    },
-                    {
-                        "type":"object","additionalProperties":false,
-                        "required":["operation","face_id","distance_m"],
-                        "properties":{
-                            "operation":{"const":"single_face_extrude"},
-                            "face_id":id_property(),
-                            "distance_m":{"type":"number","minimum":0.000001,"maximum":1.0}
-                        }
-                    }
-                ]
-            },
-            "edit_policy_sha256":{"const":"1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae"},
-            "input_sha256":sha256_property()
-        }
-    })
-}
-
-fn authoring_mesh_edit_prepare_schema() -> Value {
-    json!({
-        "type":"object",
-        "additionalProperties":false,
-        "required":[
-            "schema_version","project_id","source_candidate_id","base_version_id",
-            "preview_request","expected_preview_canonical_sha256","idempotency_key",
-            "max_response_bytes","input_sha256"
-        ],
-        "properties":{
-            "schema_version":{"const":"AuthoringMeshEditPrepareRequest@1"},
-            "project_id":id_property(),
-            "source_candidate_id":id_property(),
-            "base_version_id":nullable_id_property(),
-            "preview_request":authoring_mesh_edit_preview_schema(),
-            "expected_preview_canonical_sha256":sha256_property(),
-            "idempotency_key":{
-                "type":"string",
-                "pattern":"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
-            },
-            "max_response_bytes":{"const":1048576},
-            "input_sha256":sha256_property()
         }
     })
 }
@@ -2770,6 +2854,19 @@ fn parametric_group_request_branch_schema() -> Value {
 }
 
 fn modifier_stack_item_schema() -> Value {
+    let mut schema = modifier_stack_item_schema_without_bevel_v2();
+    let variants = schema["oneOf"]
+        .as_array_mut()
+        .expect("modifier stack variants");
+    let normal_policy_index = variants.len().saturating_sub(1);
+    variants.insert(
+        normal_policy_index,
+        modifier_stack_bevel_v2_variant_schema(),
+    );
+    schema
+}
+
+fn modifier_stack_item_schema_without_bevel_v2() -> Value {
     json!({
         "oneOf":[
             modifier_stack_variant_schema(
@@ -2842,6 +2939,24 @@ fn modifier_stack_item_schema() -> Value {
     })
 }
 
+fn modifier_stack_bevel_v2_variant_schema() -> Value {
+    modifier_stack_variant_schema(
+        "forgecad.geometry.bevel@2",
+        json!({
+            "type":"object","additionalProperties":false,
+            "required":["shape","source_edge_ids","width_m","segments","profile","clamp_overlap"],
+            "properties":{
+                "shape":{"const":"bevel"},
+                "source_edge_ids":{"type":"array","minItems":1,"maxItems":1,"uniqueItems":true,"items":authoring_mesh_identifier_property()},
+                "width_m":{"type":"number","exclusiveMinimum":0.00001,"maximum":5.0},
+                "segments":{"type":"integer","minimum":1,"maximum":4},
+                "profile":{"type":"number","minimum":0.25,"maximum":0.75},
+                "clamp_overlap":{"type":"boolean"}
+            }
+        }),
+    )
+}
+
 fn modifier_evaluation_request_schema() -> Value {
     json!({
         "type":"object",
@@ -2909,7 +3024,7 @@ fn modifier_apply_request_v1_schema() -> Value {
                 "type":"array",
                 "minItems":1,
                 "maxItems":8,
-                "items":modifier_stack_item_schema()
+                "items":modifier_stack_item_schema_without_bevel_v2()
             },
             "idempotency_key":id_property(),
             "max_response_bytes":{"const":1048576},
@@ -2999,7 +3114,7 @@ fn modifier_evaluation_signature_schema() -> Value {
                         "order_index":{"type":"integer","minimum":0,"maximum":7},
                         "modifier_id":id_property(),
                         "enabled":{"type":"boolean"},
-                        "operator_id":{"enum":["forgecad.geometry.transform@2","forgecad.geometry.mirror@1","forgecad.geometry.array@1","forgecad.geometry.bevel@1","forgecad.geometry.normal-policy@1"]},
+                        "operator_id":{"enum":["forgecad.geometry.transform@2","forgecad.geometry.mirror@1","forgecad.geometry.array@1","forgecad.geometry.bevel@1","forgecad.geometry.bevel@2","forgecad.geometry.normal-policy@1"]},
                         "parameters_sha256":sha256_property(),
                         "definition_sha256":sha256_property(),
                         "input_evaluation_sha256":sha256_property(),
@@ -3035,6 +3150,7 @@ fn modifier_stack_base_node_schema() -> Value {
             modifier_stack_base_node_variant_schema("forgecad.geometry.profile-loft@1", modifier_stack_profile_loft_parameters_schema()),
             modifier_stack_base_node_variant_schema("forgecad.geometry.longitudinal-section-loft@1", modifier_stack_longitudinal_loft_parameters_schema()),
             modifier_stack_base_node_variant_schema("forgecad.geometry.subd-cage@1", modifier_stack_subd_cage_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.authoring-mesh@1", modifier_stack_authoring_mesh_parameters_schema()),
             modifier_stack_base_node_variant_schema("forgecad.geometry.surface-patch@1", modifier_stack_surface_patch_parameters_schema()),
             modifier_stack_base_node_variant_schema("forgecad.geometry.revolve@1", modifier_stack_revolve_parameters_schema()),
             modifier_stack_base_node_variant_schema("forgecad.geometry.tube-sweep@1", modifier_stack_tube_sweep_parameters_schema()),
@@ -3184,6 +3300,75 @@ fn modifier_stack_subd_cage_parameters_schema() -> Value {
             "subdivision_levels":{"type":"integer","minimum":0,"maximum":2},
             "position_m":bounded_vec3_schema(-10.0, 10.0, false),
             "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_authoring_mesh_parameters_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["shape","topology_policy","vertices","edges","loops","faces","position_m","rotation_rad"],
+        "properties":{
+            "shape":{"const":"authoring-mesh"},
+            "topology_policy":{"const":"triangle-quad-manifold-with-boundary@1"},
+            "vertices":{"type":"array","minItems":3,"maxItems":1536,"items":modifier_stack_authoring_mesh_vertex_schema()},
+            "edges":{"type":"array","minItems":3,"maxItems":1536,"items":modifier_stack_authoring_mesh_edge_schema()},
+            "loops":{"type":"array","minItems":3,"maxItems":1536,"items":modifier_stack_authoring_mesh_loop_schema()},
+            "faces":{"type":"array","minItems":1,"maxItems":512,"items":modifier_stack_authoring_mesh_face_schema()},
+            "position_m":bounded_vec3_schema(-10.0,10.0,false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586,6.283185307179586,false)
+        }
+    })
+}
+
+fn modifier_stack_authoring_mesh_vertex_schema() -> Value {
+    closed_parameters_schema(
+        &["element_id", "position_m"],
+        json!({
+            "element_id":authoring_mesh_identifier_property(),
+            "position_m":bounded_vec3_schema(-10.0,10.0,false)
+        }),
+    )
+}
+
+fn modifier_stack_authoring_mesh_edge_schema() -> Value {
+    closed_parameters_schema(
+        &["element_id", "vertex_ids"],
+        json!({
+            "element_id":authoring_mesh_identifier_property(),
+            "vertex_ids":{"type":"array","minItems":2,"maxItems":2,"items":authoring_mesh_identifier_property()}
+        }),
+    )
+}
+
+fn modifier_stack_authoring_mesh_loop_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "element_id",
+            "face_id",
+            "ordinal",
+            "vertex_id",
+            "edge_id",
+            "edge_forward",
+        ],
+        json!({
+            "element_id":authoring_mesh_identifier_property(),
+            "face_id":authoring_mesh_identifier_property(),
+            "ordinal":{"type":"integer","minimum":0,"maximum":3},
+            "vertex_id":authoring_mesh_identifier_property(),
+            "edge_id":authoring_mesh_identifier_property(),
+            "edge_forward":{"type":"boolean"}
+        }),
+    )
+}
+
+fn modifier_stack_authoring_mesh_face_schema() -> Value {
+    closed_parameters_schema(
+        &["element_id", "loop_ids"],
+        json!({
+            "element_id":authoring_mesh_identifier_property(),
+            "loop_ids":{"type":"array","minItems":3,"maxItems":4,"items":authoring_mesh_identifier_property()}
         }),
     )
 }
@@ -3870,15 +4055,7 @@ fn mcp010c_write_tools() -> Vec<Value> {
 }
 
 fn mcp010f_write_tools() -> Vec<Value> {
-    vec![
-        write_tool_with_transaction(
-            "authoring_mesh_edit_prepare",
-            "Explicitly replay one bounded candidate-bound authoring mesh edit through the fixed Geometry Worker and atomically stage the exact derived program, GLB, strict readback, evidence, Job and reviewable candidate. This Runtime-owned write is idempotent, creates no version, performs no confirm or export, and accepts no Blender/Python/plugin payload.",
-            authoring_mesh_edit_prepare_schema(),
-            false,
-            true,
-            "MCP010F",
-        ),
+    let mut tools = vec![
         write_tool_with_transaction(
             "mechanical_animation_clip_prepare",
             "Explicitly validate and materialize one bounded rigid MechanicalPose sequence as an immutable Runtime-owned CAS clip plus exact SQLite Link. Runtime replays the source artifact twice through the fixed Geometry Worker and requires one non-null same-build cohort before writing; this never confirms a candidate/version or claims Blender armature, skinning, timeline, NLA, F-Curve, driver or Python parity.",
@@ -4109,7 +4286,9 @@ fn mcp010f_write_tools() -> Vec<Value> {
             false,
             "MCP010F",
         ),
-    ]
+    ];
+    tools.extend(authoring_mesh_topology_edit_tools::write_tools());
+    tools
 }
 
 fn resource_templates() -> Vec<Value> {
@@ -4410,6 +4589,7 @@ fn validate_tool_schema_shape(
                 | "minimum"
                 | "exclusiveMinimum"
                 | "maximum"
+                | "exclusiveMaximum"
                 | "maxProperties"
                 | "items"
                 | "minItems"
@@ -4505,15 +4685,24 @@ fn validate_tool_schema_shape(
     {
         return Err(());
     }
+    if object
+        .get("exclusiveMaximum")
+        .is_some_and(|value| value.as_f64().is_none())
+    {
+        return Err(());
+    }
     if let Some(value) = object.get("pattern") {
         if !matches!(
             value.as_str(),
             Some(
                 "^[0-9a-f]{64}$"
+                    | "^[A-Za-z0-9_.-]{1,128}$"
+                    | "^[A-Za-z0-9_.:-]{1,128}$"
                     | "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
                     | "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
                     | "^[A-Za-z0-9._:-]+$"
-                    | "^[0-9]{1,10}$",
+                    | "^[0-9]{1,10}$"
+                    | "^ProductionStageTransition@[0-9]+$",
             )
         ) {
             return Err(());
@@ -4619,6 +4808,26 @@ fn validate_value_against_tool_schema(
             return Err(());
         }
     }
+    if let Some(maximum) = object.get("exclusiveMaximum").and_then(Value::as_f64) {
+        if value
+            .as_f64()
+            .filter(|candidate| *candidate < maximum)
+            .is_none()
+        {
+            return Err(());
+        }
+    }
+    if object.get("uniqueItems") == Some(&Value::Bool(true)) {
+        if let Some(values) = value.as_array() {
+            if values
+                .iter()
+                .enumerate()
+                .any(|(index, item)| values[index + 1..].iter().any(|other| other == item))
+            {
+                return Err(());
+            }
+        }
+    }
     if let Some(string) = value.as_str() {
         let character_count = string.chars().count();
         if let Some(minimum) = object.get("minLength") {
@@ -4634,6 +4843,15 @@ fn validate_value_against_tool_schema(
         if let Some(pattern) = object.get("pattern").and_then(Value::as_str) {
             let matches = match pattern {
                 "^[0-9a-f]{64}$" => is_lowercase_sha256(string),
+                "^[A-Za-z0-9_.-]{1,128}$" => is_opaque_id(string),
+                "^[A-Za-z0-9_.:-]{1,128}$" => {
+                    !string.is_empty()
+                        && string.chars().count() <= 128
+                        && string.chars().all(|character| {
+                            character.is_ascii_alphanumeric()
+                                || matches!(character, '.' | '_' | ':' | '-')
+                        })
+                }
                 "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$" => {
                     is_opaque_id(string)
                         && string
@@ -6197,6 +6415,24 @@ fn call_tool(
         || agentic_action_tools::is_tool(name)
         || agentic_orchestrator_tools::is_tool(name)
         || cross_view_promotion_tools::is_tool(name)
+        || authoring_mesh_durable_tools::is_tool(name)
+        || authoring_mesh_v2_durable_tools::is_tool(name)
+        || production_weapon_form_art_baseline_materializer_tools::is_tool(name)
+        || production_weapon_form_art_baseline_preflight_tools::is_tool(name)
+        || production_weapon_form_art_composite_proposal_tools::is_tool(name)
+        || production_weapon_form_art_composite_evidence_tools::is_tool(name)
+        || production_weapon_form_art_repair_plan_tools::is_tool(name)
+        || production_weapon_form_art_failure_diagnostic_tools::is_tool(name)
+        || production_weapon_form_art_mesh_proposal_tools::is_tool(name)
+        || production_weapon_owner_reviewed_void_calibration_tools::is_tool(name)
+        || native_high_durable_tools::is_tool(name)
+        || low_quad_durable_tools::is_tool(name)
+        || hero_uv_durable_tools::is_tool(name)
+        || production_camera_lock_registration_lineage_tools::is_tool(name)
+        || production_weapon_formal_high_tools::is_tool(name)
+        || production_weapon_high_low_bake_tools::is_tool(name)
+        || authoring_mesh_identity_lineage_tools::is_tool(name)
+        || authoring_mesh_topology_edit_tools::is_tool(name)
         || optimization_tools::is_tool(name))
         && !session.ponytail_preflight_read
     {
@@ -6277,6 +6513,149 @@ fn call_tool(
                     "isError":true,
                     "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
                     "structuredContent":runtime_error_value("MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if authoring_mesh_durable_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("AUTHORING_MESH_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("AUTHORING_MESH_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if authoring_mesh_v2_durable_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("AUTHORING_MESH_V2_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("AUTHORING_MESH_V2_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if production_weapon_form_art_baseline_materializer_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("PRODUCTION_WEAPON_FORM_ART_BASELINE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("PRODUCTION_WEAPON_FORM_ART_BASELINE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if production_weapon_form_art_composite_proposal_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("PRODUCTION_WEAPON_FORM_ART_COMPOSITE_PROPOSAL_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("PRODUCTION_WEAPON_FORM_ART_COMPOSITE_PROPOSAL_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if production_weapon_form_art_composite_evidence_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("PRODUCTION_WEAPON_FORM_ART_COMPOSITE_EVIDENCE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("PRODUCTION_WEAPON_FORM_ART_COMPOSITE_EVIDENCE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if production_weapon_form_art_mesh_proposal_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("PRODUCTION_WEAPON_FORM_ART_MESH_PROPOSAL_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("PRODUCTION_WEAPON_FORM_ART_MESH_PROPOSAL_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if native_high_durable_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("NATIVE_HIGH_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("NATIVE_HIGH_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if low_quad_durable_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("LOW_QUAD_DRAFT_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("LOW_QUAD_DRAFT_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if hero_uv_durable_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("HERO_UV_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("HERO_UV_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if production_camera_lock_registration_lineage_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if production_weapon_formal_high_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("PRODUCTION_WEAPON_FORMAL_HIGH_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("PRODUCTION_WEAPON_FORMAL_HIGH_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if production_weapon_high_low_bake_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("PRODUCTION_WEAPON_HIGH_LOW_BAKE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("PRODUCTION_WEAPON_HIGH_LOW_BAKE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if authoring_mesh_identity_lineage_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("AUTHORING_MESH_IDENTITY_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("AUTHORING_MESH_IDENTITY_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
                 }
             }));
         }
@@ -6539,6 +6918,15 @@ fn call_tool(
             }));
         }
     }
+    if production_weapon_formal_high_tools::is_tool(name) {
+        if let Err(error) = production_weapon_formal_high_tools::validate_call(name, &arguments) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+            }));
+        }
+    }
     if cross_view_promotion_tools::is_tool(name) {
         if let Err(error) = cross_view_promotion_tools::validate_call(
             name,
@@ -6662,6 +7050,28 @@ fn call_tool(
                     }));
                 }
             }
+            if production_weapon_high_low_bake_tools::is_tool(name) {
+                if let Err(error) =
+                    production_weapon_high_low_bake_tools::validate_response(name, &value)
+                {
+                    return Some(json!({
+                        "jsonrpc":"2.0",
+                        "id":id,
+                        "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+                    }));
+                }
+            }
+            if production_weapon_formal_high_tools::is_tool(name) {
+                if let Err(error) =
+                    production_weapon_formal_high_tools::validate_response(name, &value)
+                {
+                    return Some(json!({
+                        "jsonrpc":"2.0",
+                        "id":id,
+                        "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+                    }));
+                }
+            }
             if is_ponytail_preflight_read(name, &arguments) {
                 session.ponytail_preflight_read = true;
             }
@@ -6677,48 +7087,123 @@ fn call_tool(
                     "structured_content_complete":true
                 }))
                 .unwrap_or_else(|_| "{}".to_owned())
-            } else if name == "authoring_topology_get" {
+            } else if name == "production_blender_worker_capability_get" {
                 serde_json::to_string(&json!({
-                    "schema_version":"AuthoringTopologyMcpSummary@1",
-                    "artifact_id":value.get("artifact_id"),
-                    "candidate_id":value.get("candidate_id"),
-                    "authoring_node_id":value.get("authoring_node_id"),
-                    "part_id":value.get("part_id"),
-                    "counts":value.get("counts"),
-                    "topology_sha256":value.get("topology_sha256"),
-                    "canonical_sha256":value.get("canonical_sha256"),
-                    "structured_content_complete":true
-                }))
-                .unwrap_or_else(|_| "{}".to_owned())
-            } else if name == "authoring_mesh_edit_preview" {
-                serde_json::to_string(&json!({
-                    "schema_version":"AuthoringMeshEditPreviewMcpSummary@1",
-                    "candidate_id":value.get("candidate_id"),
-                    "source_artifact_id":value.get("source_artifact_id"),
-                    "source_program_sha256":value.get("source_program_sha256"),
-                    "derived_program_sha256":value.get("derived_program_sha256"),
-                    "operation":value.get("operation"),
-                    "counts":value.get("counts"),
-                    "derived_replay":value.get("derived_replay"),
-                    "canonical_sha256":value.get("canonical_sha256"),
-                    "structured_content_complete":true
-                }))
-                .unwrap_or_else(|_| "{}".to_owned())
-            } else if name == "authoring_mesh_edit_prepare" {
-                serde_json::to_string(&json!({
-                    "schema_version":"AuthoringMeshEditPrepareMcpSummary@1",
-                    "source_candidate_id":value.get("source_candidate_id"),
-                    "new_candidate_id":value.get("new_candidate_id"),
-                    "derived_artifact_sha256":value.get("derived_artifact_sha256"),
-                    "derived_program_sha256":value.get("derived_program_sha256"),
-                    "preview_canonical_sha256":value.get("preview_canonical_sha256"),
-                    "edit_lineage_sha256":value.get("edit_lineage_sha256"),
+                    "schema_version":"BlenderWorkerCapabilityMcpSummary@1",
+                    "capability":value.get("capability"),
+                    "read_only":value.get("read_only"),
                     "runtime_write_performed":value.get("runtime_write_performed"),
-                    "confirm_status":value.get("confirm_status"),
-                    "canonical_sha256":value.get("canonical_sha256"),
+                    "worker_invoked":value.get("worker_invoked"),
+                    "candidate_generated":value.get("candidate_generated"),
+                    "production_stage_advanced":value.get("production_stage_advanced"),
+                    "candidate_confirmed":value.get("candidate_confirmed"),
+                    "version_created":value.get("version_created"),
+                    "export_performed":value.get("export_performed"),
                     "structured_content_complete":true
                 }))
                 .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "authoring_mesh_get" {
+                serde_json::to_string(&json!({
+                    "schema_version":"AuthoringMeshMcpSummary@1",
+                    "lineage":value.get("lineage"),
+                    "mesh_id":value.get("mesh_id"),
+                    "mesh_sha256":value.get("mesh_sha256"),
+                    "scope":value.get("scope"),
+                    "representation":value.get("representation"),
+                    "projection_kind":value.get("projection_kind"),
+                    "mesh_identity_derivation":value.get("mesh_identity_derivation"),
+                    "mesh_identity_sha256":value.get("mesh_identity_sha256"),
+                    "identity_policy":value.get("identity_policy"),
+                    "original_identity":value.get("original_identity"),
+                    "evaluated_identity":value.get("evaluated_identity"),
+                    "cross_version_stable":value.get("cross_version_stable"),
+                    "counts":value.get("counts"),
+                    "topology_policy":value.get("topology_policy"),
+                    "topology":value.get("topology"),
+                    "authoring_mesh_policy_sha256":value.get("authoring_mesh_policy_sha256"),
+                    "max_response_bytes":value.get("max_response_bytes"),
+                    "quality_status":value.get("quality_status"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "runtime_write_performed":false,
+                    "production_stage_advanced":false,
+                    "candidate_confirmed":false,
+                    "version_created":false,
+                    "export_performed":false,
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if let Some(summary) = authoring_mesh_durable_tools::summary(name, &value) {
+                summary
+            } else if let Some(summary) = authoring_mesh_v2_durable_tools::summary(name, &value) {
+                summary
+            } else if let Some(summary) =
+                weapon_foundation_authoring_materialization_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) = fps_presentation_package_v2_tools::summary(name, &value) {
+                summary
+            } else if let Some(summary) =
+                fps_presentation_package_v2_candidate_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) = weapon_foundation_tools::summary(name, &value) {
+                summary
+            } else if let Some(summary) =
+                production_weapon_form_art_baseline_materializer_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                production_weapon_form_art_composite_proposal_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                production_weapon_form_art_composite_evidence_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                production_weapon_form_art_repair_plan_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                production_weapon_form_art_failure_diagnostic_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                production_weapon_form_art_baseline_preflight_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                production_weapon_form_art_mesh_proposal_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                production_weapon_owner_reviewed_void_calibration_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) = native_high_durable_tools::summary(name, &value) {
+                summary
+            } else if let Some(summary) = low_quad_durable_tools::summary(name, &value) {
+                summary
+            } else if let Some(summary) = hero_uv_durable_tools::summary(name, &value) {
+                summary
+            } else if let Some(summary) =
+                production_camera_lock_registration_lineage_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) = production_weapon_formal_high_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                production_weapon_high_low_bake_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                authoring_mesh_identity_lineage_tools::summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) = authoring_mesh_topology_edit_tools::summary(name, &value)
+            {
+                summary
             } else if name == "mechanical_pose_evaluate" {
                 serde_json::to_string(&json!({
                     "schema_version":"MechanicalPoseMcpSummary@1",
@@ -7079,6 +7564,29 @@ fn apply_read_model_mcp_wire_budget(name: &str, response: Value) -> Value {
         "geometry_prepare"
             | "topology_snapshot_get"
             | "authoring_topology_get"
+            | "authoring_mesh_get"
+            | "authoring_mesh_durable_get"
+            | "authoring_mesh_durable_prepare"
+            | "authoring_mesh_v2_durable_get"
+            | "authoring_mesh_v2_durable_prepare"
+            | "production_weapon_authoring_mesh_v2_source_prepare"
+            | "production_weapon_form_art_composite_proposal_get"
+            | "production_weapon_form_art_composite_proposal_prepare"
+            | "production_weapon_form_art_composite_evidence_get"
+            | "production_weapon_form_art_composite_evidence_prepare"
+            | "production_weapon_form_art_repair_plan_get"
+            | "production_weapon_form_art_failure_diagnostic_get"
+            | "production_weapon_form_art_mesh_proposal_get"
+            | "production_weapon_form_art_mesh_proposal_prepare"
+            | "production_weapon_owner_reviewed_void_calibration_get"
+            | "native_high_durable_get"
+            | "native_high_durable_prepare"
+            | "low_quad_draft_durable_get"
+            | "low_quad_draft_durable_prepare"
+            | "hero_uv_durable_get"
+            | "hero_uv_durable_prepare"
+            | "authoring_mesh_identity_lineage_get"
+            | "authoring_mesh_identity_lineage_prepare"
             | "authoring_mesh_edit_preview"
             | "authoring_mesh_edit_prepare"
             | "mechanical_pose_evaluate"
@@ -7105,6 +7613,32 @@ fn apply_read_model_mcp_wire_budget(name: &str, response: Value) -> Value {
             | "candidate_animation_vfx_quality_v2_get"
             | "production_stage_transition_v2_prepare"
             | "production_stage_transition_v2_get"
+            | "production_stage_transition_v3_prepare"
+            | "production_stage_transition_v3_get"
+            | "production_camera_lock_prepare"
+            | "production_camera_lock_get"
+            | "production_camera_lock_registration_lineage_prepare"
+            | "production_camera_lock_registration_lineage_get"
+            | "production_camera_lock_registration_lineage_preflight_get"
+            | "production_camera_lock_registration_lineage_preflight_projection_get"
+            | "production_weapon_form_art_baseline_preflight_get"
+            | "production_weapon_form_art_baseline_prepare"
+            | "production_weapon_form_art_baseline_get"
+            | "production_weapon_form_evidence_prepare"
+            | "production_weapon_form_evidence_get"
+            | "production_weapon_form_art_evidence_prepare"
+            | "production_weapon_form_art_evidence_get"
+            | "production_weapon_art_decision_proposal_get"
+            | "production_weapon_assembly_parameter_sink_get"
+            | "production_weapon_form_quality_v2_prepare"
+            | "production_weapon_form_quality_v2_get"
+            | "production_weapon_form_quality_v2_preflight_get"
+            | "production_weapon_formal_high_get"
+            | "production_weapon_formal_high_prepare"
+            | "production_weapon_high_low_bake_get"
+            | "production_weapon_high_low_bake_prepare"
+            | "production_weapon_high_low_bake_preflight_get"
+            | "production_blender_worker_capability_get"
             | "game_weapon_anchor_prepare"
             | "game_weapon_anchor_get"
             | "game_weapon_glb_socket_prepare"
@@ -7163,15 +7697,22 @@ fn apply_read_model_mcp_wire_budget(name: &str, response: Value) -> Value {
     if !bounded {
         return response;
     }
+    let max_bytes = if matches!(name, "hero_uv_durable_get" | "hero_uv_durable_prepare") {
+        HERO_UV_MCP_WIRE_MAX_BYTES
+    } else {
+        READ_MODEL_MCP_WIRE_MAX_BYTES
+    };
     let exceeds_budget = serde_json::to_vec(&response)
-        .map(|bytes| bytes.len() > READ_MODEL_MCP_WIRE_MAX_BYTES)
+        .map(|bytes| bytes.len() > max_bytes)
         .unwrap_or(true);
     if !exceeds_budget {
         return response;
     }
-    let error = runtime_error_value(
-        "MCP_READ_MODEL_RESPONSE_BUDGET_EXCEEDED: serialized tools/call response exceeds 1 MiB",
-    );
+    let error = runtime_error_value(if max_bytes == HERO_UV_MCP_WIRE_MAX_BYTES {
+        "MCP_READ_MODEL_RESPONSE_BUDGET_EXCEEDED: serialized Hero UV tools/call response exceeds 8 MiB"
+    } else {
+        "MCP_READ_MODEL_RESPONSE_BUDGET_EXCEEDED: serialized tools/call response exceeds 1 MiB"
+    });
     json!({
         "jsonrpc":"2.0",
         "id":response["id"].clone(),
@@ -7238,6 +7779,105 @@ fn dispatch_tool_with_build_cohort(
                     .to_owned(),
             );
         }
+        if authoring_mesh_durable_tools::is_write_tool(name) {
+            return Err(
+                "AUTHORING_MESH_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if authoring_mesh_v2_durable_tools::is_write_tool(name) {
+            return Err(
+                "AUTHORING_MESH_V2_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if weapon_foundation_tools::is_write_tool(name) {
+            return Err(
+                "WEAPON_FOUNDATION_IMPORT_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if weapon_foundation_authoring_materialization_tools::is_write_tool(name) {
+            return Err("WRITE_TOOLS_DISABLED: call forgecad_enable_write_tools before using foundation AuthoringMesh materialization write tools".to_owned());
+        }
+        if fps_presentation_package_v2_tools::is_write_tool(name) {
+            return Err("WRITE_TOOLS_DISABLED: call forgecad_enable_write_tools before using composite FPS package write tools".to_owned());
+        }
+        if fps_presentation_package_v2_candidate_tools::is_write_tool(name) {
+            return Err("WRITE_TOOLS_DISABLED: call forgecad_enable_write_tools before using composite FPS package candidate write tools".to_owned());
+        }
+        if production_weapon_form_art_baseline_materializer_tools::is_write_tool(name) {
+            return Err(
+                "PRODUCTION_WEAPON_FORM_ART_BASELINE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if production_weapon_form_art_composite_proposal_tools::is_write_tool(name) {
+            return Err(
+                "PRODUCTION_WEAPON_FORM_ART_COMPOSITE_PROPOSAL_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if production_weapon_form_art_composite_evidence_tools::is_write_tool(name) {
+            return Err(
+                "PRODUCTION_WEAPON_FORM_ART_COMPOSITE_EVIDENCE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if production_weapon_form_art_mesh_proposal_tools::is_write_tool(name) {
+            return Err(
+                "PRODUCTION_WEAPON_FORM_ART_MESH_PROPOSAL_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if native_high_durable_tools::is_write_tool(name) {
+            return Err(
+                "NATIVE_HIGH_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if low_quad_durable_tools::is_write_tool(name) {
+            return Err(
+                "LOW_QUAD_DRAFT_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if hero_uv_durable_tools::is_write_tool(name) {
+            return Err(
+                "HERO_UV_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if production_camera_lock_registration_lineage_tools::is_write_tool(name) {
+            return Err(
+                "PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if production_weapon_high_low_bake_tools::is_write_tool(name) {
+            return Err(
+                "PRODUCTION_WEAPON_HIGH_LOW_BAKE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if production_weapon_formal_high_tools::is_write_tool(name) {
+            return Err(
+                "PRODUCTION_WEAPON_FORMAL_HIGH_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if authoring_mesh_identity_lineage_tools::is_write_tool(name) {
+            return Err(
+                "AUTHORING_MESH_IDENTITY_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if authoring_mesh_topology_edit_tools::is_write_tool(name) {
+            return Err(
+                "MCP010F_AUTHORING_MESH_EDIT_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
         return Err(if is_mcp005_write_tool(name) {
             "MCP005_REFERENCE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
                 .to_owned()
@@ -7284,6 +7924,62 @@ fn dispatch_tool_with_build_cohort(
         });
     }
     if is_write_tool(name) {
+        if production_weapon_form_art_baseline_materializer_tools::is_write_tool(name) {
+            let runtime_method =
+                production_weapon_form_art_baseline_materializer_tools::runtime_method(name)
+                    .ok_or_else(|| {
+                        production_weapon_form_art_baseline_materializer_tools::unavailable_error(
+                            name,
+                        )
+                    })?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if production_weapon_form_art_composite_proposal_tools::is_write_tool(name) {
+            let runtime_method =
+                production_weapon_form_art_composite_proposal_tools::runtime_method(name)
+                    .ok_or_else(|| {
+                        production_weapon_form_art_composite_proposal_tools::unavailable_error(name)
+                    })?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if production_weapon_form_art_composite_evidence_tools::is_write_tool(name) {
+            let runtime_method =
+                production_weapon_form_art_composite_evidence_tools::runtime_method(name)
+                    .ok_or_else(|| {
+                        production_weapon_form_art_composite_evidence_tools::unavailable_error(name)
+                    })?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if production_weapon_form_art_mesh_proposal_tools::is_write_tool(name) {
+            let runtime_method =
+                production_weapon_form_art_mesh_proposal_tools::runtime_method(name).ok_or_else(
+                    || production_weapon_form_art_mesh_proposal_tools::unavailable_error(name),
+                )?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if production_weapon_formal_high_tools::is_tool(name) {
+            let runtime_method = production_weapon_formal_high_tools::runtime_method(name)
+                .ok_or_else(|| production_weapon_formal_high_tools::unavailable_error(name))?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if production_weapon_high_low_bake_tools::is_tool(name) {
+            let runtime_method = production_weapon_high_low_bake_tools::runtime_method(name)
+                .ok_or_else(|| production_weapon_high_low_bake_tools::unavailable_error(name))?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if hero_uv_durable_tools::is_tool(name) {
+            let runtime_method = hero_uv_durable_tools::runtime_method(name)
+                .ok_or_else(|| hero_uv_durable_tools::unavailable_error(name))?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if production_camera_lock_registration_lineage_tools::is_write_tool(name) {
+            let runtime_method =
+                production_camera_lock_registration_lineage_tools::runtime_method(name)
+                    .ok_or_else(|| {
+                        production_camera_lock_registration_lineage_tools::unavailable_error(name)
+                    })?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
         if optimization_tools::is_write_tool(name) {
             let arguments = if name == "optimization_job_prepare" {
                 canonicalize_optimization_job_wire(arguments)?
@@ -7304,7 +8000,180 @@ fn dispatch_tool_with_build_cohort(
         if agentic_write_tools::is_write_tool(name) {
             return backend_agentic_write_call(backend, name, arguments, local_build_cohort);
         }
+        if weapon_foundation_tools::is_tool(name) {
+            let runtime_method = weapon_foundation_tools::runtime_method(name)
+                .ok_or_else(|| weapon_foundation_tools::unavailable_error(name))?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if weapon_foundation_authoring_materialization_tools::is_tool(name) {
+            let runtime_method =
+                weapon_foundation_authoring_materialization_tools::runtime_method(name)
+                    .ok_or_else(|| {
+                        weapon_foundation_authoring_materialization_tools::unavailable_error(name)
+                    })?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if fps_presentation_package_v2_tools::is_tool(name) {
+            let runtime_method = fps_presentation_package_v2_tools::runtime_method(name)
+                .ok_or_else(|| fps_presentation_package_v2_tools::unavailable_error(name))?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
+        if fps_presentation_package_v2_candidate_tools::is_tool(name) {
+            let runtime_method = fps_presentation_package_v2_candidate_tools::runtime_method(name)
+                .ok_or_else(|| {
+                    fps_presentation_package_v2_candidate_tools::unavailable_error(name)
+                })?;
+            return backend_write_call(backend, runtime_method, arguments, local_build_cohort);
+        }
         return backend_write_call(backend, name, arguments, local_build_cohort);
+    }
+    if production_weapon_formal_high_tools::is_tool(name) {
+        return match production_weapon_formal_high_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(production_weapon_formal_high_tools::unavailable_error(name)),
+        };
+    }
+    if production_weapon_high_low_bake_tools::is_tool(name) {
+        return match production_weapon_high_low_bake_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(production_weapon_high_low_bake_tools::unavailable_error(
+                name,
+            )),
+        };
+    }
+    if authoring_mesh_durable_tools::is_tool(name) {
+        return match authoring_mesh_durable_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(authoring_mesh_durable_tools::unavailable_error(name)),
+        };
+    }
+    if authoring_mesh_v2_durable_tools::is_tool(name) {
+        return match authoring_mesh_v2_durable_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(authoring_mesh_v2_durable_tools::unavailable_error(name)),
+        };
+    }
+    if weapon_foundation_tools::is_tool(name) {
+        return match weapon_foundation_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(weapon_foundation_tools::unavailable_error(name)),
+        };
+    }
+    if weapon_foundation_authoring_materialization_tools::is_tool(name) {
+        return match weapon_foundation_authoring_materialization_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(weapon_foundation_authoring_materialization_tools::unavailable_error(name)),
+        };
+    }
+    if fps_presentation_package_v2_tools::is_tool(name) {
+        return match fps_presentation_package_v2_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(fps_presentation_package_v2_tools::unavailable_error(name)),
+        };
+    }
+    if fps_presentation_package_v2_candidate_tools::is_tool(name) {
+        return match fps_presentation_package_v2_candidate_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(fps_presentation_package_v2_candidate_tools::unavailable_error(name)),
+        };
+    }
+    if production_weapon_form_art_mesh_proposal_tools::is_tool(name) {
+        return match production_weapon_form_art_mesh_proposal_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(production_weapon_form_art_mesh_proposal_tools::unavailable_error(name)),
+        };
+    }
+    if production_weapon_form_art_composite_proposal_tools::is_tool(name) {
+        return match production_weapon_form_art_composite_proposal_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => {
+                Err(production_weapon_form_art_composite_proposal_tools::unavailable_error(name))
+            }
+        };
+    }
+    if production_weapon_form_art_composite_evidence_tools::is_tool(name) {
+        return match production_weapon_form_art_composite_evidence_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => {
+                Err(production_weapon_form_art_composite_evidence_tools::unavailable_error(name))
+            }
+        };
+    }
+    if production_weapon_form_art_repair_plan_tools::is_tool(name) {
+        return match production_weapon_form_art_repair_plan_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(production_weapon_form_art_repair_plan_tools::unavailable_error(name)),
+        };
+    }
+    if production_weapon_form_art_failure_diagnostic_tools::is_tool(name) {
+        return match production_weapon_form_art_failure_diagnostic_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => {
+                Err(production_weapon_form_art_failure_diagnostic_tools::unavailable_error(name))
+            }
+        };
+    }
+    if production_weapon_owner_reviewed_void_calibration_tools::is_tool(name) {
+        return match production_weapon_owner_reviewed_void_calibration_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(
+                production_weapon_owner_reviewed_void_calibration_tools::unavailable_error(name),
+            ),
+        };
+    }
+    if production_weapon_form_art_baseline_materializer_tools::is_tool(name) {
+        return match production_weapon_form_art_baseline_materializer_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => {
+                Err(production_weapon_form_art_baseline_materializer_tools::unavailable_error(name))
+            }
+        };
+    }
+    if production_weapon_form_art_baseline_preflight_tools::is_tool(name) {
+        return match production_weapon_form_art_baseline_preflight_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => {
+                Err(production_weapon_form_art_baseline_preflight_tools::unavailable_error(name))
+            }
+        };
+    }
+    if native_high_durable_tools::is_tool(name) {
+        return match native_high_durable_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(native_high_durable_tools::unavailable_error(name)),
+        };
+    }
+    if low_quad_durable_tools::is_tool(name) {
+        return match low_quad_durable_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(low_quad_durable_tools::unavailable_error(name)),
+        };
+    }
+    if hero_uv_durable_tools::is_tool(name) {
+        return match hero_uv_durable_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(hero_uv_durable_tools::unavailable_error(name)),
+        };
+    }
+    if production_camera_lock_registration_lineage_tools::is_tool(name) {
+        return match production_camera_lock_registration_lineage_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(production_camera_lock_registration_lineage_tools::unavailable_error(name)),
+        };
+    }
+    if authoring_mesh_identity_lineage_tools::is_tool(name) {
+        return match authoring_mesh_identity_lineage_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(authoring_mesh_identity_lineage_tools::unavailable_error(
+                name,
+            )),
+        };
+    }
+    if authoring_mesh_topology_edit_tools::is_tool(name) {
+        return match authoring_mesh_topology_edit_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(authoring_mesh_topology_edit_tools::unavailable_error(name)),
+        };
     }
     if agentic_write_tools::is_tool(name) {
         return match agentic_write_tools::runtime_method(name) {
@@ -7341,6 +8210,7 @@ fn dispatch_tool_with_build_cohort(
         "runtime_status" => runtime_status_payload(backend),
         "doctor" => doctor_payload(backend),
         "version_diff" | "quality_get" => backend_call(backend, name, arguments),
+        "authoring_mesh_get" => backend_call(backend, name, arguments),
         _ => backend_call(backend, name, arguments),
     }
 }
@@ -7523,9 +8393,16 @@ fn map_ipc_error(error: IpcError) -> String {
                                 || value.starts_with("SILHOUETTE_")
                                 || value.starts_with("CAMERA_")
                                 || value.starts_with("APPEARANCE_")
+                                || value.starts_with("AUTHORING_MESH_IDENTITY_LINEAGE_")
+                                || value.starts_with("AUTHORING_TOPOLOGY_")
+                                || value.starts_with("AUTHORING_MESH_EDIT_")
                                 || value.starts_with("RENDER_REJECTED")
                                 || value.starts_with("CONTRACT_OUTPUT_INVALID")
                                 || value.starts_with("OPTIMIZATION_")
+                                || value.starts_with("PRODUCTION_WEAPON_FORMAL_HIGH_")
+                                || value.starts_with("PRODUCTION_WEAPON_HIGH_LOW_BAKE_")
+                                || value.starts_with("PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_")
+                                || value.starts_with("PRODUCTION_WEAPON_FORM_ART_COMPOSITE_")
                         })
                         .unwrap_or("");
                     match stage {
@@ -7554,6 +8431,21 @@ fn map_ipc_error(error: IpcError) -> String {
                                 .next()
                                 .unwrap_or("AGENTIC_RUNTIME_REJECTED");
                             format!("{code}: Runtime Agentic request rejected")
+                        }
+                        _ if stage.starts_with("AUTHORING_MESH_IDENTITY_LINEAGE_") => {
+                            let code = stage
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("AUTHORING_MESH_IDENTITY_LINEAGE_INVALID");
+                            format!("{code}: Runtime identity lineage request rejected")
+                        }
+                        _ if stage.starts_with("AUTHORING_TOPOLOGY_")
+                            || stage.starts_with("AUTHORING_MESH_EDIT_") => {
+                            let code = stage
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("AUTHORING_TOPOLOGY_INVALID");
+                            format!("{code}: Runtime topology edit request rejected")
                         }
                         _ if stage.starts_with("DESIGN_ACTION_") || stage.starts_with("DESIGN_STAGE_") || stage.starts_with("DESIGN_COMPOSITION_") || stage.starts_with("REPAIR_") => {
                             let code = stage
@@ -7709,6 +8601,31 @@ fn map_ipc_error(error: IpcError) -> String {
                         _ if stage.starts_with("OPTIMIZATION_") => {
                             format!("{stage}: Runtime optimization request rejected")
                         }
+                        _ if stage.starts_with("PRODUCTION_WEAPON_FORMAL_HIGH_") => {
+                            format!("{stage}: Runtime Formal High request rejected")
+                        }
+                        _ if stage.starts_with("PRODUCTION_WEAPON_HIGH_LOW_BAKE_") => {
+                            let code = stage.split_whitespace().next().unwrap_or(
+                                "PRODUCTION_WEAPON_HIGH_LOW_BAKE_RUNTIME_REJECTED",
+                            );
+                            format!("{code}: Runtime formal High/Low/Cage bake request rejected")
+                        }
+                        _ if stage.starts_with("PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_") => {
+                            let code = stage
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_INVALID");
+                            format!(
+                                "{code}: Runtime CameraLock registration lineage request rejected"
+                            )
+                        }
+                        _ if stage.starts_with("PRODUCTION_WEAPON_FORM_ART_COMPOSITE_") => {
+                            let code = stage
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("PRODUCTION_WEAPON_FORM_ART_COMPOSITE_RUNTIME_REJECTED");
+                            format!("{code}: Runtime composite FormArt request rejected")
+                        }
                         "REFERENCE_BINDING_MISMATCH" => "REFERENCE_BINDING_MISMATCH: Runtime reference evidence is not bound to the candidate".to_owned(),
                         _ if detail.contains("SilhouettePartErrorResult@1") => {
                             "SILHOUETTE_PART_ERROR_INVALID: Runtime Part contour evidence failed its contract".to_owned()
@@ -7775,12 +8692,30 @@ fn map_ipc_error(error: IpcError) -> String {
                 _ if code.starts_with("OPTIMIZATION_") => {
                     format!("{code}: Runtime optimization request rejected")
                 }
+                _ if code.starts_with("PRODUCTION_WEAPON_FORMAL_HIGH_") => {
+                    format!("{code}: Runtime Formal High request rejected")
+                }
+                _ if code.starts_with("PRODUCTION_WEAPON_HIGH_LOW_BAKE_") => {
+                    format!("{code}: Runtime formal High/Low/Cage bake request rejected")
+                }
+                _ if code.starts_with("PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_") => {
+                    format!("{code}: Runtime CameraLock registration lineage request rejected")
+                }
                 // Geometry compile/readback failures are typed Runtime
                 // rejections, not transport outages. Preserve the bounded
                 // machine-readable family so Codex can correct one profile
                 // or Part instead of repeatedly restarting a healthy Runtime.
                 _ if code.starts_with("GEOMETRY_") => {
                     format!("{code}: Runtime geometry request rejected")
+                }
+                _ if code.starts_with("CROSS_VIEW_") => {
+                    format!("{code}: Runtime cross-view request rejected")
+                }
+                // Product-owned weapon assembly/profile materializers return
+                // bounded ASSEMBLY_* failures. Preserve the stable code so a
+                // rejected art repair is not misreported as an IPC outage.
+                _ if code.starts_with("ASSEMBLY_") => {
+                    format!("{code}: Runtime assembly request rejected")
                 }
                 // Runtime emits stable REFERENCE_* codes for authorization,
                 // attachment, image inspection and project-binding failures.
@@ -7798,6 +8733,18 @@ fn map_ipc_error(error: IpcError) -> String {
                 // weakening the Runtime/CAS ownership model.
                 _ if code.starts_with("STORE_") => {
                     format!("{code}: Runtime store rejected the request")
+                }
+                // IdentityLineage V2 has its own stable request/conflict
+                // codes. Preserve that family over authenticated IPC so a
+                // valid MCP call is not misreported as a retryable transport
+                // outage when Runtime rejects its closed request.
+                _ if code.starts_with("AUTHORING_MESH_IDENTITY_LINEAGE_") => {
+                    format!("{code}: Runtime identity lineage request rejected")
+                }
+                _ if code.starts_with("AUTHORING_TOPOLOGY_")
+                    || code.starts_with("AUTHORING_MESH_EDIT_") =>
+                {
+                    format!("{code}: Runtime topology edit request rejected")
                 }
                 _ => "RUNTIME_UNAVAILABLE: Runtime request failed".to_owned(),
             }
@@ -8061,6 +9008,39 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         | "production_stage_transition_get"
         | "production_stage_transition_v2_prepare"
         | "production_stage_transition_v2_get"
+        | "production_stage_transition_v3_prepare"
+        | "production_stage_transition_v3_get"
+        | "production_weapon_form_art_baseline_preflight_get"
+        | "production_weapon_form_art_baseline_prepare"
+        | "production_weapon_form_art_baseline_get"
+        | "production_weapon_form_art_evidence_prepare"
+        | "production_weapon_form_art_evidence_get"
+        | "production_weapon_form_art_mesh_proposal_prepare"
+        | "production_weapon_form_art_mesh_proposal_get"
+        | "production_weapon_form_art_composite_proposal_prepare"
+        | "production_weapon_form_art_composite_proposal_get"
+        | "production_weapon_form_art_composite_evidence_prepare"
+        | "production_weapon_form_art_composite_evidence_get"
+        | "production_weapon_form_art_repair_plan_get"
+        | "production_weapon_form_art_failure_diagnostic_get"
+        | "production_weapon_owner_reviewed_void_calibration_get"
+        | "production_weapon_art_decision_proposal_get"
+        | "production_weapon_assembly_parameter_sink_get"
+        | "production_weapon_form_evidence_prepare"
+        | "production_weapon_form_evidence_get"
+        | "production_weapon_form_quality_prepare"
+        | "production_weapon_form_quality_get"
+        | "production_weapon_form_quality_v2_prepare"
+        | "production_weapon_form_quality_v2_get"
+        | "production_weapon_form_quality_v2_preflight_get"
+        | "production_weapon_formal_high_prepare"
+        | "production_weapon_formal_high_get"
+        | "production_weapon_high_low_bake_prepare"
+        | "production_weapon_high_low_bake_get"
+        | "production_weapon_high_low_bake_preflight_get"
+        | "production_weapon_retopology_cage_source_prepare"
+        | "production_weapon_retopology_cage_source_get"
+        | "production_blender_worker_capability_get"
         | "candidate_topology_quality_prepare"
         | "candidate_topology_quality_get"
         | "candidate_material_surface_quality_prepare"
@@ -8124,6 +9104,115 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 .map_err(|error| error.to_string()),
             "production_stage_transition_v2_get" => runtime
                 .production_stage_transition_v2_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_stage_transition_v3_prepare" => runtime
+                .production_stage_transition_v3_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_stage_transition_v3_get" => runtime
+                .production_stage_transition_v3_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_baseline_preflight_get" => runtime
+                .production_weapon_form_art_baseline_preflight_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_baseline_prepare" => runtime
+                .production_weapon_form_art_baseline_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_baseline_get" => runtime
+                .production_weapon_form_art_baseline_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_evidence_prepare" => runtime
+                .production_weapon_form_art_evidence_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_evidence_get" => runtime
+                .production_weapon_form_art_evidence_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_mesh_proposal_get" => runtime
+                .production_weapon_form_art_mesh_proposal_get(arguments)
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_composite_proposal_prepare" => runtime
+                .production_weapon_form_art_composite_proposal_prepare(arguments)
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_composite_proposal_get" => runtime
+                .production_weapon_form_art_composite_proposal_get(arguments)
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_composite_evidence_prepare" => runtime
+                .production_weapon_form_art_composite_evidence_prepare(arguments)
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_composite_evidence_get" => runtime
+                .production_weapon_form_art_composite_evidence_get(arguments)
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_repair_plan_get" => runtime
+                .production_weapon_form_art_repair_plan_get(arguments)
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_failure_diagnostic_get" => runtime
+                .production_weapon_form_art_failure_diagnostic_get(arguments)
+                .map_err(|error| error.to_string()),
+            "production_weapon_owner_reviewed_void_calibration_get" => runtime
+                .production_weapon_owner_reviewed_void_calibration_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_art_mesh_proposal_prepare" => runtime
+                .production_weapon_form_art_mesh_proposal_prepare(arguments)
+                .map_err(|error| error.to_string()),
+            "production_weapon_art_decision_proposal_get" => runtime
+                .production_weapon_art_decision_proposal_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_assembly_parameter_sink_get" => runtime
+                .production_weapon_assembly_parameter_sink_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_evidence_prepare" => runtime
+                .production_weapon_form_evidence_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_evidence_get" => runtime
+                .production_weapon_form_evidence_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_quality_prepare" => runtime
+                .production_weapon_form_quality_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_quality_get" => runtime
+                .production_weapon_form_quality_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_quality_v2_prepare" => runtime
+                .production_weapon_form_quality_v2_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_quality_v2_get" => runtime
+                .production_weapon_form_quality_v2_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_form_quality_v2_preflight_get" => runtime
+                .production_weapon_form_quality_v2_preflight_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_formal_high_prepare" => runtime
+                .production_weapon_formal_high_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_formal_high_get" => runtime
+                .production_weapon_formal_high_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_high_low_bake_prepare" => runtime
+                .production_weapon_high_low_bake_prepare(arguments.clone())
+                .map_err(|error| {
+                    preserve_production_weapon_high_low_bake_error(&error.to_string())
+                }),
+            "production_weapon_high_low_bake_get" => runtime
+                .production_weapon_high_low_bake_get(arguments.clone())
+                .map_err(|error| {
+                    preserve_production_weapon_high_low_bake_error(&error.to_string())
+                }),
+            "production_weapon_high_low_bake_preflight_get" => runtime
+                .production_weapon_high_low_bake_preflight_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_retopology_cage_source_prepare" => runtime
+                .production_weapon_retopology_cage_source_bundle_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_weapon_retopology_cage_source_get" => runtime
+                .production_weapon_retopology_cage_source_bundle_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_blender_worker_capability_get" => runtime
+                .production_blender_worker_capability_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_camera_lock_prepare" => runtime
+                .production_camera_lock_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_camera_lock_get" => runtime
+                .production_camera_lock_get(arguments.clone())
                 .map_err(|error| error.to_string()),
             "candidate_topology_quality_prepare" => runtime
                 .candidate_topology_quality_prepare(arguments.clone())
@@ -8639,13 +9728,70 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         }
         "authoring_topology_get" => runtime
             .authoring_topology(arguments)
+            .map_err(|error| preserve_authoring_topology_error(&error.to_string())),
+        "authoring_mesh_get" => runtime
+            .authoring_mesh(arguments)
             .map_err(|error| error.to_string()),
+        "authoring_mesh_durable_get" => runtime
+            .authoring_mesh_durable_get(arguments)
+            .map_err(|error| error.to_string()),
+        "authoring_mesh_durable_prepare" => runtime
+            .authoring_mesh_durable_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "authoring_mesh_v2_durable_get" => runtime
+            .authoring_mesh_v2_durable_get(arguments)
+            .map_err(|error| error.to_string()),
+        "authoring_mesh_v2_durable_prepare" => runtime
+            .authoring_mesh_v2_durable_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "production_weapon_authoring_mesh_v2_source_prepare" => runtime
+            .production_weapon_authoring_mesh_v2_source_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "native_high_durable_get" => runtime
+            .native_high_durable_get(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "native_high_durable_prepare" => runtime
+            .native_high_durable_prepare(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "low_quad_draft_durable_get" => runtime
+            .low_quad_draft_durable_get(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "low_quad_draft_durable_prepare" => runtime
+            .low_quad_draft_durable_prepare(arguments.clone())
+            .map_err(|error| error.to_string()),
+        // The Hero UV durable core is source-only in this cohort. Keep the
+        // exact Runtime method names on the transport, but fail closed until
+        // the Store/Runtime adapter is implemented in its own task.
+        "hero_uv_durable_get" | "hero_uv_durable_prepare" => {
+            Err(hero_uv_durable_tools::unavailable_error(name))
+        }
+        "production_camera_lock_registration_lineage_prepare" => runtime
+            .production_camera_lock_registration_lineage_prepare(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "production_camera_lock_registration_lineage_get" => runtime
+            .production_camera_lock_registration_lineage_get(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "production_camera_lock_registration_lineage_preflight_get" => runtime
+            .production_camera_lock_registration_lineage_preflight_get(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "production_camera_lock_registration_lineage_preflight_projection_get" => runtime
+            .production_camera_lock_registration_lineage_preflight_projection_get(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "authoring_mesh_identity_lineage_get" => runtime
+            .authoring_mesh_identity_lineage_get(arguments)
+            .map_err(|error| preserve_identity_lineage_error(&error.to_string())),
+        "authoring_mesh_identity_lineage_prepare" => runtime
+            .authoring_mesh_identity_lineage_prepare(arguments)
+            .map_err(|error| preserve_identity_lineage_error(&error.to_string())),
         "authoring_mesh_edit_preview" => runtime
             .authoring_mesh_edit_preview(arguments)
-            .map_err(|error| error.to_string()),
+            .map_err(|error| preserve_authoring_topology_error(&error.to_string())),
+        // Keep the Runtime result byte-for-byte as structuredContent. This
+        // edit surface exposes only the Runtime's existing source-element
+        // topology proof; durable IdentityLineage is a separate tool surface.
         "authoring_mesh_edit_prepare" => runtime
             .authoring_mesh_edit_prepare(arguments)
-            .map_err(|error| error.to_string()),
+            .map_err(|error| preserve_authoring_topology_error(&error.to_string())),
         "mechanical_pose_evaluate" => runtime
             .mechanical_pose_evaluate(arguments)
             .map_err(|error| error.to_string()),
@@ -9112,6 +10258,57 @@ fn required_sha256<'a>(arguments: &'a Value, key: &str) -> Result<&'a str, Strin
 
 fn tool_manifest_hash(write_tools_enabled: bool) -> String {
     canonical_json_hash(&json!({"tools":tools_with_writes(write_tools_enabled)}))
+}
+
+/// Runtime's in-process error display prefixes typed failures with its
+/// category (for example, `invalid runtime input:`). Normalize only the
+/// IdentityLineage family before MCP builds RuntimeError@1 so the typed code
+/// survives both in-process focused tests and authenticated IPC.
+fn preserve_identity_lineage_error(error: &str) -> String {
+    const PREFIX: &str = "AUTHORING_MESH_IDENTITY_LINEAGE_";
+    let Some(start) = error.find(PREFIX) else {
+        return error.to_owned();
+    };
+    let code = error[start..]
+        .split(':')
+        .next()
+        .map(str::trim)
+        .filter(|value| value.starts_with(PREFIX))
+        .unwrap_or(PREFIX);
+    format!("{code}: Runtime identity lineage request rejected")
+}
+
+/// Preserve the bounded Runtime error families for the topology/edit surface
+/// while dropping request details that may contain user input or local paths.
+fn preserve_authoring_topology_error(error: &str) -> String {
+    let Some(start) = error
+        .find("AUTHORING_TOPOLOGY_")
+        .or_else(|| error.find("AUTHORING_MESH_EDIT_"))
+    else {
+        return error.to_owned();
+    };
+    let code = error[start..]
+        .split(':')
+        .next()
+        .map(str::trim)
+        .filter(|value| {
+            value.starts_with("AUTHORING_TOPOLOGY_") || value.starts_with("AUTHORING_MESH_EDIT_")
+        })
+        .unwrap_or("AUTHORING_TOPOLOGY_INVALID");
+    format!("{code}: Runtime topology edit request rejected")
+}
+
+fn preserve_production_weapon_high_low_bake_error(error: &str) -> String {
+    let Some(start) = error.find("PRODUCTION_WEAPON_HIGH_LOW_BAKE_") else {
+        return error.to_owned();
+    };
+    let code = error[start..]
+        .split(':')
+        .next()
+        .map(str::trim)
+        .filter(|value| value.starts_with("PRODUCTION_WEAPON_HIGH_LOW_BAKE_"))
+        .unwrap_or("PRODUCTION_WEAPON_HIGH_LOW_BAKE_RUNTIME_REJECTED");
+    format!("{code}: Runtime formal High/Low/Cage bake request rejected")
 }
 
 fn runtime_error_value(error: &str) -> Value {
@@ -9636,6 +10833,13 @@ mod tests {
         );
         assert_eq!(
             map_ipc_error(IpcError::RuntimeRequest(
+                "PRODUCTION_WEAPON_FORMAL_HIGH_PUBLIC_INVALID: source transition is missing"
+                    .to_owned(),
+            )),
+            "PRODUCTION_WEAPON_FORMAL_HIGH_PUBLIC_INVALID: Runtime Formal High request rejected"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
                 "REFERENCE_TRANSFER_UNAVAILABLE: attachment could not be read".to_owned(),
             )),
             "REFERENCE_TRANSFER_UNAVAILABLE: Runtime reference request rejected"
@@ -9643,6 +10847,31 @@ mod tests {
         assert_eq!(
             map_ipc_error(IpcError::RuntimeRequest("STORE_CAS_IO".to_owned())),
             "STORE_CAS_IO: Runtime store rejected the request"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "AUTHORING_MESH_IDENTITY_LINEAGE_INVALID: input_sha256 does not match the closed request"
+                    .to_owned(),
+            )),
+            "AUTHORING_MESH_IDENTITY_LINEAGE_INVALID: Runtime identity lineage request rejected"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "AUTHORING_MESH_IDENTITY_LINEAGE_CONFLICT: same idempotency key differs".to_owned(),
+            )),
+            "AUTHORING_MESH_IDENTITY_LINEAGE_CONFLICT: Runtime identity lineage request rejected"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "AUTHORING_TOPOLOGY_INVALID: /private/user/reference.png".to_owned(),
+            )),
+            "AUTHORING_TOPOLOGY_INVALID: Runtime topology edit request rejected"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "INVALID_INPUT: AUTHORING_TOPOLOGY_INVALID: local path".to_owned(),
+            )),
+            "AUTHORING_TOPOLOGY_INVALID: Runtime topology edit request rejected"
         );
         assert!(map_ipc_error(IpcError::Io(std::io::Error::other("socket")))
             .starts_with("RUNTIME_UNAVAILABLE:"));
@@ -9686,11 +10915,20 @@ mod tests {
             summary["schema_version"],
             "ForgeCADMcpToolManifestSummary@1"
         );
-        assert_eq!(summary["read_count"], 91);
-        assert_eq!(summary["write_count"], 69);
-        assert_eq!(summary["total_count"], 160);
-        assert_eq!(summary["read_names"].as_array().unwrap().len(), 91);
-        assert_eq!(summary["write_names"].as_array().unwrap().len(), 69);
+        let expected_read_count = tools_with_writes(false).len();
+        let expected_enabled_count = tools_with_writes(true).len();
+        let expected_write_count = all_write_tool_names().len();
+        assert_eq!(summary["read_count"], expected_read_count);
+        assert_eq!(summary["write_count"], expected_write_count);
+        assert_eq!(summary["total_count"], expected_enabled_count);
+        assert_eq!(
+            summary["read_names"].as_array().unwrap().len(),
+            expected_read_count
+        );
+        assert_eq!(
+            summary["write_names"].as_array().unwrap().len(),
+            expected_write_count
+        );
         let mut hash_input = summary.clone();
         hash_input
             .as_object_mut()
@@ -9700,6 +10938,226 @@ mod tests {
             summary["canonical_sha256"],
             canonical_json_hash(&hash_input)
         );
+    }
+
+    #[test]
+    fn authoring_mesh_get_is_closed_read_only_hash_bound_surface() {
+        let tools = tools_with_writes(false);
+        let tool = tools
+            .iter()
+            .find(|tool| tool["name"] == "authoring_mesh_get")
+            .expect("authoring mesh getter tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["annotations"]["destructiveHint"], false);
+        assert_eq!(tool["annotations"]["idempotentHint"], true);
+        assert_eq!(tool["annotations"]["openWorldHint"], false);
+        assert_eq!(tool["_meta"]["forgecad"]["availability"], "available");
+
+        let schema = &tool["inputSchema"];
+        assert_eq!(schema["additionalProperties"], false);
+        assert_eq!(
+            schema["properties"]["schema_version"]["const"],
+            "AuthoringMeshRequest@1"
+        );
+        assert_eq!(
+            schema["properties"]["authoring_mesh_policy_sha256"]["const"],
+            "aa72cadabba90ddb43dd0014cfa434ab9b13f4e072b09258072f37334c72e709"
+        );
+        assert_eq!(schema["properties"]["max_response_bytes"]["const"], 1048576);
+        for field in [
+            "artifact_readback_sha256",
+            "program_sha256",
+            "operator_catalog_sha256",
+            "readback_config_sha256",
+        ] {
+            assert_eq!(schema["properties"][field]["pattern"], "^[0-9a-f]{64}$");
+        }
+        assert!(!is_write_tool("authoring_mesh_get"));
+        assert!(validate_declared_tool_input(
+            "authoring_mesh_get",
+            &json!({
+                "schema_version":"AuthoringMeshRequest@1",
+                "project_id":"project-1",
+                "candidate_id":"candidate-1",
+                "artifact_id":"a".repeat(64),
+                "artifact_readback_sha256":"b".repeat(64),
+                "program_sha256":"c".repeat(64),
+                "operator_catalog_sha256":"d".repeat(64),
+                "readback_config_sha256":"e".repeat(64),
+                "authoring_node_id":"authoring-node-1",
+                "part_id":"part-1",
+                "authoring_mesh_policy_sha256":"aa72cadabba90ddb43dd0014cfa434ab9b13f4e072b09258072f37334c72e709",
+                "max_response_bytes":1048576
+            }),
+            false
+        )
+        .is_ok());
+        assert!(validate_declared_tool_input(
+            "authoring_mesh_get",
+            &json!({
+                "schema_version":"AuthoringMeshRequest@1",
+                "project_id":"project-1",
+                "candidate_id":"candidate-1",
+                "artifact_id":"a".repeat(64),
+                "artifact_readback_sha256":"b".repeat(64),
+                "program_sha256":"c".repeat(64),
+                "operator_catalog_sha256":"d".repeat(64),
+                "readback_config_sha256":"e".repeat(64),
+                "authoring_node_id":"authoring-node-1",
+                "part_id":"part-1",
+                "authoring_mesh_policy_sha256":"aa72cadabba90ddb43dd0014cfa434ab9b13f4e072b09258072f37334c72e709",
+                "max_response_bytes":1048576,
+                "script":"not accepted"
+            }),
+            false
+        )
+        .is_err());
+        assert!(validate_declared_tool_input(
+            "authoring_mesh_get",
+            &json!({
+                "schema_version":"AuthoringMeshRequest@1",
+                "project_id":"https://example.invalid/project",
+                "candidate_id":"candidate-1",
+                "artifact_id":"a".repeat(64),
+                "artifact_readback_sha256":"b".repeat(64),
+                "program_sha256":"c".repeat(64),
+                "operator_catalog_sha256":"d".repeat(64),
+                "readback_config_sha256":"e".repeat(64),
+                "authoring_node_id":"authoring-node-1",
+                "part_id":"part-1",
+                "authoring_mesh_policy_sha256":"aa72cadabba90ddb43dd0014cfa434ab9b13f4e072b09258072f37334c72e709",
+                "max_response_bytes":1048576
+            }),
+            false
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn production_weapon_form_quality_v2_preflight_dispatches_read_only_to_runtime() {
+        let name = "production_weapon_form_quality_v2_preflight_get";
+        let hash = "a".repeat(64);
+        let mut arguments = json!({
+            "schema_version":"ProductionWeaponFormQualityV2PreflightGetRequest@1",
+            "preflight_id":"preflight-1",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "candidate_id":"candidate-1",
+            "form_stage":"blockout",
+            "legacy_form_quality_object_sha256":hash.clone(),
+            "legacy_form_quality_canonical_sha256":hash.clone(),
+            "form_art_evidence_object_sha256":hash.clone(),
+            "form_art_evidence_canonical_sha256":hash.clone(),
+            "current_source_head_transition_id":"transition-1",
+            "current_source_head_transition_sha256":hash.clone(),
+            "current_source_head_canonical_sha256":hash,
+            "input_sha256":""
+        });
+        let mut preimage = arguments.clone();
+        preimage.as_object_mut().unwrap().remove("input_sha256");
+        arguments["input_sha256"] = Value::String(canonical_json_hash(&preimage));
+        assert!(validate_declared_tool_input(name, &arguments, false).is_ok());
+        let runtime = Runtime::ephemeral().expect("preflight dispatch runtime");
+        let response = dispatch_in_process(&runtime, name, &arguments)
+            .expect("preflight must reach the same-name Runtime method");
+        assert_eq!(
+            response["schema_version"],
+            "ProductionWeaponFormQualityV2PreflightGetResult@1"
+        );
+        assert_eq!(response["runtime_write"], false);
+        assert_eq!(response["worker_started"], false);
+        assert_eq!(response["production_stage_advanced"], false);
+        assert_eq!(response["candidate_confirmed"], false);
+        assert_eq!(response["version_created"], false);
+        assert_eq!(response["export_performed"], false);
+        assert_eq!(response["quality_status"], "NOT_PROVEN");
+        assert_eq!(response["visual_quality_status"], "NOT_PROVEN");
+        assert_eq!(response["human_review_status"], "NOT_RUN");
+        assert_eq!(response["commercial_engine_status"], "NOT_RUN");
+    }
+
+    #[test]
+    fn production_weapon_high_low_bake_preflight_dispatches_read_only_to_runtime() {
+        let name = "production_weapon_high_low_bake_preflight_get";
+        let hash = "a".repeat(64);
+        let mut arguments = json!({
+            "schema_version":"ProductionWeaponHighLowBakePreflightGetRequest@1",
+            "preflight_id":"high-low-preflight-1",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "candidate_id":"candidate-1",
+            "expected_head_stage":"secondary-form-approved",
+            "expected_head_transition_id":"transition-1",
+            "expected_head_transition_sha256":hash.clone(),
+            "expected_head_canonical_sha256":hash,
+            "input_sha256":""
+        });
+        let mut preimage = arguments.clone();
+        preimage.as_object_mut().unwrap().remove("input_sha256");
+        arguments["input_sha256"] = Value::String(canonical_json_hash(&preimage));
+        assert!(validate_declared_tool_input(name, &arguments, false).is_ok());
+        let runtime = Runtime::ephemeral().expect("HighLowBake preflight dispatch runtime");
+        let response = dispatch_in_process(&runtime, name, &arguments)
+            .expect("preflight must reach the same-name Runtime method");
+        assert_eq!(
+            response["schema_version"],
+            "ProductionWeaponHighLowBakePreflightGetResult@1"
+        );
+        assert_eq!(response["ready_for_formal_bake"], false);
+        assert_eq!(response["runtime_write"], false);
+        assert_eq!(response["worker_started"], false);
+        assert_eq!(response["production_stage_advanced"], false);
+        assert_eq!(response["candidate_confirmed"], false);
+        assert_eq!(response["version_created"], false);
+        assert_eq!(response["export_performed"], false);
+        assert_eq!(response["restart_hash_verified"], true);
+        assert_eq!(response["quality_status"], "structural_only");
+        assert_eq!(response["visual_quality_status"], "NOT_PROVEN");
+        assert_eq!(response["human_review_status"], "NOT_RUN");
+        assert_eq!(response["commercial_engine_status"], "NOT_RUN");
+        assert_eq!(response["distribution_status"], "NOT_RUN");
+    }
+
+    #[test]
+    fn production_blender_worker_capability_get_dispatches_read_only_to_runtime() {
+        let name = "production_blender_worker_capability_get";
+        let arguments = json!({
+            "schema_version":"BlenderWorkerCapabilityGetRequest@1",
+            "capability_id":"blender-headless-worker-evaluation"
+        });
+        assert!(agentic_write_tools::validate_call(
+            name,
+            &arguments,
+            &agentic_write_tools::Binding::default()
+        )
+        .is_ok());
+        let runtime = Runtime::ephemeral().expect("Blender capability dispatch runtime");
+        let response = dispatch_in_process(&runtime, name, &arguments)
+            .expect("capability get must reach the same-name Runtime method");
+        assert_eq!(
+            response["schema_version"],
+            "BlenderWorkerCapabilityGetResult@1"
+        );
+        assert_eq!(response["capability"]["capability_status"], "unavailable");
+        assert_eq!(response["read_only"], true);
+        for field in [
+            "runtime_write_performed",
+            "worker_invoked",
+            "candidate_generated",
+            "production_stage_advanced",
+            "candidate_confirmed",
+            "version_created",
+            "export_performed",
+        ] {
+            assert_eq!(response[field], false, "result {field}");
+            assert_eq!(response["capability"][field], false, "capability {field}");
+        }
+        assert!(agentic_write_tools::validate_response(
+            name,
+            &response,
+            &agentic_write_tools::Binding::default()
+        )
+        .is_ok());
     }
 
     #[test]
@@ -10123,6 +11581,130 @@ mod tests {
             validate_declared_tool_input("geometry_program_hash", &multi_loop_request, false)
                 .is_ok(),
             "the public read-only MCP schema must admit the strict multi-loop request"
+        );
+    }
+
+    #[test]
+    fn modifier_stack_schema_admits_authoring_mesh_bevel_v2_but_keeps_apply_v1_closed() {
+        let tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "geometry_program_hash")
+            .expect("geometry_program_hash tool");
+        let stack = tool["inputSchema"]["oneOf"]
+            .as_array()
+            .expect("geometry_program_hash branches")
+            .iter()
+            .find(|branch| {
+                branch["properties"]["schema_version"]["const"] == "GeometryModifierStackRequest@1"
+            })
+            .expect("modifier stack branch");
+        let base_variants = stack["properties"]["base_node"]["oneOf"]
+            .as_array()
+            .expect("modifier stack base variants");
+        assert_eq!(
+            base_variants
+                .iter()
+                .filter(|variant| {
+                    variant["properties"]["operator_id"]["const"]
+                        == "forgecad.geometry.authoring-mesh@1"
+                })
+                .count(),
+            1
+        );
+        let modifier_variants = stack["properties"]["modifiers"]["items"]["oneOf"]
+            .as_array()
+            .expect("modifier stack modifier variants");
+        assert_eq!(
+            modifier_variants
+                .iter()
+                .filter(|variant| {
+                    variant["properties"]["operator_id"]["const"] == "forgecad.geometry.bevel@2"
+                })
+                .count(),
+            1
+        );
+
+        let request = json!({
+            "schema_version":"GeometryModifierStackRequest@1",
+            "project_id":"project-schema-fixture",
+            "representation_plan_sha256":"a".repeat(64),
+            "part_id":"authored-part",
+            "material_zone_id":"zone-shell",
+            "solid":true,
+            "base_node":{
+                "node_id":"authored-base",
+                "operator_id":"forgecad.geometry.authoring-mesh@1",
+                "inputs":[],
+                "parameters":{
+                    "shape":"authoring-mesh",
+                    "topology_policy":"triangle-quad-manifold-with-boundary@1",
+                    "vertices":[
+                        {"element_id":"v0","position_m":[0.0,0.0,0.0]},
+                        {"element_id":"v1","position_m":[1.0,0.0,0.0]},
+                        {"element_id":"v2","position_m":[0.0,1.0,0.0]}
+                    ],
+                    "edges":[
+                        {"element_id":"e01","vertex_ids":["v0","v1"]},
+                        {"element_id":"e02","vertex_ids":["v0","v2"]},
+                        {"element_id":"e12","vertex_ids":["v1","v2"]}
+                    ],
+                    "loops":[
+                        {"element_id":"l0","face_id":"f0","ordinal":0,"vertex_id":"v0","edge_id":"e01","edge_forward":true},
+                        {"element_id":"l1","face_id":"f0","ordinal":1,"vertex_id":"v1","edge_id":"e12","edge_forward":true},
+                        {"element_id":"l2","face_id":"f0","ordinal":2,"vertex_id":"v2","edge_id":"e02","edge_forward":false}
+                    ],
+                    "faces":[{"element_id":"f0","loop_ids":["l0","l1","l2"]}],
+                    "position_m":[0.0,0.0,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            },
+            "modifiers":[{
+                "modifier_id":"selected-edge-bevel",
+                "enabled":true,
+                "operator_id":"forgecad.geometry.bevel@2",
+                "parameters":{
+                    "shape":"bevel",
+                    "source_edge_ids":["e01"],
+                    "width_m":0.05,
+                    "segments":2,
+                    "profile":0.5,
+                    "clamp_overlap":false
+                }
+            }],
+            "input_sha256":"b".repeat(64)
+        });
+        assert!(
+            validate_declared_tool_input("geometry_program_hash", &request, false).is_ok(),
+            "MCP must admit the package-level authoring-mesh@1 + bevel@2 stack fixture"
+        );
+
+        let mut unknown = request.clone();
+        unknown["base_node"]["parameters"]["python"] = json!("forbidden");
+        assert!(
+            validate_declared_tool_input("geometry_program_hash", &unknown, false).is_err(),
+            "authoring mesh parameters must remain closed"
+        );
+
+        let signature = modifier_evaluation_signature_schema();
+        assert!(
+            signature["properties"]["stages"]["items"]["properties"]["operator_id"]["enum"]
+                .as_array()
+                .expect("evaluation signature operators")
+                .contains(&json!("forgecad.geometry.bevel@2"))
+        );
+
+        let apply_v1 = request["modifiers"][0].clone();
+        let apply_v1_schema = modifier_apply_request_v1_schema();
+        let modifiers_schema = &apply_v1_schema["properties"]["modifiers"]["items"];
+        assert!(
+            validate_value_against_tool_schema(
+                modifiers_schema,
+                &apply_v1,
+                0,
+                &mut ToolSchemaValidationBudget::new()
+            )
+            .is_err(),
+            "GeometryModifierApplyRequest@1 must reject bevel@2"
         );
     }
 
@@ -11574,12 +13156,22 @@ mod tests {
             .iter()
             .find(|tool| tool["name"] == "authoring_mesh_edit_preview")
             .expect("preview tool");
+        let edit_variants = preview_tool["inputSchema"]["properties"]["edit"]["oneOf"]
+            .as_array()
+            .expect("bounded topology edit variants");
+        assert_eq!(edit_variants.len(), 5);
         assert_eq!(
-            preview_tool["inputSchema"]["properties"]["edit"]["oneOf"]
-                .as_array()
-                .unwrap()
-                .len(),
-            2
+            edit_variants[2]["properties"]["operation"]["const"],
+            "split_edge"
+        );
+        assert_eq!(
+            edit_variants[2]["required"],
+            json!([
+                "operation",
+                "edge_id",
+                "parent_revision",
+                "operation_lineage_sha256"
+            ])
         );
 
         let (mut backend, mut session) = initialized();
@@ -11683,7 +13275,7 @@ mod tests {
             "topology_request":arguments,
             "base_topology_sha256":base_topology_sha256,
             "edit":{"operation":"single_face_extrude","face_id":"f0","distance_m":0.25},
-            "edit_policy_sha256":"1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae"
+            "edit_policy_sha256":"fc76c6dffef2a41c05ff0a65ff160c8fce5eb37d312a3ef7f78043ef92539144"
         });
         let input_sha256 = canonical_json_hash(&preview_arguments);
         preview_arguments["input_sha256"] = Value::String(input_sha256);
@@ -14517,6 +16109,454 @@ mod tests {
     }
 
     #[test]
+    fn production_weapon_form_evidence_mcp_surface_is_hidden_bounded_and_wired() {
+        let prepare_name = "production_weapon_form_evidence_prepare";
+        let get_name = "production_weapon_form_evidence_get";
+        assert!(agentic_write_tools::is_tool(prepare_name));
+        assert!(agentic_write_tools::is_tool(get_name));
+        assert_eq!(
+            agentic_write_tools::runtime_method(prepare_name),
+            Some(prepare_name)
+        );
+        assert_eq!(
+            agentic_write_tools::runtime_method(get_name),
+            Some(get_name)
+        );
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        let prepare = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("form-evidence prepare tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(prepare["annotations"]["approvalRequired"], false);
+        assert_eq!(prepare["inputSchema"]["additionalProperties"], false);
+        let get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("form-evidence get tool");
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+        assert_eq!(get["annotations"]["writeIntent"], false);
+        assert_eq!(get["annotations"]["approvalRequired"], false);
+        assert_eq!(get["inputSchema"]["additionalProperties"], false);
+
+        let oversized = json!({"payload":"x".repeat(READ_MODEL_MCP_WIRE_MAX_BYTES)});
+        let response = json!({
+            "jsonrpc":"2.0",
+            "id":1,
+            "result":{"content":[],"structuredContent":oversized}
+        });
+        let bounded = apply_read_model_mcp_wire_budget(get_name, response);
+        assert_eq!(bounded["result"]["isError"], true);
+        assert_eq!(
+            bounded["result"]["structuredContent"]["code"],
+            "MCP_READ_MODEL_RESPONSE_BUDGET_EXCEEDED"
+        );
+    }
+
+    #[test]
+    fn production_weapon_form_art_evidence_mcp_surface_is_closed_and_scope_bound() {
+        let prepare_name = "production_weapon_form_art_evidence_prepare";
+        let get_name = "production_weapon_form_art_evidence_get";
+        let read_tools = tools_with_writes(false);
+        let enabled_tools = tools_with_writes(true);
+        let prepare = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("form-art-evidence prepare tool");
+        let get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("form-art-evidence get tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(prepare["annotations"]["approvalRequired"], false);
+        assert_eq!(prepare["inputSchema"]["additionalProperties"], false);
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+        assert_eq!(get["annotations"]["writeIntent"], false);
+        assert_eq!(get["annotations"]["approvalRequired"], false);
+        assert_eq!(get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["art_evidence_policy"]["const"],
+            "production-weapon-form-art-evidence-six-view-typed-observation@1"
+        );
+        assert_eq!(
+            get["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "art_evidence_id",
+                "session_id",
+                "project_id",
+                "candidate_id"
+            ])
+        );
+
+        let hash = "a".repeat(64);
+        let prepare_request = json!({
+            "schema_version":"ProductionWeaponFormArtEvidencePrepareRequest@1",
+            "art_evidence_id":"art-evidence-1",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "candidate_id":"candidate-1",
+            "form_evidence_object_sha256":hash.clone(),
+            "form_evidence_canonical_sha256":hash.clone(),
+            "art_evidence_policy":"production-weapon-form-art-evidence-six-view-typed-observation@1",
+            "art_evidence_policy_sha256":hash.clone(),
+            "input_sha256":hash.clone(),
+            "idempotency_key":"art-evidence-key-1"
+        });
+        assert!(validate_declared_tool_input(prepare_name, &prepare_request, true).is_ok());
+        let get_request = json!({
+            "schema_version":"ProductionWeaponFormArtEvidenceGetRequest@1",
+            "art_evidence_id":"art-evidence-1",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "candidate_id":"candidate-1"
+        });
+        assert!(validate_declared_tool_input(get_name, &get_request, false).is_ok());
+        for field in [
+            "raw_png_bytes",
+            "glb_base64",
+            "path",
+            "url",
+            "script",
+            "secret",
+        ] {
+            let mut invalid = prepare_request.clone();
+            invalid[field] = json!("forbidden");
+            assert!(validate_declared_tool_input(prepare_name, &invalid, true).is_err());
+            let mut invalid_get = get_request.clone();
+            invalid_get[field] = json!("forbidden");
+            assert!(validate_declared_tool_input(get_name, &invalid_get, false).is_err());
+        }
+        let binding = agentic_write_tools::Binding {
+            session_id: Some("session-1".to_owned()),
+            project_id: Some("project-1".to_owned()),
+            candidate_id: Some("candidate-1".to_owned()),
+        };
+        assert!(
+            agentic_write_tools::validate_call(prepare_name, &prepare_request, &binding).is_ok()
+        );
+        assert!(agentic_write_tools::validate_call(get_name, &get_request, &binding).is_ok());
+        assert!(agentic_write_tools::validate_call(
+            prepare_name,
+            &prepare_request,
+            &agentic_write_tools::Binding::default()
+        )
+        .is_err());
+        assert_eq!(
+            agentic_write_tools::runtime_method(prepare_name),
+            Some(prepare_name)
+        );
+        assert_eq!(
+            agentic_write_tools::runtime_method(get_name),
+            Some(get_name)
+        );
+    }
+
+    #[test]
+    fn production_weapon_art_decision_proposal_get_mcp_surface_is_closed_and_scoped() {
+        let name = "production_weapon_art_decision_proposal_get";
+        let read_tools = tools_with_writes(false);
+        let tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == name)
+            .expect("art-decision proposal get tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["annotations"]["writeIntent"], false);
+        assert_eq!(tool["annotations"]["approvalRequired"], false);
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            tool["inputSchema"]["properties"].as_object().unwrap().len(),
+            22
+        );
+        assert!(tool["inputSchema"]["properties"]
+            .get("assembly_registry_id")
+            .is_none());
+        assert_eq!(agentic_write_tools::runtime_method(name), Some(name));
+
+        let hash = "a".repeat(64);
+        let request = json!({
+            "schema_version":"ProductionWeaponArtDecisionProposalGetRequest@1",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "candidate_id":"candidate-1",
+            "candidate_state_sha256":hash.clone(),
+            "artifact_id":"artifact-1",
+            "artifact_sha256":hash.clone(),
+            "geometry_program_sha256":hash.clone(),
+            "geometry_program_canonical_sha256":hash.clone(),
+            "operator_catalog_sha256":hash.clone(),
+            "reference_canvas_canonical_sha256":hash.clone(),
+            "design_spec_canonical_sha256":hash.clone(),
+            "camera_lock_id":"camera-lock-1",
+            "camera_lock_canonical_sha256":hash.clone(),
+            "form_evidence_id":"form-evidence-1",
+            "form_evidence_object_sha256":hash.clone(),
+            "form_evidence_canonical_sha256":hash.clone(),
+            "form_art_evidence_id":"form-art-evidence-1",
+            "form_art_evidence_object_sha256":hash.clone(),
+            "form_art_evidence_canonical_sha256":hash.clone(),
+            "first_person_profile_id":null,
+            "first_person_profile_sha256":null
+        });
+        assert!(validate_declared_tool_input(name, &request, false).is_ok());
+        for field in [
+            "raw_png_bytes",
+            "raw_glb_bytes",
+            "path",
+            "url",
+            "script",
+            "secret",
+            "unknown",
+        ] {
+            let mut invalid = request.clone();
+            invalid[field] = json!("forbidden");
+            assert!(
+                validate_declared_tool_input(name, &invalid, false).is_err(),
+                "{field}"
+            );
+        }
+        let binding = agentic_write_tools::Binding {
+            session_id: Some("session-1".to_owned()),
+            project_id: Some("project-1".to_owned()),
+            candidate_id: Some("candidate-1".to_owned()),
+        };
+        assert!(agentic_write_tools::validate_call(name, &request, &binding).is_ok());
+        let mut mismatch = request.clone();
+        mismatch["candidate_id"] = json!("candidate-2");
+        assert!(agentic_write_tools::validate_call(name, &mismatch, &binding).is_err());
+        let oversized = json!({"payload":"x".repeat(READ_MODEL_MCP_WIRE_MAX_BYTES)});
+        let response = json!({
+            "jsonrpc":"2.0",
+            "id":1,
+            "result":{"content":[],"structuredContent":oversized}
+        });
+        let bounded = apply_read_model_mcp_wire_budget(name, response);
+        assert_eq!(bounded["result"]["isError"], true);
+        assert_eq!(
+            bounded["result"]["structuredContent"]["code"],
+            "MCP_READ_MODEL_RESPONSE_BUDGET_EXCEEDED"
+        );
+    }
+
+    #[test]
+    fn production_weapon_assembly_parameter_sink_get_mcp_surface_is_closed_and_scoped() {
+        let name = "production_weapon_assembly_parameter_sink_get";
+        let read_tools = tools_with_writes(false);
+        let enabled_tools = tools_with_writes(true);
+        let tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == name)
+            .expect("assembly-parameter sink get tool");
+        assert!(enabled_tools.iter().any(|tool| tool["name"] == name));
+        assert!(!all_write_tool_names().iter().any(|tool| tool == name));
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["annotations"]["writeIntent"], false);
+        assert_eq!(tool["annotations"]["approvalRequired"], false);
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            tool["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "sink_registry_id",
+                "session_id",
+                "project_id",
+                "candidate_id",
+                "candidate_state_sha256",
+                "artifact_id",
+                "artifact_sha256",
+                "geometry_program_sha256",
+                "geometry_program_canonical_sha256",
+                "operator_catalog_sha256",
+                "assembly_registry_id",
+                "assembly_registry_canonical_sha256"
+            ])
+        );
+        assert_eq!(
+            tool["inputSchema"]["properties"]
+                .as_object()
+                .expect("closed schema properties")
+                .len(),
+            13
+        );
+        assert_eq!(agentic_write_tools::runtime_method(name), Some(name));
+
+        let hash = "a".repeat(64);
+        let request = json!({
+            "schema_version":"ProductionWeaponAssemblyParameterSinkGetRequest@1",
+            "sink_registry_id":"fps-weapon-assembly-parameter-sink-registry",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "candidate_id":"candidate-1",
+            "candidate_state_sha256":hash.clone(),
+            "artifact_id":"artifact-1",
+            "artifact_sha256":hash.clone(),
+            "geometry_program_sha256":hash.clone(),
+            "geometry_program_canonical_sha256":hash.clone(),
+            "operator_catalog_sha256":hash.clone(),
+            "assembly_registry_id":"assembly-registry-1",
+            "assembly_registry_canonical_sha256":hash.clone()
+        });
+        assert!(validate_declared_tool_input(name, &request, false).is_ok());
+        for field in [
+            "raw_png_bytes",
+            "raw_glb_bytes",
+            "path",
+            "url",
+            "script",
+            "secret",
+            "unknown",
+        ] {
+            let mut invalid = request.clone();
+            invalid[field] = json!("forbidden");
+            assert!(
+                validate_declared_tool_input(name, &invalid, false).is_err(),
+                "{field}"
+            );
+        }
+        let binding = agentic_write_tools::Binding {
+            session_id: Some("session-1".to_owned()),
+            project_id: Some("project-1".to_owned()),
+            candidate_id: Some("candidate-1".to_owned()),
+        };
+        assert!(agentic_write_tools::validate_call(name, &request, &binding).is_ok());
+        let mut mismatch = request.clone();
+        mismatch["candidate_id"] = json!("candidate-2");
+        assert!(agentic_write_tools::validate_call(name, &mismatch, &binding).is_err());
+
+        let runtime = Runtime::ephemeral().expect("assembly sink dispatch runtime");
+        let error = dispatch_in_process(&runtime, name, &request)
+            .expect_err("unbound fixture must fail Runtime lineage lookup");
+        assert!(
+            !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+            "dispatch must reach the Runtime method: {error}"
+        );
+    }
+
+    #[test]
+    fn production_weapon_form_quality_v2_mcp_surface_is_closed_and_scope_bound() {
+        let prepare_name = "production_weapon_form_quality_v2_prepare";
+        let get_name = "production_weapon_form_quality_v2_get";
+        let read_tools = tools_with_writes(false);
+        let enabled_tools = tools_with_writes(true);
+        let prepare = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("form-quality-v2 prepare tool");
+        let get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("form-quality-v2 get tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(prepare["annotations"]["approvalRequired"], false);
+        assert_eq!(prepare["inputSchema"]["additionalProperties"], false);
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+        assert_eq!(get["annotations"]["writeIntent"], false);
+        assert_eq!(get["annotations"]["approvalRequired"], false);
+        assert_eq!(get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["form_quality_policy"]["const"],
+            "production-weapon-form-quality-six-view-art-evidence-gate@2"
+        );
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["threshold_policy"]["const"],
+            "production-weapon-form-view-thresholds@1"
+        );
+        assert_eq!(
+            get["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "form_quality_id",
+                "session_id",
+                "project_id",
+                "candidate_id",
+                "form_stage"
+            ])
+        );
+
+        let hash = "a".repeat(64);
+        let prepare_request = json!({
+            "schema_version":"ProductionWeaponFormQualityPrepareRequest@2",
+            "form_quality_id":"form-quality-v2-1",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "form_stage":"blockout",
+            "source_stage":"camera-calibrated",
+            "target_stage":"blockout-reviewed",
+            "legacy_form_quality_object_sha256":hash.clone(),
+            "legacy_form_quality_canonical_sha256":hash.clone(),
+            "form_art_evidence_object_sha256":hash.clone(),
+            "form_art_evidence_canonical_sha256":hash.clone(),
+            "current_source_head_transition_id":"transition-1",
+            "current_source_head_transition_sha256":hash.clone(),
+            "current_source_head_canonical_sha256":hash.clone(),
+            "previous_form_quality_id":null,
+            "previous_form_quality_report_object_sha256":null,
+            "previous_form_quality_canonical_sha256":null,
+            "form_quality_policy":"production-weapon-form-quality-six-view-art-evidence-gate@2",
+            "form_quality_policy_sha256":hash.clone(),
+            "threshold_policy":"production-weapon-form-view-thresholds@1",
+            "threshold_policy_sha256":hash.clone(),
+            "input_sha256":hash.clone(),
+            "idempotency_key":"form-quality-v2-key-1"
+        });
+        assert!(validate_declared_tool_input(prepare_name, &prepare_request, true).is_ok());
+        let get_request = json!({
+            "schema_version":"ProductionWeaponFormQualityGetRequest@2",
+            "form_quality_id":"form-quality-v2-1",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "candidate_id":"candidate-1",
+            "form_stage":"blockout"
+        });
+        assert!(validate_declared_tool_input(get_name, &get_request, false).is_ok());
+        for field in [
+            "raw_aov_bytes",
+            "raw_png_bytes",
+            "glb_base64",
+            "path",
+            "url",
+            "script",
+            "secret",
+        ] {
+            let mut invalid = prepare_request.clone();
+            invalid[field] = json!("forbidden");
+            assert!(validate_declared_tool_input(prepare_name, &invalid, true).is_err());
+            let mut invalid_get = get_request.clone();
+            invalid_get[field] = json!("forbidden");
+            assert!(validate_declared_tool_input(get_name, &invalid_get, false).is_err());
+        }
+        let binding = agentic_write_tools::Binding {
+            session_id: Some("session-1".to_owned()),
+            project_id: Some("project-1".to_owned()),
+            candidate_id: Some("candidate-1".to_owned()),
+        };
+        assert!(
+            agentic_write_tools::validate_call(prepare_name, &prepare_request, &binding).is_ok()
+        );
+        assert!(agentic_write_tools::validate_call(get_name, &get_request, &binding).is_ok());
+        assert!(agentic_write_tools::validate_call(
+            prepare_name,
+            &prepare_request,
+            &agentic_write_tools::Binding::default()
+        )
+        .is_err());
+        assert_eq!(
+            agentic_write_tools::runtime_method(prepare_name),
+            Some(prepare_name)
+        );
+        assert_eq!(
+            agentic_write_tools::runtime_method(get_name),
+            Some(get_name)
+        );
+    }
+
+    #[test]
     fn animated_socket_transform_projection_mcp_surface_is_hidden_and_preflight_gated() {
         let prepare_name = "game_weapon_animated_glb_socket_transform_projection_prepare";
         let get_name = "game_weapon_animated_glb_socket_transform_projection_get";
@@ -15482,13 +17522,19 @@ mod tests {
     #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 91);
+        assert_eq!(
+            disabled.len(),
+            tool_manifest_summary().unwrap()["read_count"]
+        );
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 160);
+        assert_eq!(
+            enabled.len(),
+            tool_manifest_summary().unwrap()["total_count"]
+        );
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -15597,10 +17643,11 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":1,"method":"tools/list"}),
         )
         .expect("tools/list response");
-        assert_eq!(
-            enabled["result"]["tools"].as_array().map(Vec::len),
-            Some(160)
-        );
+        let enabled_count = enabled["result"]["tools"]
+            .as_array()
+            .map(Vec::len)
+            .expect("enabled tools list");
+        assert_eq!(enabled_count, tools_with_writes(true).len());
 
         session.write_tools_enabled = false;
         let disabled = handle(
@@ -15609,10 +17656,699 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("read-only tools/list response");
+        let disabled_count = disabled["result"]["tools"]
+            .as_array()
+            .map(Vec::len)
+            .expect("read-only tools list");
+        assert_eq!(disabled_count, tools_with_writes(false).len());
+        assert_eq!(enabled_count, disabled_count + all_write_tool_names().len());
+    }
+
+    #[test]
+    fn authoring_mesh_durable_manifest_is_read_by_default_and_write_opt_in() {
+        let read_tools = tools_with_writes(false);
+        let write_tools = tools_with_writes(true);
+        let read = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "authoring_mesh_durable_get")
+            .expect("durable AuthoringMesh read tool");
+        assert!(read["annotations"]["readOnlyHint"]
+            .as_bool()
+            .expect("readOnlyHint"));
         assert_eq!(
-            disabled["result"]["tools"].as_array().map(Vec::len),
-            Some(91)
+            read["inputSchema"]["additionalProperties"], false,
+            "closed get schema"
         );
+        assert_eq!(
+            read["inputSchema"]["properties"]["schema_version"]["const"],
+            "AuthoringMeshGetRequest@1"
+        );
+        assert!(read_tools
+            .iter()
+            .all(|tool| tool["name"] != "authoring_mesh_durable_prepare"));
+        let prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "authoring_mesh_durable_prepare")
+            .expect("durable AuthoringMesh prepare tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["schema_version"]["const"],
+            "AuthoringMeshPrepareRequest@1"
+        );
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["max_response_bytes"]["const"],
+            1_048_576
+        );
+        assert!(is_write_tool("authoring_mesh_durable_prepare"));
+        assert!(!is_write_tool("authoring_mesh_durable_get"));
+
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("durable test runtime"));
+        let mut session = Session::new();
+        let initialized = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1,
+                "method":"initialize",
+                "params":{"protocolVersion":MCP_PROTOCOL_VERSION,"capabilities":{},"clientInfo":{"name":"durable-test","version":"1"}}
+            }),
+        )
+        .expect("durable initialize response");
+        assert_eq!(
+            initialized["result"]["protocolVersion"],
+            MCP_PROTOCOL_VERSION
+        );
+
+        let blocked = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":2,
+                "method":"tools/call",
+                "params":{"name":"authoring_mesh_durable_get","arguments":{}}
+            }),
+        )
+        .expect("durable preflight response");
+        assert_eq!(blocked["result"]["isError"], true);
+        assert_eq!(
+            blocked["result"]["structuredContent"]["code"],
+            "PONYTAIL_PREFLIGHT_REQUIRED"
+        );
+
+        let preflight = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":3,
+                "method":"tools/call",
+                "params":{"name":"skill_get","arguments":{"skill_id":"ponytail-preflight","version":"0.1.0"}}
+            }),
+        )
+        .expect("durable preflight skill response");
+        assert_eq!(
+            preflight["result"]["structuredContent"]["skill"]["skill_id"],
+            "ponytail-preflight"
+        );
+
+        let after_preflight = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":4,
+                "method":"tools/call",
+                "params":{"name":"authoring_mesh_durable_get","arguments":{}}
+            }),
+        )
+        .expect("durable post-preflight validation response");
+        assert_eq!(
+            after_preflight["error"]["data"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+
+        let mut dispatch_backend =
+            Backend::InProcess(Runtime::ephemeral().expect("durable dispatch runtime"));
+        let disabled_error = dispatch_tool_with_build_cohort(
+            &mut dispatch_backend,
+            "authoring_mesh_durable_prepare",
+            &json!({}),
+            false,
+            None,
+        )
+        .expect_err("durable prepare must require write opt-in");
+        assert_eq!(
+            disabled_error,
+            "AUTHORING_MESH_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+        );
+        for (name, write_opt_in) in [
+            ("authoring_mesh_durable_get", false),
+            ("authoring_mesh_durable_prepare", true),
+        ] {
+            let error = dispatch_tool_with_build_cohort(
+                &mut dispatch_backend,
+                name,
+                &json!({}),
+                write_opt_in,
+                None,
+            )
+            .expect_err("malformed durable request must reach Runtime");
+            assert!(
+                error.contains("AUTHORING_MESH_DURABLE_INVALID"),
+                "{name} was not forwarded to its exact Runtime method: {error}"
+            );
+        }
+
+        let oversized = "x".repeat(READ_MODEL_MCP_WIRE_MAX_BYTES);
+        let response = json!({
+            "jsonrpc":"2.0",
+            "id":5,
+            "result":{
+                "content":[{"type":"text","text":oversized}],
+                "structuredContent":{"schema_version":"AuthoringMeshGetResult@1"}
+            }
+        });
+        assert!(serde_json::to_vec(&response).unwrap().len() > READ_MODEL_MCP_WIRE_MAX_BYTES);
+        for name in [
+            "authoring_mesh_durable_get",
+            "authoring_mesh_durable_prepare",
+        ] {
+            let bounded = apply_read_model_mcp_wire_budget(name, response.clone());
+            assert_eq!(bounded["result"]["isError"], true);
+            assert_eq!(
+                bounded["result"]["structuredContent"]["code"],
+                "MCP_READ_MODEL_RESPONSE_BUDGET_EXCEEDED"
+            );
+        }
+    }
+
+    #[test]
+    fn native_high_durable_manifest_is_read_by_default_and_write_opt_in() {
+        let read_tools = tools_with_writes(false);
+        let write_tools = tools_with_writes(true);
+        let manifest = tool_manifest_summary().expect("Native High tool manifest");
+        assert_eq!(manifest["read_count"], 118);
+        assert_eq!(manifest["write_count"], 88);
+        assert_eq!(manifest["total_count"], 206);
+
+        let get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "native_high_durable_get")
+            .expect("Native High durable get tool");
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+        assert_eq!(get["annotations"]["writeIntent"], false);
+        assert_eq!(get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            get["inputSchema"]["properties"]["schema_version"]["const"],
+            "NativeHighDurableGetRequest@1"
+        );
+        assert!(read_tools
+            .iter()
+            .all(|tool| tool["name"] != "native_high_durable_prepare"));
+
+        let prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "native_high_durable_prepare")
+            .expect("Native High durable prepare tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(prepare["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["schema_version"]["const"],
+            "NativeHighDurablePrepareRequest@1"
+        );
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["max_response_bytes"]["const"],
+            1_048_576
+        );
+        assert!(is_write_tool("native_high_durable_prepare"));
+        assert!(!is_write_tool("native_high_durable_get"));
+
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("Native High runtime"));
+        let disabled_error = dispatch_tool_with_build_cohort(
+            &mut backend,
+            "native_high_durable_prepare",
+            &json!({}),
+            false,
+            None,
+        )
+        .expect_err("Native High prepare must require write opt-in");
+        assert_eq!(
+            disabled_error,
+            "NATIVE_HIGH_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+        );
+        for (name, write_opt_in) in [
+            ("native_high_durable_get", false),
+            ("native_high_durable_prepare", true),
+        ] {
+            let error =
+                dispatch_tool_with_build_cohort(&mut backend, name, &json!({}), write_opt_in, None)
+                    .expect_err("malformed Native High request must reach Runtime");
+            assert!(
+                error.contains("NATIVE_HIGH_DURABLE_INVALID"),
+                "{name} was not forwarded to its exact Runtime method: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn low_quad_durable_manifest_is_read_by_default_and_write_opt_in() {
+        let read_tools = tools_with_writes(false);
+        let write_tools = tools_with_writes(true);
+        let manifest = tool_manifest_summary().expect("Low quad durable tool manifest");
+        assert_eq!(manifest["read_count"], 118);
+        assert_eq!(manifest["write_count"], 88);
+        assert_eq!(manifest["total_count"], 206);
+
+        let get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "low_quad_draft_durable_get")
+            .expect("Low quad durable get tool");
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+        assert_eq!(get["inputSchema"]["additionalProperties"], false);
+        assert!(read_tools
+            .iter()
+            .all(|tool| tool["name"] != "low_quad_draft_durable_prepare"));
+
+        let prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "low_quad_draft_durable_prepare")
+            .expect("Low quad durable prepare tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(prepare["inputSchema"]["additionalProperties"], false);
+        assert!(is_write_tool("low_quad_draft_durable_prepare"));
+        assert!(!is_write_tool("low_quad_draft_durable_get"));
+
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("Low quad runtime"));
+        let disabled_error = dispatch_tool_with_build_cohort(
+            &mut backend,
+            "low_quad_draft_durable_prepare",
+            &json!({}),
+            false,
+            None,
+        )
+        .expect_err("Low quad durable prepare must require write opt-in");
+        assert_eq!(
+            disabled_error,
+            "LOW_QUAD_DRAFT_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+        );
+        for (name, write_opt_in) in [
+            ("low_quad_draft_durable_get", false),
+            ("low_quad_draft_durable_prepare", true),
+        ] {
+            let error =
+                dispatch_tool_with_build_cohort(&mut backend, name, &json!({}), write_opt_in, None)
+                    .expect_err("malformed Low quad durable request must reach Runtime");
+            assert!(
+                error.contains("LOW_QUAD_DRAFT_DURABLE_INVALID"),
+                "{name} was not forwarded to its exact Runtime method: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn hero_uv_durable_manifest_is_read_by_default_and_routes_exact_methods() {
+        let read_tools = tools_with_writes(false);
+        let write_tools = tools_with_writes(true);
+        let manifest = tool_manifest_summary().expect("Hero UV durable tool manifest");
+        assert_eq!(manifest["read_count"], 118);
+        assert_eq!(manifest["write_count"], 88);
+        assert_eq!(manifest["total_count"], 206);
+
+        let get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "hero_uv_durable_get")
+            .expect("Hero UV durable get tool");
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+        assert_eq!(get["annotations"]["writeIntent"], false);
+        assert_eq!(get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            get["inputSchema"]["properties"]["schema_version"]["const"],
+            "HeroUvDurableGetRequest@1"
+        );
+        assert!(read_tools
+            .iter()
+            .all(|tool| tool["name"] != "hero_uv_durable_prepare"));
+
+        let prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "hero_uv_durable_prepare")
+            .expect("Hero UV durable prepare tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(prepare["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["schema_version"]["const"],
+            "HeroUvDurablePrepareRequest@1"
+        );
+
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("Hero UV runtime"));
+        let disabled_error = dispatch_tool_with_build_cohort(
+            &mut backend,
+            "hero_uv_durable_prepare",
+            &json!({}),
+            false,
+            None,
+        )
+        .expect_err("Hero UV prepare must require write opt-in");
+        assert_eq!(
+            disabled_error,
+            "HERO_UV_DURABLE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+        );
+        for (name, write_opt_in) in [
+            ("hero_uv_durable_get", false),
+            ("hero_uv_durable_prepare", true),
+        ] {
+            let error =
+                dispatch_tool_with_build_cohort(&mut backend, name, &json!({}), write_opt_in, None)
+                    .expect_err("Hero UV malformed request must reach its exact Runtime method");
+            assert_eq!(
+                error,
+                format!(
+                    "HERO_UV_DURABLE_RUNTIME_METHOD_UNAVAILABLE: {name} requires Runtime method {name}"
+                )
+            );
+        }
+    }
+
+    fn hero_uv_get_arguments() -> Value {
+        json!({
+            "schema_version":"HeroUvDurableGetRequest@1",
+            "operation":"forgecad.production.hero-uv-durable-get@1",
+            "project_id":"project-hero",
+            "candidate_id":"candidate-hero",
+            "candidate_state_sha256":"a".repeat(64),
+            "base_version_id":null,
+            "source_low_artifact_id":"artifact-hero",
+            "source_low_artifact_sha256":"b".repeat(64),
+            "layout_object_sha256":"c".repeat(64),
+            "layout_canonical_sha256":"d".repeat(64),
+            "link_id":"link-hero",
+            "link_object_sha256":"e".repeat(64),
+            "resolution":2048,
+            "padding_texels":1,
+            "min_mip_level":0,
+            "hard_edge_angle_deg":45.0,
+            "stretch_threshold":1.0,
+            "visibility_weights_sha256":"f".repeat(64),
+            "idempotency_key":"idem-hero",
+            "source_only":true,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "runtime_write_performed":false,
+            "persistent_user_data_touched":false,
+            "input_sha256":"0".repeat(64)
+        })
+    }
+
+    fn hero_uv_prepare_arguments() -> Value {
+        json!({
+            "schema_version":"HeroUvDurablePrepareRequest@1",
+            "project_id":"project-hero",
+            "candidate_id":"candidate-hero",
+            "candidate_state_sha256":"a".repeat(64),
+            "base_version_id":null,
+            "source_low_artifact_id":"artifact-hero",
+            "source_low_artifact_object_sha256":"b".repeat(64),
+            "source_low_artifact_sha256":"c".repeat(64),
+            "source_low_artifact_readback_object_sha256":"d".repeat(64),
+            "source_low_artifact_readback_sha256":"e".repeat(64),
+            "resolution":2048,
+            "padding_texels":1,
+            "min_mip_level":0,
+            "hard_edge_angle_deg":45.0,
+            "stretch_threshold":1.0,
+            "visibility_weights":[{
+                "part_id":"receiver",
+                "first_person":1.0,
+                "world":0.5,
+                "hidden":0.0
+            }],
+            "idempotency_key":"idem-hero",
+            "max_response_bytes":8_388_608,
+            "source_only":true,
+            "runtime_write_performed":false,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "canonicalization_policy":"canonical-json-sha256-excluding-canonical-sha256@1",
+            "input_sha256":"0".repeat(64)
+        })
+    }
+
+    #[test]
+    fn hero_uv_live_handle_runs_declared_schema_before_runtime_dispatch() {
+        let arguments = hero_uv_get_arguments();
+        assert!(validate_declared_tool_input("hero_uv_durable_get", &arguments, false).is_ok());
+
+        let (mut backend, mut session) = initialized();
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1,
+                "method":"tools/call",
+                "params":{"name":"hero_uv_durable_get","arguments":arguments}
+            }),
+        )
+        .expect("Hero UV handle response");
+        assert_eq!(response["result"]["isError"], true);
+        assert_ne!(
+            response["result"]["structuredContent"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+    }
+
+    #[test]
+    fn hero_uv_declared_validator_enforces_visibility_weight_unique_items() {
+        let valid = hero_uv_prepare_arguments();
+        assert!(validate_declared_tool_input("hero_uv_durable_prepare", &valid, true).is_ok());
+
+        let weight = valid["visibility_weights"][0].clone();
+        let mut duplicate = valid;
+        duplicate["visibility_weights"] = json!([weight.clone(), weight]);
+        assert!(validate_declared_tool_input("hero_uv_durable_prepare", &duplicate, true).is_err());
+    }
+
+    #[test]
+    fn authoring_mesh_identity_lineage_manifest_is_read_by_default_and_write_opt_in() {
+        let read_tools = tools_with_writes(false);
+        let write_tools = tools_with_writes(true);
+        let manifest = tool_manifest_summary().expect("identity-lineage tool manifest");
+        assert_eq!(manifest["read_count"], 118);
+        assert_eq!(manifest["write_count"], 88);
+        assert_eq!(manifest["total_count"], 206);
+
+        let get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "authoring_mesh_identity_lineage_get")
+            .expect("identity-lineage get tool");
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+        assert_eq!(get["annotations"]["writeIntent"], false);
+        assert_eq!(get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            get["inputSchema"]["properties"]["schema_version"]["const"],
+            "AuthoringMeshIdentityLineageGetRequest@2"
+        );
+        for field in [
+            "canonical_mesh_id",
+            "identity_lineage_object_sha256",
+            "identity_lineage_sha256",
+        ] {
+            assert!(get["inputSchema"]["properties"].get(field).is_some());
+        }
+        assert!(read_tools
+            .iter()
+            .all(|tool| tool["name"] != "authoring_mesh_identity_lineage_prepare"));
+
+        let prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "authoring_mesh_identity_lineage_prepare")
+            .expect("identity-lineage prepare tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(prepare["annotations"]["approvalRequired"], true);
+        assert_eq!(prepare["_meta"]["forgecad"]["requiresConfirmation"], true);
+        assert_eq!(prepare["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["schema_version"]["const"],
+            "AuthoringMeshIdentityLineagePrepareRequest@2"
+        );
+        assert_eq!(
+            prepare["inputSchema"]["properties"]["max_response_bytes"]["const"],
+            1_048_576
+        );
+        assert!(prepare["inputSchema"]["properties"]
+            .get("elements")
+            .is_none());
+        assert!(prepare["inputSchema"]["properties"]
+            .get("tombstones")
+            .is_none());
+        assert!(prepare["inputSchema"]["properties"]
+            .get("correspondence")
+            .is_none());
+        assert!(!is_write_tool("authoring_mesh_identity_lineage_get"));
+        assert!(is_write_tool("authoring_mesh_identity_lineage_prepare"));
+
+        let summary = authoring_mesh_identity_lineage_tools::summary(
+            "authoring_mesh_identity_lineage_get",
+            &json!({
+                "canonical_mesh_object_sha256":"a".repeat(64),
+                "canonical_mesh_sha256":"b".repeat(64),
+                "identity_lineage_object_sha256":"c".repeat(64),
+                "identity_lineage_sha256":"d".repeat(64)
+            }),
+        )
+        .and_then(|value| serde_json::from_str::<Value>(&value).ok())
+        .expect("identity-lineage summary");
+        assert_eq!(summary["structured_content_complete"], true);
+        assert!(summary.get("correspondence_status").is_none());
+
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("identity test runtime"));
+        let mut session = Session::new();
+        let initialized = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1,
+                "method":"initialize",
+                "params":{"protocolVersion":MCP_PROTOCOL_VERSION,"capabilities":{},"clientInfo":{"name":"identity-lineage-test","version":"1"}}
+            }),
+        )
+        .expect("identity initialize response");
+        assert_eq!(
+            initialized["result"]["protocolVersion"],
+            MCP_PROTOCOL_VERSION
+        );
+
+        let blocked = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":2,
+                "method":"tools/call",
+                "params":{"name":"authoring_mesh_identity_lineage_get","arguments":{}}
+            }),
+        )
+        .expect("identity preflight response");
+        assert_eq!(
+            blocked["result"]["structuredContent"]["code"],
+            "PONYTAIL_PREFLIGHT_REQUIRED"
+        );
+
+        let preflight = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":3,
+                "method":"tools/call",
+                "params":{"name":"skill_get","arguments":{"skill_id":"ponytail-preflight","version":"0.1.0"}}
+            }),
+        )
+        .expect("identity preflight skill response");
+        assert_eq!(
+            preflight["result"]["structuredContent"]["skill"]["skill_id"],
+            "ponytail-preflight"
+        );
+
+        let after_preflight = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":4,
+                "method":"tools/call",
+                "params":{"name":"authoring_mesh_identity_lineage_get","arguments":{}}
+            }),
+        )
+        .expect("identity post-preflight response");
+        assert_eq!(
+            after_preflight["error"]["data"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+
+        // This is a closed, schema-valid V2 request with an intentionally
+        // stale input hash. It must reach the exact Runtime method and keep
+        // Runtime's typed rejection instead of becoming INVALID_TOOL_PARAMS.
+        let typed_get_request = json!({
+            "schema_version":"AuthoringMeshIdentityLineageGetRequest@2",
+            "project_id":"identity-project",
+            "lineage_id":"lineage-1",
+            "revision_index":0,
+            "candidate_id":"candidate-1",
+            "candidate_state_sha256":"0".repeat(64),
+            "canonical_mesh_id":"mesh-1",
+            "canonical_mesh_object_sha256":"1".repeat(64),
+            "canonical_mesh_sha256":"2".repeat(64),
+            "identity_lineage_object_sha256":"3".repeat(64),
+            "identity_lineage_sha256":"4".repeat(64),
+            "max_response_bytes":1_048_576,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "runtime_write_performed":false,
+            "persistent_user_data_touched":false,
+            "input_sha256":"5".repeat(64)
+        });
+        let typed_rejection = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":41,
+                "method":"tools/call",
+                "params":{"name":"authoring_mesh_identity_lineage_get","arguments":typed_get_request}
+            }),
+        )
+        .expect("identity typed Runtime rejection response");
+        assert_eq!(typed_rejection["result"]["isError"], true);
+        assert_eq!(
+            typed_rejection["result"]["structuredContent"]["code"],
+            "AUTHORING_MESH_IDENTITY_LINEAGE_INVALID"
+        );
+        assert_ne!(
+            typed_rejection["result"]["structuredContent"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+        assert!(
+            serde_json::to_vec(&typed_rejection).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES
+        );
+
+        let mut dispatch_backend =
+            Backend::InProcess(Runtime::ephemeral().expect("identity dispatch runtime"));
+        let disabled_error = dispatch_tool_with_build_cohort(
+            &mut dispatch_backend,
+            "authoring_mesh_identity_lineage_prepare",
+            &json!({}),
+            false,
+            None,
+        )
+        .expect_err("identity prepare must require write opt-in");
+        assert_eq!(
+            disabled_error,
+            "AUTHORING_MESH_IDENTITY_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+        );
+        for (name, write_opt_in) in [
+            ("authoring_mesh_identity_lineage_get", false),
+            ("authoring_mesh_identity_lineage_prepare", true),
+        ] {
+            let error = dispatch_tool_with_build_cohort(
+                &mut dispatch_backend,
+                name,
+                &json!({}),
+                write_opt_in,
+                None,
+            )
+            .expect_err("malformed identity request must reach Runtime");
+            assert!(
+                error.contains("AUTHORING_MESH_IDENTITY"),
+                "{name} was not forwarded to its exact Runtime method: {error}"
+            );
+        }
+
+        let oversized = "x".repeat(READ_MODEL_MCP_WIRE_MAX_BYTES);
+        let response = json!({
+            "jsonrpc":"2.0",
+            "id":5,
+            "result":{
+                "content":[{"type":"text","text":oversized}],
+                "structuredContent":{"schema_version":"AuthoringMeshIdentityLineageGetResult@2"}
+            }
+        });
+        assert!(serde_json::to_vec(&response).unwrap().len() > READ_MODEL_MCP_WIRE_MAX_BYTES);
+        for name in [
+            "authoring_mesh_identity_lineage_get",
+            "authoring_mesh_identity_lineage_prepare",
+        ] {
+            let bounded = apply_read_model_mcp_wire_budget(name, response.clone());
+            assert_eq!(
+                bounded["result"]["structuredContent"]["code"],
+                "MCP_READ_MODEL_RESPONSE_BUDGET_EXCEEDED"
+            );
+        }
     }
 
     #[test]
@@ -16061,7 +18797,10 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 160);
+        assert_eq!(
+            listed["result"]["tools"].as_array().unwrap().len(),
+            tools_with_writes(true).len()
+        );
 
         let imported = handle(
             &mut backend,

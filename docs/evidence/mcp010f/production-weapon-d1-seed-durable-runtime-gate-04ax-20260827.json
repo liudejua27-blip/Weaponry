@@ -1,0 +1,72 @@
+{
+  "schema_version": "ForgeCADProductionWeaponD1SeedDurableRuntimeGateReceipt@1",
+  "task_id": "FPS-FORM-04AX",
+  "recorded_on": "2026-08-27",
+  "scope": "fictional_nonfunctional_game_weapon_visual_asset",
+  "route_changed": false,
+  "recovery_finding": {
+    "status": "SEMANTIC_D1_SOURCE_RECONSTRUCTED",
+    "exact_04au_database_recovered": false,
+    "exact_04au_ids_or_hashes_reused": false,
+    "historical_pretty_source_sha256": "02a2b9f526d3b52934d9dcf822e03670b64bf2a53b7a8e3e0e5dea0d2b0d4149",
+    "historical_compact_source_sha256": "8f196f3804747ba15d1f5eecdf48f22c75901562b1c86339b15868b4b54e1fdf",
+    "source_authority": "complete typed GeometryProgram node, Part, MaterialZone and budget evidence recovered from the historical Codex session and compiled into a closed first-party Runtime seed",
+    "truth_boundary": "The new candidate recreates the retained D1 semantic structure. It is not the old disposable 04AU object graph and does not inherit its Session, CameraLock, RenderSet, FormEvidence, FormArt, baseline or quality state."
+  },
+  "implementation": {
+    "seed_schema_version": "ProductionWeaponD1SeedManifest@1",
+    "seed_id": "fps-form-04a-d1",
+    "seed_revision": "production-weapon-d1-seed-v1",
+    "seed_bytes_sha256": "dd5070794a9fad64ce2a2b2683fd7c577671adc33bf33d33f338fb88a207652f",
+    "seed_manifest_canonical_sha256": "3d36d137ca628914a81ff5d4b2b7759233e717705627c9a071a339ceb6617f68",
+    "caller_supplied_topology_allowed": false,
+    "caller_supplied_raw_mesh_allowed": false,
+    "caller_supplied_path_or_script_allowed": false,
+    "runtime_is_only_writer": true,
+    "new_contract_or_mcp_tool_added": false
+  },
+  "runtime_result": {
+    "project_id": "project-772377102ec040b9a129677ac6830b2b",
+    "reference_id": "reference-fdfa7a8593f746b2a32c09ed3548624a",
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "candidate_id": "candidate-1c14b588e1cc4b07aafc6559b51a23fd",
+    "candidate_state_sha256": "a7779bf6138b41424cc229fec3e88fd50b9579f856637e2124a79ee70b938ba6",
+    "geometry_program_sha256": "266afc4053cd2e6e462f27bb11ab315b5abc591982a8429c1d7067c8810216c9",
+    "artifact_sha256": "47b7e02ea297b94e4fe6d2a80b5dfa9db25261179e6ef206e17fc789f51cece2",
+    "source_node_count": 24,
+    "part_count": 23,
+    "triangle_count": 1876,
+    "strict_artifact_readback": "PASS",
+    "validator_status": "passed",
+    "runtime_store_cas_reopen_equality": "PASS",
+    "restart_hash_verified": true
+  },
+  "verification": {
+    "closed_seed_compile_test": "PASS_1_OF_1",
+    "durable_real_reference_probe": "PASS_1_OF_1",
+    "runtime_compile": "PASS_WITH_EXISTING_WARNINGS",
+    "runtime_test_targets_compile": "PASS_WITH_EXISTING_WARNINGS",
+    "geometry_worker_execution": "TEST_GEOMETRY_WORKER_FALLBACK_FIXED_PRODUCT_CODE",
+    "packaged_same_cohort_worker": "NOT_RUN",
+    "live_mcp_transport": "NOT_RUN"
+  },
+  "final_state": {
+    "durable_reference_geometry_candidate_closure": "PASS",
+    "session_reference_canvas_design_spec": "NOT_CREATED_FOR_NEW_SEED",
+    "camera_lock_registration_lineage_rig_v2": "NOT_CREATED_FOR_NEW_SEED",
+    "fresh_six_view_render_set": "NOT_RUN_FOR_NEW_SEED",
+    "form_evidence": "NOT_CREATED_FOR_NEW_SEED",
+    "form_art": "NOT_CREATED_FOR_NEW_SEED",
+    "fresh_baseline": "NOT_CREATED_FOR_NEW_SEED",
+    "production_stage_advanced": false,
+    "secondary_form_approved": "NOT_CREATED",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "commercial_quality": "NOT_PROVEN",
+    "high_low_uv_bake": "NOT_RUN",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "persistent_user_data_touched": true,
+  "next_atomic_action": "In this same durable Runtime database, create the Session, ReferenceCanvas and DesignSpec; then re-establish the user-approved orientation as CameraLock plus registration lineage and RigV2, render six fresh views, and prepare FormEvidence, FormArt and a fresh baseline before any bounded rear-stock repair or secondary-form-approved transition."
+}

@@ -1,0 +1,16 @@
+{
+  "receipt_format": "forgecad-supplemental-evidence-v1",
+  "receipt_kind": "FPS-FORM-04W-REAL-D1-PRIVATE-STOCK-UPPER-PROFILE-LIP-CONTINUATION",
+  "task_id": "FPS-FORM-04W",
+  "recorded_at": "2026-08-25",
+  "fixture_result": "PASS_1_OF_1",
+  "fixture_duration_seconds": 753.14,
+  "fixture_log_filename": "forgecad-d1-04w-stock-upper-profile-lip-continuation-20260825.log",
+  "fixture_log_sha256": "cb6e892392c826a551135788aeb6e198f1b3c07cb3d3feecfea4422c27437ca1",
+  "trials": [
+    {"lip_y_m": 0.025, "owner_intrusion_pixels": [246, 300, 573], "owner_boundary_adjacency_milli": [279, 251, 244], "formal_owner_gate_pass": false, "stop_positive_extrapolation": false, "status": "BLOCKED_NONZERO_OWNER_INTRUSION"},
+    {"lip_y_m": 0.045, "owner_intrusion_pixels": [186, 268, 550], "owner_boundary_adjacency_milli": [168, 246, 220], "formal_owner_gate_pass": false, "stop_positive_extrapolation": true, "status": "BLOCKED_NONZERO_OWNER_INTRUSION"}
+  ],
+  "conclusion": {"intrusion_improved": true, "adjacency_regressed": true, "stop_positive_lip_extrapolation": true, "forbidden_followups_m": [0.065, 0.085], "advance_candidate_to_six_view": false},
+  "promotion": {"diagnostic_only": true, "promotable": false, "quality_status": "NOT_PROVEN", "depth_status": "UNKNOWN_OR_OBSERVED_ONLY", "production_stage_advanced": false, "secondary_form_approved": false, "candidate_confirmed": false, "version_created": false, "export_performed": false}
+}

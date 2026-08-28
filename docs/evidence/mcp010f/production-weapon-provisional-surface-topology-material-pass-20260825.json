@@ -1,0 +1,158 @@
+{
+  "schema_version": "ForgeCADProvisionalSurfaceTopologyMaterialEvidence@1",
+  "task_id": "FGC-MCP010F-PROVISIONAL-SURFACE-TOPOLOGY-MATERIAL-20260825",
+  "status": "PASS_PROVISIONAL_STRUCTURAL_AND_RENDER_PREVIEW_WITH_FAILED_FORM_PREREQUISITE",
+  "scope": "fictional non-functional game-art asset only",
+  "reference": {
+    "sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "authorization": "user-provided"
+  },
+  "source": {
+    "candidate_id": "candidate-d1be5e8589704aafac8c28485f5395f0",
+    "geometry_program_sha256": "f9b007d5753daf1f96645c8a5a0d4f0f9e105ae41070a91319c4674e025dc505",
+    "formal_form_gate_passed": false
+  },
+  "surface_transition_candidate": {
+    "candidate_id": "candidate-a7739ed04ca74a41826c82796682b41c",
+    "geometry_program_sha256": "97fecab39e554f3632184e8a598e9eb52f1fc0a9aa06206a9433c69251ad0f5b",
+    "artifact_sha256": "900f8bf71eaebcf4dc8afae8b9564a01093d0f95f61f8708112c8ced7f3b3c95",
+    "artifact_readback_sha256": "6b52437d054b3b1658555d21c7a82490ee4d89daf64df40cda10f5c3fa0e1246",
+    "part_count": 23,
+    "triangle_count": 1908,
+    "changed_node_ids": [
+      "muzzle-shroud",
+      "receiver-upper"
+    ],
+    "operator_direction": "bounded longitudinal-section loft transitions",
+    "four_view_aggregate_boundary_f1_delta": 0.149692084274,
+    "four_view_aggregate_silhouette_iou_delta": 0.031172435201,
+    "strict_per_view_no_regression": false,
+    "retention": "provisional-only"
+  },
+  "transition_density_candidate": {
+    "candidate_id": "candidate-ca3cdbf4a1044c3bae738ab9a4d93712",
+    "geometry_program_sha256": "4b30b1a0ee174fd2ff04a8bc69e9e3396c699c3f94355028d87a1cbdd6194cb1",
+    "artifact_sha256": "7160e86e5d01b868bcdec628aa75d1498643cfb3350ab6109a4119c9ac7194cf",
+    "artifact_readback_sha256": "5b65e587e05695ada184b7762661c5f1e73d6cd807986c6017cafdd0035b86fa",
+    "part_count": 23,
+    "triangle_count": 2036,
+    "changed_node_ids": [
+      "side-light-left",
+      "side-light-right"
+    ],
+    "transition_segments": 2,
+    "same_fixed_view_metrics_as_surface_transition_candidate": true,
+    "retention": "provisional-only"
+  },
+  "bevel_density": {
+    "attempted": true,
+    "request": "increase panel bevel segments and support-loop density",
+    "status": "REJECTED_FAIL_CLOSED_BEFORE_CANDIDATE",
+    "failure_code": "GEOMETRY_PROGRAM_HASH_REJECTED",
+    "candidate_created": false,
+    "next_direction": "separate bevel segments from support-loop relationship and retain only a closed valid proposal"
+  },
+  "bevel_segments_isolated_candidate": {
+    "candidate_id": "candidate-a8604436545e4b0283cd2932dc79dd2e",
+    "geometry_program_sha256": "8504755bb8bd2c440da5cb1d410c281eeff8e5a8648980527d24afbc531269ea",
+    "artifact_sha256": "89dba8dcc0ab921aa6be6ce7166fe78e878c2acd7b3a8a2fd27907626b521dbf",
+    "artifact_readback_sha256": "95e34a5bd43a909e87d2bda3e8dea9a8dce9ce8ec67db7443674d52fe6d633bf",
+    "part_count": 23,
+    "triangle_count": 2068,
+    "changed_node_ids": [
+      "side-panel-a",
+      "side-panel-b"
+    ],
+    "bevel_segments": 2,
+    "fixed_view_metrics_unchanged": true,
+    "topology_snapshot_count": 23,
+    "worst_aspect_ratio_before": {
+      "side-panel-b": 91.35521599237609,
+      "side-panel-a": 84.69063007783488
+    },
+    "worst_aspect_ratio_after": {
+      "side-panel-b": 132.00524015236246,
+      "side-panel-a": 122.57695083178444
+    },
+    "decision": "REJECT_TOPOLOGY_REGRESSION",
+    "retained_baseline_candidate_id": "candidate-ca3cdbf4a1044c3bae738ab9a4d93712"
+  },
+  "bevel_panel_a_single_variable_candidate": {
+    "candidate_id": "candidate-7773c50a67564052bb42fdd9d4e3b7cf",
+    "geometry_program_sha256": "dc55aa2fab39e7e58b43b40fab8ecdca7fee9d0c944fdd0e9e1bc5cc44468e6e",
+    "artifact_sha256": "b4f08731cd627534a06610cd4c5b487d9fa948810ff19c4831f55838dde572ff",
+    "artifact_readback_sha256": "2d12a17ddfcb9df6991ad2b28fdf5da85f344bb63c84cca57cf13f1a456f2aa2",
+    "part_count": 23,
+    "triangle_count": 2052,
+    "changed_node_ids": [
+      "side-panel-a"
+    ],
+    "bevel_segments": 2,
+    "fixed_view_metrics_unchanged": true,
+    "side_panel_a_worst_aspect_ratio_before": 84.69063007783488,
+    "side_panel_a_worst_aspect_ratio_after": 122.57695083178444,
+    "decision": "REJECT_TOPOLOGY_REGRESSION",
+    "retained_baseline_candidate_id": "candidate-ca3cdbf4a1044c3bae738ab9a4d93712"
+  },
+  "topology_preview": {
+    "status": "PASS_READ_ONLY_STRUCTURAL_SNAPSHOT",
+    "snapshot_count": 23,
+    "runtime_write": false,
+    "authoring_topology_status": "not-available",
+    "edge_flow_status": "NOT_PROVEN",
+    "artistic_quality_status": "NOT_PROVEN",
+    "worst_aspect_ratio_by_region": {
+      "side-panel-b": 91.35521599237609,
+      "side-light-right": 90.9272737283333,
+      "side-light-left": 90.89925281219675,
+      "side-panel-a": 84.69063007783488,
+      "receiver-upper": 26.666631660810282,
+      "muzzle-shroud": 7.959179353934634
+    },
+    "durable_topology_prepare": "NOT_RUN_SESSION_BINDING_REJECTED",
+    "artist_quad_flow_proven": false
+  },
+  "material_preview": {
+    "status": "DEVELOPMENT_MATERIAL_DIRECTION_PREVIEW",
+    "material_pack_id": "forgecad-fictional-energy-weapon-2k",
+    "material_pack_manifest_sha256": "88504cca9aa20393a1577fc9ae2bbb65d3ccb0a3ca21d61a4c72efa501214fb6",
+    "appearance_candidate_id": "candidate-d8218ef6e46b46f59ed6e90d5d5d5f81",
+    "appearance_artifact_sha256": "da5e0d5c3c3c96045c9857006839d7d9b5fe4198c67aa990f55ad9d99e0f1ed0",
+    "material_zone_count": 4,
+    "material_hierarchy": [
+      "white-shell-clearcoat",
+      "dark-mechanical-metal",
+      "gold-accent-metal",
+      "cyan-emissive"
+    ],
+    "fixed_views": [
+      "left",
+      "right",
+      "front",
+      "top"
+    ],
+    "aov_readback": [
+      "beauty",
+      "material-id",
+      "normal",
+      "ao",
+      "part-id",
+      "wireframe",
+      "uv-stretch"
+    ],
+    "visual_quality_status": "NOT_PROVEN"
+  },
+  "truth_boundaries": {
+    "production_stage_advanced": false,
+    "secondary_form_approved": false,
+    "authoring_mesh_available": false,
+    "edge_flow_proven": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "human_review": "NOT_RUN",
+    "commercial_engine": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "quality_status": "QUALITY_TARGET_NOT_MET"
+  }
+}

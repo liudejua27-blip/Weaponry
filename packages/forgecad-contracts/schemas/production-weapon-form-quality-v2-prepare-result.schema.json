@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-quality-v2-prepare-result.schema.json",
+  "title": "ProductionWeaponFormQualityPrepareResult@2",
+  "description": "Runtime-owned passing FormQuality@2 receipt. It records structure-only visual evidence and never advances ProductionStage@3, confirms a candidate, creates a version or exports.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "form_quality", "replayed", "runtime_write", "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed"],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormQualityPrepareResult@2"},
+    "form_quality": {"$ref": "https://forgecad.local/contracts/production-weapon-form-quality-v2.schema.json"},
+    "replayed": {"type": "boolean"}, "runtime_write": {"const": true},
+    "production_stage_advanced": {"const": false}, "candidate_confirmed": {"const": false},
+    "version_created": {"const": false}, "export_performed": {"const": false}
+  }
+}

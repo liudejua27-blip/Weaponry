@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-assembly-parameter-sink-registry.schema.json",
+  "title": "ProductionWeaponAssemblyParameterSinkRegistry@1",
+  "description": "Read-only Runtime-owned typed aggregate-sink projection. Sinks contain only real product-owned receiver/muzzle/open-stock mutators; unresolved trigger/rail and missing supported parameters remain explicit in unavailable_parameter_ids. No row contains an arbitrary path or executable descriptor.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "sink_registry_id", "profile_id", "sink_policy",
+    "session_id", "project_id", "candidate_id", "candidate_state_sha256",
+    "artifact_id", "artifact_sha256", "geometry_program_sha256",
+    "geometry_program_canonical_sha256", "operator_catalog_sha256",
+    "assembly_registry_id", "assembly_registry_canonical_sha256",
+    "supported_group_ids", "sinks", "unavailable_parameter_ids", "status",
+    "read_only", "runtime_write_performed", "worker_invoked", "candidate_generated",
+    "production_stage_advanced", "candidate_confirmed", "version_created",
+    "export_performed", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponAssemblyParameterSinkRegistry@1"},
+    "sink_registry_id": {"$ref": "#/$defs/id"},
+    "profile_id": {"const": "fps-weapon-form-assembly@1"},
+    "sink_policy": {"const": "fps-weapon-product-owned-aggregate-parameter-sink-registry@1"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "assembly_registry_id": {"$ref": "#/$defs/id"},
+    "assembly_registry_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "supported_group_ids": {"const": ["receiver-envelope", "muzzle-axis", "stock-open-frame"]},
+    "sinks": {"type": "array", "minItems": 0, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/sink"}},
+    "unavailable_parameter_ids": {
+      "type": "array", "minItems": 4, "maxItems": 12, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/parameter_id"},
+      "allOf": [
+        {"contains": {"const": "trigger-void-clearance"}},
+        {"contains": {"const": "trigger-void-centroid"}},
+        {"contains": {"const": "rail-spine-continuity"}},
+        {"contains": {"const": "rail-spine-offset"}}
+      ]
+    },
+    "status": {"enum": ["PARTIAL_TYPED_SINKS", "READY"]},
+    "read_only": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "worker_invoked": {"const": false},
+    "candidate_generated": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {"if": {"properties": {"status": {"const": "PARTIAL_TYPED_SINKS"}}}, "then": {"properties": {"sinks": {"maxItems": 7}, "unavailable_parameter_ids": {"minItems": 5, "maxItems": 12}}}},
+    {"if": {"properties": {"status": {"const": "READY"}}}, "then": {"properties": {
+      "sinks": {"minItems": 8, "maxItems": 8, "allOf": [
+        {"contains": {"type": "object", "properties": {"parameter_id": {"const": "receiver-envelope-width"}}}},
+        {"contains": {"type": "object", "properties": {"parameter_id": {"const": "receiver-envelope-height"}}}},
+        {"contains": {"type": "object", "properties": {"parameter_id": {"const": "receiver-envelope-shoulder"}}}},
+        {"contains": {"type": "object", "properties": {"parameter_id": {"const": "muzzle-axis-shroud-envelope"}}}},
+        {"contains": {"type": "object", "properties": {"parameter_id": {"const": "muzzle-axis-emitter-envelope"}}}},
+        {"contains": {"type": "object", "properties": {"parameter_id": {"const": "muzzle-axis-core-aperture"}}}},
+        {"contains": {"type": "object", "properties": {"parameter_id": {"const": "stock-open-frame-clearance"}}}},
+        {"contains": {"type": "object", "properties": {"parameter_id": {"const": "stock-open-frame-angle"}}}}
+      ]},
+      "unavailable_parameter_ids": {"const": ["trigger-void-clearance", "trigger-void-centroid", "rail-spine-continuity", "rail-spine-offset"]}
+    }}}
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "supported_parameter_id": {"enum": ["receiver-envelope-width", "receiver-envelope-height", "receiver-envelope-shoulder", "muzzle-axis-shroud-envelope", "muzzle-axis-emitter-envelope", "muzzle-axis-core-aperture", "stock-open-frame-clearance", "stock-open-frame-angle"]},
+    "parameter_id": {"enum": ["receiver-envelope-width", "receiver-envelope-height", "receiver-envelope-shoulder", "muzzle-axis-shroud-envelope", "muzzle-axis-emitter-envelope", "muzzle-axis-core-aperture", "stock-open-frame-clearance", "stock-open-frame-angle", "trigger-void-clearance", "trigger-void-centroid", "rail-spine-continuity", "rail-spine-offset"]},
+    "group_id": {"enum": ["receiver-envelope", "muzzle-axis", "stock-open-frame"]},
+    "mutator_id": {"enum": ["forgecad.assembly.mutator.receiver-envelope@1", "forgecad.assembly.mutator.muzzle-axis@1", "forgecad.assembly.mutator.stock-open-frame@1"]},
+    "id_list": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "operator_id": {"enum": [
+      "forgecad.geometry.primitive@2", "forgecad.geometry.profile-extrude@1", "forgecad.geometry.profile-loft@1", "forgecad.geometry.profile-loft@2", "forgecad.geometry.multi-loop-profile-loft@1", "forgecad.geometry.longitudinal-section-loft@1", "forgecad.geometry.subd-cage@1", "forgecad.geometry.subd-cage@2", "forgecad.geometry.authoring-mesh@1", "forgecad.geometry.surface-patch@1", "forgecad.geometry.surface-shell@1", "forgecad.geometry.revolve@1", "forgecad.geometry.tube-sweep@1", "forgecad.geometry.transform@2", "forgecad.geometry.mirror@1", "forgecad.geometry.array@1", "forgecad.geometry.bevel@1", "forgecad.geometry.bevel@2", "forgecad.geometry.normal-policy@1", "forgecad.geometry.panel@1", "forgecad.geometry.panel@2", "forgecad.geometry.vent-array@1", "forgecad.geometry.vent-array@2", "forgecad.geometry.recessed-channel@1", "forgecad.geometry.energy-core@1", "forgecad.geometry.joint-stack@1", "forgecad.geometry.part-output@1", "forgecad.geometry.boolean@1"
+    ]},
+    "blocker_code": {"const": "BLOCKED_PARAMETER_SINK"},
+    "evidence_requirement": {"enum": ["assembly-registry", "geometry-program", "operator-catalog", "artifact-readback", "candidate-state"]},
+    "sink": {
+      "type": "object", "additionalProperties": false,
+      "required": ["parameter_id", "group_id", "mutator_id", "current", "min", "max", "step", "unit", "application_status", "blocker_codes", "target_part_ids", "source_node_ids", "operator_ids", "evidence_requirements"],
+      "properties": {
+        "parameter_id": {"$ref": "#/$defs/supported_parameter_id"},
+        "group_id": {"$ref": "#/$defs/group_id"},
+        "mutator_id": {"$ref": "#/$defs/mutator_id"},
+        "current": {"type": "number"},
+        "min": {"type": "number"},
+        "max": {"type": "number"},
+        "step": {"type": "number", "exclusiveMinimum": 0},
+        "unit": {"enum": ["meter", "radian", "ratio"]},
+        "application_status": {"const": "AVAILABLE"},
+        "blocker_codes": {"type": "array", "maxItems": 0, "uniqueItems": true, "items": {"$ref": "#/$defs/blocker_code"}},
+        "target_part_ids": {"$ref": "#/$defs/id_list"},
+        "source_node_ids": {"$ref": "#/$defs/id_list"},
+        "operator_ids": {"type": "array", "minItems": 1, "maxItems": 28, "uniqueItems": true, "items": {"$ref": "#/$defs/operator_id"}},
+        "evidence_requirements": {"type": "array", "minItems": 1, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_requirement"}}
+      }
+    }
+  }
+}

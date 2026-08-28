@@ -8,7 +8,7 @@
     "schema_version": {"const": "ApprovalReceipt@1"},
     "approval_receipt_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
     "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
-    "tool": {"type": "string", "enum": ["candidate_confirm", "candidate_reject", "restore_confirm", "export_confirm"]},
+    "tool": {"type": "string", "enum": ["candidate_confirm", "candidate_reject", "restore_confirm", "export_confirm", "repair_apply_confirm", "cross_view_promotion_confirm", "production_camera_lock_registration_lineage_prepare"]},
     "base_version_id": {"type": ["string", "null"]},
     "prepared_object_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
     "prepared_object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
@@ -17,7 +17,68 @@
     "decision": {"type": "string", "enum": ["approved", "rejected", "expired"]},
     "expires_at": {"type": "string", "minLength": 1},
     "session_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
-    "created_at": {"type": "string", "minLength": 1}
+    "created_at": {"type": "string", "minLength": 1},
+    "approval_context": {"$ref": "#/$defs/approval_context"}
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "approval_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "policy", "scope", "orientation", "binding_sha256"],
+      "properties": {
+        "schema_version": {"const": "ProductionCameraLockOrientationApprovalContext@1"},
+        "policy": {"const": "camera-lock-exact-authored-orientation-approval@1"},
+        "scope": {"$ref": "#/$defs/approval_context_scope"},
+        "orientation": {"$ref": "#/$defs/approval_context_orientation"},
+        "binding_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "approval_context_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id", "session_id", "candidate_id", "candidate_state_sha256",
+        "artifact_id", "artifact_sha256", "reference_id", "reference_sha256",
+        "registration_lineage_id", "camera_lock_id", "camera_lock_canonical_sha256",
+        "authored_orientation_id", "registered_rig_v2_id"
+      ],
+      "properties": {
+        "project_id": {"$ref": "#/$defs/id"},
+        "session_id": {"$ref": "#/$defs/id"},
+        "candidate_id": {"$ref": "#/$defs/id"},
+        "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact_id": {"$ref": "#/$defs/id"},
+        "artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_id": {"$ref": "#/$defs/id"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "registration_lineage_id": {"$ref": "#/$defs/id"},
+        "camera_lock_id": {"$ref": "#/$defs/id"},
+        "camera_lock_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "authored_orientation_id": {"$ref": "#/$defs/id"},
+        "registered_rig_v2_id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "approval_context_orientation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rotation_degrees", "subject_screen_order", "upright", "screen_up",
+        "derived_camera_orbit_degrees", "derived_camera_hash",
+        "derived_camera_canonical_sha256", "semantic_orientation_proof_sha256"
+      ],
+      "properties": {
+        "rotation_degrees": {"type": "integer", "enum": [-180, -90, 0, 90, 180]},
+        "subject_screen_order": {"enum": ["stock-left-muzzle-right", "muzzle-left-stock-right"]},
+        "upright": {"const": true},
+        "screen_up": {"const": "world-positive-y"},
+        "derived_camera_orbit_degrees": {"type": "integer", "enum": [0, 180]},
+        "derived_camera_hash": {"$ref": "#/$defs/sha256"},
+        "derived_camera_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "semantic_orientation_proof_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
 }

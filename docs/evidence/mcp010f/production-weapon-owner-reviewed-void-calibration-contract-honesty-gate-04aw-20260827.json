@@ -1,0 +1,43 @@
+{
+  "schema_version": "ForgeCADOwnerReviewedVoidCalibrationContractHonestyGateReceipt@1",
+  "task_id": "FPS-FORM-04AW",
+  "recorded_on": "2026-08-27",
+  "scope": "fictional_nonfunctional_game_weapon_visual_asset",
+  "route_changed": false,
+  "finding": {
+    "status": "FIXED_SOURCE_CONTRACT_MISMATCH",
+    "runtime_value": false,
+    "previous_schema_value": true,
+    "failure_mode": "A successful read-only projection would have violated its JSON result schema before any real-D1 visual decision could be accepted.",
+    "truth_boundary": "The calibration projection is computed read-only and is not itself a durable receipt. It therefore cannot claim restart hash verification."
+  },
+  "implementation": {
+    "result_schema_restart_hash_verified": false,
+    "contract_checker_restart_hash_verified": false,
+    "runtime_changed": false,
+    "schema_count": 568,
+    "read_tool_count": 124,
+    "write_tool_count": 92,
+    "build_cohort_sha256": "c55b0e91204b46ba394ab7e66b78aaf36d750bc90f2371dbb7adb7f9dc627f8f",
+    "result_schema_sha256": "91052d11881b407a1ea35e2fb8dd2e82e4845ed06cdc199de7d0112350e4d964",
+    "runtime_source_sha256": "cec01af18dd198d81e859bcfdb21e5dd34141c18730ce75f02b5f38ec7d5289e"
+  },
+  "verification": {
+    "contracts_runtime_mcp_compile": "PASS_WITH_EXISTING_WARNINGS",
+    "contract_checker": "PASS_568_SCHEMAS",
+    "git_diff_check": "PASS",
+    "real_d1_projection": "NOT_RUN_SOURCE_DATABASE_UNAVAILABLE",
+    "new_geometry_authored": false
+  },
+  "final_state": {
+    "stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "commercial_quality": "NOT_PROVEN",
+    "high_low_uv_bake": "NOT_RUN",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "next_atomic_action": "Recreate the authorized D1 GeometryProgram and complete same-cohort D1 candidate, FormEvidence, FormArt, approved registration lineage and fresh six-view baseline in one explicitly persistent Runtime database; then call the corrected owner-reviewed-void calibration GET. Author one bounded rear-stock shape only if all three calibration views are ELIGIBLE."
+}

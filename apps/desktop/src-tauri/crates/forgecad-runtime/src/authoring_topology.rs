@@ -21,33 +21,35 @@ const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
 const AUTHORING_TOPOLOGY_POLICY: &str = "forgecad-authoring-topology@1:source-program-v-e-loop-face:single-direct-part-output:elements-1536:faces-512:response-1mib:no-write";
 const AUTHORING_TOPOLOGY_POLICY_SHA256: &str =
     "a6fb36a530e49537673b66d65ecb6e4fb4f51ffb3e7d01a0980be71f28cb367d";
-const EDIT_POLICY: &str = "forgecad-authoring-mesh-edit-preview@1:translate-vertices-or-single-face-extrude:source-program-bound:worker-double-replay:glb-64mib:response-1mib:no-write";
-const EDIT_POLICY_SHA256: &str = "1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae";
+const EDIT_POLICY: &str = "forgecad-authoring-mesh-edit-preview@1:translate-vertices-or-single-face-extrude-or-typed-split-collapse-dissolve:source-program-bound:worker-double-replay:glb-64mib:response-1mib:no-write:source-element-proof-only";
+const EDIT_POLICY_SHA256: &str = "fc76c6dffef2a41c05ff0a65ff160c8fce5eb37d312a3ef7f78043ef92539144";
+const TOPOLOGY_OPERATION_PROOF_SCHEMA: &str = "TopologyOperationProof@1";
+const MAX_TOPOLOGY_OPERATION_REVISION: u64 = 1_000_000;
 
-struct AuthoringContext {
-    project_id: String,
-    candidate_id: String,
-    artifact_id: String,
-    artifact_readback_sha256: String,
-    geometry_candidate_evidence_sha256: String,
-    reference_id: Option<String>,
-    reference_sha256: Option<String>,
-    geometry_program_object_sha256: String,
-    program_sha256: String,
-    operator_catalog_sha256: String,
-    readback_config_sha256: String,
-    authoring_node_id: String,
-    part_id: String,
-    material_zone_id: String,
-    solid: bool,
-    program: Value,
-    node_index: usize,
-    parameters: Map<String, Value>,
-    source_artifact_bytes: Vec<u8>,
-    source_triangle_count: u64,
-    source_part_ids: Vec<String>,
-    source_material_zone_ids: Vec<String>,
-    source_worker_cohort_sha256: Option<String>,
+pub(super) struct AuthoringContext {
+    pub(super) project_id: String,
+    pub(super) candidate_id: String,
+    pub(super) artifact_id: String,
+    pub(super) artifact_readback_sha256: String,
+    pub(super) geometry_candidate_evidence_sha256: String,
+    pub(super) reference_id: Option<String>,
+    pub(super) reference_sha256: Option<String>,
+    pub(super) geometry_program_object_sha256: String,
+    pub(super) program_sha256: String,
+    pub(super) operator_catalog_sha256: String,
+    pub(super) readback_config_sha256: String,
+    pub(super) authoring_node_id: String,
+    pub(super) part_id: String,
+    pub(super) material_zone_id: String,
+    pub(super) solid: bool,
+    pub(super) program: Value,
+    pub(super) node_index: usize,
+    pub(super) parameters: Map<String, Value>,
+    pub(super) source_artifact_bytes: Vec<u8>,
+    pub(super) source_triangle_count: u64,
+    pub(super) source_part_ids: Vec<String>,
+    pub(super) source_material_zone_ids: Vec<String>,
+    pub(super) source_worker_cohort_sha256: Option<String>,
 }
 
 fn invalid(message: impl Into<String>) -> RuntimeError {
@@ -400,6 +402,59 @@ fn load_context(runtime: &Runtime, request: &Value) -> Result<AuthoringContext, 
         source_material_zone_ids: first_replay.material_zone_ids,
         source_worker_cohort_sha256: first_replay.build_cohort_sha256,
     })
+}
+
+/// Load the exact same candidate-bound source context used by the legacy
+/// `AuthoringTopology@1` producer, while keeping the half-edge projection's
+/// request surface independent from that older contract.  The half-edge
+/// producer intentionally does not accept a caller-selected mesh identity or
+/// source payload: all source data comes from the durable evidence/program and
+/// is rechecked by `load_context` (including the two fixed Worker replays).
+pub(super) fn load_context_for_authoring_mesh(
+    runtime: &Runtime,
+    request: &Value,
+) -> Result<AuthoringContext, RuntimeError> {
+    let object = exact_object(
+        request,
+        &[
+            "schema_version",
+            "project_id",
+            "candidate_id",
+            "artifact_id",
+            "artifact_readback_sha256",
+            "program_sha256",
+            "operator_catalog_sha256",
+            "readback_config_sha256",
+            "authoring_node_id",
+            "part_id",
+            "authoring_mesh_policy_sha256",
+            "max_response_bytes",
+        ],
+        "AuthoringMeshRequest@1",
+    )?;
+    if text(object, "schema_version")? != "AuthoringMeshRequest@1"
+        || !is_sha256(text(object, "authoring_mesh_policy_sha256")?)
+        || object.get("max_response_bytes").and_then(Value::as_u64)
+            != Some(MAX_RESPONSE_BYTES as u64)
+    {
+        return Err(invalid("request policy or response budget differs"));
+    }
+
+    let topology_request = json!({
+        "schema_version":"AuthoringTopologyRequest@1",
+        "project_id":text(object, "project_id")?,
+        "candidate_id":text(object, "candidate_id")?,
+        "artifact_id":text(object, "artifact_id")?,
+        "artifact_readback_sha256":text(object, "artifact_readback_sha256")?,
+        "program_sha256":text(object, "program_sha256")?,
+        "operator_catalog_sha256":text(object, "operator_catalog_sha256")?,
+        "readback_config_sha256":text(object, "readback_config_sha256")?,
+        "authoring_node_id":text(object, "authoring_node_id")?,
+        "part_id":text(object, "part_id")?,
+        "authoring_topology_policy_sha256":AUTHORING_TOPOLOGY_POLICY_SHA256,
+        "max_response_bytes":MAX_RESPONSE_BYTES,
+    });
+    load_context(runtime, &topology_request)
 }
 
 fn topology_counts(
@@ -949,6 +1004,1123 @@ fn apply_extrude(
     }))
 }
 
+/// Parse and bind one explicit topology operation.  The operation hash is
+/// intentionally the canonical hash of the closed operation object without
+/// its own hash field; this prevents Runtime from inferring a split/collapse
+/// or dissolve from an arbitrary before/after mesh diff.
+fn typed_operation_metadata(
+    edit: &Map<String, Value>,
+) -> Result<(String, u64, String), RuntimeError> {
+    let operation = text(edit, "operation")?.to_owned();
+    let parent_revision = edit
+        .get("parent_revision")
+        .and_then(Value::as_u64)
+        .filter(|value| *value <= MAX_TOPOLOGY_OPERATION_REVISION)
+        .ok_or_else(|| invalid("topology operation parent_revision is invalid"))?;
+    let operation_lineage_sha256 = sha(edit, "operation_lineage_sha256")?.to_owned();
+    let mut preimage = Value::Object(edit.clone());
+    preimage
+        .as_object_mut()
+        .expect("topology operation object")
+        .remove("operation_lineage_sha256");
+    if canonical_json_hash(&preimage) != operation_lineage_sha256 {
+        return Err(invalid(
+            "topology operation hash does not bind its explicit target and parent revision",
+        ));
+    }
+    Ok((operation, parent_revision, operation_lineage_sha256))
+}
+
+fn topology_edit_identifier(
+    prefix: &str,
+    operation_lineage_sha256: &str,
+    parent_revision: u64,
+    kind: &str,
+    parent_ids: &[String],
+    role: &str,
+    ordinal: usize,
+) -> String {
+    let mut sorted_parents = parent_ids.to_vec();
+    sorted_parents.sort();
+    format!(
+        "{prefix}-{}",
+        &canonical_json_hash(&json!({
+            "schema_version":TOPOLOGY_OPERATION_PROOF_SCHEMA,
+            "operation_lineage_sha256":operation_lineage_sha256,
+            "parent_revision":parent_revision,
+            "kind":kind,
+            "parent_ids":sorted_parents,
+            "role":role,
+            "ordinal":ordinal,
+        }))[..56]
+    )
+}
+
+fn topology_loop_identifier(
+    operation_lineage_sha256: &str,
+    parent_revision: u64,
+    face_id: &str,
+    role: &str,
+    ordinal: usize,
+) -> String {
+    let cycle_hash = canonical_json_hash(&json!({
+        "schema_version":TOPOLOGY_OPERATION_PROOF_SCHEMA,
+        "operation_lineage_sha256":operation_lineage_sha256,
+        "parent_revision":parent_revision,
+        "kind":"loop-cycle",
+        "face_id":face_id,
+        "role":role,
+    }));
+    format!("xl-{}-{ordinal:02}", &cycle_hash[..24])
+}
+
+fn topology_edge_map(
+    parameters: &Map<String, Value>,
+) -> Result<BTreeMap<String, [String; 2]>, RuntimeError> {
+    value_array(parameters, "edges")?
+        .iter()
+        .map(|edge| {
+            let edge_id = element_id(edge)?.to_owned();
+            let endpoints = edge
+                .get("vertex_ids")
+                .and_then(Value::as_array)
+                .filter(|values| values.len() == 2)
+                .ok_or_else(|| invalid("topology edge endpoints are invalid"))?;
+            let left = endpoints[0]
+                .as_str()
+                .filter(|value| is_opaque_id(value))
+                .ok_or_else(|| invalid("topology edge endpoint is invalid"))?
+                .to_owned();
+            let right = endpoints[1]
+                .as_str()
+                .filter(|value| is_opaque_id(value))
+                .ok_or_else(|| invalid("topology edge endpoint is invalid"))?
+                .to_owned();
+            if left >= right || left == right {
+                return Err(invalid("topology edge endpoints are not canonical"));
+            }
+            Ok((edge_id, [left, right]))
+        })
+        .collect()
+}
+
+fn topology_loop_map(
+    parameters: &Map<String, Value>,
+) -> Result<BTreeMap<String, Value>, RuntimeError> {
+    value_array(parameters, "loops")?
+        .iter()
+        .map(|loop_value| Ok((element_id(loop_value)?.to_owned(), loop_value.clone())))
+        .collect()
+}
+
+fn topology_face_cycle(
+    face: &Value,
+    loop_map: &BTreeMap<String, Value>,
+) -> Result<(Vec<String>, Vec<String>, Vec<String>), RuntimeError> {
+    let face_id = element_id(face)?.to_owned();
+    let loop_ids = face
+        .get("loop_ids")
+        .and_then(Value::as_array)
+        .filter(|values| (3..=32).contains(&values.len()))
+        .ok_or_else(|| invalid("topology face loop cycle is invalid"))?
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .filter(|value| is_opaque_id(value))
+                .map(str::to_owned)
+                .ok_or_else(|| invalid("topology face loop ID is invalid"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut vertices = Vec::with_capacity(loop_ids.len());
+    let mut edges = Vec::with_capacity(loop_ids.len());
+    for (ordinal, loop_id) in loop_ids.iter().enumerate() {
+        let loop_value = loop_map
+            .get(loop_id)
+            .ok_or_else(|| invalid("topology face references an unknown loop"))?;
+        if loop_value.get("face_id").and_then(Value::as_str) != Some(face_id.as_str())
+            || loop_value.get("ordinal").and_then(Value::as_u64) != Some(ordinal as u64)
+        {
+            return Err(invalid("topology face loop ownership or order differs"));
+        }
+        vertices.push(
+            loop_value
+                .get("vertex_id")
+                .and_then(Value::as_str)
+                .filter(|value| is_opaque_id(value))
+                .ok_or_else(|| invalid("topology face vertex ID is invalid"))?
+                .to_owned(),
+        );
+        edges.push(
+            loop_value
+                .get("edge_id")
+                .and_then(Value::as_str)
+                .filter(|value| is_opaque_id(value))
+                .ok_or_else(|| invalid("topology face edge ID is invalid"))?
+                .to_owned(),
+        );
+    }
+    Ok((vertices, edges, loop_ids))
+}
+
+fn undirected_edge_key(left: &str, right: &str) -> (String, String) {
+    if left <= right {
+        (left.to_owned(), right.to_owned())
+    } else {
+        (right.to_owned(), left.to_owned())
+    }
+}
+
+fn topology_tombstone(
+    element_id: &str,
+    element_kind: &str,
+    child_revision: u64,
+    operation_lineage_sha256: &str,
+    reason: &str,
+) -> Value {
+    json!({
+        "source_element_id":element_id,
+        "element_kind":element_kind,
+        "retired_revision_index":child_revision,
+        "operation_lineage_sha256":operation_lineage_sha256,
+        "reason":reason,
+    })
+}
+
+fn topology_correspondence(
+    kind: &str,
+    parent_source_element_ids: Vec<String>,
+    child_source_element_ids: Vec<String>,
+    operation_lineage_sha256: &str,
+) -> Value {
+    json!({
+        "kind":kind,
+        "parent_source_element_ids":parent_source_element_ids,
+        "child_source_element_ids":child_source_element_ids,
+        "operation_lineage_sha256":operation_lineage_sha256,
+        "identity_namespace_status":"source-element-only-not-materialized-to-identity-lineage@1",
+    })
+}
+
+fn topology_proof(
+    operation: &str,
+    parent_revision: u64,
+    operation_lineage_sha256: &str,
+    source_vertex_ids: Vec<String>,
+    source_edge_ids: Vec<String>,
+    source_face_ids: Vec<String>,
+    generated_vertex_ids: Vec<String>,
+    generated_edge_ids: Vec<String>,
+    generated_loop_ids: Vec<String>,
+    generated_face_ids: Vec<String>,
+    retired_vertex_ids: Vec<String>,
+    retired_edge_ids: Vec<String>,
+    retired_loop_ids: Vec<String>,
+    retired_face_ids: Vec<String>,
+    tombstones: Vec<Value>,
+    correspondence: Vec<Value>,
+) -> Value {
+    let mut proof = json!({
+        "schema_version":TOPOLOGY_OPERATION_PROOF_SCHEMA,
+        "operation":operation,
+        "parent_revision":parent_revision,
+        "child_revision":parent_revision + 1,
+        "operation_lineage_sha256":operation_lineage_sha256,
+        "source_vertex_ids":source_vertex_ids,
+        "source_edge_ids":source_edge_ids,
+        "source_face_ids":source_face_ids,
+        "generated_vertex_ids":generated_vertex_ids,
+        "generated_edge_ids":generated_edge_ids,
+        "generated_loop_ids":generated_loop_ids,
+        "generated_face_ids":generated_face_ids,
+        "retired_vertex_ids":retired_vertex_ids,
+        "retired_edge_ids":retired_edge_ids,
+        "retired_loop_ids":retired_loop_ids,
+        "retired_face_ids":retired_face_ids,
+        "tombstones":tombstones,
+        "correspondence":correspondence,
+        "identity_namespace_status":"source-element-only-not-materialized-to-identity-lineage@1",
+        "canonical_sha256":"",
+    });
+    proof["canonical_sha256"] = Value::String(canonical_json_hash(&proof));
+    proof
+}
+
+fn edited_ids_with_proof(
+    source_vertex_ids: Vec<String>,
+    source_face_ids: Vec<String>,
+    generated_vertex_ids: Vec<String>,
+    generated_edge_ids: Vec<String>,
+    generated_loop_ids: Vec<String>,
+    generated_face_ids: Vec<String>,
+    proof: Value,
+) -> Value {
+    json!({
+        "source_vertex_ids":source_vertex_ids,
+        "source_face_ids":source_face_ids,
+        "generated_vertex_ids":generated_vertex_ids,
+        "generated_edge_ids":generated_edge_ids,
+        "generated_loop_ids":generated_loop_ids,
+        "generated_face_ids":generated_face_ids,
+        "typed_operation_proof":proof,
+    })
+}
+
+fn replace_face_loops(
+    parameters: &mut Map<String, Value>,
+    face_id: &str,
+    vertex_winding: &[String],
+    edge_winding: &[String],
+    operation_lineage_sha256: &str,
+    parent_revision: u64,
+    role: &str,
+) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
+    if vertex_winding.len() != edge_winding.len() || !(3..=32).contains(&vertex_winding.len()) {
+        return Err(invalid(
+            "replacement face cycle is outside the bounded range",
+        ));
+    }
+    let mut loops = value_array(parameters, "loops")?.clone();
+    let mut retired = Vec::new();
+    loops.retain(|loop_value| {
+        let keep = loop_value.get("face_id").and_then(Value::as_str) != Some(face_id);
+        if !keep {
+            if let Ok(id) = element_id(loop_value) {
+                retired.push(id.to_owned());
+            }
+        }
+        keep
+    });
+    let edge_map = topology_edge_map(parameters)?;
+    let mut loop_ids = Vec::with_capacity(vertex_winding.len());
+    let mut generated_loop_ids = Vec::with_capacity(vertex_winding.len());
+    for ordinal in 0..vertex_winding.len() {
+        let edge_id = &edge_winding[ordinal];
+        let endpoints = edge_map
+            .get(edge_id)
+            .ok_or_else(|| invalid("replacement face references an unknown edge"))?;
+        let next = &vertex_winding[(ordinal + 1) % vertex_winding.len()];
+        let forward = edge_forward(endpoints, &vertex_winding[ordinal], next)?;
+        let loop_id = topology_loop_identifier(
+            operation_lineage_sha256,
+            parent_revision,
+            face_id,
+            role,
+            ordinal,
+        );
+        loops.push(json!({
+            "element_id":loop_id,
+            "face_id":face_id,
+            "ordinal":ordinal,
+            "vertex_id":vertex_winding[ordinal],
+            "edge_id":edge_id,
+            "edge_forward":forward,
+        }));
+        generated_loop_ids.push(loop_id.clone());
+        loop_ids.push(Value::String(loop_id));
+    }
+    let face = value_array_mut(parameters, "faces")?
+        .iter_mut()
+        .find(|face| face.get("element_id").and_then(Value::as_str) == Some(face_id))
+        .ok_or_else(|| invalid("replacement face is unavailable"))?;
+    face["loop_ids"] = Value::Array(loop_ids);
+    sort_elements(&mut loops);
+    parameters.insert("loops".to_owned(), Value::Array(loops));
+    Ok((retired, generated_loop_ids))
+}
+
+fn value_array_mut<'a>(
+    parameters: &'a mut Map<String, Value>,
+    key: &str,
+) -> Result<&'a mut Vec<Value>, RuntimeError> {
+    parameters
+        .get_mut(key)
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| invalid(format!("{key} must be an array")))
+}
+
+fn split_face_cycle(
+    vertices: &[String],
+    edges: &[String],
+    target_edge_id: &str,
+    first_endpoint: &str,
+    second_endpoint: &str,
+    midpoint_id: &str,
+    first_child_edge_id: &str,
+    second_child_edge_id: &str,
+) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
+    if vertices.len() != edges.len() {
+        return Err(invalid("split source face cycle is incomplete"));
+    }
+    let target_indices = edges
+        .iter()
+        .enumerate()
+        .filter(|(_, edge_id)| edge_id.as_str() == target_edge_id)
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    if target_indices.len() != 1 {
+        return Err(invalid("split target edge is ambiguous in a face"));
+    }
+    let target_index = target_indices[0];
+    let mut next_vertices = Vec::with_capacity(vertices.len() + 1);
+    let mut next_edges = Vec::with_capacity(edges.len() + 1);
+    for index in 0..vertices.len() {
+        let from = &vertices[index];
+        let to = &vertices[(index + 1) % vertices.len()];
+        next_vertices.push(from.clone());
+        if index == target_index {
+            next_vertices.push(midpoint_id.to_owned());
+            if from == first_endpoint && to == second_endpoint {
+                next_edges.push(first_child_edge_id.to_owned());
+                next_edges.push(second_child_edge_id.to_owned());
+            } else if from == second_endpoint && to == first_endpoint {
+                next_edges.push(second_child_edge_id.to_owned());
+                next_edges.push(first_child_edge_id.to_owned());
+            } else {
+                return Err(invalid("split target edge endpoints differ from winding"));
+            }
+        } else {
+            next_edges.push(edges[index].clone());
+        }
+    }
+    Ok((next_vertices, next_edges))
+}
+
+fn apply_split_edge(
+    parameters: &mut Map<String, Value>,
+    edit: &Map<String, Value>,
+) -> Result<Value, RuntimeError> {
+    let (operation, parent_revision, operation_lineage_sha256) = typed_operation_metadata(edit)?;
+    if operation != "split_edge" {
+        return Err(invalid("split operation metadata differs"));
+    }
+    let target_edge_id = identifier(edit, "edge_id")?.to_owned();
+    let edge_map = topology_edge_map(parameters)?;
+    let endpoints = edge_map
+        .get(&target_edge_id)
+        .cloned()
+        .ok_or_else(|| invalid("split target edge is unavailable"))?;
+    let midpoint_id = topology_edit_identifier(
+        "xv",
+        &operation_lineage_sha256,
+        parent_revision,
+        "vertex",
+        std::slice::from_ref(&target_edge_id),
+        "split-midpoint",
+        0,
+    );
+    let first_child_edge_id = topology_edit_identifier(
+        "xe",
+        &operation_lineage_sha256,
+        parent_revision,
+        "edge",
+        &[target_edge_id.clone(), midpoint_id.clone()],
+        "split-child",
+        0,
+    );
+    let second_child_edge_id = topology_edit_identifier(
+        "xe",
+        &operation_lineage_sha256,
+        parent_revision,
+        "edge",
+        &[target_edge_id.clone(), midpoint_id.clone()],
+        "split-child",
+        1,
+    );
+    let mut vertices = value_array(parameters, "vertices")?.clone();
+    if vertices
+        .iter()
+        .any(|value| element_id(value).ok() == Some(midpoint_id.as_str()))
+    {
+        return Err(invalid(
+            "split generated vertex ID collides with source topology",
+        ));
+    }
+    let positions = vertices
+        .iter()
+        .map(|value| {
+            Ok((
+                element_id(value)?.to_owned(),
+                vec3(
+                    value
+                        .get("position_m")
+                        .ok_or_else(|| invalid("split source vertex position is unavailable"))?,
+                    "split source vertex position",
+                )?,
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
+    let left = positions
+        .get(&endpoints[0])
+        .ok_or_else(|| invalid("split source endpoint is unavailable"))?;
+    let right = positions
+        .get(&endpoints[1])
+        .ok_or_else(|| invalid("split source endpoint is unavailable"))?;
+    let midpoint = [
+        (left[0] + right[0]) * 0.5,
+        (left[1] + right[1]) * 0.5,
+        (left[2] + right[2]) * 0.5,
+    ];
+    vertices.push(json!({"element_id":midpoint_id,"position_m":midpoint}));
+
+    let mut edges = value_array(parameters, "edges")?.clone();
+    edges.retain(|value| element_id(value).ok() != Some(target_edge_id.as_str()));
+    let mut first_child_endpoints = [endpoints[0].clone(), midpoint_id.clone()];
+    first_child_endpoints.sort();
+    let mut second_child_endpoints = [midpoint_id.clone(), endpoints[1].clone()];
+    second_child_endpoints.sort();
+    edges.push(json!({
+        "element_id":first_child_edge_id,
+        "vertex_ids": first_child_endpoints,
+    }));
+    edges.push(json!({
+        "element_id":second_child_edge_id,
+        "vertex_ids": second_child_endpoints,
+    }));
+    sort_elements(&mut vertices);
+    sort_elements(&mut edges);
+    parameters.insert("vertices".to_owned(), Value::Array(vertices));
+    parameters.insert("edges".to_owned(), Value::Array(edges));
+
+    let loop_map = topology_loop_map(parameters)?;
+    let mut affected_faces = Vec::new();
+    let mut retired_loop_ids = Vec::new();
+    let mut generated_loop_ids = Vec::new();
+    let faces_snapshot = value_array(parameters, "faces")?.clone();
+    for face in faces_snapshot {
+        let face_id = element_id(&face)?.to_owned();
+        let (vertices, edges, _) = topology_face_cycle(&face, &loop_map)?;
+        if edges.iter().any(|edge_id| edge_id == &target_edge_id) {
+            if vertices.len() >= 4 {
+                return Err(invalid(
+                    "split would produce a face outside the triangle/quad Worker policy",
+                ));
+            }
+            let (next_vertices, next_edges) = split_face_cycle(
+                &vertices,
+                &edges,
+                &target_edge_id,
+                &endpoints[0],
+                &endpoints[1],
+                &midpoint_id,
+                &first_child_edge_id,
+                &second_child_edge_id,
+            )?;
+            let (retired, generated) = replace_face_loops(
+                parameters,
+                &face_id,
+                &next_vertices,
+                &next_edges,
+                &operation_lineage_sha256,
+                parent_revision,
+                "split-face-loop",
+            )?;
+            retired_loop_ids.extend(retired);
+            generated_loop_ids.extend(generated);
+            affected_faces.push(face_id);
+        }
+    }
+    if affected_faces.is_empty() {
+        return Err(invalid("split target edge has no owning face"));
+    }
+    affected_faces.sort();
+    generated_loop_ids.sort();
+    generated_loop_ids.dedup();
+    let child_edges = vec![first_child_edge_id.clone(), second_child_edge_id.clone()];
+    let mut tombstones = vec![topology_tombstone(
+        &target_edge_id,
+        "edge",
+        parent_revision + 1,
+        &operation_lineage_sha256,
+        "replaced",
+    )];
+    for loop_id in &retired_loop_ids {
+        tombstones.push(topology_tombstone(
+            loop_id,
+            "loop",
+            parent_revision + 1,
+            &operation_lineage_sha256,
+            "replaced",
+        ));
+    }
+    let correspondence = vec![topology_correspondence(
+        "one-to-many",
+        vec![target_edge_id.clone()],
+        child_edges.clone(),
+        &operation_lineage_sha256,
+    )];
+    let proof = topology_proof(
+        "split_edge",
+        parent_revision,
+        &operation_lineage_sha256,
+        endpoints.to_vec(),
+        vec![target_edge_id.clone()],
+        affected_faces.clone(),
+        vec![midpoint_id.clone()],
+        child_edges.clone(),
+        generated_loop_ids.clone(),
+        Vec::new(),
+        Vec::new(),
+        vec![target_edge_id],
+        retired_loop_ids.clone(),
+        Vec::new(),
+        tombstones,
+        correspondence,
+    );
+    Ok(edited_ids_with_proof(
+        endpoints.to_vec(),
+        affected_faces,
+        vec![midpoint_id],
+        child_edges,
+        generated_loop_ids,
+        Vec::new(),
+        proof,
+    ))
+}
+
+fn apply_collapse_edge(
+    parameters: &mut Map<String, Value>,
+    edit: &Map<String, Value>,
+) -> Result<Value, RuntimeError> {
+    let (operation, parent_revision, operation_lineage_sha256) = typed_operation_metadata(edit)?;
+    if operation != "collapse_edge" {
+        return Err(invalid("collapse operation metadata differs"));
+    }
+    let target_edge_id = identifier(edit, "edge_id")?.to_owned();
+    let survivor_id = identifier(edit, "survivor_vertex_id")?.to_owned();
+    let edge_map = topology_edge_map(parameters)?;
+    let endpoints = edge_map
+        .get(&target_edge_id)
+        .cloned()
+        .ok_or_else(|| invalid("collapse target edge is unavailable"))?;
+    if survivor_id != endpoints[0] && survivor_id != endpoints[1] {
+        return Err(invalid(
+            "collapse survivor must be one endpoint of target edge",
+        ));
+    }
+    let removed_id = if survivor_id == endpoints[0] {
+        endpoints[1].clone()
+    } else {
+        endpoints[0].clone()
+    };
+    let mut vertices = value_array(parameters, "vertices")?.clone();
+    let before_vertices = vertices.len();
+    vertices.retain(|value| element_id(value).ok() != Some(removed_id.as_str()));
+    if vertices.len() + 1 != before_vertices {
+        return Err(invalid("collapse removed vertex is ambiguous"));
+    }
+
+    let mut edges = value_array(parameters, "edges")?.clone();
+    let mut next_edges = Vec::new();
+    let mut edge_by_key = BTreeMap::<(String, String), String>::new();
+    let mut retired_edge_ids = Vec::new();
+    let mut generated_edge_ids = Vec::new();
+    for edge in edges.drain(..) {
+        let edge_id = element_id(&edge)?.to_owned();
+        let endpoints_value = edge
+            .get("vertex_ids")
+            .and_then(Value::as_array)
+            .filter(|values| values.len() == 2)
+            .ok_or_else(|| invalid("collapse source edge endpoints are invalid"))?;
+        let left = endpoints_value[0]
+            .as_str()
+            .ok_or_else(|| invalid("collapse source edge endpoint is invalid"))?;
+        let right = endpoints_value[1]
+            .as_str()
+            .ok_or_else(|| invalid("collapse source edge endpoint is invalid"))?;
+        let mapped_left = if left == removed_id.as_str() {
+            survivor_id.as_str()
+        } else {
+            left
+        };
+        let mapped_right = if right == removed_id.as_str() {
+            survivor_id.as_str()
+        } else {
+            right
+        };
+        let key = undirected_edge_key(mapped_left, mapped_right);
+        if key.0 == key.1 {
+            retired_edge_ids.push(edge_id);
+            continue;
+        }
+        let mapped_edge_id = if left == removed_id.as_str() || right == removed_id.as_str() {
+            let child_id = topology_edit_identifier(
+                "xe",
+                &operation_lineage_sha256,
+                parent_revision,
+                "edge",
+                &[edge_id.clone(), target_edge_id.clone(), survivor_id.clone()],
+                "collapse-child",
+                generated_edge_ids.len(),
+            );
+            retired_edge_ids.push(edge_id);
+            generated_edge_ids.push(child_id.clone());
+            child_id
+        } else {
+            edge_id
+        };
+        if edge_by_key
+            .insert(key.clone(), mapped_edge_id.clone())
+            .is_some()
+        {
+            return Err(invalid(
+                "collapse would create an ambiguous duplicate edge correspondence",
+            ));
+        }
+        next_edges.push(json!({
+            "element_id":mapped_edge_id,
+            "vertex_ids":[key.0,key.1],
+        }));
+    }
+    if !retired_edge_ids.iter().any(|id| id == &target_edge_id) {
+        return Err(invalid("collapse target edge is not retired"));
+    }
+    let loop_map = topology_loop_map(parameters)?;
+    let faces_snapshot = value_array(parameters, "faces")?.clone();
+    let mut next_faces = Vec::new();
+    let mut retired_face_ids = Vec::new();
+    let mut retired_loop_ids = Vec::new();
+    let mut generated_loop_ids = Vec::new();
+    let mut affected_face_ids = Vec::new();
+    for face in faces_snapshot {
+        let face_id = element_id(&face)?.to_owned();
+        let (vertices_cycle, edges_cycle, loop_ids) = topology_face_cycle(&face, &loop_map)?;
+        if !vertices_cycle.iter().any(|id| id == &removed_id) {
+            next_faces.push(face);
+            continue;
+        }
+        affected_face_ids.push(face_id.clone());
+        let mapped_vertices = vertices_cycle
+            .iter()
+            .map(|id| {
+                if id == &removed_id {
+                    survivor_id.clone()
+                } else {
+                    id.clone()
+                }
+            })
+            .collect::<Vec<_>>();
+        let mut compact_vertices = Vec::new();
+        for id in mapped_vertices {
+            if compact_vertices.last() != Some(&id) {
+                compact_vertices.push(id);
+            }
+        }
+        if compact_vertices.len() > 1 && compact_vertices.first() == compact_vertices.last() {
+            compact_vertices.pop();
+        }
+        let unique_vertices = compact_vertices.iter().collect::<BTreeSet<_>>().len();
+        if compact_vertices.len() < 3 || unique_vertices < 3 {
+            retired_face_ids.push(face_id);
+            retired_loop_ids.extend(loop_ids);
+            continue;
+        }
+        let mut compact_edges = Vec::with_capacity(compact_vertices.len());
+        for index in 0..compact_vertices.len() {
+            let key = undirected_edge_key(
+                &compact_vertices[index],
+                &compact_vertices[(index + 1) % compact_vertices.len()],
+            );
+            let edge_id = edge_by_key
+                .get(&key)
+                .ok_or_else(|| invalid("collapse face references a removed or ambiguous edge"))?;
+            compact_edges.push(edge_id.clone());
+        }
+        let (retired, generated) = replace_face_loops(
+            parameters,
+            &face_id,
+            &compact_vertices,
+            &compact_edges,
+            &operation_lineage_sha256,
+            parent_revision,
+            "collapse-face-loop",
+        )?;
+        retired_loop_ids.extend(retired);
+        generated_loop_ids.extend(generated);
+        let updated_face = value_array(parameters, "faces")?
+            .iter()
+            .find(|value| value.get("element_id").and_then(Value::as_str) == Some(face_id.as_str()))
+            .cloned()
+            .ok_or_else(|| invalid("collapse updated face is unavailable"))?;
+        next_faces.push(updated_face);
+        let _ = edges_cycle;
+    }
+    next_faces.sort_by(|left, right| {
+        left.get("element_id")
+            .and_then(Value::as_str)
+            .cmp(&right.get("element_id").and_then(Value::as_str))
+    });
+    next_edges.sort_by(|left, right| {
+        left.get("element_id")
+            .and_then(Value::as_str)
+            .cmp(&right.get("element_id").and_then(Value::as_str))
+    });
+    // replace_face_loops mutates the original face array; install the exact
+    // retained/retired face set after all changed faces have been rebuilt.
+    parameters.insert("vertices".to_owned(), Value::Array(vertices));
+    parameters.insert("edges".to_owned(), Value::Array(next_edges));
+    parameters.insert("faces".to_owned(), Value::Array(next_faces));
+    let mut all_tombstones = Vec::new();
+    all_tombstones.push(topology_tombstone(
+        &removed_id,
+        "vertex",
+        parent_revision + 1,
+        &operation_lineage_sha256,
+        "collapsed",
+    ));
+    for edge_id in &retired_edge_ids {
+        all_tombstones.push(topology_tombstone(
+            edge_id,
+            "edge",
+            parent_revision + 1,
+            &operation_lineage_sha256,
+            "collapsed",
+        ));
+    }
+    for face_id in &retired_face_ids {
+        all_tombstones.push(topology_tombstone(
+            face_id,
+            "face",
+            parent_revision + 1,
+            &operation_lineage_sha256,
+            "collapsed",
+        ));
+    }
+    for loop_id in &retired_loop_ids {
+        all_tombstones.push(topology_tombstone(
+            loop_id,
+            "loop",
+            parent_revision + 1,
+            &operation_lineage_sha256,
+            "replaced",
+        ));
+    }
+    let mut source_edge_ids = retired_edge_ids.clone();
+    source_edge_ids.sort();
+    let mut source_face_ids = affected_face_ids.clone();
+    source_face_ids.extend(retired_face_ids.iter().cloned());
+    source_face_ids.sort();
+    source_face_ids.dedup();
+    generated_edge_ids.sort();
+    generated_edge_ids.dedup();
+    generated_loop_ids.sort();
+    generated_loop_ids.dedup();
+    let correspondence = vec![topology_correspondence(
+        "many-to-one",
+        vec![survivor_id.clone(), removed_id.clone()],
+        vec![survivor_id.clone()],
+        &operation_lineage_sha256,
+    )];
+    let proof = topology_proof(
+        "collapse_edge",
+        parent_revision,
+        &operation_lineage_sha256,
+        vec![survivor_id.clone(), removed_id.clone()],
+        source_edge_ids.clone(),
+        source_face_ids.clone(),
+        Vec::new(),
+        generated_edge_ids.clone(),
+        generated_loop_ids.clone(),
+        Vec::new(),
+        vec![removed_id.clone()],
+        source_edge_ids.clone(),
+        retired_loop_ids,
+        retired_face_ids,
+        all_tombstones,
+        correspondence,
+    );
+    Ok(edited_ids_with_proof(
+        vec![survivor_id, removed_id],
+        source_face_ids,
+        Vec::new(),
+        generated_edge_ids,
+        generated_loop_ids,
+        Vec::new(),
+        proof,
+    ))
+}
+
+fn walk_boundary_cycle(
+    adjacency: &BTreeMap<String, Vec<String>>,
+    start: &str,
+    first_neighbor: &str,
+) -> Result<Vec<String>, RuntimeError> {
+    let mut cycle = vec![start.to_owned()];
+    let mut previous = start.to_owned();
+    let mut current = first_neighbor.to_owned();
+    for _ in 0..=adjacency.len() {
+        if current == start {
+            if cycle.len() < 3 {
+                return Err(invalid("dissolve boundary cycle is degenerate"));
+            }
+            return Ok(cycle);
+        }
+        if cycle.contains(&current) {
+            return Err(invalid("dissolve boundary cycle repeats a vertex"));
+        }
+        cycle.push(current.clone());
+        let neighbors = adjacency
+            .get(&current)
+            .ok_or_else(|| invalid("dissolve boundary adjacency is incomplete"))?;
+        if neighbors.len() != 2 {
+            return Err(invalid("dissolve boundary vertex degree is ambiguous"));
+        }
+        let next = if neighbors[0] == previous {
+            neighbors[1].clone()
+        } else {
+            neighbors[0].clone()
+        };
+        previous = current;
+        current = next;
+    }
+    Err(invalid("dissolve boundary cycle exceeds its bounded walk"))
+}
+
+fn apply_dissolve_edge(
+    parameters: &mut Map<String, Value>,
+    edit: &Map<String, Value>,
+) -> Result<Value, RuntimeError> {
+    let (operation, parent_revision, operation_lineage_sha256) = typed_operation_metadata(edit)?;
+    if operation != "dissolve_edge" {
+        return Err(invalid("dissolve operation metadata differs"));
+    }
+    let target_edge_id = identifier(edit, "edge_id")?.to_owned();
+    let edge_map = topology_edge_map(parameters)?;
+    edge_map
+        .get(&target_edge_id)
+        .ok_or_else(|| invalid("dissolve target edge is unavailable"))?;
+    let loop_map = topology_loop_map(parameters)?;
+    let faces_snapshot = value_array(parameters, "faces")?.clone();
+    let mut incident = Vec::<(String, Vec<String>, Vec<String>, Vec<String>)>::new();
+    for face in &faces_snapshot {
+        let face_id = element_id(face)?.to_owned();
+        let (vertices, edges, loop_ids) = topology_face_cycle(face, &loop_map)?;
+        if edges.iter().any(|edge_id| edge_id == &target_edge_id) {
+            incident.push((face_id, vertices, edges, loop_ids));
+        }
+    }
+    if incident.len() != 2 {
+        return Err(invalid(
+            "dissolve requires exactly two explicit faces incident to an interior edge",
+        ));
+    }
+    let face_ids = incident
+        .iter()
+        .map(|item| item.0.clone())
+        .collect::<Vec<_>>();
+    let mut boundary_edges = BTreeMap::<(String, String), String>::new();
+    for (_, vertices, edges, _) in &incident {
+        for index in 0..vertices.len() {
+            let edge_id = &edges[index];
+            if edge_id == &target_edge_id {
+                continue;
+            }
+            let key =
+                undirected_edge_key(&vertices[index], &vertices[(index + 1) % vertices.len()]);
+            if boundary_edges.insert(key, edge_id.clone()).is_some() {
+                return Err(invalid(
+                    "dissolve has more than one shared boundary edge and is ambiguous",
+                ));
+            }
+        }
+    }
+    let mut adjacency = BTreeMap::<String, Vec<String>>::new();
+    for (left, right) in boundary_edges.keys() {
+        adjacency
+            .entry(left.clone())
+            .or_default()
+            .push(right.clone());
+        adjacency
+            .entry(right.clone())
+            .or_default()
+            .push(left.clone());
+    }
+    for neighbors in adjacency.values_mut() {
+        neighbors.sort();
+        neighbors.dedup();
+        if neighbors.len() != 2 {
+            return Err(invalid("dissolve boundary has an ambiguous vertex degree"));
+        }
+    }
+    let start = adjacency
+        .keys()
+        .next()
+        .cloned()
+        .ok_or_else(|| invalid("dissolve boundary is empty"))?;
+    let neighbors = adjacency
+        .get(&start)
+        .ok_or_else(|| invalid("dissolve boundary start is unavailable"))?;
+    let first_cycle = walk_boundary_cycle(&adjacency, &start, &neighbors[0])?;
+    let second_cycle = walk_boundary_cycle(&adjacency, &start, &neighbors[1])?;
+    let merged_vertices = if first_cycle <= second_cycle {
+        first_cycle
+    } else {
+        second_cycle
+    };
+    if !(3..=4).contains(&merged_vertices.len()) {
+        return Err(invalid(
+            "dissolve currently supports only a bounded triangle/quad merged face",
+        ));
+    }
+    let merged_edges = (0..merged_vertices.len())
+        .map(|index| {
+            boundary_edges
+                .get(&undirected_edge_key(
+                    &merged_vertices[index],
+                    &merged_vertices[(index + 1) % merged_vertices.len()],
+                ))
+                .cloned()
+                .ok_or_else(|| invalid("dissolve merged face edge is unavailable"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let merged_face_id = topology_edit_identifier(
+        "xf",
+        &operation_lineage_sha256,
+        parent_revision,
+        "face",
+        &face_ids,
+        "dissolve-face",
+        0,
+    );
+    let mut loops = value_array(parameters, "loops")?.clone();
+    let mut retired_loop_ids = Vec::new();
+    let face_set = face_ids.iter().collect::<BTreeSet<_>>();
+    loops.retain(|loop_value| {
+        let keep = loop_value
+            .get("face_id")
+            .and_then(Value::as_str)
+            .is_none_or(|face_id| !face_set.contains(&face_id.to_owned()));
+        if !keep {
+            if let Ok(id) = element_id(loop_value) {
+                retired_loop_ids.push(id.to_owned());
+            }
+        }
+        keep
+    });
+    let mut generated_loop_ids = Vec::new();
+    let edge_map = topology_edge_map(parameters)?;
+    let mut merged_loop_ids = Vec::new();
+    for ordinal in 0..merged_vertices.len() {
+        let edge_id = &merged_edges[ordinal];
+        let endpoints = edge_map
+            .get(edge_id)
+            .ok_or_else(|| invalid("dissolve merged edge is unavailable"))?;
+        let next = &merged_vertices[(ordinal + 1) % merged_vertices.len()];
+        let forward = edge_forward(endpoints, &merged_vertices[ordinal], next)?;
+        let loop_id = topology_loop_identifier(
+            &operation_lineage_sha256,
+            parent_revision,
+            &merged_face_id,
+            "dissolve-face-loop",
+            ordinal,
+        );
+        loops.push(json!({
+            "element_id":loop_id,
+            "face_id":merged_face_id,
+            "ordinal":ordinal,
+            "vertex_id":merged_vertices[ordinal],
+            "edge_id":edge_id,
+            "edge_forward":forward,
+        }));
+        generated_loop_ids.push(loop_id.clone());
+        merged_loop_ids.push(loop_id);
+    }
+    let mut faces = faces_snapshot
+        .into_iter()
+        .filter(|face| {
+            face.get("element_id")
+                .and_then(Value::as_str)
+                .is_none_or(|face_id| !face_set.contains(&face_id.to_owned()))
+        })
+        .collect::<Vec<_>>();
+    faces.push(json!({"element_id":merged_face_id,"loop_ids":merged_loop_ids}));
+    let mut edges = value_array(parameters, "edges")?
+        .iter()
+        .filter(|edge| element_id(edge).ok() != Some(target_edge_id.as_str()))
+        .cloned()
+        .collect::<Vec<_>>();
+    sort_elements(&mut edges);
+    sort_elements(&mut faces);
+    sort_elements(&mut loops);
+    parameters.insert("edges".to_owned(), Value::Array(edges));
+    parameters.insert("faces".to_owned(), Value::Array(faces));
+    parameters.insert("loops".to_owned(), Value::Array(loops));
+
+    let mut source_vertex_ids = incident
+        .iter()
+        .flat_map(|(_, vertices, _, _)| vertices.iter().cloned())
+        .collect::<Vec<_>>();
+    source_vertex_ids.sort();
+    source_vertex_ids.dedup();
+    let mut source_face_ids = face_ids.clone();
+    source_face_ids.sort();
+    let mut tombstones = vec![
+        topology_tombstone(
+            &target_edge_id,
+            "edge",
+            parent_revision + 1,
+            &operation_lineage_sha256,
+            "dissolved",
+        ),
+        topology_tombstone(
+            &face_ids[0],
+            "face",
+            parent_revision + 1,
+            &operation_lineage_sha256,
+            "merged",
+        ),
+        topology_tombstone(
+            &face_ids[1],
+            "face",
+            parent_revision + 1,
+            &operation_lineage_sha256,
+            "merged",
+        ),
+    ];
+    for loop_id in &retired_loop_ids {
+        tombstones.push(topology_tombstone(
+            loop_id,
+            "loop",
+            parent_revision + 1,
+            &operation_lineage_sha256,
+            "replaced",
+        ));
+    }
+    let correspondence = vec![topology_correspondence(
+        "many-to-one",
+        face_ids.clone(),
+        vec![merged_face_id.clone()],
+        &operation_lineage_sha256,
+    )];
+    let proof = topology_proof(
+        "dissolve_edge",
+        parent_revision,
+        &operation_lineage_sha256,
+        source_vertex_ids.clone(),
+        vec![target_edge_id.clone()],
+        source_face_ids.clone(),
+        Vec::new(),
+        Vec::new(),
+        generated_loop_ids.clone(),
+        vec![merged_face_id.clone()],
+        Vec::new(),
+        vec![target_edge_id],
+        retired_loop_ids.clone(),
+        face_ids,
+        tombstones,
+        correspondence,
+    );
+    Ok(edited_ids_with_proof(
+        source_vertex_ids,
+        source_face_ids,
+        Vec::new(),
+        Vec::new(),
+        generated_loop_ids,
+        vec![merged_face_id],
+        proof,
+    ))
+}
+
 fn replay_value(
     artifact_sha256: &str,
     artifact_size_bytes: usize,
@@ -1028,6 +2200,25 @@ fn compute_edit(runtime: &Runtime, request: &Value) -> Result<EditComputation, R
         match outer["edit"].get("operation").and_then(Value::as_str) {
             Some("translate_vertices") => &["operation", "vertex_ids", "delta_m"],
             Some("single_face_extrude") => &["operation", "face_id", "distance_m"],
+            Some("split_edge") => &[
+                "operation",
+                "edge_id",
+                "parent_revision",
+                "operation_lineage_sha256",
+            ],
+            Some("collapse_edge") => &[
+                "operation",
+                "edge_id",
+                "survivor_vertex_id",
+                "parent_revision",
+                "operation_lineage_sha256",
+            ],
+            Some("dissolve_edge") => &[
+                "operation",
+                "edge_id",
+                "parent_revision",
+                "operation_lineage_sha256",
+            ],
             _ => return Err(invalid("edit operation is unsupported")),
         },
         "authoring edit",
@@ -1037,6 +2228,9 @@ fn compute_edit(runtime: &Runtime, request: &Value) -> Result<EditComputation, R
     let edited_element_ids = match operation.as_str() {
         "translate_vertices" => apply_translate(&mut derived_parameters, edit)?,
         "single_face_extrude" => apply_extrude(&mut derived_parameters, edit, &input_sha256)?,
+        "split_edge" => apply_split_edge(&mut derived_parameters, edit)?,
+        "collapse_edge" => apply_collapse_edge(&mut derived_parameters, edit)?,
+        "dissolve_edge" => apply_dissolve_edge(&mut derived_parameters, edit)?,
         _ => unreachable!(),
     };
     let source_counts = topology_counts(&context.parameters, context.source_triangle_count)?;
@@ -1144,7 +2338,7 @@ fn compute_edit(runtime: &Runtime, request: &Value) -> Result<EditComputation, R
         "quality_status":"structural_only",
         "limitations":[
             "PREVIEW_ONLY_NO_CANDIDATE_OR_VERSION",
-            "TRANSLATE_VERTICES_OR_SINGLE_FACE_EXTRUDE_ONLY",
+            "TRANSLATE_VERTICES_SINGLE_FACE_EXTRUDE_OR_TYPED_TOPOLOGY_OPERATION",
             "GENERATED_IDS_STABLE_ONLY_FOR_EXACT_SOURCE_AND_EDIT",
             "NO_SELECTION_HISTORY_UNDO_OR_PERSISTENT_MESH_EDIT",
             "NO_BLENDER_BMESH_PYTHON_OR_PLUGIN_RUNTIME",
@@ -1304,7 +2498,7 @@ fn validate_prepare_output(value: &Value) -> Result<(), RuntimeError> {
         "STAGED_CANDIDATE_REQUIRES_USER_APPROVAL_BEFORE_CONFIRM",
         "NO_VERSION_CREATED_UNTIL_CONFIRM",
         "NO_EXPORT_BEFORE_CONFIRM",
-        "TRANSLATE_VERTICES_OR_SINGLE_FACE_EXTRUDE_ONLY",
+        "TRANSLATE_VERTICES_SINGLE_FACE_EXTRUDE_OR_TYPED_TOPOLOGY_OPERATION",
         "GENERATED_IDS_STABLE_ONLY_FOR_EXACT_SOURCE_AND_EDIT",
         "NO_CROSS_VERSION_STABLE_ELEMENT_ID_PROMISE",
         "NO_SELECTION_HISTORY_OR_UNDO_BLOB_IN_GEOMETRY_TRUTH",
@@ -1659,7 +2853,7 @@ pub(super) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
                 "STAGED_CANDIDATE_REQUIRES_USER_APPROVAL_BEFORE_CONFIRM",
                 "NO_VERSION_CREATED_UNTIL_CONFIRM",
                 "NO_EXPORT_BEFORE_CONFIRM",
-                "TRANSLATE_VERTICES_OR_SINGLE_FACE_EXTRUDE_ONLY",
+                "TRANSLATE_VERTICES_SINGLE_FACE_EXTRUDE_OR_TYPED_TOPOLOGY_OPERATION",
                 "GENERATED_IDS_STABLE_ONLY_FOR_EXACT_SOURCE_AND_EDIT",
                 "NO_CROSS_VERSION_STABLE_ELEMENT_ID_PROMISE",
                 "NO_SELECTION_HISTORY_OR_UNDO_BLOB_IN_GEOMETRY_TRUTH",
@@ -1813,6 +3007,117 @@ mod tests {
             "max_response_bytes":1048576
         });
         (prepared, request)
+    }
+
+    fn prepare_authoring_variant_candidate(
+        runtime: &Runtime,
+        source_request: &Value,
+        parameters: Value,
+    ) -> (Value, Value) {
+        let context = load_context(runtime, source_request).expect("source context");
+        let mut program = context.program.clone();
+        program["nodes"][context.node_index]["parameters"] = parameters;
+        program
+            .as_object_mut()
+            .expect("program object")
+            .remove("canonical_sha256");
+        let hash = hash_geometry_program_with_runtime_worker(&program).expect("variant hash");
+        program["canonical_sha256"] = hash["canonical_sha256"].clone();
+        let prepared = runtime
+            .prepare_geometry_candidate(
+                context.project_id.as_str(),
+                None,
+                json!({"typed":"geometry","geometry_program":program}),
+            )
+            .expect("variant geometry prepare");
+        let candidate_id = prepared["candidate"]["candidate_id"]
+            .as_str()
+            .expect("variant candidate ID");
+        let evidence = runtime
+            .store
+            .get_geometry_candidate_evidence(candidate_id)
+            .expect("variant evidence query")
+            .expect("variant evidence");
+        let request = json!({
+            "schema_version":"AuthoringTopologyRequest@1",
+            "project_id":context.project_id,
+            "candidate_id":candidate_id,
+            "artifact_id":prepared["artifact"]["artifact_id"],
+            "artifact_readback_sha256":prepared["artifact"]["canonical_sha256"],
+            "program_sha256":evidence.geometry_program_sha256,
+            "operator_catalog_sha256":evidence.operator_catalog_sha256,
+            "readback_config_sha256":evidence.readback_config_sha256,
+            "authoring_node_id":context.authoring_node_id,
+            "part_id":context.part_id,
+            "authoring_topology_policy_sha256":AUTHORING_TOPOLOGY_POLICY_SHA256,
+            "max_response_bytes":1048576
+        });
+        (prepared, request)
+    }
+
+    fn triangle_parameters() -> Value {
+        json!({
+            "shape":"authoring-mesh",
+            "topology_policy":"triangle-quad-manifold-with-boundary@1",
+            "vertices":[
+                {"element_id":"v0","position_m":[-1.0,-1.0,0.0]},
+                {"element_id":"v1","position_m":[1.0,-1.0,0.0]},
+                {"element_id":"v2","position_m":[0.0,1.0,0.0]}
+            ],
+            "edges":[
+                {"element_id":"e01","vertex_ids":["v0","v1"]},
+                {"element_id":"e02","vertex_ids":["v0","v2"]},
+                {"element_id":"e12","vertex_ids":["v1","v2"]}
+            ],
+            "loops":[
+                {"element_id":"l0","face_id":"f0","ordinal":0,"vertex_id":"v0","edge_id":"e01","edge_forward":true},
+                {"element_id":"l1","face_id":"f0","ordinal":1,"vertex_id":"v1","edge_id":"e12","edge_forward":true},
+                {"element_id":"l2","face_id":"f0","ordinal":2,"vertex_id":"v2","edge_id":"e02","edge_forward":false}
+            ],
+            "faces":[{"element_id":"f0","loop_ids":["l0","l1","l2"]}],
+            "position_m":[0.0,0.0,0.0],
+            "rotation_rad":[0.0,0.0,0.0]
+        })
+    }
+
+    fn two_triangle_parameters() -> Value {
+        json!({
+            "shape":"authoring-mesh",
+            "topology_policy":"triangle-quad-manifold-with-boundary@1",
+            "vertices":[
+                {"element_id":"v0","position_m":[-1.0,-1.0,0.0]},
+                {"element_id":"v1","position_m":[1.0,-1.0,0.0]},
+                {"element_id":"v2","position_m":[0.0,1.0,0.0]},
+                {"element_id":"v3","position_m":[1.0,1.0,0.0]}
+            ],
+            "edges":[
+                {"element_id":"e01","vertex_ids":["v0","v1"]},
+                {"element_id":"e02","vertex_ids":["v0","v2"]},
+                {"element_id":"e12","vertex_ids":["v1","v2"]},
+                {"element_id":"e13","vertex_ids":["v1","v3"]},
+                {"element_id":"e23","vertex_ids":["v2","v3"]}
+            ],
+            "loops":[
+                {"element_id":"l0","face_id":"f0","ordinal":0,"vertex_id":"v0","edge_id":"e01","edge_forward":true},
+                {"element_id":"l1","face_id":"f0","ordinal":1,"vertex_id":"v1","edge_id":"e12","edge_forward":true},
+                {"element_id":"l2","face_id":"f0","ordinal":2,"vertex_id":"v2","edge_id":"e02","edge_forward":false},
+                {"element_id":"l3","face_id":"f1","ordinal":0,"vertex_id":"v1","edge_id":"e13","edge_forward":true},
+                {"element_id":"l4","face_id":"f1","ordinal":1,"vertex_id":"v3","edge_id":"e23","edge_forward":false},
+                {"element_id":"l5","face_id":"f1","ordinal":2,"vertex_id":"v2","edge_id":"e12","edge_forward":false}
+            ],
+            "faces":[
+                {"element_id":"f0","loop_ids":["l0","l1","l2"]},
+                {"element_id":"f1","loop_ids":["l3","l4","l5"]}
+            ],
+            "position_m":[0.0,0.0,0.0],
+            "rotation_rad":[0.0,0.0,0.0]
+        })
+    }
+
+    fn topology_operation(mut edit: Value) -> Value {
+        let hash = canonical_json_hash(&edit);
+        edit["operation_lineage_sha256"] = Value::String(hash);
+        edit
     }
 
     fn preview_request(topology_request: &Value, base_topology_sha256: &str, edit: Value) -> Value {
@@ -2052,6 +3357,99 @@ mod tests {
         let mut unknown_field = request;
         unknown_field["python"] = json!("print('no')");
         assert!(get(&runtime, &unknown_field).is_err());
+    }
+
+    #[test]
+    fn typed_split_collapse_and_dissolve_replay_real_worker_topology_and_stage_split() {
+        if forgecad_contracts::build_cohort_sha256().is_none() {
+            return;
+        }
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let (_source, base_request) = prepare_authoring_candidate(&runtime);
+
+        let (_triangle, triangle_request) =
+            prepare_authoring_variant_candidate(&runtime, &base_request, triangle_parameters());
+        let triangle_topology = get(&runtime, &triangle_request).expect("triangle topology");
+        let split_request = preview_request(
+            &triangle_request,
+            triangle_topology["topology_sha256"].as_str().unwrap(),
+            topology_operation(json!({
+                "operation":"split_edge",
+                "edge_id":"e01",
+                "parent_revision":0
+            })),
+        );
+        let split = preview(&runtime, &split_request).expect("split preview");
+        let split_repeat = preview(&runtime, &split_request).expect("split repeat");
+        assert_eq!(split, split_repeat);
+        assert_eq!(split["counts"]["before"]["triangle_count"], 1);
+        assert_eq!(split["counts"]["after"]["vertex_count"], 4);
+        assert_eq!(split["counts"]["after"]["face_count"], 1);
+        assert_eq!(
+            split["edited_element_ids"]["typed_operation_proof"]["correspondence"][0]["kind"],
+            "one-to-many"
+        );
+        assert_eq!(
+            split["edited_element_ids"]["typed_operation_proof"]["identity_namespace_status"],
+            "source-element-only-not-materialized-to-identity-lineage@1"
+        );
+        assert_self_hash(&split);
+
+        let split_prepare_request = prepare_request(
+            &triangle_request,
+            split_request,
+            split["canonical_sha256"].as_str().unwrap(),
+            "typed-split-stage-once",
+        );
+        let staged_split = prepare(&runtime, &split_prepare_request).expect("staged split");
+        assert_eq!(staged_split["operation"], "split_edge");
+        assert_eq!(staged_split["candidate"]["state"], "reviewable");
+        assert_eq!(staged_split["version_status"], "no-version-created");
+        assert_eq!(staged_split["confirm_status"], "approval-required");
+        assert_eq!(staged_split["export_status"], "locked-until-confirm");
+
+        let base_topology = get(&runtime, &base_request).expect("quad topology");
+        let collapse_request = preview_request(
+            &base_request,
+            base_topology["topology_sha256"].as_str().unwrap(),
+            topology_operation(json!({
+                "operation":"collapse_edge",
+                "edge_id":"e01",
+                "survivor_vertex_id":"v0",
+                "parent_revision":0
+            })),
+        );
+        let collapse = preview(&runtime, &collapse_request).expect("collapse preview");
+        assert_eq!(collapse["counts"]["after"]["vertex_count"], 3);
+        assert_eq!(collapse["counts"]["after"]["face_count"], 1);
+        assert_eq!(
+            collapse["edited_element_ids"]["typed_operation_proof"]["correspondence"][0]["kind"],
+            "many-to-one"
+        );
+        assert_self_hash(&collapse);
+
+        let (_two_triangle, two_triangle_request) =
+            prepare_authoring_variant_candidate(&runtime, &base_request, two_triangle_parameters());
+        let two_triangle_topology =
+            get(&runtime, &two_triangle_request).expect("two-triangle topology");
+        let dissolve_request = preview_request(
+            &two_triangle_request,
+            two_triangle_topology["topology_sha256"].as_str().unwrap(),
+            topology_operation(json!({
+                "operation":"dissolve_edge",
+                "edge_id":"e12",
+                "parent_revision":0
+            })),
+        );
+        let dissolve = preview(&runtime, &dissolve_request).expect("dissolve preview");
+        assert_eq!(dissolve["counts"]["before"]["face_count"], 2);
+        assert_eq!(dissolve["counts"]["after"]["face_count"], 1);
+        assert_eq!(dissolve["counts"]["after"]["triangle_count"], 2);
+        assert_eq!(
+            dissolve["edited_element_ids"]["typed_operation_proof"]["correspondence"][0]["kind"],
+            "many-to-one"
+        );
+        assert_self_hash(&dissolve);
     }
 
     #[test]

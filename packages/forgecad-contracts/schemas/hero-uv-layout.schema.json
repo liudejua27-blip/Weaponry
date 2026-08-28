@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/hero-uv-layout.schema.json",
+  "title": "HeroUvLayout@1",
+  "description": "Closed structural Hero UV diagnostic. It reports UV0/UV1, visibility-weighted density, seam/hard-edge, overlap/OOB/stretch/islands, mip padding and MikkTSpace replay; it is not an artist unwrap, visual, or engine pass.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "policy", "policy_sha256", "low_artifact_sha256",
+    "resolution", "uv0_semantic", "uv1_semantic", "visibility_weight_policy",
+    "mip_padding_policy", "seam_policy", "hard_edge_policy", "uv0_corners", "uv1_corners",
+    "visibility_weights", "islands", "metrics", "mikk_replay", "source_only", "quality_status",
+    "structural_status", "visual_status", "human_status", "engine_status", "distribution_status",
+    "runtime_write_performed", "production_stage_advanced", "candidate_confirmed",
+    "version_created", "export_performed", "promotion_eligible", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "HeroUvLayout@1"},
+    "operation": {"const": "production_weapon_hero_uv_layout"},
+    "policy": {"const": "production-weapon-hero-uv-layout-first-person-weighted@1"},
+    "policy_sha256": {"$ref": "#/$defs/sha256"},
+    "low_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "resolution": {"enum": [2048, 4096]},
+    "uv0_semantic": {"const": "game-material-hero-channel@1"},
+    "uv1_semantic": {"const": "lightmap-bake-channel@1"},
+    "visibility_weight_policy": {"const": "first-person-world-hidden-per-part@1"},
+    "mip_padding_policy": {"const": "base-padding-at-least-2^min-mip-level@1"},
+    "seam_policy": {"const": "uv-seam-or-material-boundary-and-hard-edge-congruence@1"},
+    "hard_edge_policy": {"const": "face-normal-angle-threshold@1"},
+    "uv0_corners": {"type": "array", "maxItems": 24576, "items": {"$ref": "#/$defs/uv0_corner"}},
+    "uv1_corners": {"type": "array", "maxItems": 24576, "items": {"$ref": "#/$defs/uv1_corner"}},
+    "visibility_weights": {"type": "array", "minItems": 1, "maxItems": 4096, "items": {"$ref": "#/$defs/visibility_weight"}},
+    "islands": {"type": "array", "maxItems": 8192, "items": {"$ref": "#/$defs/island"}},
+    "metrics": {"$ref": "#/$defs/metrics"},
+    "mikk_replay": {"$ref": "#/$defs/mikk_replay"},
+    "source_only": {"const": true},
+    "quality_status": {"const": "structural_only"},
+    "structural_status": {"const": "PASS_SOURCE_STRUCTURAL"},
+    "visual_status": {"const": "NOT_PROVEN"},
+    "human_status": {"const": "NOT_RUN"},
+    "engine_status": {"const": "NOT_RUN"},
+    "distribution_status": {"const": "NOT_RUN"},
+    "runtime_write_performed": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "promotion_eligible": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "uv": {
+      "type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}],
+      "items": false, "minItems": 2, "maxItems": 2
+    },
+    "uv0_corner": {
+      "type": "object", "additionalProperties": false,
+      "required": ["triangle_index", "part_id", "material_zone_id", "island_id", "first_person_weight", "uv"],
+      "properties": {
+        "triangle_index": {"type": "integer", "minimum": 0, "maximum": 8191},
+        "part_id": {"$ref": "#/$defs/id"},
+        "material_zone_id": {"$ref": "#/$defs/id"},
+        "island_id": {"type": "integer", "minimum": 0, "maximum": 8191},
+        "first_person_weight": {"type": "number", "minimum": 0, "maximum": 1},
+        "uv": {"type": "array", "prefixItems": [{"$ref": "#/$defs/uv"}, {"$ref": "#/$defs/uv"}, {"$ref": "#/$defs/uv"}], "items": false, "minItems": 3, "maxItems": 3}
+      }
+    },
+    "uv1_corner": {
+      "type": "object", "additionalProperties": false,
+      "required": ["triangle_index", "part_id", "chart_id", "uv"],
+      "properties": {
+        "triangle_index": {"type": "integer", "minimum": 0, "maximum": 8191},
+        "part_id": {"$ref": "#/$defs/id"},
+        "chart_id": {"type": "integer", "minimum": 0, "maximum": 8191},
+        "uv": {"type": "array", "prefixItems": [{"$ref": "#/$defs/uv"}, {"$ref": "#/$defs/uv"}, {"$ref": "#/$defs/uv"}], "items": false, "minItems": 3, "maxItems": 3}
+      }
+    },
+    "visibility_weight": {
+      "type": "object", "additionalProperties": false,
+      "required": ["part_id", "first_person", "world", "hidden"],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/id"},
+        "first_person": {"type": "number", "minimum": 0, "maximum": 1},
+        "world": {"type": "number", "minimum": 0, "maximum": 1},
+        "hidden": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "island": {
+      "type": "object", "additionalProperties": false,
+      "required": ["island_id", "triangle_count", "part_ids", "uv0_bbox", "texel_density", "first_person_weighted_texel_density", "seam_policy"],
+      "properties": {
+        "island_id": {"type": "integer", "minimum": 0, "maximum": 8191},
+        "triangle_count": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "part_ids": {"type": "array", "minItems": 1, "maxItems": 4096, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "uv0_bbox": {"type": "array", "prefixItems": [{"$ref": "#/$defs/uv"}, {"$ref": "#/$defs/uv"}], "items": false, "minItems": 2, "maxItems": 2},
+        "texel_density": {"type": "number", "minimum": 0},
+        "first_person_weighted_texel_density": {"type": "number", "minimum": 0},
+        "seam_policy": {"const": "edge-shared-or-explicit-seam@1"}
+      }
+    },
+    "metrics": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "triangle_count", "uv0_island_count", "uv1_chart_count", "uv0_overlap_count", "uv1_overlap_count",
+        "uv0_out_of_bounds_triangle_count", "uv1_out_of_bounds_triangle_count", "uv0_zero_area_triangle_count",
+        "uv0_inverted_triangle_count", "stretch_exceeded_triangle_count", "max_stretch_ratio",
+        "first_person_weighted_texel_density", "all_surface_texel_density", "boundary_edge_count",
+        "non_manifold_edge_count", "hard_edge_count", "uv_seam_count", "material_boundary_count",
+        "hard_edge_without_seam_count", "seam_hard_edge_congruence", "padding_texels",
+        "required_mip_padding_texels", "mip_padding_passed", "first_person_weighting_applied",
+        "uv0_structural_gate", "uv1_structural_gate"
+      ],
+      "properties": {
+        "triangle_count": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "uv0_island_count": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "uv1_chart_count": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "uv0_overlap_count": {"type": "integer", "minimum": 0}, "uv1_overlap_count": {"type": "integer", "minimum": 0},
+        "uv0_out_of_bounds_triangle_count": {"type": "integer", "minimum": 0}, "uv1_out_of_bounds_triangle_count": {"type": "integer", "minimum": 0},
+        "uv0_zero_area_triangle_count": {"type": "integer", "minimum": 0}, "uv0_inverted_triangle_count": {"type": "integer", "minimum": 0},
+        "stretch_exceeded_triangle_count": {"type": "integer", "minimum": 0}, "max_stretch_ratio": {"type": "number", "minimum": 1},
+        "first_person_weighted_texel_density": {"type": "number", "minimum": 0}, "all_surface_texel_density": {"type": "number", "minimum": 0},
+        "boundary_edge_count": {"type": "integer", "minimum": 0}, "non_manifold_edge_count": {"type": "integer", "minimum": 0},
+        "hard_edge_count": {"type": "integer", "minimum": 0}, "uv_seam_count": {"type": "integer", "minimum": 0}, "material_boundary_count": {"type": "integer", "minimum": 0},
+        "hard_edge_without_seam_count": {"type": "integer", "minimum": 0}, "seam_hard_edge_congruence": {"type": "boolean"},
+        "padding_texels": {"type": "integer", "minimum": 1, "maximum": 128}, "required_mip_padding_texels": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "mip_padding_passed": {"type": "boolean"}, "first_person_weighting_applied": {"const": true},
+        "uv0_structural_gate": {"type": "boolean"}, "uv1_structural_gate": {"type": "boolean"}
+      }
+    },
+    "mikk_replay": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "status", "triangle_corner_count", "non_finite_count", "input_frame_mismatch_count", "tangent_semantics", "normal_convention"],
+      "properties": {
+        "algorithm": {"const": "MikkTSpace@0.3.0"}, "status": {"const": "PASS_SOURCE_STRUCTURAL"},
+        "triangle_corner_count": {"type": "integer", "minimum": 3, "maximum": 24576}, "non_finite_count": {"const": 0},
+        "input_frame_mismatch_count": {"type": "integer", "minimum": 0}, "tangent_semantics": {"const": "UV0-derived-tangent-input-replay@1"},
+        "normal_convention": {"const": "OpenGL+Y"}
+      }
+    }
+  }
+}

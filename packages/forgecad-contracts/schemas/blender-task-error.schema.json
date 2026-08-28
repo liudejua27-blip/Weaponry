@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/blender-task-error.schema.json",
+  "title": "BlenderTaskError@1",
+  "description": "Closed error payload carried by the existing WorkerResponse@1 envelope. Messages are bounded and must be scrubbed of paths, usernames, secrets, and commands by the producer.",
+  "x-operation": "blender.render_fixed@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "message"],
+  "properties": {
+    "code": {"$ref": "#/$defs/code"},
+    "message": {"type": "string", "minLength": 1, "maxLength": 512}
+  },
+  "$defs": {
+    "code": {
+      "enum": [
+        "CAPABILITY_UNAVAILABLE",
+        "WORKER_PROTOCOL",
+        "WORKER_TIMEOUT",
+        "WORKER_CRASHED",
+        "WORKER_RESOURCE_LIMIT",
+        "WORKER_HASH_MISMATCH",
+        "WORKER_READBACK_REJECTED",
+        "WORKER_DETERMINISM_MISMATCH",
+        "WORKER_COHORT_MISMATCH",
+        "WORKER_SANDBOX_VIOLATION",
+        "WORKER_LICENSE_UNAVAILABLE",
+        "WORKER_PACKAGE_UNVERIFIED"
+      ]
+    }
+  }
+}

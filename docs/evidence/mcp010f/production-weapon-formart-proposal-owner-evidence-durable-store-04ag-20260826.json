@@ -1,0 +1,71 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FPS-FORM-04AG-PROPOSAL-OWNER-EVIDENCE",
+  "recorded_at": "2026-08-26",
+  "scope": "fictional-nonfunctional-game-weapon-visual-asset-only",
+  "execution_status": "PASS_WITH_BLOCKED_FORM_ART_GATE",
+  "contract": {
+    "schema_version": "ProductionWeaponFormArtProposalEvidence@1",
+    "manifest_registered": true,
+    "contract_count": 528,
+    "mcp_tool_count_changed": false
+  },
+  "source": {
+    "project_id": "project-318e4de6aa4d4f33b2f740988fed6fa1",
+    "candidate_id": "candidate-8b35615c93e34775a7ca0d5418272adb",
+    "candidate_state_sha256": "47f7d2117a88beabc38d4cb123e694dbc425608a8aa43a5af40d10040c82ea67",
+    "artifact_sha256": "fa5d81fd9d219eaf85f7bb9094adb7d89338b3395f6263443b1159918418368e",
+    "artifact_readback_sha256": "af4ab8c084e07913f68a05e4482ca9992944232b29d7681f65f5cb6b591579ea",
+    "form_art_evidence_id": "fps-form-04a-form-art",
+    "form_art_evidence_object_sha256": "23a235882fae829282f8de414c24c1596a1a63e43caad4a9aeedb21d9e848015",
+    "form_art_evidence_canonical_sha256": "34cce417f7947f0b7fcd0d06272db7f36b1de2457fc2d845a83dbb8b9fde3d03"
+  },
+  "proposal": {
+    "candidate_id": "candidate-17ac1c74167f4fafa27f75d5284b8b94",
+    "candidate_state_sha256": "6a338478d7d8d86799298251167136d64433989ed29b6ce85e3295eb40a7eb96",
+    "artifact_sha256": "c6a8ebb3de84a7cfe5ba9294b27dbb004f0a23aa67e2fed9b793ac80b571bf7e",
+    "artifact_readback_sha256": "c63f9e72129f7ce5b72a06be35d4c8106a716f7daa782b66f18bfad8d657c971",
+    "cross_view_bundle_sha256": "71a6b69f3590dd3a2deb1a6829405bd7ac26d8c562b91f5cfabd643617001cf1",
+    "form_art_proposal_evidence_object_sha256": "1f591bb785ab64c340e1334c093d0f139911669028506f8fe426b55c1f73fde3",
+    "form_art_proposal_evidence_canonical_sha256": "26ab9fcdf1c68637e3458dd15507e3a6261a5de0edc18f33111da41e357fbd87",
+    "durable_identity_sha256": "3b0da665a15db916a129d4a5504ef958b73615e5ec2f3bd527254b254206ae58"
+  },
+  "durable_store": {
+    "cas_canonical_readback": "PASS",
+    "sqlite_identity_index": "PASS",
+    "dependency_reachability": "PASS",
+    "same_key_replay": "PASS",
+    "runtime_drop_reopen_replay_readback": "PASS",
+    "hashes_stable_across_replay": true
+  },
+  "six_view_observation": {
+    "view_order": ["front", "back", "left", "right", "top", "rear-three-quarter"],
+    "part_id_all_views_observed": true,
+    "negative_space_all_views_resolved": false,
+    "line_flow_all_views_resolved": false,
+    "strict_owner_void_all_views_passed": false,
+    "views": [
+      {"view_kind": "front", "part_id": "observed", "negative_space": "not-applicable", "line_flow": "inferred", "owner_void": null},
+      {"view_kind": "back", "part_id": "observed", "negative_space": "not-applicable", "line_flow": "unknown", "owner_void": null},
+      {"view_kind": "left", "part_id": "observed", "negative_space": "unknown", "line_flow": "unknown", "owner_void": false},
+      {"view_kind": "right", "part_id": "observed", "negative_space": "unknown", "line_flow": "unknown", "owner_void": false},
+      {"view_kind": "top", "part_id": "observed", "negative_space": "not-applicable", "line_flow": "inferred", "owner_void": null},
+      {"view_kind": "rear-three-quarter", "part_id": "observed", "negative_space": "observed", "line_flow": "unknown", "owner_void": false}
+    ]
+  },
+  "gate": {
+    "cross_view_status": "REVIEWABLE_TRADEOFF",
+    "proposal_evidence_status": "BLOCKED_PROPOSAL_FORM_ART_EVIDENCE",
+    "proposal_form_art_evidence_ready": false,
+    "secondary_form_eligibility": "BLOCKED_PROPOSAL_FORM_ART_EVIDENCE",
+    "secondary_form_approved": "NOT_CREATED",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "stage": "camera-calibrated",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "promotable": false
+  },
+  "truth_boundary": "04AG durable evidence transport, replay and restart readback passed. The actual proposal FormArt gate remains blocked by unresolved negative-space and line-flow rows plus failed strict rear-stock owner/open-void checks. This is not visual, human, engine, commercial or export approval."
+}

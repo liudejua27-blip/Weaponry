@@ -1,0 +1,84 @@
+{
+  "schema_version": "ForgeCADSupplementalSourceGateReceipt@1",
+  "receipt_id": "commercial-weapon-authoring-slices-source-gate-20260825",
+  "recorded_at": "2026-08-25",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_BOUNDED_WORKER_SOURCE_SLICES_ONLY",
+  "source_surface": {
+    "schema_count": 499,
+    "operator_entries": 28,
+    "read_tools": 107,
+    "write_tools": 79,
+    "total_tools": 186,
+    "mcp_tool_surface_changed": false
+  },
+  "slices": {
+    "native_high_surface": {
+      "status": "PASS_SOURCE_DURABLE_RESTART_MCP_ONLY",
+      "capability": "bounded deterministic 1-3 segment face-interior support-loop chamfer arc with compatibility boundary patch",
+      "worker_library": "PASS_6_OF_6",
+      "worker_transport": "PASS_7_OF_7",
+      "runtime_same_cohort_restart": "PASS_1_OF_1",
+      "build_cohort_sha256": "63919dab17910397b8a15b991468d24e338ce6ce550b337ad3797bf440363a62",
+      "fps_high_05": "NOT_PASSED"
+    },
+    "editable_low_quad_draft": {
+      "status": "PASS_WORKER_TYPED_PRODUCER_READBACK_ONLY",
+      "schema_versions": ["LowQuadDraftWorkerRequest@1", "LowQuadDraftWorkerResult@1"],
+      "capability": "explicit four-sided authoring draft validation, closed edge adjacency, edge-flow projection, budgets, lineage and strict derived GLB readback",
+      "focused_tests": "PASS_10_OF_10_PLUS_EXPLICIT_QUAD_2_OF_2",
+      "artist_review_status": "DRAFT_UNREVIEWED",
+      "runtime_durable_status": "NOT_IMPLEMENTED",
+      "automatic_commercial_quad_retopology": false
+    },
+    "hero_uv_layout": {
+      "status": "PASS_WORKER_SOURCE_PRODUCER_ONLY",
+      "schema_version": "HeroUvLayout@1",
+      "capability": "2K/4K UV0/UV1 diagnostics with first-person visibility weights, mip padding, seam-hard-edge, stretch, overlap, OOB, island and MikkTSpace replay metrics",
+      "focused_tests": "PASS_3_OF_3",
+      "contract_manifest_registration": "NOT_IMPLEMENTED",
+      "runtime_durable_status": "NOT_IMPLEMENTED",
+      "artist_unwrap_status": "NOT_PROVEN",
+      "engine_tangent_roundtrip": "NOT_RUN"
+    },
+    "art_director_viewer_matrix": {
+      "status": "PASS_SOURCE_TYPECHECK_AND_PRODUCTION_BUILD",
+      "capability": "read-only Runtime-evidence production-chain matrix in the Viewer inspector",
+      "runtime_or_viewer_write_performed": false,
+      "quality_inference_performed": false
+    }
+  },
+  "checks": {
+    "contracts": "PASS_499_OF_499",
+    "geometry_worker_offline_compile": "PASS",
+    "worker_protocol_strict_envelope": "PASS_1_OF_1",
+    "desktop_typecheck": "PASS",
+    "desktop_production_build": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "source_sha256": {
+    "apps/high-worker/src/lib.rs": "d5a88cc24a9024b3035317591c7e25151c397af89924672dc1e7e6b8624d1f11",
+    "apps/geometry-worker/src/production_low_retopology.rs": "b8fc8f15e30268215289ef6bca465c1f5d4d49ee6ae3f42a41fa9b5e43349968",
+    "apps/geometry-worker/src/production_hero_uv_layout.rs": "a3935159789a680140831a5f267a6be879bee41886b4c099d7169c3a7b8a8216",
+    "apps/geometry-worker/src/lib.rs": "5f579dd762ddab176d98bd3c9c2f73c8c6dd3545478161269b5a47018da77ed0",
+    "apps/geometry-worker/src/main.rs": "29db98b90322aced30b3ca926ed6dc094051719b80900dd00d05f41ddc78507e",
+    "apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs": "5d4f973c6a6e78f8af8fe5559a740e06c53fa56fa97ae09843e4ef55c7a3bce9",
+    "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx": "e9cfc30c991bba3e1c8e4713c385431d422cc5d0885f60330d6ed21f271cc2f0",
+    "apps/desktop/src/styles.css": "ad38db9c97aaf2b9ef60b64c1acdbd19d730a0460f4d197027e080d0ff1614eb",
+    "packages/forgecad-contracts/manifest.json": "a24298acb56df95721fe9db26ce88dbcbd470587d56b1b30d8be2038a57bdb2d"
+  },
+  "gate_truth": {
+    "production_stage": "camera-calibrated",
+    "secondary_form_approved": "NOT_CREATED",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "distribution_status": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "policy": "supplemental source evidence only; no source slice promotes commercial asset quality or bypasses Runtime sole-writer and user approval"
+}

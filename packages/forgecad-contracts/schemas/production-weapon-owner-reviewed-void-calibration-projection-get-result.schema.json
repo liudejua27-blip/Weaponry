@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-owner-reviewed-void-calibration-projection-get-result.schema.json",
+  "title": "ProductionWeaponOwnerReviewedVoidCalibrationProjectionGetResult@1",
+  "description": "Read-only, non-durable result for the Runtime-derived owner-to-reviewed-void calibration projection. A blocked projection is diagnostic evidence only and cannot promote, confirm, version or export; restart hash verification remains false until a separate durable receipt exists.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "projection_id", "projection", "request_sha256",
+    "request_input_sha256", "replayed", "restart_hash_verified", "writer_policy", "runtime_write",
+    "persistent_user_data_touched", "worker_started", "production_stage_advanced", "candidate_confirmed",
+    "version_created", "export_performed", "quality_status", "depth_status",
+    "canonicalization_policy", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponOwnerReviewedVoidCalibrationProjectionGetResult@1"},
+    "operation": {"const": "forgecad.production.weapon.owner-reviewed-void-calibration-projection-get@1"},
+    "projection_id": {"$ref": "#/$defs/id"},
+    "projection": {"$ref": "https://forgecad.local/contracts/production-weapon-owner-reviewed-void-calibration-projection.schema.json"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "request_input_sha256": {"$ref": "#/$defs/sha256"},
+    "replayed": {"type": "boolean"},
+    "restart_hash_verified": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "runtime_write": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "worker_started": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "quality_status": {"const": "NOT_PROVEN"},
+    "depth_status": {"enum": ["OBSERVED", "UNKNOWN", "INVALID"]},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
