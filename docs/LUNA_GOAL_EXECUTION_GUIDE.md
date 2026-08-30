@@ -1,6 +1,16 @@
 # Luna Goal 执行指南：ForgeCAD 单用户 MVP
 
-> 2026-08-28 Goal 当前完成 `FPS-FORM-04BE-F`。Luna/Codex 下一原子固定为 `FPS-FORM-04BE-G`：只对同一 04BE-E candidate/artifact、批准 camera/crop 与 exact AOV 做 owner-attribution/depth-winner 和 side-aperture visibility calibration；不得新增或反向猜测 Y profile，不得创建候选、FormQualityV2、secondary、confirm、version、export 或 High→Low→UV→Bake。
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+> 2026-08-28 Goal 当前完成 `FPS-FORM-04BE-L`。用户授权 `receiver-upper` 后，Codex/Runtime 已执行 4 个 product-owned 单边回撤候选；全部结构通过、视觉拒绝，父候选保留。下一原子固定为 `FPS-FORM-04BE-M`：只读分析 right target 的 depth winner/Part-ID/occlusion；不得继续盲目放大回撤或同时修改其他 Part。
+
+> 2026-08-28 Goal 当前完成 `FPS-FORM-04BE-J/K`。Luna Max 并行拓扑、证据和文档审计已确认：真孔拓扑存在，但 approved left target 的剩余遮挡尚未被精确归因；8 个候选全部拒绝，父候选保留。下一原子固定为 `FPS-FORM-04BE-L`：只读绑定 exact GLB/camera/mask/depth/Part-ID，输出目标区域逐 Part depth-winner 与遮挡排名；不得继续盲扫孔参数，不得提前修改 `receiver-upper` 或放宽六视图门。
+
+> 2026-08-28 Goal 当前完成 `FPS-FORM-04BE-I`。4 个 `side-panel-a` 20/40mm min/max-X 试验全部因六视图回退且 left trigger void 仍 sealed 被拒绝，母候选已确定保留。Luna/Codex 下一原子固定为 `FPS-FORM-04BE-J`：重设计且注册能在二维孔洞内产生非零可见响应的 `side-panel-a` aperture/边界形变族；不得跳到 `receiver-upper`、多 Part 同改或放宽六视图门。
+
+> 2026-08-28 Goal 当前完成 `FPS-FORM-04BE-H`。Luna/Codex 下一原子固定为 `FPS-FORM-04BE-I`：只注册并执行 plan canonical=`fe7c8ecf…680b61` 的 step 1 `side-panel-a` 四个试验，从 20/40mm min/max-X 回撤中仅保留目标孔改善且六视图不回退的结果。未达门时不得进入 `receiver-upper`，不得自行扩大 Part 范围。
+
+> 2026-08-28 Goal 当前完成 `FPS-FORM-04BE-G`。Luna/Codex 下一原子固定为 `FPS-FORM-04BE-H`：以 canonical=`3d3cd762…e7196` 为唯一输入，编制同时绑定 left `side-panel-a` 与 right `receiver-upper` 的双视图 aperture repair plan；不得继续修改 rear-stock，不得执行 geometry、创建候选/FormQualityV2/secondary/confirm/version/export 或进入 High→Low→UV→Bake。
 
 > 2026-08-28 Goal 当前完成 `FPS-FORM-04BE-D`：Luna/Codex 只能把 canonical=`d6f74060…85fd` 的 registered typed plan 作为下一原子输入，不能自行改 camera/reference/base 或注入 mesh/vertices。下一步执行后必须重跑同 baseline/批准六相机 54 AOV、strict owner-void、negative-space/line-flow 与 fresh FormQualityV2；失败即继续 `QUALITY_TARGET_NOT_MET`，不得自动进入 High→Low→UV→Bake。
 
@@ -76,7 +86,7 @@ Luna 是仓库开发执行者，不是 ForgeCAD 运行时 Agent、Provider 或�
 
 Stage 0 唯一机器可读真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，不是合格 benchmark；它为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；packaged Viewer 来自不同 cohort/artifact，未绑定该 candidate。任何 Luna 状态更新都必须保留这些失败/未运行边界。
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 不要把 Goal 写成“完善整个软件”后无边界并行修改。一次只领取一个 `FGC-MCPxxx`，先完成退出 Gate，再进入下一项。MCP005–009 是已完成的 functional core；MCP010A–F 严格串行，MCP011–013 保留可靠性、分发和正式发布职责。
@@ -321,3 +331,5 @@ ForgeCAD MVP completed for the first hard-surface reference benchmark on <commit
 `[transition-v1]` `GeometryProgram@1` primitive-only + `AppearanceProgram@1` + `RenderSet@1` 四 pass 只保留 MCP007–009 structural MVP/历史导出兼容。它不是当前高质量路径，不能产出 strict likeness、PBR、human、packaged Viewer 或 360 结论。
 
 真实验收必须另外记录：Codex host 类型、MCP initialize 版本、参考源字节 hash、Geometry/Appearance canonical hash、GLB hash、RenderSet hash、QualityReport、approval receipt、version DAG、Viewer readback、重启后的 hash 和真人评分。任何一项没有运行，都写 `NOT_RUN`；宿主不可用写 `BLOCKED`。
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

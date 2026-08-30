@@ -1,6 +1,69 @@
 # ForgeCAD 测试策略
 
-> 2026-08-28 `FPS-FORM-04BE-F` 只运行高价值 focused 验证：579-schema 合同检查、Runtime/MCP compile、同 cohort 默认只读工具清单、mandatory Ponytail preflight、真实 D1 两次 GET/Runtime restart exact canonical equality、SQLite 全业务表与 CAS inventory 前后比较、Stage 0 真值漂移门。结果 PASS；未新增几何候选、未重复宽泛测试，视觉仍 `QUALITY_TARGET_NOT_MET`。
+> 2026-08-30 final combined architecture gate：Authoring、Evaluation、Surface、Presentation、Delivery 五域均必须走 direct typed Router/service；物理抽取仍 partial。Runtime/Store/MCP root 为 `52,542 / 79,841 / 1,081` 行，MCP `agentic_write_tools.rs=22,800`，Runtime root modules=`92`。Delivery active profile 为 **11 operations = 4 read / 7 write**，中央 9 个 capability mapping 为 `Partial`，仅 `version_diff` request schema closed（1/11）；Store 新增 `GameAssetDeliveryLinkRecord` repository，ApprovalLifecycle、socket/anchor、ReadModel/QualityEvidence 与其余 Presentation repository 仍未抽取。
+> 当前源码元数据：`schema_count=658`、`schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1`、`runtime_source_sha256=085714f60445ed831809564d5324424aed9a734f7dec3c782a90876fa1c5d708`、`truth_canonical_sha256=6f90c5fcb2fb2218b04c871d260964623729da6ba4adf9b7cfe1d5082c154cc3`；source-only compatibility summary `cohort=null`、`131/95/226`、SHA-256=`1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca`。
+> active request Schema=`125/125`，blocked=0，Runtime fallback=0；226 legacy registry 已 feature 隔离但大量 compatibility handler 仍编译。最终 architecture-fast receipt：cohort=`265914b6699d101eb69030947c2419e26e7a99ceef52a63a3c834989af88f28c`，`87 passed / 0 failed / 0 ignored`，`182s≤900s`，`source_drift=false`，local SHA-256=`6487663b3aed0a0c80a63ebad7ff6c344f1fd0ccc283f4a52f7ed3e703fc74f8`。本轮未重跑 full Runtime qualification，前一完整 `554 passed / 0 failed / 37 ignored` 基线保留。
+> 本轮无用户数据变更、无视觉/商业 promotion；没有提升 High→Low→UV→Bake、材质、FPS、引擎、人审或商业质量。不可变历史 receipts 未改写；mutable Stage0 current-source truth 已按最终源码重建。下一原子严格为 `WPN-ARCH-MCP-SPLIT-001 → WPN-ARCH-RETIRE-001`。
+
+> 2026-08-30 `WPN-ARCH-COMPAT-001`：兼容隔离必须由 fresh Cargo dep-info 而非 feature 名称证明。
+> 当前默认 MCP 编译 6 个本 crate 源文件，显式 compat 编译 39 个；默认/兼容单测为 22/22、230/230，
+> 历史 manifest 131/95/226。默认 profile 另强制报告 active=125、closed request schema=12、
+> Runtime-validated=113、closure=`PARTIAL`。下一 Gate 必须先将 active request closure 提升为 125/125，
+> 且不得让 legacy handlers 回到默认编译图；这仍不替代 Runtime full、视觉、人审或商业质量测试。
+
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+> 2026-08-30 架构回归分层：`npm run runtime:architecture-fast` 是 fresh-target 四身份快速门；前序 Surface
+> 快照为 53 passed / 0 failed / 0 ignored / 194s，作为历史 receipt 保留。最终 combined architecture-fast 为
+> `87 passed / 0 failed / 0 ignored / 182s≤900s`，same-cohort=`265914b6699d101eb69030947c2419e26e7a99ceef52a63a3c834989af88f28c`；默认 `npm run runtime:full` 继续执行
+> 554/0/37 的高成本 Runtime 枚举。37 ignored 的源码 marker 与主分类由
+> `forgecad-runtime/ignored-tests.json` 和全源码树 checker 闭合，但 current-cohort execution 为 0，
+> 状态是 `NOT_PROVEN`。快速门不得替代 ignored、animation/GLB/2K、视觉、历史数据库或真人/引擎资格门。
+
+> `WPN-ARCH-SURFACE-001` focused gate：Surface active profile 必须精确为 15（8 read / 7 write），默认调用经
+> direct typed `surface_service`，两个 `production_weapon_retopology_cage_source_bundle_*` 只能作为
+> compatibility alias；Contract capability `formal_high_low_cage_bake` 必须保留 `Partial` mapping。验证应覆盖
+> profile operation set、中央 map→Runtime service→Store record/repository→MCP façade 的唯一归属、Surface router
+> unknown/out-of-bound fail-closed、borrowed `SurfaceRepository` 不复制 connection/migration/CAS owner、formal
+> bake exact replay/readback 和 producer-unavailable 零写路径，以及五域 direct typed service 的 routing 与仍 partial 的物理抽取。
+> 最终 combined receipt 为 `87/0/0`、182s，local SHA-256=`6487663b3aed0a0c80a63ebad7ff6c344f1fd0ccc283f4a52f7ed3e703fc74f8`；
+> active schema closure 为 125/125、blocked=0、Runtime fallback=0。该 gate
+> 不产生视觉或商业 promotion，不触碰用户数据，历史 receipts 不改写。
+
+### WPN-ARCH-DELIVERY-001 / combined five-domain architecture matrix
+
+| 范围 | 必测 | 当前证据 |
+|---|---|---|
+| Five-domain Router | Authoring/Evaluation/Surface/Presentation/Delivery 的 direct typed Router/service、domain mismatch 与无 service→legacy re-entry | 五域 direct typed 接线；物理抽取仍 partial |
+| Delivery Contract mapping | 11 operations（4 read / 7 write）、9 capability mapping、唯一 owner 与 fail-closed dispatch | 9 mappings=`Partial`；`version_diff` closed，Delivery request closure=`1/11` |
+| Delivery Store seam | borrowed `DeliveryRepository<'store>`；`GameAssetDeliveryLinkRecord` record/get/list/commit；单一 migration/CAS owner | source seam PASS；ApprovalLifecycle、socket/anchor 与其余 records 未抽取 |
+| MCP compatibility | active request schema、legacy registry 与默认 Action Space 隔离 | active schema=`125/125`、blocked=0、Runtime fallback=0；legacy=`131 read + 95 write = 226`，feature isolated |
+| Fast aggregate | fresh four-worker identities、source drift、预算和 focused architecture tests | cohort=`265914b6699d101eb69030947c2419e26e7a99ceef52a63a3c834989af88f28c`；`87/0/0`、182s、`source_drift=false` |
+
+该矩阵只证明架构 source/fast regression；本轮未重跑 full Runtime qualification，前一完整 `554/0/37` 基线保留。它不提升
+High→Low→UV→Bake、视觉、引擎、人审或商业质量，且不改写 Stage0 truth/hash 或历史 evidence。
+
+## Weaponry acceptance test pyramid
+
+1. Kernel：topology invariants、generated-ID references、atomic rollback、deterministic journal；
+2. Evaluation：modifier order、dirty closure、provider determinism、original/evaluated separation；
+3. Game-ready：High/Low correspondence、quad editability、UV/seam/stretch、Cage/ray diagnostics、PBR channels；
+4. Presentation：first-person/inspect/ADS occlusion、socket/clip/LOD/collision；
+5. Visual：固定视图/AOV/reference compare，禁止相机补偿；
+6. Delivery：target-engine import/re-export/readback；
+7. Acceptance：授权 CrossFire weapon 与 original control 的独立武器美术人审。
+
+每层均绑定同一 candidate lineage；后一层不能覆盖前一层 FAIL。
+
+> 2026-08-28 `FPS-FORM-04BE-L` 只运行用户授权修改所需的 focused 验证：合同检查、Runtime/MCP/Geometry/Render Worker 同 cohort build、4 个真实 `receiver-upper` profile strict GLB、4×54 AOV、CrossView/FormArt 和 restart exact。4 个候选质量失败原样入账，没有运行宽泛测试或放宽选择门。
+
+> 2026-08-28 `FPS-FORM-04BE-J/K` 继续只运行直接决定产品真值的 focused 验证：Runtime/MCP compile、合同枚举、8 个真实 registered profile 的 strict GLB readback、8×六视图×9 AOV、Runtime restart exact readback，以及父节点完整参数/inputs fail-closed。没有用宽泛测试掩盖结果；8 个候选视觉失败均原样入账并拒绝晋级。
+
+> 2026-08-28 `FPS-FORM-04BE-I` 只运行与产品判定直接相关的 focused 验证：Runtime/MCP/Geometry/Render Worker compile，583-schema 合同检查，4 个真实 registered profile 的 strict GLB readback，4×六视图×9 AOV，以及 Runtime restart 后 proposal/evidence exact hash 回读。未运行无关宽泛测试；四个候选的质量失败被如实保留，不用结构 PASS 覆盖视觉失败。
+
+> 2026-08-28 `FPS-FORM-04BE-H` 仅运行高价值 focused 验证：583-schema 合同检查、Runtime/MCP/Geometry/Render Worker compile、compiled tool manifest、mandatory preflight、真实 D1 双 Runtime 会话 canonical equality、SQLite/CAS 零写与 Stage0 真值门。未为追求绿色而执行无关宽泛测试；证据只证明 typed plan，不证明几何修复或视觉质量。
+
+> 2026-08-28 `FPS-FORM-04BE-G` 只运行高价值 focused 验证：581-schema 合同检查、Runtime/MCP/Render Worker compile、同 cohort 默认只读工具清单、每次 Runtime session 的 mandatory Ponytail preflight、真实 D1 两次 GET/restart exact canonical equality、SQLite 全业务表与 CAS inventory 前后比较、Stage 0 真值漂移门。结果 PASS；未新增几何候选、未重复宽泛测试，视觉仍 `QUALITY_TARGET_NOT_MET`。
 
 > 2026-08-28 `FPS-FORM-04BE-D` 只运行高价值 focused 验证：577-schema checker、Runtime/MCP compile、同 cohort build identity、mandatory preflight、真实 D1 read-only GET、Runtime restart exact result/canonical equality、全部业务表逻辑摘要与 CAS tree 前后比较。结果 PASS，但物理 SQLite file hash 因 open/close 元数据不同而保留为 false；业务 116 tables/2520 rows 与 1639 CAS objects 未变。未执行 repair、未跑宽泛测试，质量失败不被结构证据覆盖。
 
@@ -153,7 +216,7 @@ Render Evidence Integrity 追加覆盖 artifact/reference 原始 CAS byte/hash/s
 
 Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。源码门 PASS 不等于产品质量 PASS：attempt35 只是 provisional retained observation，它为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，camera 绑定 `MISMATCH`。packaged Viewer 当前只能记为 `PASS_CURRENT_COHORT_BOUND_READ_MODEL`；UI E2E、正式 VoiceOver、视觉和人评仍分别 `NOT_RUN`。
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 ## 1. 证据层级
@@ -217,6 +280,18 @@ MVP 不预设一个没有校准的相似度数字作为营销门。MCP009 真实
 
 当前三分之四参考的阈值和评分见 `MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`。单图通过只能写 `PARTIAL_VISIBLE_VIEW_PASS`；五张补充参考未到齐时 360 Gate 必须是 `BLOCKED_REFERENCE_COVERAGE`。
 
+### WPN-ARCH-EVALUATION-001 架构测试矩阵
+
+| 范围 | 必测 | 当前证据 |
+|---|---|---|
+| Contract/domain map | 41 个 Evaluation operation 的 `observe`/`quality_review`/`job` façade 归属、command/query split、capability façade 与 domain 双重校验 | `8/8 PASS`，含 `PASS_NO_RUNTIME_DOMAIN_MISMATCH` |
+| Runtime service/router | `RuntimeOperationRouter → evaluation_service::invoke`、无 active legacy match arm、service 不回入 `dispatch_ipc`；Presentation/Delivery 已有 direct typed service，物理抽取仍部分完成 | Router `8/8 PASS`，Evaluation service `5/5 PASS`；最终 combined fast gate 另见上表 |
+| Store boundary | `EvaluationRepository<'store>/JobRepository<'store>` 只借用 Store；不复制 connection、migration sequence、CAS root；Job SQL 不回到 Store root；剩余 `ReadModel`/`QualityEvidence` 必须保持声明 | Store boundary `10/10 PASS`；borrowed Job aggregate，partial gaps retained |
+| MCP default/feature | 41 operation 的 default/feature route、未知 operation/domain mismatch fail closed、compatibility replay 不进入默认 Action Space | default `23/23 PASS`；feature `23/23 PASS` |
+| Fresh same-cohort aggregate | Runtime/Geometry/High/Render identity、source drift、预算与 ignored 计数 | Evaluation 前序 cohort=`81eca9cbfd5cb5d2428fa46f8491c423076f881aba258e6be8b4d4d652c711ff`；`65/0/0`、166s；最终 combined cohort=`641a87b74c6ac1f28c5db25efadb52125f04624ee36ce1600f08ffdb43ccfbad`，`82/0/0`、190s |
+
+该矩阵只证明 Evaluation 的 source/architecture boundary。它不推进 High→Low→UV→Bake、材质、FPS、引擎、视觉、人审或商业质量；不触碰用户数据，也不改写 Surface 或任何历史 receipt。Schema closure 仍为 12/125（Evaluation 1/41）的横切后续工作。
+
 ## 6. 真实 Codex Gate
 
 自写 MCP client、fixture 或手工复制附件不能替代 Codex。MVP 已由真实 Codex CLI（带授权 image attachment）证明 reference bytes、geometry/appearance/readback、quality、write approval、version 和 CAS-only GLB export；MCP007 14 parts/516 triangles 与 MCP009 15 parts/580 triangles receipt 均 PASS。Viewer/restart/change/restore 同 hash、Desktop attachment/write surface、像素指标和人工门仍分别补证或明确 unavailable。正式发布才要求 signed package 上的 Desktop + CLI 全量路径。IDE/其他 Client 是未来 Gate。
@@ -224,3 +299,5 @@ MVP 不预设一个没有校准的相似度数字作为营销门。MCP009 真实
 ## 7. Evidence manifest
 
 每个任务 evidence 包含环境、commit/worktree、命令/exit code、合同/二进制/资产 hash、原始 artifacts、日志脱敏证明、未运行项和 blocker。Agentic durable slice 的机器入口是 `scripts/probe_agentic_runtime.py`，合同校验是 `scripts/check_agentic_runtime_receipt.py`，receipt 为 `docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json`。Markdown 总结不替代机器收据。
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

@@ -6,6 +6,6 @@ args = ["serve", "--stdio"]
 env_vars = ["FORGECAD_MCP_ENABLE_MCP004_WRITES"]
 enabled = true
 startup_timeout_sec = 20
-tool_timeout_sec = 60
+tool_timeout_sec = 180
 required = false
 default_tools_approval_mode = "writes"

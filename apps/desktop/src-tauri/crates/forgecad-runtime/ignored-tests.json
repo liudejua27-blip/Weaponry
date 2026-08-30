@@ -1,0 +1,293 @@
+{
+  "schema_version": "WeaponryRuntimeIgnoredTestPolicy@1",
+  "expected_count": 37,
+  "coverage_status": "INVENTORY_CLOSED_EXECUTION_NOT_PROVEN",
+  "current_cohort_ignored_tests_executed": 0,
+  "categories": {
+    "platform_limited": {
+      "expected_count": 21,
+      "lane": "qualification",
+      "owner": "Runtime Worker isolation",
+      "meaning": "requires the macOS fixed-sibling Worker environment and is not executed by the default Runtime full-suite"
+    },
+    "fixture_required": {
+      "expected_count": 10,
+      "lane": "fixture-input",
+      "owner": "authorized production fixture",
+      "meaning": "requires explicit authorized or durable fixture input and is not executed in the current cohort"
+    },
+    "historical_compatibility": {
+      "expected_count": 3,
+      "lane": "historical-replay",
+      "owner": "immutable FPS evidence or superseded compatibility replay",
+      "meaning": "historical evidence may exist but does not qualify the current source cohort"
+    },
+    "real_coverage_gap": {
+      "expected_count": 3,
+      "lane": "qualification",
+      "owner": "unexecuted current capability coverage",
+      "meaning": "no current-cohort execution or accepted replacement proves this behavior"
+    }
+  },
+  "tests": [
+    {
+      "source_path": "src/lib.rs",
+      "test_name": "tests::candidate_animation_vfx_quality_public_fixture_is_durable_structural_blocked_and_read_only",
+      "category": "real_coverage_gap",
+      "owner": "Presentation compatibility",
+      "reason": "blocked because the animated socket/VFX consumer chain does not yet accept MechanicalAnimationGlb@2"
+    },
+    {
+      "source_path": "src/lib.rs",
+      "test_name": "tests::fictional_energy_vfx_animated_socket_particles_v2_public_fixture_is_durable_replayable_and_read_only",
+      "category": "historical_compatibility",
+      "owner": "Presentation compatibility",
+      "reason": "legacy V1 upstream; superseded by the Projection@2 public fixture below"
+    },
+    {
+      "source_path": "src/lib.rs",
+      "test_name": "tests::fictional_energy_vfx_animated_socket_particles_v2_projection2_public_fixture_is_durable_replayable_and_read_only",
+      "category": "real_coverage_gap",
+      "owner": "Presentation qualification",
+      "reason": "slow public positive Particles@2 Projection@2 full-chain fixture"
+    },
+    {
+      "source_path": "src/lib.rs",
+      "test_name": "tests::candidate_animation_vfx_quality_v2_public_fixture_is_durable_replayable_and_structural_only",
+      "category": "real_coverage_gap",
+      "owner": "Presentation qualification",
+      "reason": "slow public positive Attachment@3 + CandidateAnimationVfxQuality@2 full-chain fixture"
+    },
+    {
+      "source_path": "src/lib.rs",
+      "test_name": "tests::game_weapon_glb_sockets_are_three_lod_durable_idempotent_and_restartable",
+      "category": "platform_limited",
+      "owner": "Delivery Worker qualification",
+      "reason": "requires source-built same-cohort geometry worker"
+    },
+    {
+      "source_path": "src/lib.rs",
+      "test_name": "tests::game_weapon_animated_glb_sockets_are_durable_exact_and_restartable",
+      "category": "platform_limited",
+      "owner": "Presentation Worker qualification",
+      "reason": "requires source-built same-cohort geometry worker"
+    },
+    {
+      "source_path": "src/lib.rs",
+      "test_name": "tests::fictional_energy_vfx_trails_bloom_is_forced_cohort_durable_and_dependency_byte_exact",
+      "category": "platform_limited",
+      "owner": "Presentation compatibility qualification",
+      "reason": "requires source-built same-cohort geometry/render workers"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_d1_approved_camera_lineage_and_fresh_baseline_continue_durably",
+      "category": "historical_compatibility",
+      "owner": "Evaluation historical evidence",
+      "reason": "requires the existing FPS-FORM-04AY durable Runtime database and same-cohort render worker"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_d1_boundary_bridge_relaxation_runs_fresh_form_quality_v2_fail_closed",
+      "category": "historical_compatibility",
+      "owner": "Evaluation historical evidence",
+      "reason": "requires the FPS-FORM-04BA durable Runtime database and same-cohort geometry/render workers"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_real_reference_six_view_source_is_hash_bound_and_form_gate_stays_blocked_without_user_confirmed_views",
+      "category": "fixture_required",
+      "owner": "Reference intake fixture",
+      "reason": "requires an explicitly supplied user-authorized reference path"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_real_reference_seven_view_confirmed_crop_gate_blocks_without_explicit_contours",
+      "category": "fixture_required",
+      "owner": "Reference intake fixture",
+      "reason": "requires an explicitly supplied user-authorized reference path"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_real_reference_seven_view_user_confirmed_contours_is_durable_replay_safe_and_tamper_safe",
+      "category": "fixture_required",
+      "owner": "Reference intake fixture",
+      "reason": "requires an explicitly supplied user-authorized reference path"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_real_reference_v4_negative_space_is_hash_bound_and_restart_safe",
+      "category": "fixture_required",
+      "owner": "Reference intake fixture",
+      "reason": "requires explicitly supplied user-authorized reference and v4 review files"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_real_reference_confirmation_materializes_six_reviewed_targets",
+      "category": "fixture_required",
+      "owner": "Reference intake fixture",
+      "reason": "requires explicitly supplied user-authorized reference and V4 proposal files"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_form_review_unconfirmed_proposal_stays_unreviewed_and_form_gates_blocked",
+      "category": "fixture_required",
+      "owner": "Evaluation review fixture",
+      "reason": "requires explicitly supplied user-authorized reference and reviewed proposal files"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_form_evidence_six_view_fixture_is_durable_replay_safe_and_coverage_blocked",
+      "category": "platform_limited",
+      "owner": "Evaluation Worker qualification",
+      "reason": "requires same-cohort geometry and render workers"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_parameter_trials_compile_in_process_before_runtime_ab",
+      "category": "fixture_required",
+      "owner": "Authoring fixture",
+      "reason": "requires explicitly supplied D1 GeometryProgram"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_d1_subject_frame_registration_is_read_only_and_sink_stable",
+      "category": "fixture_required",
+      "owner": "Authoring fixture",
+      "reason": "requires explicitly supplied D1 GeometryProgram"
+    },
+    {
+      "source_path": "src/agentic_session.rs",
+      "test_name": "agentic_session::tests::production_weapon_form_evidence_real_user_weapon_d1_is_durable_replay_safe_and_coverage_blocked",
+      "category": "fixture_required",
+      "owner": "Evaluation review fixture",
+      "reason": "requires explicitly supplied user reference, D1 GeometryProgram and same-cohort geometry/render workers"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::isolated_worker_is_deterministic_for_five_real_compiles",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-geometry-worker sibling"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::isolated_worker_rejects_malformed_one_shot_request",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-geometry-worker sibling"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::isolated_worker_timeout_is_monotonic_and_reaped",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-geometry-worker sibling"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::isolated_worker_honors_a_lower_runtime_budget",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-geometry-worker sibling"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::isolated_worker_rejects_an_accepted_result_above_the_program_memory_budget",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-geometry-worker sibling"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::isolated_worker_crash_is_distinct_from_typed_rejection",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-geometry-worker sibling"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::posix_spawn_closes_unlisted_runtime_file_descriptors",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-geometry-worker sibling"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::worker_reports_darwin_memory_limit_truthfully",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-geometry-worker sibling"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::worker_never_widens_an_inherited_soft_cpu_limit",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-geometry-worker sibling"
+    },
+    {
+      "source_path": "src/geometry_worker.rs",
+      "test_name": "geometry_worker::isolated_tests::failed_later_pipe_creation_releases_earlier_owned_descriptors",
+      "category": "platform_limited",
+      "owner": "Geometry Worker isolation",
+      "reason": "run serially by the fixed-sibling isolation gate"
+    },
+    {
+      "source_path": "src/render_worker.rs",
+      "test_name": "render_worker::isolated_tests::isolated_render_worker_returns_deterministic_nine_aov_set",
+      "category": "platform_limited",
+      "owner": "Render Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-render-worker sibling"
+    },
+    {
+      "source_path": "src/render_worker.rs",
+      "test_name": "render_worker::isolated_tests::isolated_render_worker_rejects_geometry_program_payload",
+      "category": "platform_limited",
+      "owner": "Render Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-render-worker sibling"
+    },
+    {
+      "source_path": "src/render_worker.rs",
+      "test_name": "render_worker::isolated_tests::isolated_vfx_frame_override_is_exact_targeted_and_deterministic",
+      "category": "platform_limited",
+      "owner": "Render Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-render-worker sibling"
+    },
+    {
+      "source_path": "src/render_worker.rs",
+      "test_name": "render_worker::isolated_tests::isolated_hdr_bloom_is_independent_bounded_and_deterministic",
+      "category": "platform_limited",
+      "owner": "Render Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-render-worker sibling"
+    },
+    {
+      "source_path": "src/render_worker.rs",
+      "test_name": "render_worker::isolated_tests::isolated_typed_particle_worker_is_same_cohort_byte_exact",
+      "category": "platform_limited",
+      "owner": "Render Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-render-worker sibling"
+    },
+    {
+      "source_path": "src/render_worker.rs",
+      "test_name": "render_worker::isolated_tests::isolated_typed_trail_worker_is_same_cohort_byte_exact",
+      "category": "platform_limited",
+      "owner": "Render Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-render-worker sibling"
+    },
+    {
+      "source_path": "src/render_worker.rs",
+      "test_name": "render_worker::isolated_tests::isolated_typed_trail_bloom_worker_preserves_legacy_aovs_and_is_byte_exact",
+      "category": "platform_limited",
+      "owner": "Render Worker isolation",
+      "reason": "requires source-built same-cohort forgecad-render-worker sibling"
+    },
+    {
+      "source_path": "src/production_weapon_d1_seed.rs",
+      "test_name": "production_weapon_d1_seed::tests::first_party_d1_seed_candidate_is_durable_and_restart_safe",
+      "category": "fixture_required",
+      "owner": "Reference intake fixture",
+      "reason": "requires explicitly supplied authorized reference and fresh durable Runtime database"
+    }
+  ]
+}

@@ -9,13 +9,12 @@
 //! single SQLite transaction.
 
 use super::{
-    canonical_json_bytes, canonical_json_hash, is_opaque_id, is_sha256,
-    mark_reachable_in_transaction, ProductionWeaponFormArtCompositeProposalStoreRecord, Store,
-    StoreError,
+    ProductionWeaponFormArtCompositeProposalStoreRecord, Store, StoreError, canonical_json_bytes,
+    canonical_json_hash, is_opaque_id, is_sha256, mark_reachable_in_transaction,
 };
 use forgecad_contracts::CasObjectRecord;
 use forgecad_core::sha256_hex;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

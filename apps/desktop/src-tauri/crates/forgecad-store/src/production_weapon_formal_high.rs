@@ -7,12 +7,12 @@
 //! exports an artifact.
 
 use forgecad_contracts::{
-    is_opaque_id, is_sha256, CandidateRecord, CasObjectRecord, ProductionWeaponHighArtifactRecord,
-    PRODUCTION_WEAPON_HIGH_ARTIFACT_KIND, PRODUCTION_WEAPON_HIGH_ARTIFACT_POLICY,
-    PRODUCTION_WEAPON_HIGH_ARTIFACT_SCHEMA_VERSION,
+    CandidateRecord, CasObjectRecord, PRODUCTION_WEAPON_HIGH_ARTIFACT_KIND,
+    PRODUCTION_WEAPON_HIGH_ARTIFACT_POLICY, PRODUCTION_WEAPON_HIGH_ARTIFACT_SCHEMA_VERSION,
+    ProductionWeaponHighArtifactRecord, is_opaque_id, is_sha256,
 };
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{params, OptionalExtension, Transaction};
+use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::Value;
 
 use super::{Store, StoreError};

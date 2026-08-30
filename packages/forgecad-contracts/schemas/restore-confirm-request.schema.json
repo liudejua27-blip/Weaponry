@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/restore-confirm-request.schema.json",
+  "title": "RestoreConfirmRequest",
+  "description": "Confirm an approved restore and create a new immutable child version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "candidate_id",
+    "source_version_id",
+    "prepared_object_id",
+    "prepared_object_sha256",
+    "quality_report_id",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_session_id",
+    "approval_expires_at",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "source_version_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "base_version_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 128
+    },
+    "prepared_object_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "prepared_object_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "quality_report_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "approval_receipt_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "approval_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "approval_session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "approval_expires_at": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  }
+}

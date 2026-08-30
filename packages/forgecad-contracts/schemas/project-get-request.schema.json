@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/project-get-request.schema.json",
+  "title": "ProjectGetRequest",
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id"
+  ],
+  "type": "object"
+}

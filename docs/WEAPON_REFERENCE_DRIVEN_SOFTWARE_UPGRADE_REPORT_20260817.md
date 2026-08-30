@@ -1,5 +1,7 @@
 # 参考图驱动科幻武器：建模记录与 ForgeCAD 升级报告
 
+> **Status: reference-only historical document (2026-08-29).** 本文保留研究或审计发生时的事实，不再定义当前产品范围或任务顺序。可复用结论必须经过 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md`、ADR-0029 和当前真实证据重新验证后，才能进入穿越火线武器主线。
+
 日期：2026-08-17
 任务：`FGC-MCP010F-reference-contour-weapon-graybox-20260817`
 范围：游戏/影视虚构视觉资产；不包含现实可制造尺寸、结构、材料配方或性能建议。

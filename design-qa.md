@@ -1,5 +1,7 @@
 # ForgeCAD Canvas-first Viewer Design QA
 
+> **Status: reference-only historical document (2026-08-29).** 本文保留研究或审计发生时的事实，不再定义当前产品范围或任务顺序。可复用结论必须经过 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md`、ADR-0029 和当前真实证据重新验证后，才能进入穿越火线武器主线。
+
 - source visual truth path: `/Users/liuchongjiang/Downloads/UI.png`
 - implementation screenshot path: `/Users/liuchongjiang/Documents/武神/design-implementation.png`
 - compact-panel screenshot path: `/Users/liuchongjiang/Documents/武神/design-compact-panel.png`

@@ -34,13 +34,16 @@ ROOT = Path(__file__).resolve().parents[1]
 TRUTH_PATH = ROOT / "docs/evidence/mcp010f/current-benchmark-truth.json"
 CONTRACT_MANIFEST = ROOT / "packages/forgecad-contracts/manifest.json"
 SCHEMA_ROOT = ROOT / "packages/forgecad-contracts/schemas"
-EXPECTED_STAGE0_SCHEMA_COUNT = 579
-EXPECTED_STAGE0_SCHEMA_CONTENT_SET_SHA256 = "2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1"
-EXPECTED_STAGE0_CONTRACT_MANIFEST_SHA256 = "7e985b7a1c3ead95ee2e96858501357f028a5afe6f08ced7cd7ea1858a10accf"
-EXPECTED_STAGE0_READ_TOOL_COUNT = 128
-EXPECTED_STAGE0_WRITE_TOOL_COUNT = 94
-EXPECTED_STAGE0_TOTAL_TOOL_COUNT = 222
-MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs"
+EXPECTED_STAGE0_SCHEMA_COUNT = 658
+EXPECTED_STAGE0_SCHEMA_CONTENT_SET_SHA256 = "29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1"
+EXPECTED_STAGE0_CONTRACT_MANIFEST_SHA256 = "4c09a6aca45b72967e073c0c0283eb6e29c2d0ac87b90ed43a5b16b665612274"
+EXPECTED_STAGE0_READ_TOOL_COUNT = 131
+EXPECTED_STAGE0_WRITE_TOOL_COUNT = 95
+EXPECTED_STAGE0_TOTAL_TOOL_COUNT = 226
+MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/compat_main.rs"
+MCP_COMPATIBILITY_REGISTRY_SOURCE = (
+    ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/compatibility_registry.rs"
+)
 WEAPON_FOUNDATION_MCP_SOURCE = (
     ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/weapon_foundation_tools.rs"
 )
@@ -61,6 +64,9 @@ ORCHESTRATOR_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src
 PROMOTION_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/cross_view_promotion_tools.rs"
 AUTHORING_MESH_DURABLE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/authoring_mesh_durable_tools.rs"
 AUTHORING_MESH_V2_DURABLE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/authoring_mesh_v2_durable_tools.rs"
+AUTHORING_MESH_TRANSACTION_MCP_SOURCE = (
+    ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/authoring_mesh_transaction_tools.rs"
+)
 FORM_ART_MESH_PROPOSAL_MCP_SOURCE = (
     ROOT
     / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_mesh_proposal_tools.rs"
@@ -92,6 +98,18 @@ FORM_ART_REPAIR_PLAN_MCP_SOURCE = (
 FORM_ART_FAILURE_DIAGNOSTIC_MCP_SOURCE = (
     ROOT
     / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_failure_diagnostic_tools.rs"
+)
+FORM_ART_VISIBILITY_CALIBRATION_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_visibility_calibration_tools.rs"
+)
+FORM_ART_TARGET_OCCLUSION_ATTRIBUTION_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_target_occlusion_attribution_tools.rs"
+)
+FORM_ART_APERTURE_REPAIR_PLAN_MCP_SOURCE = (
+    ROOT
+    / "apps/desktop/src-tauri/crates/forgecad-mcp/src/production_weapon_form_art_aperture_repair_plan_tools.rs"
 )
 NATIVE_HIGH_DURABLE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/native_high_durable_tools.rs"
 LOW_QUAD_DURABLE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/low_quad_durable_tools.rs"
@@ -183,7 +201,7 @@ GEOMETRY_PREPARE_EXACT_RECEIPT_PATH = (
     ROOT / "docs/evidence/mcp010f/blender-geometry-prepare-exact-source-gate-20260819.json"
 )
 EXPECTED_GEOMETRY_PREPARE_EXACT_RECEIPT_SHA256 = "46976b994e48e721ea793e72e0842906461a2b4c34bd0d02f1162c29895a2d52"
-EXPECTED_EVIDENCE_MANIFEST_SHA256 = "f46aebaf300a41c099c4591dde61c805e7617151f1884b3b08f23780c2b3453b"
+EXPECTED_EVIDENCE_MANIFEST_SHA256 = "d29f3e0df29804a4f776379fa8f3435b11b6c8ab6bc715a11203a2cee185041b"
 FORM_ART_COMPOSITE_DURABLE_RECEIPT_PATH = (
     ROOT
     / "docs/evidence/mcp010f/production-weapon-form-art-composite-reviewable-candidate-durable-runtime-gate-04be-b-20260828.json"
@@ -197,6 +215,48 @@ FORM_ART_FAILURE_DIAGNOSTIC_RECEIPT_PATH = (
 )
 EXPECTED_FORM_ART_FAILURE_DIAGNOSTIC_RECEIPT_SHA256 = (
     "197cbd68fd4a207f6e1c03cdcd33f20e499c5c065bbb39f61e790c7c0e9618aa"
+)
+FORM_ART_VISIBILITY_CALIBRATION_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/production-weapon-form-art-visibility-calibration-real-d1-04be-g-20260828.json"
+)
+EXPECTED_FORM_ART_VISIBILITY_CALIBRATION_RECEIPT_SHA256 = (
+    "a0eeee33d8921ccbdade1e275f314985e8f2006e37500cba126a1045b10d98da"
+)
+FORM_ART_APERTURE_REPAIR_PLAN_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/production-weapon-form-art-aperture-repair-plan-real-d1-04be-h-20260828.json"
+)
+EXPECTED_FORM_ART_APERTURE_REPAIR_PLAN_RECEIPT_SHA256 = (
+    "454e1df88ee04922f52352c511a4d518f68bf647853c0cdac92476231ec608bb"
+)
+FORM_ART_APERTURE_TRIALS_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/production-weapon-form-art-aperture-trials-real-d1-04be-i-20260828.json"
+)
+EXPECTED_FORM_ART_APERTURE_TRIALS_RECEIPT_SHA256 = (
+    "31b1c6bd197547a85d264035626bc2a819f03b5b16c30ed0b8a0bea894861866"
+)
+FORM_ART_TRUE_APERTURE_TRIALS_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/production-weapon-form-art-true-aperture-trials-real-d1-04be-j-20260828.json"
+)
+EXPECTED_FORM_ART_TRUE_APERTURE_TRIALS_RECEIPT_SHA256 = (
+    "69d82073450a0f8f51b2cbf24ea40cce1e9100422f8b587caadbfbb22906b208"
+)
+FORM_ART_CAMERA_MAPPED_APERTURE_TRIALS_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/production-weapon-form-art-camera-mapped-aperture-trials-real-d1-04be-k-20260828.json"
+)
+EXPECTED_FORM_ART_CAMERA_MAPPED_APERTURE_TRIALS_RECEIPT_SHA256 = (
+    "e1988652109833cd8f41fe140b3e53806ee1f84a31a947c84ec04871415ed94c"
+)
+FORM_ART_RECEIVER_UPPER_TRIALS_RECEIPT_PATH = (
+    ROOT
+    / "docs/evidence/mcp010f/production-weapon-form-art-receiver-upper-trials-real-d1-04be-l-20260828.json"
+)
+EXPECTED_FORM_ART_RECEIVER_UPPER_TRIALS_RECEIPT_SHA256 = (
+    "11825478c63c3a23c86308db7eeaa8fa895e400f035396d60ff75b22e03c0479"
 )
 ASSEMBLY_PARAMETER_SINK_RECEIPT_PATH = (
     ROOT / "docs/evidence/mcp010f/production-weapon-assembly-parameter-sink-source-gate-20260823.json"
@@ -243,6 +303,7 @@ WRITE_NAME_FUNCTIONS = (
     "mcp010f_write_tool_names",
     "authoring_mesh_durable_write_tool_names",
     "authoring_mesh_v2_durable_write_tool_names",
+    "authoring_mesh_transaction_write_tool_names",
     "production_weapon_form_art_baseline_write_tool_names",
     "production_weapon_form_art_composite_proposal_write_tool_names",
     "production_weapon_form_art_composite_evidence_write_tool_names",
@@ -338,7 +399,7 @@ EVIDENCE_MANIFEST_GATE_KEYS = frozenset(
     "strict_visible_view_policy_implemented viewer_accessibility_e2e viewer_browser_dom_smoke fps_foundation_typed_importer fps_foundation_authoring_mesh_v2_materialization fps_presentation_package_v2_composite fps_presentation_package_v2_reviewable_candidate "
     "viewer_contour_annotation viewer_contour_real_execution viewer_keyboard_navigation viewer_native_window_smoke "
     "viewer_candidate_artifact_binding viewer_candidate_binding_fixtures viewer_visual_evidence_binding_fixtures viewer_quality_report_contract_alignment viewer_source_contract viewer_tauri_compile viewer_typescript_build viewer_write_boundary authoring_mesh_typed_topology_identity_lineage_materialization native_high_detail_graph_source native_low_feature_protection_source authoring_mesh_bevel_v2_modifier_stack_source "
-    "agentic_runtime_observe_plan agentic_runtime_session_checkpoint packaged_render_worker_landing viewer_provenance_graph_source mechanical_animation_viewer_discrete_frame_source mechanical_animation_glb_prepare_source game_asset_delivery_source game_asset_delivery_raw_stdio threejs_game_asset_consumer game_asset_delivery_durable_source game_asset_delivery_durable_raw_stdio threejs_game_asset_consumer_v2 game_asset_auto_lod_source game_asset_auto_lod_raw_stdio godot_headless_import commercial_engine_import weapon_surface_bake_source animated_socket_transform_projection_source mechanical_animation_v2_source mechanical_animation_v2_public production_weapon_form_art_evidence_source production_weapon_form_art_raster_attribution_source production_weapon_owner_reviewed_void_calibration_source production_weapon_form_art_evidence_quality production_weapon_camera_registration_lineage production_weapon_fresh_form_art_baseline production_weapon_boundary_bridge_real_d1 production_weapon_boundary_bridge_relaxation_real_d1 production_weapon_form_quality_v2_source production_weapon_form_quality_v2_normalized_scope_contract_source production_weapon_trigger_guard_aperture_source production_weapon_form_art_composite_proposal_plan_source production_weapon_form_art_composite_proposal_durable_runtime production_weapon_form_art_composite_evidence_durable_runtime production_weapon_form_art_repair_plan_real_d1 production_weapon_form_art_failure_diagnostic_real_d1 production_weapon_form_quality_v2_quality production_weapon_retopology_cage_source_durable production_weapon_assembly_parameter_sink_source".split()
+    "agentic_runtime_observe_plan agentic_runtime_session_checkpoint packaged_render_worker_landing viewer_provenance_graph_source mechanical_animation_viewer_discrete_frame_source mechanical_animation_glb_prepare_source game_asset_delivery_source game_asset_delivery_raw_stdio threejs_game_asset_consumer game_asset_delivery_durable_source game_asset_delivery_durable_raw_stdio threejs_game_asset_consumer_v2 game_asset_auto_lod_source game_asset_auto_lod_raw_stdio godot_headless_import commercial_engine_import weapon_surface_bake_source animated_socket_transform_projection_source mechanical_animation_v2_source mechanical_animation_v2_public production_weapon_form_art_evidence_source production_weapon_form_art_raster_attribution_source production_weapon_owner_reviewed_void_calibration_source production_weapon_form_art_evidence_quality production_weapon_camera_registration_lineage production_weapon_fresh_form_art_baseline production_weapon_boundary_bridge_real_d1 production_weapon_boundary_bridge_relaxation_real_d1 production_weapon_form_quality_v2_source production_weapon_form_quality_v2_normalized_scope_contract_source production_weapon_trigger_guard_aperture_source production_weapon_form_art_composite_proposal_plan_source production_weapon_form_art_composite_proposal_durable_runtime production_weapon_form_art_composite_evidence_durable_runtime production_weapon_form_art_repair_plan_real_d1 production_weapon_form_art_failure_diagnostic_real_d1 production_weapon_form_art_visibility_calibration_real_d1 production_weapon_form_art_aperture_repair_plan_real_d1 production_weapon_form_art_aperture_trials_real_d1 production_weapon_form_art_layered_aperture_tolerance_real_d1 production_weapon_form_quality_v2_quality production_weapon_retopology_cage_source_durable production_weapon_assembly_parameter_sink_source".split()
 )
 EXPECTED_EVIDENCE_MANIFEST_GATES = {
     "fps_foundation_typed_importer": "PASS_SOURCE_RUNTIME_STRUCTURAL_WITH_AUTHORING_MESH_MATERIALIZATION_COMPLETE",
@@ -399,6 +460,10 @@ EXPECTED_EVIDENCE_MANIFEST_GATES = {
     "production_weapon_form_art_composite_evidence_durable_runtime": "PASS_RUNTIME_DURABLE_SIX_VIEW_EVIDENCE_RESTART_GET_WITH_QUALITY_TARGET_NOT_MET",
     "production_weapon_form_art_repair_plan_real_d1": "PASS_READ_ONLY_EVIDENCE_BOUND_REPAIR_PLAN_WITH_QUALITY_TARGET_NOT_MET",
     "production_weapon_form_art_failure_diagnostic_real_d1": "PASS_READ_ONLY_EXACT_REJECTED_REPAIR_ROOT_CAUSE_SEPARATION_ZERO_WRITE",
+    "production_weapon_form_art_visibility_calibration_real_d1": "PASS_READ_ONLY_EXACT_RASTER_VISIBILITY_CALIBRATION",
+    "production_weapon_form_art_aperture_repair_plan_real_d1": "PASS_READ_ONLY_HASH_BOUND_SEQUENTIAL_TWO_PART_APERTURE_PLAN",
+    "production_weapon_form_art_aperture_trials_real_d1": "PASS_FOUR_REGISTERED_SIDE_PANEL_A_TRIALS_REJECTED_PARENT_RETAINED",
+    "production_weapon_form_art_layered_aperture_tolerance_real_d1": "PASS_WIDE_SELECTED_FOR_NEXT_FORM_REPAIR_WITH_0_01_CORE_RASTER_TRADEOFF_NON_PROMOTING",
     "production_weapon_form_quality_v2_quality": "NOT_PROVEN",
     "production_weapon_retopology_cage_source_durable": "PASS_SOURCE_RUNTIME_DURABLE_NON_PROMOTING",
     "production_weapon_assembly_parameter_sink_source": "PASS_SOURCE_PURE_TYPED_PROJECTION_AND_REAL_D1_READ_ONLY_RESTART",
@@ -519,6 +584,7 @@ def contract_schema_content_set_sha256(paths: list[Path]) -> str:
 
 def source_tool_names() -> tuple[list[str], list[str]]:
     source = MCP_SOURCE.read_text(encoding="utf-8")
+    compatibility_source = MCP_COMPATIBILITY_REGISTRY_SOURCE.read_text(encoding="utf-8")
     read_start = source.find("fn read_only_tools()")
     read_end = source.find("\nfn tool(", read_start)
     require(read_start >= 0 and read_end > read_start, "cannot locate read_only_tools source")
@@ -596,6 +662,13 @@ def source_tool_names() -> tuple[list[str], list[str]]:
             "cannot locate durable AuthoringMesh V2 read tool",
         )
         read_names.append("authoring_mesh_v2_durable_get")
+    if "tools.extend(authoring_mesh_transaction_tools::read_tools());" in source:
+        transaction_source = AUTHORING_MESH_TRANSACTION_MCP_SOURCE.read_text(encoding="utf-8")
+        require(
+            'const GET_NAME: &str = "authoring_mesh_transaction_get";' in transaction_source,
+            "cannot locate AuthoringMesh transaction read tool",
+        )
+        read_names.append("authoring_mesh_transaction_get")
     if "tools.extend(production_weapon_form_art_mesh_proposal_tools::read_tools());" in source:
         proposal_source = FORM_ART_MESH_PROPOSAL_MCP_SOURCE.read_text(encoding="utf-8")
         require(
@@ -658,6 +731,36 @@ def source_tool_names() -> tuple[list[str], list[str]]:
             "cannot locate production weapon FormArt failure diagnostic read tool",
         )
         read_names.append("production_weapon_form_art_failure_diagnostic_get")
+    if "tools.extend(production_weapon_form_art_visibility_calibration_tools::read_tools());" in source:
+        visibility_calibration_source = FORM_ART_VISIBILITY_CALIBRATION_MCP_SOURCE.read_text(
+            encoding="utf-8"
+        )
+        require(
+            '"production_weapon_form_art_visibility_calibration_get"'
+            in visibility_calibration_source,
+            "cannot locate production weapon FormArt visibility calibration read tool",
+        )
+        read_names.append("production_weapon_form_art_visibility_calibration_get")
+    if "tools.extend(production_weapon_form_art_target_occlusion_attribution_tools::read_tools());" in source:
+        target_attribution_source = FORM_ART_TARGET_OCCLUSION_ATTRIBUTION_MCP_SOURCE.read_text(
+            encoding="utf-8"
+        )
+        require(
+            '"production_weapon_form_art_target_occlusion_attribution_get"'
+            in target_attribution_source,
+            "cannot locate production weapon FormArt target occlusion attribution read tool",
+        )
+        read_names.append("production_weapon_form_art_target_occlusion_attribution_get")
+    if "tools.extend(production_weapon_form_art_aperture_repair_plan_tools::read_tools());" in source:
+        aperture_repair_plan_source = FORM_ART_APERTURE_REPAIR_PLAN_MCP_SOURCE.read_text(
+            encoding="utf-8"
+        )
+        require(
+            '"production_weapon_form_art_aperture_repair_plan_get"'
+            in aperture_repair_plan_source,
+            "cannot locate production weapon FormArt aperture repair-plan read tool",
+        )
+        read_names.append("production_weapon_form_art_aperture_repair_plan_get")
     if "tools.extend(native_high_durable_tools::read_tools());" in source:
         native_high_source = NATIVE_HIGH_DURABLE_MCP_SOURCE.read_text(encoding="utf-8")
         require(
@@ -784,6 +887,21 @@ def source_tool_names() -> tuple[list[str], list[str]]:
             )
             write_names.append("production_weapon_authoring_mesh_v2_source_prepare")
             continue
+        if function_name == "authoring_mesh_transaction_write_tool_names":
+            transaction_source = AUTHORING_MESH_TRANSACTION_MCP_SOURCE.read_text(encoding="utf-8")
+            require(
+                "names.extend(authoring_mesh_transaction_write_tool_names());" in source
+                or "names.extend(super::authoring_mesh_transaction_write_tool_names());"
+                in compatibility_source,
+                "AuthoringMesh transaction write tool is not registered",
+            )
+            require(
+                'const PREPARE_NAME: &str = "authoring_mesh_transaction_prepare";'
+                in transaction_source,
+                "cannot locate AuthoringMesh transaction write tool",
+            )
+            write_names.append("authoring_mesh_transaction_prepare")
+            continue
         if function_name == "production_weapon_form_art_mesh_proposal_write_tool_names":
             proposal_source = FORM_ART_MESH_PROPOSAL_MCP_SOURCE.read_text(encoding="utf-8")
             require(
@@ -804,7 +922,9 @@ def source_tool_names() -> tuple[list[str], list[str]]:
             composite_source = FORM_ART_COMPOSITE_PROPOSAL_MCP_SOURCE.read_text(encoding="utf-8")
             require(
                 "tools.extend(production_weapon_form_art_composite_proposal_tools::write_tools());"
-                in source,
+                in source
+                or "tools.extend(super::production_weapon_form_art_composite_proposal_tools::write_tools());"
+                in compatibility_source,
                 "composite proposal write tool is not registered",
             )
             require(
@@ -819,7 +939,9 @@ def source_tool_names() -> tuple[list[str], list[str]]:
             )
             require(
                 "tools.extend(production_weapon_form_art_composite_evidence_tools::write_tools());"
-                in source,
+                in source
+                or "tools.extend(super::production_weapon_form_art_composite_evidence_tools::write_tools());"
+                in compatibility_source,
                 "composite evidence write tool is not registered",
             )
             require(
@@ -988,28 +1110,45 @@ def source_tool_names() -> tuple[list[str], list[str]]:
         require(names, f"{function_name} contains no tool names")
         write_names.extend(names)
 
-    if "names.extend(weapon_foundation_tools::write_tool_names());" in source:
+    if (
+        "names.extend(weapon_foundation_tools::write_tool_names());" in source
+        or "tools.extend(super::weapon_foundation_tools::write_tools());"
+        in compatibility_source
+    ):
         foundation_source = WEAPON_FOUNDATION_MCP_SOURCE.read_text(encoding="utf-8")
         require(
             'Self::Prepare => "weapon_foundation_asset_prepare"' in foundation_source,
             "cannot locate weapon foundation write tool",
         )
         write_names.append("weapon_foundation_asset_prepare")
-    if "names.extend(weapon_foundation_authoring_materialization_tools::write_tool_names());" in source:
+    if (
+        "names.extend(weapon_foundation_authoring_materialization_tools::write_tool_names());"
+        in source
+        or "tools.extend(super::weapon_foundation_authoring_materialization_tools::write_tools());"
+        in compatibility_source
+    ):
         foundation_authoring_source = WEAPON_FOUNDATION_AUTHORING_MCP_SOURCE.read_text(encoding="utf-8")
         require(
             'Self::Prepare => "weapon_foundation_authoring_materialization_prepare"' in foundation_authoring_source,
             "cannot locate weapon foundation AuthoringMesh materialization write tool",
         )
         write_names.append("weapon_foundation_authoring_materialization_prepare")
-    if "names.extend(fps_presentation_package_v2_tools::write_tool_names());" in source:
+    if (
+        "names.extend(fps_presentation_package_v2_tools::write_tool_names());" in source
+        or "tools.extend(super::fps_presentation_package_v2_tools::write_tools());"
+        in compatibility_source
+    ):
         package_source = FPS_PRESENTATION_PACKAGE_V2_MCP_SOURCE.read_text(encoding="utf-8")
         require(
             '"fps_presentation_package_v2_prepare"' in package_source,
             "cannot locate composite FPS package write tool",
         )
         write_names.append("fps_presentation_package_v2_prepare")
-    if "names.extend(fps_presentation_package_v2_candidate_tools::write_tool_names());" in source:
+    if (
+        "names.extend(fps_presentation_package_v2_candidate_tools::write_tool_names());" in source
+        or "tools.extend(super::fps_presentation_package_v2_candidate_tools::write_tools());"
+        in compatibility_source
+    ):
         candidate_source = FPS_PRESENTATION_PACKAGE_V2_CANDIDATE_MCP_SOURCE.read_text(encoding="utf-8")
         require(
             '"fps_presentation_package_v2_candidate_prepare"' in candidate_source,
@@ -1953,7 +2092,11 @@ def check_truth_declared_semantics(truth: dict[str, Any]) -> None:
 
     current = truth["current_source"]
     require(current["contracts"]["manifest_path"] == "packages/forgecad-contracts/manifest.json", "contract manifest path drifted")
-    require(current["mcp_tools"]["source_path"] == "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs", "MCP source path drifted")
+    require(
+        current["mcp_tools"]["source_path"]
+        == "apps/desktop/src-tauri/crates/forgecad-mcp/src/compat_main.rs",
+        "compatibility MCP source path drifted",
+    )
     require(
         current["mcp_tools"]["summary_receipt_path"] == "docs/evidence/mcp010f/source-tool-manifest-summary.json",
         "MCP tool summary path drifted",
@@ -2159,6 +2302,250 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         and failure_diagnostic.get("diagnostic", {}).get("form_quality_v2_status") == "NOT_CREATED",
         "04BE-F receipt must retain read-only restart equality and the no-repair/no-promotion boundary",
     )
+    visibility_calibration_path = (
+        "docs/evidence/mcp010f/production-weapon-form-art-visibility-calibration-real-d1-04be-g-20260828.json"
+    )
+    require(
+        visibility_calibration_path in manifest["evidence"],
+        "04BE-G visibility calibration receipt is not inventoried",
+    )
+    require(
+        sha256_file(FORM_ART_VISIBILITY_CALIBRATION_RECEIPT_PATH)
+        == EXPECTED_FORM_ART_VISIBILITY_CALIBRATION_RECEIPT_SHA256,
+        "04BE-G visibility calibration receipt changed without an explicit checker revision",
+    )
+    visibility_calibration = load_json(FORM_ART_VISIBILITY_CALIBRATION_RECEIPT_PATH)
+    calibrated = visibility_calibration.get("calibration", {})
+    require(
+        visibility_calibration.get("task_id") == "FPS-FORM-04BE-G"
+        and visibility_calibration.get("status")
+        == "PASS_READ_ONLY_EXACT_RASTER_VISIBILITY_CALIBRATION"
+        and visibility_calibration.get("restart_readback", {}).get("canonical_hash_equal") is True
+        and visibility_calibration.get("read_only_integrity", {}).get("sqlite_unchanged") is True
+        and visibility_calibration.get("read_only_integrity", {}).get("cas_unchanged") is True
+        and calibrated.get("side_aperture_occluders_calibrated") is True
+        and calibrated.get("single_common_side_aperture_occluder") is False
+        and calibrated.get("repair_plan_authorized") is True
+        and calibrated.get("geometry_repair_authorized") is False
+        and calibrated.get("form_quality_v2_status") == "NOT_CREATED"
+        and calibrated.get("production_stage_advanced") is False,
+        "04BE-G receipt must retain exact two-view calibration, zero-write and non-promotion truth",
+    )
+    aperture_repair_plan_path = (
+        "docs/evidence/mcp010f/production-weapon-form-art-aperture-repair-plan-real-d1-04be-h-20260828.json"
+    )
+    require(
+        aperture_repair_plan_path in manifest["evidence"],
+        "04BE-H aperture repair-plan receipt is not inventoried",
+    )
+    require(
+        sha256_file(FORM_ART_APERTURE_REPAIR_PLAN_RECEIPT_PATH)
+        == EXPECTED_FORM_ART_APERTURE_REPAIR_PLAN_RECEIPT_SHA256,
+        "04BE-H aperture repair-plan receipt changed without an explicit checker revision",
+    )
+    aperture_repair_plan = load_json(FORM_ART_APERTURE_REPAIR_PLAN_RECEIPT_PATH)
+    plan = aperture_repair_plan.get("aperture_repair_plan", {})
+    require(
+        aperture_repair_plan.get("task_id") == "FPS-FORM-04BE-H"
+        and aperture_repair_plan.get("status")
+        == "PASS_READ_ONLY_HASH_BOUND_SEQUENTIAL_TWO_PART_APERTURE_PLAN"
+        and aperture_repair_plan.get("restart_readback", {}).get("canonical_hash_equal") is True
+        and aperture_repair_plan.get("read_only_integrity", {}).get("sqlite_unchanged") is True
+        and aperture_repair_plan.get("read_only_integrity", {}).get("cas_unchanged") is True
+        and plan.get("plan_status")
+        == "READY_HASH_BOUND_SEQUENTIAL_TWO_PART_APERTURE_SENSITIVITY_PLAN"
+        and plan.get("next_trial_registration_authorized") is True
+        and plan.get("repair_execution_allowed_by_this_tool") is False
+        and plan.get("geometry_repair_performed") is False
+        and plan.get("form_quality_v2_status") == "NOT_CREATED"
+        and plan.get("production_stage_advanced") is False,
+        "04BE-H receipt must retain sequential plan, zero-write and non-promotion truth",
+    )
+    aperture_trials_path = (
+        "docs/evidence/mcp010f/production-weapon-form-art-aperture-trials-real-d1-04be-i-20260828.json"
+    )
+    require(
+        aperture_trials_path in manifest["evidence"],
+        "04BE-I aperture-trials receipt is not inventoried",
+    )
+    require(
+        sha256_file(FORM_ART_APERTURE_TRIALS_RECEIPT_PATH)
+        == EXPECTED_FORM_ART_APERTURE_TRIALS_RECEIPT_SHA256,
+        "04BE-I aperture-trials receipt changed without an explicit checker revision",
+    )
+    aperture_trials = load_json(FORM_ART_APERTURE_TRIALS_RECEIPT_PATH)
+    trials = aperture_trials.get("trials", [])
+    selection = aperture_trials.get("selection", {})
+    require(
+        aperture_trials.get("task_id") == "FPS-FORM-04BE-I"
+        and aperture_trials.get("status")
+        == "PASS_FOUR_REGISTERED_SIDE_PANEL_A_TRIALS_REJECTED_PARENT_RETAINED"
+        and aperture_trials.get("build", {}).get("build_cohort_sha256")
+        == "8bc7308d660b752d597d3bfde2858da13f1b520aed8cc90f455f85d13e58ae37"
+        and aperture_trials.get("mandatory_ponytail_preflight") == "PASS"
+        and len(trials) == 4
+        and all(
+            trial.get("artifact_readback", {}).get("hard_gate_passed") is True
+            and trial.get("artifact_readback", {}).get("validator_status") == "passed"
+            and trial.get("cross_view", {}).get("non_regressing") is False
+            and trial.get("left_trigger_void", {}).get("sealed") is True
+            and trial.get("restart_readback", {}).get("exact_hashes_equal") is True
+            and trial.get("decision", {}).get("status") == "REJECTED_RETAIN_PARENT"
+            for trial in trials
+        )
+        and selection.get("eligible_trial_count") == 0
+        and selection.get("selected_candidate_id")
+        == "candidate-6f6ddeff15b94d5db9eb74d6c639cf8a"
+        and selection.get("status") == "RETAINED_PARENT_ALL_STEP_1_TRIALS_REJECTED"
+        and selection.get("step_2_receiver_upper_authorized") is False
+        and aperture_trials.get("non_promotion_boundary", {}).get("form_quality_v2_status")
+        == "NOT_CREATED"
+        and aperture_trials.get("non_promotion_boundary", {}).get("quality_status")
+        == "QUALITY_TARGET_NOT_MET"
+        and aperture_trials.get("non_promotion_boundary", {}).get("production_stage_advanced")
+        is False,
+        "04BE-I receipt must retain four rejected trials, restart equality, parent selection and non-promotion truth",
+    )
+    true_aperture_path = (
+        "docs/evidence/mcp010f/production-weapon-form-art-true-aperture-trials-real-d1-04be-j-20260828.json"
+    )
+    camera_mapped_aperture_path = (
+        "docs/evidence/mcp010f/production-weapon-form-art-camera-mapped-aperture-trials-real-d1-04be-k-20260828.json"
+    )
+    for (
+        task_id,
+        receipt_path,
+        expected_sha256,
+        inventory_path,
+        expected_status,
+        expected_cohort,
+        expected_profiles,
+    ) in (
+        (
+            "FPS-FORM-04BE-J",
+            FORM_ART_TRUE_APERTURE_TRIALS_RECEIPT_PATH,
+            EXPECTED_FORM_ART_TRUE_APERTURE_TRIALS_RECEIPT_SHA256,
+            true_aperture_path,
+            "PASS_FOUR_REGISTERED_SIDE_PANEL_A_TRIALS_REJECTED_PARENT_RETAINED",
+            "f97488ee687ad05139c7d180f76eeb21e6780a30e3b27c38d1cc43d997871f5b",
+            [
+                "side-panel-a-true-aperture-narrow@1",
+                "side-panel-a-true-aperture-calibrated@1",
+                "side-panel-a-true-aperture-forward@1",
+                "side-panel-a-true-aperture-wide@1",
+            ],
+        ),
+        (
+            "FPS-FORM-04BE-K",
+            FORM_ART_CAMERA_MAPPED_APERTURE_TRIALS_RECEIPT_PATH,
+            EXPECTED_FORM_ART_CAMERA_MAPPED_APERTURE_TRIALS_RECEIPT_SHA256,
+            camera_mapped_aperture_path,
+            "PASS_FOUR_REGISTERED_SIDE_PANEL_A_CAMERA_MAPPED_APERTURE_TRIALS_REJECTED_PARENT_RETAINED",
+            "6e249675ae39e3313d95786a2d7b54282abc29f7137c50a457599fab25966266",
+            [
+                "side-panel-a-camera-mapped-aperture-narrow@2",
+                "side-panel-a-camera-mapped-aperture-calibrated@2",
+                "side-panel-a-camera-mapped-aperture-raised@2",
+                "side-panel-a-camera-mapped-aperture-wide@2",
+            ],
+        ),
+    ):
+        require(inventory_path in manifest["evidence"], f"{task_id} receipt is not inventoried")
+        require(
+            sha256_file(receipt_path) == expected_sha256,
+            f"{task_id} receipt changed without an explicit checker revision",
+        )
+        receipt = load_json(receipt_path)
+        receipt_trials = receipt.get("trials", [])
+        receipt_selection = receipt.get("selection", {})
+        require(
+            receipt.get("task_id") == task_id
+            and receipt.get("status") == expected_status
+            and receipt.get("build", {}).get("build_cohort_sha256") == expected_cohort
+            and receipt.get("mandatory_ponytail_preflight") == "PASS"
+            and [trial.get("registered_profile_id") for trial in receipt_trials]
+            == expected_profiles
+            and all(
+                trial.get("artifact_readback", {}).get("hard_gate_passed") is True
+                and trial.get("artifact_readback", {}).get("validator_status") == "passed"
+                and trial.get("cross_view", {}).get("non_regressing") is False
+                and trial.get("left_trigger_void", {}).get("sealed") is True
+                and trial.get("left_trigger_void", {}).get("iou_milli") == 0
+                and trial.get("left_trigger_void", {}).get("boundary_f1_milli") == 0
+                and trial.get("left_trigger_void", {}).get("area_ratio_milli") == 0
+                and trial.get("restart_readback", {}).get("exact_hashes_equal") is True
+                and trial.get("decision", {}).get("status") == "REJECTED_RETAIN_PARENT"
+                for trial in receipt_trials
+            )
+            and receipt_selection.get("eligible_trial_count") == 0
+            and receipt_selection.get("selected_candidate_id")
+            == "candidate-6f6ddeff15b94d5db9eb74d6c639cf8a"
+            and receipt_selection.get("status") == "RETAINED_PARENT_ALL_STEP_1_TRIALS_REJECTED"
+            and receipt_selection.get("step_2_receiver_upper_authorized") is False
+            and receipt.get("non_promotion_boundary", {}).get("form_quality_v2_status")
+            == "NOT_CREATED"
+            and receipt.get("non_promotion_boundary", {}).get("quality_status")
+            == "QUALITY_TARGET_NOT_MET"
+            and receipt.get("non_promotion_boundary", {}).get("production_stage_advanced")
+            is False,
+            f"{task_id} receipt must retain four rejected true-aperture trials, restart equality, parent selection and non-promotion truth",
+        )
+    receiver_upper_path = (
+        "docs/evidence/mcp010f/production-weapon-form-art-receiver-upper-trials-real-d1-04be-l-20260828.json"
+    )
+    require(receiver_upper_path in manifest["evidence"], "04BE-L receipt is not inventoried")
+    require(
+        sha256_file(FORM_ART_RECEIVER_UPPER_TRIALS_RECEIPT_PATH)
+        == EXPECTED_FORM_ART_RECEIVER_UPPER_TRIALS_RECEIPT_SHA256,
+        "04BE-L receipt changed without an explicit checker revision",
+    )
+    receiver_upper = load_json(FORM_ART_RECEIVER_UPPER_TRIALS_RECEIPT_PATH)
+    receiver_upper_trials = receiver_upper.get("trials", [])
+    receiver_upper_selection = receiver_upper.get("selection", {})
+    require(
+        receiver_upper.get("task_id") == "FPS-FORM-04BE-L"
+        and receiver_upper.get("status")
+        == "PASS_FOUR_USER_AUTHORIZED_RECEIVER_UPPER_TRIALS_REJECTED_PARENT_RETAINED"
+        and receiver_upper.get("build", {}).get("build_cohort_sha256")
+        == "d51cdbd968846c1472d7ce3db3cf00423c0f0ed2d882a026fb9f9d6d0942b390"
+        and receiver_upper.get("mandatory_ponytail_preflight") == "PASS"
+        and [trial.get("registered_profile_id") for trial in receiver_upper_trials]
+        == [
+            "receiver-upper-retract-min-x-20mm@1",
+            "receiver-upper-retract-max-x-20mm@1",
+            "receiver-upper-retract-min-x-40mm@1",
+            "receiver-upper-retract-max-x-40mm@1",
+        ]
+        and all(
+            trial.get("artifact_readback", {}).get("hard_gate_passed") is True
+            and trial.get("artifact_readback", {}).get("validator_status") == "passed"
+            and trial.get("cross_view", {}).get("non_regressing") is False
+            and trial.get("target_trigger_void", {}).get("structure_id")
+            == "right.trigger-void"
+            and trial.get("target_trigger_void", {}).get("sealed") is True
+            and trial.get("target_trigger_void", {}).get("iou_milli") == 0
+            and trial.get("target_trigger_void", {}).get("boundary_f1_milli") == 0
+            and trial.get("target_trigger_void", {}).get("area_ratio_milli") == 0
+            and trial.get("restart_readback", {}).get("exact_hashes_equal") is True
+            and trial.get("decision", {}).get("status") == "REJECTED_RETAIN_PARENT"
+            for trial in receiver_upper_trials
+        )
+        and receiver_upper_selection.get("eligible_trial_count") == 0
+        and receiver_upper_selection.get("selected_candidate_id")
+        == "candidate-6f6ddeff15b94d5db9eb74d6c639cf8a"
+        and receiver_upper_selection.get("status")
+        == "RETAINED_PARENT_ALL_RECEIVER_UPPER_TRIALS_REJECTED"
+        and receiver_upper_selection.get("step_2_receiver_upper_authorized") is True
+        and receiver_upper_selection.get("receiver_upper_authorization_source")
+        == "EXPLICIT_USER_AUTHORIZATION_2026-08-28"
+        and receiver_upper.get("non_promotion_boundary", {}).get("form_quality_v2_status")
+        == "NOT_CREATED"
+        and receiver_upper.get("non_promotion_boundary", {}).get("quality_status")
+        == "QUALITY_TARGET_NOT_MET"
+        and receiver_upper.get("non_promotion_boundary", {}).get("production_stage_advanced")
+        is False,
+        "04BE-L receipt must retain explicit authorization, four rejected receiver-upper trials, restart equality, parent selection and non-promotion truth",
+    )
     sink_receipt = load_json(ASSEMBLY_PARAMETER_SINK_RECEIPT_PATH)
     require(
         sha256_file(ASSEMBLY_PARAMETER_SINK_RECEIPT_PATH) == EXPECTED_ASSEMBLY_PARAMETER_SINK_RECEIPT_SHA256,
@@ -2345,7 +2732,7 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         require(forbidden not in limitation_text, f"evidence manifest contains a forbidden promotion claim: {forbidden}")
     require(isinstance(manifest["scope"], list) and manifest["scope"], "evidence manifest scope must be a non-empty list")
     require(isinstance(manifest["limitations"], list) and manifest["limitations"], "evidence manifest limitations must be non-empty")
-    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 236, "evidence manifest frozen evidence count drifted")
+    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 251, "evidence manifest frozen evidence count drifted")
     require(len(set(manifest["evidence"])) == len(manifest["evidence"]), "evidence manifest contains duplicate entries")
     for index, entry in enumerate(manifest["evidence"]):
         require(isinstance(entry, str) and entry, f"evidence entry {index} must be a non-empty string")

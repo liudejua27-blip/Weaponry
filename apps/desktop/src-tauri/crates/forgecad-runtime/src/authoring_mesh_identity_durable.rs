@@ -301,7 +301,7 @@ struct TopologyOperationProof {
     canonical_sha256: String,
 }
 
-const TOPOLOGY_PROOF_SCHEMA: &str = "TopologyOperationProof@1";
+const TOPOLOGY_PROOF_SCHEMA: &str = "AuthoringMeshTopologyOperationProof@1";
 const TOPOLOGY_IDENTITY_NAMESPACE: &str =
     "source-element-only-not-materialized-to-identity-lineage@1";
 
@@ -2680,9 +2680,9 @@ mod tests {
                 {"element_id":"e23","vertex_ids":["v2","v3"]}
             ],
             "loops":[
-                {"element_id":"l0","face_id":"f0","ordinal":0,"vertex_id":"v0","edge_id":"e01","edge_forward":true},
-                {"element_id":"l1","face_id":"f0","ordinal":1,"vertex_id":"v1","edge_id":"e12","edge_forward":true},
-                {"element_id":"l2","face_id":"f0","ordinal":2,"vertex_id":"v2","edge_id":"e02","edge_forward":false},
+                {"element_id":"l0","face_id":"f0","ordinal":0,"vertex_id":"v2","edge_id":"e02","edge_forward":false},
+                {"element_id":"l1","face_id":"f0","ordinal":1,"vertex_id":"v0","edge_id":"e01","edge_forward":true},
+                {"element_id":"l2","face_id":"f0","ordinal":2,"vertex_id":"v1","edge_id":"e12","edge_forward":true},
                 {"element_id":"l3","face_id":"f1","ordinal":0,"vertex_id":"v1","edge_id":"e13","edge_forward":true},
                 {"element_id":"l4","face_id":"f1","ordinal":1,"vertex_id":"v3","edge_id":"e23","edge_forward":false},
                 {"element_id":"l5","face_id":"f1","ordinal":2,"vertex_id":"v2","edge_id":"e12","edge_forward":false}
@@ -2694,6 +2694,13 @@ mod tests {
             "position_m":[0.0,0.0,0.0],
             "rotation_rad":[0.0,0.0,0.0]
         });
+        // `authoring_program` returns a hash-bound program.  The worker draft
+        // hash is defined over the hash-free GeometryProgram@2 preimage, so
+        // remove the inherited field before hashing this mutated fixture.
+        program
+            .as_object_mut()
+            .expect("authoring two-triangle program object")
+            .remove("canonical_sha256");
         let hash = crate::hash_geometry_program_with_runtime_worker(&program)
             .expect("authoring two-triangle GeometryProgram hash");
         program["canonical_sha256"] = hash["canonical_sha256"].clone();
@@ -2838,7 +2845,7 @@ mod tests {
             "schema_version":"AuthoringTopologyRequest@1",
             "project_id":source.project_id,
             "candidate_id":source.candidate_id,
-            "artifact_id":source.source_artifact_id,
+            "artifact_id":source.source_artifact_object_sha256,
             "artifact_readback_sha256":source.source_artifact_readback_sha256,
             "program_sha256":source.source_program_sha256,
             "operator_catalog_sha256":evidence.operator_catalog_sha256,
@@ -3307,7 +3314,12 @@ mod tests {
                 )
                 .expect("project")
                 .project_id;
-            let source = prepare_source(&runtime, &project_id, 0, "split-source-durable");
+            let source = prepare_source_program(
+                &runtime,
+                &project_id,
+                authoring_two_triangle_program(&project_id),
+                "split-source-durable",
+            );
             let genesis_source_mesh_sha256 = source.source_mesh_sha256.clone();
             let genesis_request = identity_request(
                 &source,
@@ -3325,7 +3337,7 @@ mod tests {
                 "schema_version":"AuthoringTopologyRequest@1",
                 "project_id":source.project_id,
                 "candidate_id":source.candidate_id,
-                "artifact_id":source.source_artifact_id,
+                "artifact_id":source.source_artifact_object_sha256,
                 "artifact_readback_sha256":source.source_artifact_readback_sha256,
                 "program_sha256":source.source_program_sha256,
                 "operator_catalog_sha256":runtime.store
@@ -3379,10 +3391,9 @@ mod tests {
                 .authoring_mesh_edit_prepare(&prepare_request)
                 .expect("stage split candidate");
             assert_eq!(staged["operation"], "split_edge");
-            assert_eq!(staged["stage_advanced"], false);
-            assert_eq!(staged["candidate_confirmed"], false);
-            assert_eq!(staged["version_created"], false);
-            assert_eq!(staged["export_performed"], false);
+            assert_eq!(staged["version_status"], "no-version-created");
+            assert_eq!(staged["confirm_status"], "approval-required");
+            assert_eq!(staged["export_status"], "locked-until-confirm");
             let split_candidate_id = staged["new_candidate_id"]
                 .as_str()
                 .expect("split candidate id");
@@ -3523,10 +3534,9 @@ mod tests {
             assert_eq!(proof["operation"], "collapse_edge");
             assert_eq!(proof["correspondence"][0]["kind"], "many-to-one");
             assert_eq!(staged["operation"], "collapse_edge");
-            assert_eq!(staged["stage_advanced"], false);
-            assert_eq!(staged["candidate_confirmed"], false);
-            assert_eq!(staged["version_created"], false);
-            assert_eq!(staged["export_performed"], false);
+            assert_eq!(staged["version_status"], "no-version-created");
+            assert_eq!(staged["confirm_status"], "approval-required");
+            assert_eq!(staged["export_status"], "locked-until-confirm");
 
             collapse_identity = runtime
                 .authoring_mesh_identity_lineage_prepare(&identity_request(
@@ -3656,10 +3666,9 @@ mod tests {
             assert_eq!(proof["retired_face_ids"].as_array().unwrap().len(), 2);
             assert_eq!(proof["generated_face_ids"].as_array().unwrap().len(), 1);
             assert_eq!(staged["operation"], "dissolve_edge");
-            assert_eq!(staged["stage_advanced"], false);
-            assert_eq!(staged["candidate_confirmed"], false);
-            assert_eq!(staged["version_created"], false);
-            assert_eq!(staged["export_performed"], false);
+            assert_eq!(staged["version_status"], "no-version-created");
+            assert_eq!(staged["confirm_status"], "approval-required");
+            assert_eq!(staged["export_status"], "locked-until-confirm");
 
             dissolve_identity = runtime
                 .authoring_mesh_identity_lineage_prepare(&identity_request(

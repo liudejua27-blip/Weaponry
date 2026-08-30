@@ -1,5 +1,12 @@
 # ForgeCAD 用户指南
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+当前用户流程从“提交一个通用 3D 请求”改为“建立一个授权武器生产 Session”：绑定 Brief、
+参考与授权范围，确认 identity views 和 FPS 用途，再让 Codex 分阶段完成 Form、Authoring、
+High/Low/UV/Bake、PBR、FPS/engine review。每个 checkpoint 显示尚未运行和失败的门；用户批准
+只确认当前候选，不代表合作方验收或发布。
+
 版本：2026-08-09
 当前状态：MCP005–MCP009 MVP host golden path 已完成；MCP010A Dev.app 已通过第二次 Desktop 激活 Gate；像素级相似度、真人视觉评分、完整 Desktop 3D write 和 packaged release 仍未运行
 

@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/repair-apply-prepare-request.schema.json",
+  "title": "RepairApplyPrepareRequest",
+  "description": "Prepare a source-bound Repair application; candidate and version mutation remains a separate confirmation transaction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "session_id",
+    "candidate_id",
+    "proposal_candidate_id",
+    "run_id",
+    "source_candidate_state_sha256",
+    "intent_sha256",
+    "intent_object_sha256",
+    "proposal_candidate_state_sha256",
+    "prepared_object_id",
+    "prepared_object_sha256",
+    "quality_report_id",
+    "cross_view_evidence_sha256",
+    "base_version_id",
+    "input_sha256",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "approval_session_id",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "proposal_candidate_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "source_candidate_state_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "intent_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "intent_object_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "proposal_candidate_state_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "prepared_object_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "prepared_object_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "quality_report_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "cross_view_evidence_sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "base_version_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "approved": {
+      "const": true
+    },
+    "approval_receipt_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "approval_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "approval_expires_at": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "approval_session_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    }
+  }
+}

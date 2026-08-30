@@ -1,0 +1,116 @@
+{
+  "schema_version": "ForgeCADWeaponArtRenderEvidence@1",
+  "task_id": "FPS-PRODUCTION-04BG-ART-RENDER",
+  "recorded_at": "2026-08-29",
+  "scope": "fictional game and film visual asset only",
+  "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+  "source": {
+    "geometry_candidate_id": "candidate-50b6981546f74bca9c2ca774ac5c1b00",
+    "geometry_candidate_state_sha256": "b70f01f6f60fffe7ce42c92f33b95d8687a70ee3b97d291ccd3a18b70255055c",
+    "geometry_artifact_sha256": "3caa4a87ae078635dc50b4512a39732fe919df822985a1c60fe5415757bd7596",
+    "geometry_program_sha256": "8e78cc571a9a3ddf05f9f0c96f644bf30bd5a40401c8d889be71a40c62694732",
+    "high_triangle_count": 1868,
+    "part_count": 23,
+    "retopology_cage_source_bundle_key_sha256": "c73271da1b43cfa33f7848bcf463613d29871bfb4244c5d8c934d8b07fbdcd58",
+    "low_artifact_sha256": "28bba1541e30a7bb4109f737eb548cfa854fa295c5a5079263c1e8f93736596e",
+    "low_triangle_count": 1818,
+    "cage_artifact_sha256": "338cabf1b3753bdcf1eb3c54b6d35909896c8e6eb13e50dfd5c416e1e216a1c3"
+  },
+  "discovery": {
+    "build_cohort_sha256": "d8d61e51ed177c75866b9f84a051b11b15190b4079654b4d812b164d997f5e79",
+    "runtime_state": "Ready",
+    "operator_catalog_sha256": "860f24812e651cbb7cded0d4058a354aabf231fc0ace73e4a4b06f6408a485d6",
+    "ponytail_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "uv_pbr_manifest_sha256": "cb75b486423a1796e415c221ca547d4572f561a5950b4b83b061b3925738371b",
+    "material_pack_id": "forgecad-hard-surface-robot",
+    "material_pack_manifest_sha256": "32284a0133b8f0a7eb19522f8a711f1d2bb2bc3d816b6e238948be4d3c5a4225",
+    "material_pack_license_spdx": "CC0-1.0",
+    "material_pack_status": "development-only"
+  },
+  "appearance": {
+    "appearance_program_schema_version": "AppearanceProgram@2",
+    "appearance_program_sha256": "594a7b07110848d6f42ca872f20e22d0f823a3d703705dbdee989f7fa233633a",
+    "material_zones": [
+      {"zone_id": "zone-white-shell", "material_id": "white-dielectric-clearcoat", "texture_set_id": "plastic-surface", "part_count": 5},
+      {"zone_id": "zone-black-mechanical", "material_id": "black-anodized-metal", "texture_set_id": "metal-surface", "part_count": 7},
+      {"zone_id": "zone-gold-accent", "material_id": "micro-scratch-coat", "texture_set_id": "metal-surface", "part_count": 6},
+      {"zone_id": "zone-amber-emissive", "material_id": "warm-orange-emissive", "texture_set_id": null, "part_count": 5}
+    ]
+  },
+  "reviewable_candidate": {
+    "candidate_id": "candidate-c83f67f0d0874c5c8f49c4cf3c0c04a4",
+    "candidate_state_sha256": "d680766d0c83e8be30361cd65ba142a85f4c74b7e706c28aba5a79960994ab1d",
+    "artifact_sha256": "aed91a0c104fbb10793a04f49bcec0e874eb256d8b114fe9f6a4f19b6405361d",
+    "artifact_readback_canonical_sha256": "dc8047f5b01e11ea9d0b27084d4afb589454284df0be067ad769009adaa280f9",
+    "artifact_readback_object_sha256": "15fd7f416ebb1439a2a211f4623ce30cbb781a3cb37fc24ca12ee273ec55ec33",
+    "strict_glb_readback": "PASS",
+    "triangle_count": 1868,
+    "part_count": 23,
+    "material_zone_count": 4,
+    "quality_hard_gate_passed": true,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "exported": false
+  },
+  "camera_and_reference": {
+    "reference_id": "reference-c0ea57e80e1d4c37b7e65353d08b6e74",
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "view_id": "fps-form-04a-rear-three-quarter-view",
+    "view_kind": "rear-three-quarter",
+    "view_spec_canonical_sha256": "59d8f7f8866f2777206e62e2027630adcc76dd98f31d4db5a655a9789aacb8f5",
+    "target_sha256": "51e5b636c44a71a460d3e2fa069db217edaddc5578c9a9caa8548b5bb1a46037",
+    "camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb",
+    "camera_canonical_sha256": "efffde77533a5791d438291f24509b9e5df9bec27ca03ce2a6871648000f1d33",
+    "camera_object_sha256": "7a3fc4d53c262141cfe99bd99a033c3d7c344127c84863882c97ff294db356c0",
+    "projection": "perspective",
+    "rotation_degrees": 0.0,
+    "subject_screen_order": "stock-left-muzzle-right",
+    "upright": true
+  },
+  "render": {
+    "render_set_object_sha256": "bc8212fe246f9a2721f0b6468e24ebb24c0655c2352df796acdfe86c9ba2fa28",
+    "render_set_canonical_sha256": "a464d4e10a8b5502541535f623f825ee87f57066e50bead3b5676db06e3126e3",
+    "render_worker_build_cohort_sha256": "d8d61e51ed177c75866b9f84a051b11b15190b4079654b4d812b164d997f5e79",
+    "render_worker_binding_status": "same_cohort_verified",
+    "resolution": [512, 512],
+    "passes": {
+      "beauty": "99ce1bb301ed5d6aedc10997f7619aa04428cbc67f0c889244d1c6e7054177f2",
+      "silhouette": "0b145e1e5e65213974b4e617518ebb237c252475a6325e0fb0fa0fff94c95ddc",
+      "depth": "365b2be82b9162297b259f180e73a3764cec7344d25fea23e0ce8793f10621f2",
+      "normal": "e1dcbc784cbf3d25faed1554bf5587bcd3224887880cd039c4fcee029383becf",
+      "ao": "8087eecbc1f22c69ecf5df3bd8898c671b7f1a885549b85130ffe3758472c14c",
+      "part-id": "d96c891ecfe2291855279ecc23bab9f6fc1ad4f88b41efb50171336ac4930ae2",
+      "material-id": "e23ed27447d329cefa37386ad1a8bff54f5d0e30e8a5710872ca054c5c064ce7",
+      "wireframe": "f3a7a66da0624bd526d63f3dc3abfe1c94f07037dd9a15f8e1d65066ae2218b0",
+      "uv-stretch": "6ea05f89775e036ee1bfcd99575babd534c214960ecc235d86c95d249ad569cf"
+    },
+    "render_pass_get_verified": ["beauty", "normal", "material-id", "wireframe", "uv-stretch"]
+  },
+  "comparison": {
+    "comparison_report_object_sha256": "e23e8e49867b31a6475c8cf062268f0f3f83b41cbbf993039fe55066512b6674",
+    "quality_report_object_sha256": "f6af8b0eaaf3d445ed26c929bd0421bbad3c5b80fd1797a6a20f9e001be4cfbe",
+    "status": "QUALITY_TARGET_NOT_MET",
+    "silhouette_iou": 0.289466708072,
+    "boundary_f1_4px": 0.076466087771,
+    "bbox_edge_error": 0.404296875,
+    "centroid_error": 0.093021180966,
+    "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED"
+  },
+  "failed_attempts_preserved": {
+    "reason": "render-worker cohort mismatch before targeted rebuild",
+    "prepared_candidate_ids": ["candidate-f34ee06104ee4551920ea71b307eeb18", "candidate-ea61449c445d45569547d3c385793097"],
+    "quality_reports_created": false,
+    "promoted": false
+  },
+  "truth": {
+    "art_render": "CREATED_REVIEWABLE",
+    "formal_hero_uv_durable": "NOT_CREATED",
+    "formal_high_low_geometric_bake": "NOT_RUN",
+    "appearance_program_v3_layer_stack": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "commercial_engine_validation": "NOT_RUN",
+    "historical_form_quality": "QUALITY_TARGET_NOT_MET",
+    "commercial_quality": "NOT_PROVEN",
+    "promotion_allowed": false
+  }
+}

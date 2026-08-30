@@ -1,0 +1,144 @@
+{
+  "schema_version": "WeaponryRuntimeStorePhysicalSplitSourceGate@1",
+  "task_id": "WPN-ARCH-RUNTIME-STORE-SPLIT-001",
+  "status": "PASS_SOURCE_PHYSICAL_BATCH_001",
+  "scope": "one Runtime Evaluation family, one Store Delivery family, and one compatibility session/recovery family",
+  "architecture_budget": {
+    "runtime_lib_lines": {
+      "before": 52542,
+      "after": 51603,
+      "delta": -939
+    },
+    "store_lib_lines": {
+      "before": 79841,
+      "after": 78865,
+      "delta": -976
+    },
+    "mcp_main_lines": {
+      "before": 996,
+      "after": 996,
+      "delta": 0
+    },
+    "mcp_agentic_write_tools_lines": {
+      "before": 16674,
+      "after": 16532,
+      "delta": -142
+    },
+    "runtime_root_module_declarations": {
+      "before": 92,
+      "after": 92,
+      "delta": 0
+    },
+    "ceiling_check": "PASS",
+    "require_decrease_check": "PASS"
+  },
+  "physical_extractions": [
+    {
+      "domain": "Evaluation",
+      "family": "reference comparison, render-pass readback, visual evidence and visual review",
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/evaluation_reference_comparison.rs",
+      "line_count": 996,
+      "sha256": "9388ef73795f4ceb791b88523874a1bdfc5dc65427b02ceb29c075a297e5b992",
+      "mount": "runtime_services::evaluation_service::reference_comparison",
+      "moved_function_count": 9,
+      "root_module_growth": false,
+      "runtime_single_writer_preserved": true
+    },
+    {
+      "domain": "Delivery",
+      "family": "ApprovalLifecycle candidate/version/export transactions",
+      "path": "apps/desktop/src-tauri/crates/forgecad-store/src/approval_repository.rs",
+      "line_count": 1074,
+      "sha256": "58bebede2c6433509d693668acffdef3602d4e0040a151bc09ddd0e27326aa86",
+      "migration_owner": "forgecad-store::Store::migrate",
+      "migration_source": "migrations-runtime-v1/0001_runtime.sql",
+      "second_connection_owner_created": false,
+      "second_cas_root_owner_created": false,
+      "double_write_path_created": false
+    },
+    {
+      "domain": "compatibility",
+      "family": "session, checkpoint and recovery schema/scope/transport/response binding",
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools_session.rs",
+      "line_count": 256,
+      "sha256": "859780a3f17fd37a856a700cc51788e50b428e92b2bebe5ddd2dcd0204df6701",
+      "default_mcp_compiles_module": false,
+      "compatibility_manifest_changed": false
+    }
+  ],
+  "tests": {
+    "integration_cargo_check": "PASS default Store+Runtime+MCP and explicit compatibility binary",
+    "runtime_service_architecture": "24 passed / 0 failed",
+    "runtime_extracted_family_negative": "2 passed / 0 failed",
+    "store_full": "192 passed / 0 failed",
+    "mcp_default_full": "41 passed / 0 failed",
+    "mcp_compatibility_focused": "71 passed / 0 failed",
+    "mcp_compatibility_full": "237 passed / 0 failed",
+    "mcp_compile_graph": {
+      "status": "PASS",
+      "default_source_count": 10,
+      "compatibility_source_count": 44,
+      "default_compiles_compatibility_registry": false
+    },
+    "compatibility_replay": {
+      "status": "PASS",
+      "read_count": 131,
+      "write_count": 95,
+      "total_count": 226,
+      "read_manifest_sha256": "e7653110f1111a95e6020d71dc9d45f99c00628c4b08885f01a832aebf0c506d",
+      "write_enabled_manifest_sha256": "3d5a70ddc68b291ee321419cd40bbb9e3481bb5b43df67eb67d9c213d8985c18"
+    }
+  },
+  "same_cohort_architecture_fast": {
+    "status": "PASS",
+    "build_cohort_sha256": "81a58a3d5c07bafbea82b80f3b9ab74f387e06b63380d5c8845199f56d217ee5",
+    "four_build_identities_verified": true,
+    "source_drift_detected": false,
+    "duration_seconds": 188,
+    "passed": 90,
+    "failed": 0,
+    "ignored": 0,
+    "receipt_sha256": "01861cac81391ab829a0b092d75e5c8d9b2292350bab6894a4a66f9dd2ba4f6b"
+  },
+  "runtime_qualification": {
+    "current_atom_full_suite_rerun": false,
+    "previous_full_suite": "554 passed / 0 failed / 37 ignored",
+    "previous_full_suite_cohort_sha256": "a6f28cdef0528decbab7cee341f2b3ae4c06cd1adb522a86c9de63d416ef9ff9",
+    "current_cohort_ignored_tests_executed": 0,
+    "ignored_test_execution_status": "NOT_PROVEN"
+  },
+  "current_source_truth": {
+    "status": "PASS_CURRENT_SOURCE_GENERATED",
+    "schema_count": 658,
+    "compatibility_summary_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca",
+    "runtime_source_sha256": "893be325dbd1f057791e3cfed815b7fd2c17517379b09c9ad6df795a9ab6483c",
+    "truth_canonical_sha256": "8c77ccb9d3829553444fdd04904076cd26ad3037bc929cc464a20c015fcb0172",
+    "stage0_checker": "PASS",
+    "historical_receipts_mutated": false,
+    "visual_ledger": "FAIL/MISSING retained; QUALITY_TARGET_NOT_MET"
+  },
+  "archify": {
+    "diagram_type": "architecture",
+    "specification_path": "docs/architecture/weaponry-runtime-current.architecture.json",
+    "specification_sha256": "32cd418b702b461494026bd954035494d81ef3764086a87874cd9761547f8a9a",
+    "artifact_path": "docs/architecture/weaponry-runtime-current.html",
+    "artifact_sha256": "14acd08dfb69c78d2de8825b54c6d6d83b0d6421fa5fd1dc77430d25c21b112a",
+    "showcase_checks": "9/9 PASS",
+    "composition_errors": 0,
+    "composition_warnings": 0,
+    "containment_viewports": "1440x900, 1600x1000, 1920x1080, 2048x1320 PASS",
+    "manual_visual_review": "PASS_READABLE_LIGHT_AND_DARK"
+  },
+  "completion_boundary": {
+    "runtime_store_overall_physical_split_complete": false,
+    "remaining_evaluation_operations_outside_extracted_family": 37,
+    "runtime_root_still_large": true,
+    "store_root_still_large": true,
+    "compatibility_production_aggregate_still_large": true,
+    "retirement_authorized": false,
+    "next_atom": "WPN-ARCH-RUNTIME-STORE-SPLIT-002"
+  },
+  "quality_claim": "architecture-only; no High-to-Low-to-UV-to-Bake, material, FPS, engine, human-review or commercial-quality promotion",
+  "commit_created": false,
+  "push_performed": false
+}

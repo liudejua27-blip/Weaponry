@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/job-cancel-request.schema.json",
+  "title": "JobCancelRequest@1",
+  "description": "Closed request to cancel one non-terminal Runtime Job.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["job_id"],
+  "properties": {
+    "job_id": {"type": "string", "minLength": 1, "maxLength": 128}
+  }
+}

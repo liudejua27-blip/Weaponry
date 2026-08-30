@@ -1,0 +1,92 @@
+{
+  "schema_version": "WeaponryKnifeProfileCurrentSourceGate@1",
+  "task_id": "WPN-KNIFE-PROFILE-001",
+  "recorded_date": "2026-08-29",
+  "status": "PASS_FOCUSED_SOURCE_STRUCTURAL_FACADE_AND_CURVE_GRAPH_NO_MESH_BROAD_MCP_RED",
+  "historical_receipts_mutated": false,
+  "current_source": {
+    "schema_count": 586,
+    "contract_manifest_sha256": "6ac698326854adc09a0b9ebc037fc4274bda836fa3b136d2cc7a94c0d5cddde9",
+    "schema_content_set_sha256": "551c9dbfe9c8bbb9a6c20f5ecd634bf53272b4ca50a95d7d6641b6abb3d8cbf9",
+    "runtime_source_sha256": "6e51e0bdfbd59c86cfaa8e32ca332b86a869574e120dc9e5d545f558b7d65cee",
+    "source_tool_summary_canonical_sha256": "d7ba7f612fdfa2ace4703818313dfa5e48d6acb391417c4918056e0578f31c90",
+    "build_cohort_sha256": null
+  },
+  "default_profile": {
+    "profile_id": "weaponry-knife-p0-default@1",
+    "tool_count": 11,
+    "tool_names": ["weapon_preflight", "reference_intake", "observe", "authoring_transaction", "surface_pipeline", "fps_presentation", "quality_review", "delivery", "approval", "recovery", "job"],
+    "manifest_sha256": "efc2149ed9c7b4684d3c7523279d04eb51263d1bd593b08b3ea0d432f112ea4a",
+    "manifest_summary_canonical_sha256": "79ff24b99a1503b8e8e2573ffad7c80425717699c6cce0858df1474b0e826735",
+    "native_operation_allowlist_sha256": "a94559f2fe4e82ad0457ee5c1fe0262ec061078526f6453ec7f4b6fd030bf90e"
+  },
+  "compatibility_profile": {
+    "profile_id": "weaponry-legacy-compatibility@1",
+    "explicit_selection_required": true,
+    "read_tool_count": 131,
+    "write_tool_count": 95,
+    "total_tool_count": 226,
+    "read_manifest_sha256": "e7653110f1111a95e6020d71dc9d45f99c00628c4b08885f01a832aebf0c506d",
+    "write_enabled_manifest_sha256": "3d5a70ddc68b291ee321419cd40bbb9e3481bb5b43df67eb67d9c213d8985c18",
+    "native_operations_hidden": true
+  },
+  "curve_modifier_graph_slice": {
+    "contracts": ["KnifeCurveModifierGraphPrepareRequest@1", "KnifeCurveModifierGraphGetRequest@1", "KnifeCurveModifierGraphResult@1"],
+    "native_operations": ["knife_curve_modifier_graph_prepare", "knife_curve_modifier_graph_get"],
+    "facade": "authoring_transaction",
+    "curve_roles": ["blade_spine", "blade_edge", "profile"],
+    "curve_bases": ["bezier", "nurbs_like"],
+    "modifier_kinds": ["transform", "mirror", "array", "bevel", "normal_policy", "curve_profile"],
+    "evaluation_status": "curve-sampled-modifier-recompute-planned-no-mesh@1",
+    "evaluated_mesh_created": false,
+    "geometry_artifact_created": false,
+    "store_cas_durable_receipt": true,
+    "runtime_double_replay": true,
+    "restart_semantic_hash_readback": "SUPPORTED_BY_STORE_CAS_READ_PATH_NOT_FULL_RUNTIME_PREPARE_GET_FIXTURE"
+  },
+  "implementation_source_sha256": {
+    "core_weaponry_dcc_rs": "9c3c242b35428c2f29bddb2a547bb25e6e193c14eade6bd2edcbdf35b864fc97",
+    "store_weaponry_curve_modifier_graph_rs": "c18a291e0962ec8615ca525b6a1ca3385bf336bdf7b01f5b175cb19a3bd8b27b",
+    "runtime_knife_curve_modifier_graph_rs": "9fdba4202715a84bc1e5d2d97d4f347f288613bfc4d91de064f486133b34837f",
+    "mcp_knife_curve_modifier_graph_tools_rs": "cc68576fb418b99867b1058253d66f35d7d527584b2b3ad4136ef42e43e42b5f",
+    "mcp_knife_tool_profile_rs": "648063cb95b294f1a16d6eee4f8ac21854a769b55ab794edb6cf01d04f91db45",
+    "profile_json": "d05beb3f1316e42bf4f22b94bb860714ccc825bfab22ee62b3afe9859aca8b93",
+    "prepare_schema_json": "0c4401f6d9505072fb6adcd374f3c3a353c3e8b6c8aea246e6903920a289755d",
+    "get_schema_json": "32f87e380c159863680c146a91950a56f47d0ab1bf5d4c22e4cc39c5d82bd9ee",
+    "result_schema_json": "8ca5fa15d0e27d85cd81cb4696df338f1b17410939e392b0e8fb72b940fb3375"
+  },
+  "gates": {
+    "core_weaponry_dcc_focused": "PASS_12_OF_12",
+    "store_curve_graph_focused": "PASS_4_OF_4",
+    "runtime_curve_graph_focused": "PASS_2_OF_2",
+    "mcp_profile_and_native_gate_focused": "PASS",
+    "curve_modifier_contract_checker": "PASS",
+    "knife_profile_checker": "PASS",
+    "compatibility_replay_checker": "PASS",
+    "contracts_checker": "PASS_586",
+    "mcp010f_stage0_truth": "PASS_WITH_RETAINED_VISUAL_FAILURES",
+    "broad_mcp_test_suite": "FAIL_201_PASSED_16_FAILED_EXISTING_NON_KNIFE_ASSERTIONS_AND_WORKER_COHORT_FIXTURES",
+    "git_diff_check": "PASS"
+  },
+  "limitations": {
+    "curve_to_mesh_evaluation": "NOT_IMPLEMENTED",
+    "sweep_loft_surface": "NOT_IMPLEMENTED",
+    "high_low_uv_bake": "NOT_RUN_FOR_KNIFE",
+    "fps_presentation": "NOT_RUN_FOR_KNIFE",
+    "engine_roundtrip": "NOT_RUN",
+    "human_art_review": "NOT_RUN",
+    "visual_quality_status": "QUALITY_TARGET_NOT_MET",
+    "commercial_status": "NOT_PROVEN"
+  },
+  "remaining_baseline_debt": {
+    "broad_mcp_failure_count": 16,
+    "knife_profile_or_curve_graph_focused_failure_count": 0,
+    "categories": [
+      "stale legacy tool-count assertions",
+      "stale FormQuality field-count assertions",
+      "bounded validator coverage drift",
+      "Geometry Worker cohort fixture drift",
+      "legacy mechanical pose expectation drift"
+    ]
+  }
+}

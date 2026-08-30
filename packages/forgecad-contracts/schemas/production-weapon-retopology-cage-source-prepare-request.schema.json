@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-retopology-cage-source-prepare-request.schema.json",
+  "title": "ProductionWeaponRetopologyCageSourcePrepareRequest",
+  "additionalProperties": false,
+  "properties": {
+    "bundle_key_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cage_policy": {
+      "const": "bounded-low-retopology-topology-correspondent-cage-source-only@1"
+    },
+    "idempotency_key": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "input_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "locked_vertices": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "primitive_ordinal": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "vertex_index": {
+            "maximum": 100000000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "primitive_ordinal",
+          "vertex_index"
+        ],
+        "type": "object"
+      },
+      "maxItems": 16384,
+      "type": "array"
+    },
+    "low_retopology_policy": {
+      "const": "bounded-low-retopology-topology-correspondent-cage-source-only@1"
+    },
+    "max_collapses": {
+      "maximum": 1000000,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_coordinate_abs_m": {
+      "exclusiveMinimum": 0,
+      "maximum": 1000,
+      "type": "number"
+    },
+    "max_offset_m": {
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "type": "number"
+    },
+    "offset_m": {
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "type": "number"
+    },
+    "project_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ProductionWeaponRetopologyCageSourceBundlePrepareRequest@1"
+    },
+    "source_candidate_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "source_candidate_state_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_high_artifact_readback_object_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_high_artifact_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "target_triangle_count": {
+      "maximum": 1000000,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "bundle_key_sha256",
+    "project_id",
+    "source_candidate_id",
+    "source_candidate_state_sha256",
+    "source_high_artifact_sha256",
+    "source_high_artifact_readback_object_sha256",
+    "target_triangle_count",
+    "max_collapses",
+    "locked_vertices",
+    "offset_m",
+    "max_offset_m",
+    "max_coordinate_abs_m",
+    "low_retopology_policy",
+    "cage_policy",
+    "input_sha256",
+    "idempotency_key"
+  ],
+  "type": "object"
+}

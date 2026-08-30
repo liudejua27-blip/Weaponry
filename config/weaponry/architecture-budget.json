@@ -1,0 +1,66 @@
+{
+  "schema_version": "WeaponryArchitectureBudget@1",
+  "scope": "architecture-structure",
+  "policy": {
+    "default_mode": "reject-growth",
+    "comparison_modes": ["compare", "require-decrease"],
+    "max_ceiling_growth": 0,
+    "minimum_target_decreases": 1,
+    "physical_migration": {
+      "ceiling_rule": "never-increase",
+      "require_target_decrease": true,
+      "statement": "A completed physical migration must not raise any tracked ceiling and must lower at least one tracked target."
+    }
+  },
+  "baseline": {
+    "runtime_lib_lines": 52927,
+    "store_lib_lines": 81050,
+    "mcp_main_lines": 20508,
+    "mcp_agentic_write_tools_lines": 22800,
+    "runtime_root_module_declarations": 92
+  },
+  "ceilings": {
+    "runtime_lib_lines": 51603,
+    "store_lib_lines": 78865,
+    "mcp_main_lines": 996,
+    "mcp_agentic_write_tools_lines": 16532,
+    "runtime_root_module_declarations": 92
+  },
+  "targets": [
+    {
+      "id": "runtime_lib_lines",
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+      "metric": "line_count",
+      "baseline": 52927,
+      "ceiling": 51603
+    },
+    {
+      "id": "store_lib_lines",
+      "path": "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs",
+      "metric": "line_count",
+      "baseline": 81050,
+      "ceiling": 78865
+    },
+    {
+      "id": "mcp_main_lines",
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
+      "metric": "line_count",
+      "baseline": 20508,
+      "ceiling": 996
+    },
+    {
+      "id": "mcp_agentic_write_tools_lines",
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools.rs",
+      "metric": "line_count",
+      "baseline": 22800,
+      "ceiling": 16532
+    },
+    {
+      "id": "runtime_root_module_declarations",
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+      "metric": "root_module_declarations",
+      "baseline": 92,
+      "ceiling": 92
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-v2-durable-get-request.schema.json",
+  "title": "AuthoringMeshV2DurableGetRequest",
+  "additionalProperties": false,
+  "properties": {
+    "input_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "mesh_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": "string"
+    },
+    "persistent_user_data_touched": {
+      "const": false
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": "string"
+    },
+    "revision_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": "string"
+    },
+    "revision_object_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "revision_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "runtime_write_performed": {
+      "const": false
+    },
+    "schema_version": {
+      "const": "AuthoringMeshV2DurableGetRequest@1"
+    },
+    "writer_policy": {
+      "const": "forgecad-runtime-only-state-writer@1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project_id",
+    "mesh_id",
+    "revision_id",
+    "revision_sha256",
+    "revision_object_sha256",
+    "writer_policy",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "input_sha256"
+  ],
+  "type": "object"
+}

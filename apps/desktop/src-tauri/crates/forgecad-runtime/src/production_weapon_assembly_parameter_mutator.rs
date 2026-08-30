@@ -33,6 +33,40 @@ const STOCK_LOWER_DIAGNOSTIC_PART_ID: &str = "rear-stock-lower-diagnostic";
 const TRIGGER_GUARD_PART_ID: &str = "trigger-guard";
 const TRIGGER_GUARD_NODE_ID: &str = "trigger-guard";
 const TRIGGER_GUARD_APERTURE_PROFILE_ID: &str = "trigger-guard-side-aperture-xy@1";
+const SIDE_PANEL_A_PART_ID: &str = "side-panel-a";
+const SIDE_PANEL_A_NODE_ID: &str = "side-panel-a";
+const SIDE_PANEL_A_OPERATOR: &str = "forgecad.geometry.panel@2";
+const SIDE_PANEL_A_APERTURE_PROFILE_IDS: [&str; 12] = [
+    "side-panel-a-retract-min-x-20mm@1",
+    "side-panel-a-retract-max-x-20mm@1",
+    "side-panel-a-retract-min-x-40mm@1",
+    "side-panel-a-retract-max-x-40mm@1",
+    "side-panel-a-true-aperture-narrow@1",
+    "side-panel-a-true-aperture-calibrated@1",
+    "side-panel-a-true-aperture-forward@1",
+    "side-panel-a-true-aperture-wide@1",
+    "side-panel-a-camera-mapped-aperture-narrow@2",
+    "side-panel-a-camera-mapped-aperture-calibrated@2",
+    "side-panel-a-camera-mapped-aperture-raised@2",
+    "side-panel-a-camera-mapped-aperture-wide@2",
+];
+const SIDE_PANEL_A_TRUE_APERTURE_OPERATOR: &str = "forgecad.geometry.multi-loop-profile-loft@1";
+const RECEIVER_UPPER_PART_ID: &str = "receiver-upper";
+const RECEIVER_UPPER_NODE_ID: &str = "receiver-upper";
+const RECEIVER_UPPER_APERTURE_PROFILE_IDS: [&str; 12] = [
+    "receiver-upper-retract-min-x-20mm@1",
+    "receiver-upper-retract-max-x-20mm@1",
+    "receiver-upper-retract-min-x-40mm@1",
+    "receiver-upper-retract-max-x-40mm@1",
+    "receiver-upper-target-notch-narrow@1",
+    "receiver-upper-target-notch-calibrated@1",
+    "receiver-upper-target-notch-raised@1",
+    "receiver-upper-target-notch-wide@1",
+    "receiver-upper-camera-target-notch-narrow@2",
+    "receiver-upper-camera-target-notch-calibrated@2",
+    "receiver-upper-camera-target-notch-raised@2",
+    "receiver-upper-camera-target-notch-wide@2",
+];
 const REAR_STOCK_OWNER_VOID_HALF_Y_FLAT_Z_PROFILE_ID: &str =
     "registered-boundary-bridge-half-y-flat-z-owner-void@1";
 const REAR_STOCK_BRIDGE_STATION_RATIOS: [f64; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
@@ -314,6 +348,456 @@ pub(crate) fn production_weapon_trigger_guard_aperture_trial_mutate(
         ));
     }
     Ok(trial)
+}
+
+/// Apply one of the four 04BE-H registered `side-panel-a` longitudinal
+/// sensitivity variants. Callers select only the profile ID; all dimensions,
+/// node/Part identity and controlled parameter paths remain product-owned.
+pub(crate) fn production_weapon_side_panel_a_aperture_trial_mutate(
+    program: &Value,
+    profile_id: &str,
+) -> Result<Value, RuntimeError> {
+    let variant = SIDE_PANEL_A_APERTURE_PROFILE_IDS
+        .iter()
+        .position(|registered| *registered == profile_id)
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_SIDE_PANEL_PROFILE_UNAVAILABLE"))?;
+    let index = ProgramIndex::parse_with_expected_hash(program, None)?;
+    let sources = index
+        .part_outputs
+        .get(SIDE_PANEL_A_PART_ID)
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_SIDE_PANEL_PART_UNAVAILABLE"))?;
+    if sources.as_slice() != [SIDE_PANEL_A_NODE_ID] {
+        return Err(invalid(
+            "ASSEMBLY_PARAMETER_SIDE_PANEL_NODE_BINDING_AMBIGUOUS",
+        ));
+    }
+    let source = index
+        .nodes
+        .get(SIDE_PANEL_A_NODE_ID)
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_SIDE_PANEL_NODE_MISSING"))?;
+    if source.get("operator_id").and_then(Value::as_str) != Some(SIDE_PANEL_A_OPERATOR) {
+        return Err(invalid("ASSEMBLY_PARAMETER_SIDE_PANEL_OPERATOR_MISMATCH"));
+    }
+    let parameters = source
+        .get("parameters")
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_SIDE_PANEL_PARAMETERS_MISSING"))?;
+    let expected_parent_parameters = serde_json::json!({
+        "shape": "panel",
+        "size_m": [1.30, 0.25, 0.10],
+        "position_m": [0.62, 1.78, 0.47],
+        "rotation_rad": [0.0, 0.0, -0.04],
+        "thickness_m": 0.10,
+        "border_width_m": 0.035,
+        "inset_m": 0.045,
+        "recess_depth_m": 0.02,
+        "bevel_m": 0.015,
+        "bevel_segments": 1,
+        "support_loop_count": 1,
+        "support_loop_width_m": 0.015
+    });
+    if source
+        .get("inputs")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        != Some(&[])
+        || parameters != &expected_parent_parameters
+    {
+        return Err(invalid("ASSEMBLY_PARAMETER_SIDE_PANEL_PARENT_NODE_DIFFERS"));
+    }
+    let position = vec3(parameters.get("position_m"), "position_m", false)?;
+    let size = vec3(parameters.get("size_m"), "size_m", false)?;
+    if position
+        .iter()
+        .zip([0.62, 1.78, 0.47])
+        .any(|(actual, expected)| (*actual - expected).abs() > EPSILON)
+        || size
+            .iter()
+            .zip([1.30, 0.25, 0.10])
+            .any(|(actual, expected)| (*actual - expected).abs() > EPSILON)
+    {
+        return Err(invalid(
+            "ASSEMBLY_PARAMETER_SIDE_PANEL_PARENT_DIMENSIONS_DIFFER",
+        ));
+    }
+    let mut trial = program.clone();
+    let nodes = trial
+        .get_mut("nodes")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_PROGRAM_NODES_MISSING"))?;
+    let target = nodes
+        .iter_mut()
+        .find(|node| node.get("node_id").and_then(Value::as_str) == Some(SIDE_PANEL_A_NODE_ID))
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_SIDE_PANEL_NODE_MISSING"))?;
+    if variant < 4 {
+        let (retraction_m, retract_min_x) = match variant {
+            0 => (0.02, true),
+            1 => (0.02, false),
+            2 => (0.04, true),
+            3 => (0.04, false),
+            _ => unreachable!(),
+        };
+        let mut next_position = position;
+        let mut next_size = size;
+        next_size[0] -= retraction_m;
+        next_position[0] += if retract_min_x {
+            retraction_m / 2.0
+        } else {
+            -retraction_m / 2.0
+        };
+        target["parameters"]["position_m"] = serde_json::json!(next_position);
+        target["parameters"]["size_m"] = serde_json::json!(next_size);
+    } else {
+        // 04BE-J replaces the complete solid panel with a closed, product-owned
+        // four-station shell carrying one real through-aperture. The loft's
+        // native +X station axis is rotated onto panel Z; its Y/Z profile plane
+        // is authored as panel Y/X and receives the original panel yaw.
+        let aperture = match variant {
+            4 => (0.16, 0.46, -0.055, 0.090),
+            5 => (0.10, 0.52, -0.060, 0.100),
+            6 => (0.18, 0.58, -0.055, 0.100),
+            7 => (0.08, 0.58, -0.075, 0.105),
+            // The Worker applies X/Y/Z rotations in order, so the panel's
+            // fixed -90 degree Y rotation maps positive local profile V to
+            // the registered left camera's stock-side screen X.  04BE-J
+            // covered that horizontal interval but placed its aperture too
+            // low. These variants keep positive V and move the opening into
+            // the camera-inverted target Y envelope, inside the cap support
+            // ring so the closed manifold gate remains valid.
+            8 => (0.16, 0.46, 0.025, 0.100),
+            9 => (0.13, 0.50, 0.020, 0.110),
+            10 => (0.15, 0.49, 0.040, 0.110),
+            11 => (0.10, 0.54, 0.015, 0.110),
+            _ => unreachable!(),
+        };
+        target["operator_id"] = Value::String(SIDE_PANEL_A_TRUE_APERTURE_OPERATOR.to_owned());
+        target["parameters"] = side_panel_a_true_aperture_parameters(position, aperture);
+    }
+    trial
+        .as_object_mut()
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_PROGRAM_INVALID"))?
+        .remove("canonical_sha256");
+    // Product-owned coordinates above include bounded decimal arithmetic.
+    // Normalize once through the exact JSON transport representation before
+    // hashing so the isolated Worker sees byte-stable JSON numbers (for
+    // example -0.117, not an in-memory -0.11699999999999999 Number token).
+    let transport_bytes = serde_json::to_vec(&trial)
+        .map_err(|_| invalid("ASSEMBLY_PARAMETER_SIDE_PANEL_TRANSPORT_SERIALIZE_FAILED"))?;
+    trial = serde_json::from_slice(&transport_bytes)
+        .map_err(|_| invalid("ASSEMBLY_PARAMETER_SIDE_PANEL_TRANSPORT_PARSE_FAILED"))?;
+    let canonical_sha256 = canonical_json_hash(&trial);
+    trial["canonical_sha256"] = Value::String(canonical_sha256);
+    ProgramIndex::parse_with_expected_hash(&trial, None)?;
+    Ok(trial)
+}
+
+fn side_panel_a_true_aperture_parameters(
+    position: [f64; 3],
+    aperture: (f64, f64, f64, f64),
+) -> Value {
+    fn rounded_loop(
+        min_u: f64,
+        max_u: f64,
+        min_v: f64,
+        max_v: f64,
+        chamfer: f64,
+        clockwise: bool,
+    ) -> Vec<[f64; 2]> {
+        if clockwise {
+            vec![
+                [min_u + chamfer, min_v],
+                [min_u, min_v + chamfer],
+                [min_u, max_v - chamfer],
+                [min_u + chamfer, max_v],
+                [max_u - chamfer, max_v],
+                [max_u, max_v - chamfer],
+                [max_u, min_v + chamfer],
+                [max_u - chamfer, min_v],
+            ]
+        } else {
+            vec![
+                [min_u + chamfer, min_v],
+                [max_u - chamfer, min_v],
+                [max_u, min_v + chamfer],
+                [max_u, max_v - chamfer],
+                [max_u - chamfer, max_v],
+                [min_u + chamfer, max_v],
+                [min_u, max_v - chamfer],
+                [min_u, min_v + chamfer],
+            ]
+        }
+    }
+
+    let (hole_min_x, hole_max_x, hole_min_y, hole_max_y) = aperture;
+    let station = |station_id: &str, station_m: f64, cap: bool| {
+        let outer_inset = if cap { 0.008 } else { 0.0 };
+        let hole_expand = if cap { 0.006 } else { 0.0 };
+        serde_json::json!({
+            "station_id": station_id,
+            "station_m": station_m,
+            "components": [{
+                "component_id": "aperture-frame",
+                "outer": {
+                    "points": rounded_loop(
+                        -0.125 + outer_inset,
+                        0.125 - outer_inset,
+                        -0.650 + outer_inset,
+                        0.650 - outer_inset,
+                        0.018,
+                        false,
+                    ),
+                    "corner_indices": [0,1,2,3,4,5,6,7]
+                },
+                "holes": [{
+                    "hole_id": "reviewed-trigger-void",
+                    "points": rounded_loop(
+                        hole_min_y - hole_expand,
+                        hole_max_y + hole_expand,
+                        hole_min_x - hole_expand,
+                        hole_max_x + hole_expand,
+                        0.018,
+                        true,
+                    ),
+                    "corner_indices": [0,1,2,3,4,5,6,7]
+                }]
+            }]
+        })
+    };
+    serde_json::json!({
+        "shape": "multi-loop-profile-loft",
+        "stations": [
+            station("surface-left", -0.050, true),
+            station("support-left", -0.036, false),
+            station("support-right", 0.036, false),
+            station("surface-right", 0.050, true)
+        ],
+        "resample_points": 8,
+        "interpolation": "linear",
+        "interpolation_rings": 1,
+        "preserve_corners": true,
+        "position_m": position,
+        "rotation_rad": [0.0, -std::f64::consts::FRAC_PI_2, -0.04]
+    })
+}
+
+pub(crate) fn production_weapon_side_panel_a_aperture_profile_ids() -> [&'static str; 12] {
+    SIDE_PANEL_A_APERTURE_PROFILE_IDS
+}
+
+/// Apply an explicitly user-authorized aperture profile to the exact D1
+/// `receiver-upper` box. The first four profiles preserve the historical
+/// one-sided X retractions. The second four replace only this node with a
+/// bounded three-solid U topology whose open-bottom notch is derived from the
+/// registered right.trigger-void target region. Runtime owns every
+/// coordinate and preserves Part binding and all non-target nodes.
+pub(crate) fn production_weapon_receiver_upper_aperture_trial_mutate(
+    program: &Value,
+    profile_id: &str,
+) -> Result<Value, RuntimeError> {
+    let variant = RECEIVER_UPPER_APERTURE_PROFILE_IDS
+        .iter()
+        .position(|registered| *registered == profile_id)
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_RECEIVER_UPPER_PROFILE_UNAVAILABLE"))?;
+    let index = ProgramIndex::parse_with_expected_hash(program, None)?;
+    let sources = index
+        .part_outputs
+        .get(RECEIVER_UPPER_PART_ID)
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_RECEIVER_UPPER_PART_UNAVAILABLE"))?;
+    if sources.as_slice() != [RECEIVER_UPPER_NODE_ID] {
+        return Err(invalid(
+            "ASSEMBLY_PARAMETER_RECEIVER_UPPER_NODE_BINDING_AMBIGUOUS",
+        ));
+    }
+    let source = index
+        .nodes
+        .get(RECEIVER_UPPER_NODE_ID)
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_RECEIVER_UPPER_NODE_MISSING"))?;
+    if source.get("operator_id").and_then(Value::as_str) != Some(PRIMITIVE_OPERATOR) {
+        return Err(invalid(
+            "ASSEMBLY_PARAMETER_RECEIVER_UPPER_OPERATOR_MISMATCH",
+        ));
+    }
+    let expected_parent_parameters = serde_json::json!({
+        "shape": "box",
+        "size_m": [2.85, 0.20, 0.92],
+        "position_m": [-0.25, 1.88, 0.0],
+        "rotation_rad": [0.0, 0.0, 0.0]
+    });
+    if source
+        .get("inputs")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        != Some(&[])
+        || source.get("parameters") != Some(&expected_parent_parameters)
+    {
+        return Err(invalid(
+            "ASSEMBLY_PARAMETER_RECEIVER_UPPER_PARENT_NODE_DIFFERS",
+        ));
+    }
+    let mut trial = program.clone();
+    let target = trial
+        .get_mut("nodes")
+        .and_then(Value::as_array_mut)
+        .and_then(|nodes| {
+            nodes.iter_mut().find(|node| {
+                node.get("node_id").and_then(Value::as_str) == Some(RECEIVER_UPPER_NODE_ID)
+            })
+        })
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_RECEIVER_UPPER_NODE_MISSING"))?;
+    if variant < 4 {
+        let (retraction_m, retract_min_x) = match variant {
+            0 => (0.02, true),
+            1 => (0.02, false),
+            2 => (0.04, true),
+            3 => (0.04, false),
+            _ => unreachable!(),
+        };
+        let mut position = [-0.25, 1.88, 0.0];
+        let mut size = [2.85, 0.20, 0.92];
+        size[0] -= retraction_m;
+        position[0] += if retract_min_x {
+            retraction_m / 2.0
+        } else {
+            -retraction_m / 2.0
+        };
+        target["parameters"]["position_m"] = serde_json::json!(position);
+        target["parameters"]["size_m"] = serde_json::json!(size);
+    } else {
+        let (gap_min_x, gap_max_x, bridge_min_y) = match variant {
+            4 => (-1.24, -0.98, 1.84),
+            5 => (-1.30, -0.92, 1.87),
+            6 => (-1.30, -0.92, 1.90),
+            7 => (-1.36, -0.86, 1.90),
+            // Exact right-camera target mapping: the reviewed normalized
+            // trigger-void projects to approximately world X 0.72..1.08 and
+            // world Y 1.71..1.87 under the registered 5.8 m orthographic rig.
+            8 => (0.72, 1.08, 1.88),
+            9 => (0.68, 1.12, 1.90),
+            10 => (0.68, 1.12, 1.94),
+            11 => (0.60, 1.15, 1.94),
+            _ => unreachable!(),
+        };
+        let min_x = -1.675;
+        let max_x = 1.175;
+        let max_y = 1.98;
+        let left_width = gap_min_x - min_x;
+        let right_width = max_x - gap_max_x;
+        // Keep the three closed primitives independently manifold. Exact
+        // coplanar edge contact is welded by strict GLB readback into a
+        // four-face non-manifold edge, so the registered bridge uses a fixed
+        // bounded overlap rather than caller-controlled coordinates.
+        let bridge_overlap_m = 0.01;
+        let bridge_width = gap_max_x - gap_min_x + bridge_overlap_m * 2.0;
+        let bridge_height = max_y - bridge_min_y;
+        *target = serde_json::json!({
+            "node_id":RECEIVER_UPPER_NODE_ID,
+            "operator_id":PRIMITIVE_OPERATOR,
+            "inputs":[],
+            "parameters":{
+                "shape":"box",
+                "size_m":[left_width,0.20,0.92],
+                "position_m":[min_x+left_width/2.0,1.88,0.0],
+                "rotation_rad":[0.0,0.0,0.0]
+            }
+        });
+        let nodes = trial
+            .get_mut("nodes")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_PROGRAM_NODES_INVALID"))?;
+        nodes.push(serde_json::json!({
+            "node_id":"receiver-upper-right",
+            "operator_id":PRIMITIVE_OPERATOR,
+            "inputs":[],
+            "parameters":{
+                "shape":"box",
+                "size_m":[right_width,0.20,0.92],
+                "position_m":[gap_max_x+right_width/2.0,1.88,0.0],
+                "rotation_rad":[0.0,0.0,0.0]
+            }
+        }));
+        nodes.push(serde_json::json!({
+            "node_id":"receiver-upper-bridge",
+            "operator_id":PRIMITIVE_OPERATOR,
+            "inputs":[],
+            "parameters":{
+                "shape":"box",
+                "size_m":[bridge_width,bridge_height,0.92],
+                "position_m":[(gap_min_x+gap_max_x)/2.0,bridge_min_y+bridge_height/2.0,0.0],
+                "rotation_rad":[0.0,0.0,0.0]
+            }
+        }));
+        let output = trial
+            .get_mut("part_outputs")
+            .and_then(Value::as_array_mut)
+            .and_then(|outputs| {
+                outputs.iter_mut().find(|output| {
+                    output.get("part_id").and_then(Value::as_str) == Some(RECEIVER_UPPER_PART_ID)
+                })
+            })
+            .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_RECEIVER_UPPER_OUTPUT_MISSING"))?;
+        output["input_node_ids"] = serde_json::json!([
+            RECEIVER_UPPER_NODE_ID,
+            "receiver-upper-right",
+            "receiver-upper-bridge"
+        ]);
+    }
+    trial
+        .as_object_mut()
+        .ok_or_else(|| invalid("ASSEMBLY_PARAMETER_PROGRAM_INVALID"))?
+        .remove("canonical_sha256");
+    let transport_bytes = serde_json::to_vec(&trial)
+        .map_err(|_| invalid("ASSEMBLY_PARAMETER_RECEIVER_UPPER_TRANSPORT_SERIALIZE_FAILED"))?;
+    trial = serde_json::from_slice(&transport_bytes)
+        .map_err(|_| invalid("ASSEMBLY_PARAMETER_RECEIVER_UPPER_TRANSPORT_PARSE_FAILED"))?;
+    trial["canonical_sha256"] = Value::String(canonical_json_hash(&trial));
+    let after = ProgramIndex::parse_with_expected_hash(&trial, None)?;
+    let non_target_nodes_unchanged = index.nodes.iter().all(|(node_id, node)| {
+        node_id == RECEIVER_UPPER_NODE_ID || after.nodes.get(node_id) == Some(node)
+    });
+    let non_target_outputs_unchanged = index.part_outputs.iter().all(|(part_id, sources)| {
+        part_id == RECEIVER_UPPER_PART_ID || after.part_outputs.get(part_id) == Some(sources)
+    });
+    let expected_receiver_upper_sources = [
+        RECEIVER_UPPER_NODE_ID.to_owned(),
+        "receiver-upper-right".to_owned(),
+        "receiver-upper-bridge".to_owned(),
+    ];
+    let receiver_output_valid = if variant < 4 {
+        after.part_outputs.get(RECEIVER_UPPER_PART_ID) == Some(sources)
+            && index.nodes.keys().collect::<BTreeSet<_>>()
+                == after.nodes.keys().collect::<BTreeSet<_>>()
+    } else {
+        after
+            .part_outputs
+            .get(RECEIVER_UPPER_PART_ID)
+            .map(Vec::as_slice)
+            == Some(expected_receiver_upper_sources.as_slice())
+            && after.nodes.contains_key("receiver-upper-right")
+            && after.nodes.contains_key("receiver-upper-bridge")
+            && after.nodes.len() == index.nodes.len() + 2
+    };
+    if !non_target_nodes_unchanged || !non_target_outputs_unchanged || !receiver_output_valid {
+        return Err(invalid(
+            "ASSEMBLY_PARAMETER_RECEIVER_UPPER_APERTURE_LINEAGE_CHANGED",
+        ));
+    }
+    Ok(trial)
+}
+
+pub(crate) fn production_weapon_receiver_upper_aperture_profile_ids() -> [&'static str; 12] {
+    RECEIVER_UPPER_APERTURE_PROFILE_IDS
+}
+
+pub(crate) fn production_weapon_receiver_upper_u_topology_profile_ids() -> [&'static str; 8] {
+    [
+        RECEIVER_UPPER_APERTURE_PROFILE_IDS[4],
+        RECEIVER_UPPER_APERTURE_PROFILE_IDS[5],
+        RECEIVER_UPPER_APERTURE_PROFILE_IDS[6],
+        RECEIVER_UPPER_APERTURE_PROFILE_IDS[7],
+        RECEIVER_UPPER_APERTURE_PROFILE_IDS[8],
+        RECEIVER_UPPER_APERTURE_PROFILE_IDS[9],
+        RECEIVER_UPPER_APERTURE_PROFILE_IDS[10],
+        RECEIVER_UPPER_APERTURE_PROFILE_IDS[11],
+    ]
 }
 
 pub(crate) fn production_weapon_trigger_guard_aperture_profile_id() -> &'static str {
@@ -3442,6 +3926,57 @@ mod tests {
             .part_ids
             .iter()
             .any(|part_id| part_id == TRIGGER_GUARD_PART_ID));
+    }
+
+    #[test]
+    fn d1_side_panel_true_apertures_are_closed_worker_geometry() {
+        let runtime = crate::Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("side-panel aperture", serde_json::json!({"profile":"d1"}))
+            .expect("project");
+        let source = crate::production_weapon_d1_seed::materialize(&project.project_id)
+            .expect("closed D1 source");
+        for profile_id in &SIDE_PANEL_A_APERTURE_PROFILE_IDS[4..] {
+            let proposal =
+                production_weapon_side_panel_a_aperture_trial_mutate(&source, profile_id)
+                    .expect(profile_id);
+            assert_eq!(
+                node(&proposal, SIDE_PANEL_A_NODE_ID)["operator_id"],
+                SIDE_PANEL_A_TRUE_APERTURE_OPERATOR
+            );
+            let artifact = forgecad_geometry_worker::compile_geometry_program(&proposal)
+                .unwrap_or_else(|error| panic!("{profile_id}: {error}"));
+            assert!(artifact
+                .part_ids
+                .iter()
+                .any(|part_id| part_id == SIDE_PANEL_A_PART_ID));
+            let inspection = crate::strict_glb_inspection(&artifact.glb)
+                .unwrap_or_else(|error| panic!("{profile_id} readback: {error}"));
+            assert!(inspection.hard_gate_passed, "{profile_id}: {inspection:#?}");
+            let roundtrip: Value =
+                serde_json::from_slice(&serde_json::to_vec(&proposal).expect("serialize proposal"))
+                    .expect("parse proposal");
+            if proposal != roundtrip {
+                eprintln!(
+                    "side-panel roundtrip parameters before={} after={}",
+                    node(&proposal, SIDE_PANEL_A_NODE_ID)["parameters"],
+                    node(&roundtrip, SIDE_PANEL_A_NODE_ID)["parameters"]
+                );
+            }
+            forgecad_geometry_worker::compile_geometry_program(&roundtrip)
+                .unwrap_or_else(|error| panic!("{profile_id} JSON roundtrip: {error}"));
+            runtime
+                .prepare_geometry_candidate_exact(
+                    &project.project_id,
+                    None,
+                    &format!("side-panel-aperture-{}", profile_id.replace('@', "-")),
+                    serde_json::json!({
+                        "typed":"geometry",
+                        "geometry_program":proposal
+                    }),
+                )
+                .unwrap_or_else(|error| panic!("{profile_id} exact prepare: {error}"));
+        }
     }
 
     #[test]

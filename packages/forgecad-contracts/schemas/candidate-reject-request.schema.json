@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/candidate-reject-request.schema.json",
+  "title": "CandidateRejectRequest@1",
+  "description": "Closed MCP request envelope for explicit rejection of one prepared candidate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "candidate_id",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_session_id",
+    "approval_expires_at",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "approval_receipt_id": {"$ref": "#/$defs/identifier"},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "approval_session_id": {"$ref": "#/$defs/identifier"},
+    "approval_expires_at": {"type": "string", "minLength": 1, "maxLength": 64},
+    "idempotency_key": {"$ref": "#/$defs/identifier"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
+  }
+}

@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-v2-durable-prepare-request.schema.json",
+  "title": "AuthoringMeshV2DurablePrepareRequest",
+  "additionalProperties": false,
+  "properties": {
+    "canonicalization_policy": {
+      "const": "canonical-json-sha256-excluding-canonical-sha256@1"
+    },
+    "delta_m": {
+      "items": {
+        "items": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "type": "number"
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "edge_id": {
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evaluated": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._:-]+$",
+              "type": "string"
+            },
+            "artifact_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "correspondence_status": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._:-]+$",
+              "type": "string"
+            },
+            "readback_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "artifact_id",
+            "artifact_sha256",
+            "readback_sha256",
+            "correspondence_status"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "faces": {
+      "maxItems": 32768,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "idempotency_key": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "type": "string"
+    },
+    "input_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "lineage_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": "string"
+    },
+    "max_response_bytes": {
+      "const": 1048576
+    },
+    "mesh_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": "string"
+    },
+    "operation": {
+      "enum": [
+        "genesis",
+        "split_edge",
+        "move_vertices"
+      ]
+    },
+    "operation_id": {
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "operation_lineage_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "parent_revision_id": {
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "positions_m": {
+      "maxItems": 32768,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "type": "string"
+    },
+    "runtime_write_performed": {
+      "const": false
+    },
+    "schema_version": {
+      "const": "AuthoringMeshV2DurablePrepareRequest@1"
+    },
+    "split_ratio_milli": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "maximum": 999,
+          "minimum": 1,
+          "type": "integer"
+        }
+      ]
+    },
+    "vertex_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9._:-]+$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "type": [
+        "array",
+        "null"
+      ],
+      "uniqueItems": true
+    },
+    "writer_policy": {
+      "const": "forgecad-runtime-only-state-writer@1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project_id",
+    "operation",
+    "mesh_id",
+    "lineage_id",
+    "parent_revision_id",
+    "operation_id",
+    "edge_id",
+    "split_ratio_milli",
+    "vertex_ids",
+    "delta_m",
+    "operation_lineage_sha256",
+    "positions_m",
+    "faces",
+    "evaluated",
+    "idempotency_key",
+    "max_response_bytes",
+    "runtime_write_performed",
+    "writer_policy",
+    "canonicalization_policy",
+    "input_sha256"
+  ],
+  "type": "object"
+}

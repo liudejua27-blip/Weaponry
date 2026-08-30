@@ -1,0 +1,1631 @@
+{
+  "build": {
+    "build_cohort_sha256": "a75bcbf2edc875bde9cbe9d4814d17764ba13b6299d43533fbba7c4676700b74",
+    "mcp_identity": {
+      "build_cohort_sha256": "a75bcbf2edc875bde9cbe9d4814d17764ba13b6299d43533fbba7c4676700b74",
+      "component": "forgecad-mcp",
+      "schema_version": "ForgeCADDevBuildIdentity@1"
+    },
+    "runtime_identity": {
+      "build_cohort_sha256": "a75bcbf2edc875bde9cbe9d4814d17764ba13b6299d43533fbba7c4676700b74",
+      "component": "forgecad-runtime",
+      "schema_version": "ForgeCADDevBuildIdentity@1"
+    }
+  },
+  "calibration": {
+    "calibrated_side_aperture_sources": [
+      {
+        "semantic_part_id": "side-panel-a",
+        "source_node_id": "side-panel-a",
+        "view_kind": "left"
+      },
+      {
+        "semantic_part_id": "receiver-upper",
+        "source_node_id": "receiver-upper",
+        "view_kind": "right"
+      }
+    ],
+    "calibration_id": "fps-form-04be-g-visibility-calibration-v1",
+    "calibration_policy": "exact-before-after-triangle-owner-depth-and-side-aperture-calibration@1",
+    "camera_rig_canonical_sha256": "92d5211c501f187c9ff3b39f21360080199e834c7e7cd200a8ab683b55f4beae",
+    "camera_rig_object_sha256": "df2322d547ba2b2be15eb18f46e2944cae0e6105809dfefcbf47092a9aacf6df",
+    "candidate_confirm_allowed": false,
+    "candidate_confirmed": false,
+    "canonical_sha256": "3d3cd762570a8901b4301cd0287a76a8ad20382fb18a638b4ec3bb32212e7196",
+    "composite_evidence_id": "fps-form-04be-e-owner-void-half-y-evidence-v1",
+    "current_base_artifact_sha256": "e301dd8c1881ff1334acde4cd61bb0ffdb3eb7017c8cd7784fe58b1aac7ee007",
+    "current_base_candidate_id": "candidate-f4a7d01ea8174dd4821c21fcd8ff06fa",
+    "current_base_candidate_state_sha256": "da53deaadbbc74e1c859f9c0d4b1c85427a8b2dcfa9f9bb6748c07bd6da354aa",
+    "current_base_form_art_evidence_receipt_object_sha256": "e1240c5f175569b029341638218788197d0bff5dc7e88f85f586912dae54247e",
+    "diagnostic_status": "TWO_VIEW_SIDE_APERTURE_OCCLUDERS_CALIBRATED_REPAIR_PLAN_ONLY",
+    "export_performed": false,
+    "failure_diagnostic_canonical_sha256": "68e838cebbabccec0fa042d59c5f9d4685b727216dc5a45171282cf957f16fa3",
+    "failure_diagnostic_id": "fps-form-04be-f-failure-diagnostic-v1",
+    "form_quality_v2_status": "NOT_CREATED",
+    "geometry_repair_authorized": false,
+    "next_atomic_action": "AUTHOR_HASH_BOUND_TYPED_TWO_VIEW_SIDE_APERTURE_REPAIR_PLAN_FOR_CALIBRATED_OCCLUDERS",
+    "operation": "forgecad.production.weapon.form-art-visibility-calibration-get@1",
+    "persistent_user_data_touched": false,
+    "production_stage_advanced": false,
+    "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+    "proposal_artifact_sha256": "1039baef457832e97c0facd3a51e19834e08f31024c9a700ad52bdbf0e615c80",
+    "proposal_candidate_id": "candidate-6f6ddeff15b94d5db9eb74d6c639cf8a",
+    "proposal_candidate_state_sha256": "1a0bf325f55d2cffa6924d35dbbfa46c8d1142e35fad4850ac6e2c3d56f260d2",
+    "proposal_form_art_evidence_receipt_object_sha256": "0af3ded026923d2612560ba3e446e8c777887a3a4c2436385e83e8a110d15bff",
+    "proposal_id": "fps-form-04be-e-owner-void-half-y-v1",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "repair_plan_authorized": true,
+    "runtime_write_performed": false,
+    "schema_version": "ProductionWeaponFormArtVisibilityCalibrationGetResult@1",
+    "secondary_form_approved": "NOT_CREATED",
+    "session_id": "fps-form-04a-session",
+    "side_aperture_occluders_calibrated": true,
+    "single_common_side_aperture_occluder": false,
+    "version_created": false,
+    "views": [
+      {
+        "baseline_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+        "baseline_triangle_ids_sha256": "b66c9ad7dd7ca7b3670380861d656036e0ebd4a18d71df9a62ada31cc48d3c39",
+        "camera_canonical_sha256": "d046f61fd2670b9d7ace430ebf3d2b3eaa18d7a0d2bce4d6fab9a9f51ef9d3c3",
+        "camera_hash": "2ba94a37aa6e9285d047d235b806183d22a6f3fffa40c6c9c577f369753afedb",
+        "depth_changed_pixel_count": 39,
+        "part_id_changed_pixel_count": 39,
+        "proposal_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+        "proposal_triangle_ids_sha256": "23e2d5be168bb338f5f8feb1799ccad2d2368701ba97efeacae6183e7b3d8e16",
+        "ranked_transform": "identity",
+        "silhouette_changed_pixel_count": 39,
+        "structures": [
+          {
+            "baseline_sources": [
+              {
+                "pixel_count": 548,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 114,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "baseline_visible_source_pixel_count": 662,
+            "classification": "OPEN_EVIDENCE_WITH_VISIBLE_SOURCE_OVERLAP",
+            "depth_changed_pixel_count": 0,
+            "evidence_status": "observed",
+            "highest_proposal_source": {
+              "pixel_count": 548,
+              "semantic_part_id": "rear-stock",
+              "source_node_id": "rear-stock"
+            },
+            "missing": false,
+            "part_id_changed_pixel_count": 0,
+            "proposal_sources": [
+              {
+                "pixel_count": 548,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 114,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "proposal_visible_source_pixel_count": 662,
+            "ranked_expected_void_mask_sha256": "65757413486a4b8e696edb9a0229e126ca2a15643a2fe452102da720589003a8",
+            "ranked_expected_void_pixel_count": 1018,
+            "ranked_region_mask_sha256": "d434c516b3c14f7c37abfd3ec68acd0c79587ab8ac3147a35cf63ce3b2aaf8c6",
+            "ranked_transform": "identity",
+            "reference_baseline_sources": [
+              {
+                "pixel_count": 548,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 114,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "reference_baseline_visible_source_pixel_count": 662,
+            "reference_expected_void_mask_sha256": "65757413486a4b8e696edb9a0229e126ca2a15643a2fe452102da720589003a8",
+            "reference_proposal_sources": [
+              {
+                "pixel_count": 548,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 114,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "reference_proposal_visible_source_pixel_count": 662,
+            "reference_region_mask_sha256": "d434c516b3c14f7c37abfd3ec68acd0c79587ab8ac3147a35cf63ce3b2aaf8c6",
+            "reviewed_region_canonical_sha256": "6c804da605b1290ea864e7a83277fd07a4f680fcf2ef98598623b45cb8e233cf",
+            "sealed": false,
+            "silhouette_changed_pixel_count": 0,
+            "structure_id": "left.open-stock-void",
+            "unique_highest_proposal_source": true,
+            "winner_changed_pixel_count": 2
+          },
+          {
+            "baseline_sources": [
+              {
+                "pixel_count": 175,
+                "semantic_part_id": "side-panel-a",
+                "source_node_id": "side-panel-a"
+              },
+              {
+                "pixel_count": 63,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              }
+            ],
+            "baseline_visible_source_pixel_count": 238,
+            "classification": "SEALED_BY_UNIQUE_VISIBLE_SOURCE",
+            "depth_changed_pixel_count": 0,
+            "evidence_status": "unknown",
+            "highest_proposal_source": {
+              "pixel_count": 175,
+              "semantic_part_id": "side-panel-a",
+              "source_node_id": "side-panel-a"
+            },
+            "missing": false,
+            "part_id_changed_pixel_count": 0,
+            "proposal_sources": [
+              {
+                "pixel_count": 175,
+                "semantic_part_id": "side-panel-a",
+                "source_node_id": "side-panel-a"
+              },
+              {
+                "pixel_count": 63,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              }
+            ],
+            "proposal_visible_source_pixel_count": 238,
+            "ranked_expected_void_mask_sha256": "f171485d082081222962255161b71b3ba1f7eff4f758bcd49a6dffa43a06d357",
+            "ranked_expected_void_pixel_count": 238,
+            "ranked_region_mask_sha256": "92963c0ff15a8dd9da8add4703eb9633d8a127a7c024ded557b6555cd319004c",
+            "ranked_transform": "identity",
+            "reference_baseline_sources": [
+              {
+                "pixel_count": 175,
+                "semantic_part_id": "side-panel-a",
+                "source_node_id": "side-panel-a"
+              },
+              {
+                "pixel_count": 63,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              }
+            ],
+            "reference_baseline_visible_source_pixel_count": 238,
+            "reference_expected_void_mask_sha256": "f171485d082081222962255161b71b3ba1f7eff4f758bcd49a6dffa43a06d357",
+            "reference_proposal_sources": [
+              {
+                "pixel_count": 175,
+                "semantic_part_id": "side-panel-a",
+                "source_node_id": "side-panel-a"
+              },
+              {
+                "pixel_count": 63,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              }
+            ],
+            "reference_proposal_visible_source_pixel_count": 238,
+            "reference_region_mask_sha256": "92963c0ff15a8dd9da8add4703eb9633d8a127a7c024ded557b6555cd319004c",
+            "reviewed_region_canonical_sha256": "fdd70bf380aeba081f801fa82bbad133a095d53825a8edc09b351d9bf6af8c0f",
+            "sealed": true,
+            "silhouette_changed_pixel_count": 0,
+            "structure_id": "left.trigger-void",
+            "unique_highest_proposal_source": true,
+            "winner_changed_pixel_count": 0
+          }
+        ],
+        "view_id": "fps-form-04a-left-view",
+        "view_kind": "left",
+        "winner_changed_pixel_count": 43
+      },
+      {
+        "baseline_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+        "baseline_triangle_ids_sha256": "6c1e2bd402fabcddf07cac6752030b9c4c8edcbb7f755c7a9321eb6e6d34615e",
+        "camera_canonical_sha256": "8b8bcfc81185c37ac8966e3ea7b61890098a4a0a74d3f8d107ec0f55f4dec671",
+        "camera_hash": "86b2484a31b6c568713d08947e54b600c6aab1686e8e07aaffc013f5d34518a7",
+        "depth_changed_pixel_count": 18,
+        "part_id_changed_pixel_count": 18,
+        "proposal_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+        "proposal_triangle_ids_sha256": "232af641247041551d21dea8575d08a9dfff441754076b780f17b0f9d8bce08f",
+        "ranked_transform": "identity",
+        "silhouette_changed_pixel_count": 13,
+        "structures": [
+          {
+            "baseline_sources": [
+              {
+                "pixel_count": 931,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 561,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "baseline_visible_source_pixel_count": 1492,
+            "classification": "OPEN_EVIDENCE_WITH_VISIBLE_SOURCE_OVERLAP",
+            "depth_changed_pixel_count": 9,
+            "evidence_status": "observed",
+            "highest_proposal_source": {
+              "pixel_count": 940,
+              "semantic_part_id": "rear-stock",
+              "source_node_id": "rear-stock"
+            },
+            "missing": false,
+            "part_id_changed_pixel_count": 9,
+            "proposal_sources": [
+              {
+                "pixel_count": 940,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 556,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "proposal_visible_source_pixel_count": 1496,
+            "ranked_expected_void_mask_sha256": "263899cf95c025e7ddfba69a04c3a4860afee888a10096e39c41be3f9463a9ee",
+            "ranked_expected_void_pixel_count": 1623,
+            "ranked_region_mask_sha256": "74895681e69e1c463860842032e6243eb93e30ffda9c0755977ea783bceae9e8",
+            "ranked_transform": "identity",
+            "reference_baseline_sources": [
+              {
+                "pixel_count": 931,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 561,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "reference_baseline_visible_source_pixel_count": 1492,
+            "reference_expected_void_mask_sha256": "263899cf95c025e7ddfba69a04c3a4860afee888a10096e39c41be3f9463a9ee",
+            "reference_proposal_sources": [
+              {
+                "pixel_count": 940,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 556,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "reference_proposal_visible_source_pixel_count": 1496,
+            "reference_region_mask_sha256": "74895681e69e1c463860842032e6243eb93e30ffda9c0755977ea783bceae9e8",
+            "reviewed_region_canonical_sha256": "fd840524b2e49d56363308cb272eaa014a390922c1bcbe09144c5faa6504b6cc",
+            "sealed": false,
+            "silhouette_changed_pixel_count": 4,
+            "structure_id": "right.open-stock-void",
+            "unique_highest_proposal_source": true,
+            "winner_changed_pixel_count": 12
+          },
+          {
+            "baseline_sources": [
+              {
+                "pixel_count": 186,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              },
+              {
+                "pixel_count": 42,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              },
+              {
+                "pixel_count": 18,
+                "semantic_part_id": "side-panel-a",
+                "source_node_id": "side-panel-a"
+              },
+              {
+                "pixel_count": 11,
+                "semantic_part_id": "core-housing",
+                "source_node_id": "core-housing"
+              }
+            ],
+            "baseline_visible_source_pixel_count": 257,
+            "classification": "SEALED_BY_UNIQUE_VISIBLE_SOURCE",
+            "depth_changed_pixel_count": 0,
+            "evidence_status": "unknown",
+            "highest_proposal_source": {
+              "pixel_count": 186,
+              "semantic_part_id": "receiver-upper",
+              "source_node_id": "receiver-upper"
+            },
+            "missing": false,
+            "part_id_changed_pixel_count": 0,
+            "proposal_sources": [
+              {
+                "pixel_count": 186,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              },
+              {
+                "pixel_count": 42,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              },
+              {
+                "pixel_count": 18,
+                "semantic_part_id": "side-panel-a",
+                "source_node_id": "side-panel-a"
+              },
+              {
+                "pixel_count": 11,
+                "semantic_part_id": "core-housing",
+                "source_node_id": "core-housing"
+              }
+            ],
+            "proposal_visible_source_pixel_count": 257,
+            "ranked_expected_void_mask_sha256": "7b84e82843e8e342fcbf3e78f16b75a15a5ecfebf75bdc3156c53581b535e699",
+            "ranked_expected_void_pixel_count": 257,
+            "ranked_region_mask_sha256": "564ea5101f643e9d54ef4df3da3336ae5ecd0a45854e5ddaefc4179ace97618f",
+            "ranked_transform": "identity",
+            "reference_baseline_sources": [
+              {
+                "pixel_count": 186,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              },
+              {
+                "pixel_count": 42,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              },
+              {
+                "pixel_count": 18,
+                "semantic_part_id": "side-panel-a",
+                "source_node_id": "side-panel-a"
+              },
+              {
+                "pixel_count": 11,
+                "semantic_part_id": "core-housing",
+                "source_node_id": "core-housing"
+              }
+            ],
+            "reference_baseline_visible_source_pixel_count": 257,
+            "reference_expected_void_mask_sha256": "7b84e82843e8e342fcbf3e78f16b75a15a5ecfebf75bdc3156c53581b535e699",
+            "reference_proposal_sources": [
+              {
+                "pixel_count": 186,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              },
+              {
+                "pixel_count": 42,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              },
+              {
+                "pixel_count": 18,
+                "semantic_part_id": "side-panel-a",
+                "source_node_id": "side-panel-a"
+              },
+              {
+                "pixel_count": 11,
+                "semantic_part_id": "core-housing",
+                "source_node_id": "core-housing"
+              }
+            ],
+            "reference_proposal_visible_source_pixel_count": 257,
+            "reference_region_mask_sha256": "564ea5101f643e9d54ef4df3da3336ae5ecd0a45854e5ddaefc4179ace97618f",
+            "reviewed_region_canonical_sha256": "afca69c27438b7c0b1af9cecee653db08ce2e67b4411538532a48fbd9614a233",
+            "sealed": true,
+            "silhouette_changed_pixel_count": 0,
+            "structure_id": "right.trigger-void",
+            "unique_highest_proposal_source": true,
+            "winner_changed_pixel_count": 0
+          }
+        ],
+        "view_id": "fps-form-04a-right-view",
+        "view_kind": "right",
+        "winner_changed_pixel_count": 23
+      },
+      {
+        "baseline_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+        "baseline_triangle_ids_sha256": "a0e3f446a4ddbdded07cd3c21e4590895e796920950501a1984373d7e344a547",
+        "camera_canonical_sha256": "efffde77533a5791d438291f24509b9e5df9bec27ca03ce2a6871648000f1d33",
+        "camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb",
+        "depth_changed_pixel_count": 5,
+        "part_id_changed_pixel_count": 5,
+        "proposal_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+        "proposal_triangle_ids_sha256": "b1f17e882fc0a5d2e2e14a76e270f03a6f309e99b9cdb06ff10999e22f00f124",
+        "ranked_transform": "vertical-flip",
+        "silhouette_changed_pixel_count": 0,
+        "structures": [
+          {
+            "baseline_sources": [
+              {
+                "pixel_count": 1061,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              },
+              {
+                "pixel_count": 622,
+                "semantic_part_id": "side-panel-b",
+                "source_node_id": "side-panel-b"
+              },
+              {
+                "pixel_count": 577,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 316,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              },
+              {
+                "pixel_count": 197,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock-lower-beam"
+              },
+              {
+                "pixel_count": 153,
+                "semantic_part_id": "rear-cap",
+                "source_node_id": "rear-cap"
+              },
+              {
+                "pixel_count": 147,
+                "semantic_part_id": "grip",
+                "source_node_id": "grip"
+              },
+              {
+                "pixel_count": 52,
+                "semantic_part_id": "trigger-guard",
+                "source_node_id": "trigger-guard"
+              },
+              {
+                "pixel_count": 29,
+                "semantic_part_id": "receiver-lower",
+                "source_node_id": "receiver-lower"
+              },
+              {
+                "pixel_count": 17,
+                "semantic_part_id": "bottom-rail",
+                "source_node_id": "bottom-rail"
+              },
+              {
+                "pixel_count": 7,
+                "semantic_part_id": "magazine",
+                "source_node_id": "magazine"
+              }
+            ],
+            "baseline_visible_source_pixel_count": 3178,
+            "classification": "OPEN_EVIDENCE_WITH_VISIBLE_SOURCE_OVERLAP",
+            "depth_changed_pixel_count": 0,
+            "evidence_status": "observed",
+            "highest_proposal_source": {
+              "pixel_count": 1061,
+              "semantic_part_id": "receiver-main",
+              "source_node_id": "receiver-main"
+            },
+            "missing": false,
+            "part_id_changed_pixel_count": 0,
+            "proposal_sources": [
+              {
+                "pixel_count": 1061,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              },
+              {
+                "pixel_count": 622,
+                "semantic_part_id": "side-panel-b",
+                "source_node_id": "side-panel-b"
+              },
+              {
+                "pixel_count": 577,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              {
+                "pixel_count": 316,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              },
+              {
+                "pixel_count": 197,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock-lower-beam"
+              },
+              {
+                "pixel_count": 153,
+                "semantic_part_id": "rear-cap",
+                "source_node_id": "rear-cap"
+              },
+              {
+                "pixel_count": 147,
+                "semantic_part_id": "grip",
+                "source_node_id": "grip"
+              },
+              {
+                "pixel_count": 52,
+                "semantic_part_id": "trigger-guard",
+                "source_node_id": "trigger-guard"
+              },
+              {
+                "pixel_count": 29,
+                "semantic_part_id": "receiver-lower",
+                "source_node_id": "receiver-lower"
+              },
+              {
+                "pixel_count": 17,
+                "semantic_part_id": "bottom-rail",
+                "source_node_id": "bottom-rail"
+              },
+              {
+                "pixel_count": 7,
+                "semantic_part_id": "magazine",
+                "source_node_id": "magazine"
+              }
+            ],
+            "proposal_visible_source_pixel_count": 3178,
+            "ranked_expected_void_mask_sha256": "b8805118cb54486b116de1f08fbab86cedd613186b9925c9c97dde8d80be149a",
+            "ranked_expected_void_pixel_count": 3792,
+            "ranked_region_mask_sha256": "f26fe1dc313725db1d0c232787855cf38a3084453db6aaabd00656f1a9f8d1d8",
+            "ranked_transform": "vertical-flip",
+            "reference_baseline_sources": [
+              {
+                "pixel_count": 151,
+                "semantic_part_id": "grip",
+                "source_node_id": "grip"
+              }
+            ],
+            "reference_baseline_visible_source_pixel_count": 151,
+            "reference_expected_void_mask_sha256": "cfef2c54a468c958971228644c007dc3bed3fd033e695d349c75af3b04bff2ea",
+            "reference_proposal_sources": [
+              {
+                "pixel_count": 151,
+                "semantic_part_id": "grip",
+                "source_node_id": "grip"
+              }
+            ],
+            "reference_proposal_visible_source_pixel_count": 151,
+            "reference_region_mask_sha256": "278e2897311b1ab4fb6189ecefa0bba0cd115f795782bae31376f314ad402df0",
+            "reviewed_region_canonical_sha256": "0bd1466bbe8288c889a5865391e03ca5db3aea45a8725aeefb280dbbf1ca3177",
+            "sealed": false,
+            "silhouette_changed_pixel_count": 0,
+            "structure_id": "rear3q.open-stock-void",
+            "unique_highest_proposal_source": true,
+            "winner_changed_pixel_count": 0
+          },
+          {
+            "baseline_sources": [
+              {
+                "pixel_count": 207,
+                "semantic_part_id": "side-light-right",
+                "source_node_id": "side-light-right"
+              },
+              {
+                "pixel_count": 148,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "baseline_visible_source_pixel_count": 355,
+            "classification": "OPEN_EVIDENCE_WITH_VISIBLE_SOURCE_OVERLAP",
+            "depth_changed_pixel_count": 0,
+            "evidence_status": "observed",
+            "highest_proposal_source": {
+              "pixel_count": 207,
+              "semantic_part_id": "side-light-right",
+              "source_node_id": "side-light-right"
+            },
+            "missing": false,
+            "part_id_changed_pixel_count": 0,
+            "proposal_sources": [
+              {
+                "pixel_count": 207,
+                "semantic_part_id": "side-light-right",
+                "source_node_id": "side-light-right"
+              },
+              {
+                "pixel_count": 148,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              }
+            ],
+            "proposal_visible_source_pixel_count": 355,
+            "ranked_expected_void_mask_sha256": "bbeb11c53cd80b18b2d55225f57894e0f9116af4df7785891f1c2567169d1b48",
+            "ranked_expected_void_pixel_count": 355,
+            "ranked_region_mask_sha256": "8f5afd85c59843253eb40dc56d4cc1c683a51741b4c1f8a349a3459f73383b9e",
+            "ranked_transform": "vertical-flip",
+            "reference_baseline_sources": [],
+            "reference_baseline_visible_source_pixel_count": 0,
+            "reference_expected_void_mask_sha256": "f6f777c9d203357b5ab03be342d729ab1a277d506417ed19b3c5c4d288c3617b",
+            "reference_proposal_sources": [],
+            "reference_proposal_visible_source_pixel_count": 0,
+            "reference_region_mask_sha256": "6fda101a1142a2e84d10a686b9db8a0034b868c9ec0a57a935be732a14632b39",
+            "reviewed_region_canonical_sha256": "9c03d323a289bfc8acd4577383aa860e0fd4352da2eebb71be74fb98fdbcc412",
+            "sealed": false,
+            "silhouette_changed_pixel_count": 0,
+            "structure_id": "rear3q.trigger-void",
+            "unique_highest_proposal_source": true,
+            "winner_changed_pixel_count": 0
+          }
+        ],
+        "view_id": "fps-form-04a-rear-three-quarter-view",
+        "view_kind": "rear-three-quarter",
+        "winner_changed_pixel_count": 9
+      }
+    ],
+    "worker_started": true
+  },
+  "mandatory_ponytail_preflight": "PASS_EACH_RUNTIME_SESSION",
+  "non_promotion_boundary": {
+    "candidate_confirm_allowed": false,
+    "candidate_confirmed": false,
+    "commercial_quality": "NOT_PROVEN",
+    "engine_validation": "NOT_RUN",
+    "export_performed": false,
+    "form_quality_v2_status": "NOT_CREATED",
+    "high_low_uv_bake_started": false,
+    "human_review": "NOT_RUN",
+    "production_stage_advanced": false,
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "secondary_form_approved": "NOT_CREATED",
+    "version_created": false
+  },
+  "read_only_integrity": {
+    "cas_after": {
+      "object_count": 1742,
+      "path_size_index_sha256": "0b0122fbb4ceeea69c6691520ac439503c5a1392c3c5eaaa271b61bfffca644d"
+    },
+    "cas_before": {
+      "object_count": 1742,
+      "path_size_index_sha256": "0b0122fbb4ceeea69c6691520ac439503c5a1392c3c5eaaa271b61bfffca644d"
+    },
+    "cas_unchanged": true,
+    "sqlite_after": {
+      "row_counts": {
+        "agentic_action_runs": 0,
+        "agentic_design_checkpoints": 0,
+        "agentic_design_sessions": 1,
+        "agentic_production_camera_lock_registration_lineages": 1,
+        "agentic_production_camera_locks": 1,
+        "agentic_production_stage_heads": 0,
+        "agentic_production_stage_heads_v2": 0,
+        "agentic_production_stage_heads_v3": 1,
+        "agentic_production_stage_transitions": 0,
+        "agentic_production_stage_transitions_v2": 0,
+        "agentic_production_stage_transitions_v3": 2,
+        "appearance_source_lineage_links": 0,
+        "approval_receipts": 0,
+        "artifact_manifests": 0,
+        "audit_events": 35,
+        "authoring_mesh_durable_records": 0,
+        "authoring_mesh_identity_lineage_durable_records": 0,
+        "authoring_mesh_projection_indexes": 0,
+        "authoring_mesh_v2_durable_records": 3,
+        "candidate_animation_vfx_quality_links": 0,
+        "candidate_animation_vfx_quality_particle_history": 0,
+        "candidate_animation_vfx_quality_v2_links": 0,
+        "candidate_material_surface_quality_links": 0,
+        "candidate_topology_quality_links": 0,
+        "candidates": 34,
+        "cross_view_evidence": 5,
+        "cross_view_evidence_cas_refs": 185,
+        "design_asset_versions": 0,
+        "export_manifests": 0,
+        "fictional_energy_vfx_animated_socket_attachment_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_links": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v2_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v2_links": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v3_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v3_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_frame_history": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_frame_history": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_bloom_frame_links": 0,
+        "fictional_energy_vfx_frame_links": 0,
+        "fictional_energy_vfx_links": 0,
+        "fictional_energy_vfx_particles_frame_links": 0,
+        "fictional_energy_vfx_sequence_links": 0,
+        "fictional_energy_vfx_trails_bloom_frame_links": 0,
+        "fictional_energy_vfx_trails_frame_links": 0,
+        "foundation_authoring_mesh_v2_materializations": 0,
+        "fps_presentation_package_v2_candidates": 0,
+        "fps_presentation_packages_v2": 0,
+        "game_asset_delivery_links": 0,
+        "game_weapon_anchor_links": 0,
+        "game_weapon_animated_glb_socket_materialization_links": 0,
+        "game_weapon_animated_glb_socket_materialization_v2_links": 0,
+        "game_weapon_animated_glb_socket_transform_projection_frames": 0,
+        "game_weapon_animated_glb_socket_transform_projection_links": 0,
+        "game_weapon_animated_glb_socket_transform_projection_v2_frames": 0,
+        "game_weapon_animated_glb_socket_transform_projection_v2_links": 0,
+        "game_weapon_glb_socket_materialization_links": 0,
+        "game_weapon_glb_socket_materialization_lods": 0,
+        "geometry_candidate_evidence": 34,
+        "hero_uv_durable_links": 0,
+        "low_quad_draft_durable_links": 0,
+        "mechanical_animation_clip_links": 0,
+        "mechanical_animation_clip_v2_links": 0,
+        "mechanical_animation_glb_v2_links": 0,
+        "native_high_durable_links": 0,
+        "objects": 1742,
+        "production_weapon_form_art_baseline_cas_batch_objects": 290,
+        "production_weapon_form_art_baseline_cas_batches": 11,
+        "production_weapon_form_art_baselines": 11,
+        "production_weapon_form_art_composite_evidence_links": 2,
+        "production_weapon_form_art_composite_proposal_links": 2,
+        "production_weapon_form_art_evidence_links": 1,
+        "production_weapon_form_art_evidence_views": 6,
+        "production_weapon_form_art_proposal_evidence_links": 4,
+        "production_weapon_form_evidence_links": 1,
+        "production_weapon_form_evidence_views": 6,
+        "production_weapon_form_quality_cas_refs": 120,
+        "production_weapon_form_quality_links": 1,
+        "production_weapon_form_quality_v2_links": 0,
+        "production_weapon_form_quality_v2_views": 0,
+        "production_weapon_form_quality_views": 6,
+        "production_weapon_formal_high_links": 0,
+        "production_weapon_high_low_bake_cage": 0,
+        "production_weapon_high_low_bake_correspondence": 0,
+        "production_weapon_high_low_bake_diagnostic": 0,
+        "production_weapon_high_low_bake_high": 0,
+        "production_weapon_high_low_bake_links": 0,
+        "production_weapon_high_low_bake_low": 0,
+        "production_weapon_high_low_bake_plan": 0,
+        "production_weapon_high_low_bake_receipts": 0,
+        "production_weapon_retopology_cage_source_bundle_links": 0,
+        "projects": 1,
+        "reference_evidence": 1,
+        "runtime_job_checkpoints": 0,
+        "runtime_job_events": 34,
+        "runtime_jobs": 34,
+        "schema_meta": 1,
+        "snapshots": 0,
+        "subdivision_artifact_lineage_links": 0,
+        "visual_evidence": 30,
+        "visual_evidence_views": 114,
+        "weapon_foundation_imports": 0,
+        "write_idempotency": 4
+      },
+      "table_count": 116
+    },
+    "sqlite_before": {
+      "row_counts": {
+        "agentic_action_runs": 0,
+        "agentic_design_checkpoints": 0,
+        "agentic_design_sessions": 1,
+        "agentic_production_camera_lock_registration_lineages": 1,
+        "agentic_production_camera_locks": 1,
+        "agentic_production_stage_heads": 0,
+        "agentic_production_stage_heads_v2": 0,
+        "agentic_production_stage_heads_v3": 1,
+        "agentic_production_stage_transitions": 0,
+        "agentic_production_stage_transitions_v2": 0,
+        "agentic_production_stage_transitions_v3": 2,
+        "appearance_source_lineage_links": 0,
+        "approval_receipts": 0,
+        "artifact_manifests": 0,
+        "audit_events": 35,
+        "authoring_mesh_durable_records": 0,
+        "authoring_mesh_identity_lineage_durable_records": 0,
+        "authoring_mesh_projection_indexes": 0,
+        "authoring_mesh_v2_durable_records": 3,
+        "candidate_animation_vfx_quality_links": 0,
+        "candidate_animation_vfx_quality_particle_history": 0,
+        "candidate_animation_vfx_quality_v2_links": 0,
+        "candidate_material_surface_quality_links": 0,
+        "candidate_topology_quality_links": 0,
+        "candidates": 34,
+        "cross_view_evidence": 5,
+        "cross_view_evidence_cas_refs": 185,
+        "design_asset_versions": 0,
+        "export_manifests": 0,
+        "fictional_energy_vfx_animated_socket_attachment_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_links": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v2_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v2_links": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v3_frames": 0,
+        "fictional_energy_vfx_animated_socket_attachment_v3_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_particles_v2_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_bloom_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_frame_history": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_sequence_links": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_frame_history": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_frames": 0,
+        "fictional_energy_vfx_animated_socket_trails_v2_projection_sequence_links": 0,
+        "fictional_energy_vfx_bloom_frame_links": 0,
+        "fictional_energy_vfx_frame_links": 0,
+        "fictional_energy_vfx_links": 0,
+        "fictional_energy_vfx_particles_frame_links": 0,
+        "fictional_energy_vfx_sequence_links": 0,
+        "fictional_energy_vfx_trails_bloom_frame_links": 0,
+        "fictional_energy_vfx_trails_frame_links": 0,
+        "foundation_authoring_mesh_v2_materializations": 0,
+        "fps_presentation_package_v2_candidates": 0,
+        "fps_presentation_packages_v2": 0,
+        "game_asset_delivery_links": 0,
+        "game_weapon_anchor_links": 0,
+        "game_weapon_animated_glb_socket_materialization_links": 0,
+        "game_weapon_animated_glb_socket_materialization_v2_links": 0,
+        "game_weapon_animated_glb_socket_transform_projection_frames": 0,
+        "game_weapon_animated_glb_socket_transform_projection_links": 0,
+        "game_weapon_animated_glb_socket_transform_projection_v2_frames": 0,
+        "game_weapon_animated_glb_socket_transform_projection_v2_links": 0,
+        "game_weapon_glb_socket_materialization_links": 0,
+        "game_weapon_glb_socket_materialization_lods": 0,
+        "geometry_candidate_evidence": 34,
+        "hero_uv_durable_links": 0,
+        "low_quad_draft_durable_links": 0,
+        "mechanical_animation_clip_links": 0,
+        "mechanical_animation_clip_v2_links": 0,
+        "mechanical_animation_glb_v2_links": 0,
+        "native_high_durable_links": 0,
+        "objects": 1742,
+        "production_weapon_form_art_baseline_cas_batch_objects": 290,
+        "production_weapon_form_art_baseline_cas_batches": 11,
+        "production_weapon_form_art_baselines": 11,
+        "production_weapon_form_art_composite_evidence_links": 2,
+        "production_weapon_form_art_composite_proposal_links": 2,
+        "production_weapon_form_art_evidence_links": 1,
+        "production_weapon_form_art_evidence_views": 6,
+        "production_weapon_form_art_proposal_evidence_links": 4,
+        "production_weapon_form_evidence_links": 1,
+        "production_weapon_form_evidence_views": 6,
+        "production_weapon_form_quality_cas_refs": 120,
+        "production_weapon_form_quality_links": 1,
+        "production_weapon_form_quality_v2_links": 0,
+        "production_weapon_form_quality_v2_views": 0,
+        "production_weapon_form_quality_views": 6,
+        "production_weapon_formal_high_links": 0,
+        "production_weapon_high_low_bake_cage": 0,
+        "production_weapon_high_low_bake_correspondence": 0,
+        "production_weapon_high_low_bake_diagnostic": 0,
+        "production_weapon_high_low_bake_high": 0,
+        "production_weapon_high_low_bake_links": 0,
+        "production_weapon_high_low_bake_low": 0,
+        "production_weapon_high_low_bake_plan": 0,
+        "production_weapon_high_low_bake_receipts": 0,
+        "production_weapon_retopology_cage_source_bundle_links": 0,
+        "projects": 1,
+        "reference_evidence": 1,
+        "runtime_job_checkpoints": 0,
+        "runtime_job_events": 34,
+        "runtime_jobs": 34,
+        "schema_meta": 1,
+        "snapshots": 0,
+        "subdivision_artifact_lineage_links": 0,
+        "visual_evidence": 30,
+        "visual_evidence_views": 114,
+        "weapon_foundation_imports": 0,
+        "write_idempotency": 4
+      },
+      "table_count": 116
+    },
+    "sqlite_unchanged": true
+  },
+  "recorded_on": "2026-08-28",
+  "request": {
+    "calibration_id": "fps-form-04be-g-visibility-calibration-v1",
+    "calibration_policy": "exact-before-after-triangle-owner-depth-and-side-aperture-calibration@1",
+    "canonicalization_policy": "canonical-json-sha256-excluding-input-sha256@1",
+    "composite_evidence_id": "fps-form-04be-e-owner-void-half-y-evidence-v1",
+    "composite_evidence_receipt_object_sha256": "350555facd3ea2ca5fe994652f56603c9b73c65842152afbbad91102c8cdb33e",
+    "composite_evidence_record_canonical_sha256": "8f03de05bd08af1c54e62cfaad603204cef72f224ed47c12eabd8ec391eacd88",
+    "cross_view_evidence_bundle_sha256": "64eb80b5866b32e7d08e1484edf9f036ee20b0cdc4ab9da409f953bacdd043ea",
+    "failure_diagnostic_canonical_sha256": "68e838cebbabccec0fa042d59c5f9d4685b727216dc5a45171282cf957f16fa3",
+    "failure_diagnostic_id": "fps-form-04be-f-failure-diagnostic-v1",
+    "failure_diagnostic_input_sha256": "68eb8b43eea57e9918a68788414d9a1945db0c50da629731b7c301063b5aa5a2",
+    "input_sha256": "c6ce23483dea721dcd97ad516dde3ad4b120fec1f5bfc84fbcfec56eb4da6dd9",
+    "max_response_bytes": 1048576,
+    "operation": "forgecad.production.weapon.form-art-visibility-calibration-get@1",
+    "persistent_user_data_touched": false,
+    "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+    "proposal_form_art_evidence_receipt_object_sha256": "0af3ded026923d2612560ba3e446e8c777887a3a4c2436385e83e8a110d15bff",
+    "proposal_id": "fps-form-04be-e-owner-void-half-y-v1",
+    "runtime_write_performed": false,
+    "schema_version": "ProductionWeaponFormArtVisibilityCalibrationGetRequest@1",
+    "session_id": "fps-form-04a-session"
+  },
+  "restart_readback": {
+    "calibration": {
+      "calibrated_side_aperture_sources": [
+        {
+          "semantic_part_id": "side-panel-a",
+          "source_node_id": "side-panel-a",
+          "view_kind": "left"
+        },
+        {
+          "semantic_part_id": "receiver-upper",
+          "source_node_id": "receiver-upper",
+          "view_kind": "right"
+        }
+      ],
+      "calibration_id": "fps-form-04be-g-visibility-calibration-v1",
+      "calibration_policy": "exact-before-after-triangle-owner-depth-and-side-aperture-calibration@1",
+      "camera_rig_canonical_sha256": "92d5211c501f187c9ff3b39f21360080199e834c7e7cd200a8ab683b55f4beae",
+      "camera_rig_object_sha256": "df2322d547ba2b2be15eb18f46e2944cae0e6105809dfefcbf47092a9aacf6df",
+      "candidate_confirm_allowed": false,
+      "candidate_confirmed": false,
+      "canonical_sha256": "3d3cd762570a8901b4301cd0287a76a8ad20382fb18a638b4ec3bb32212e7196",
+      "composite_evidence_id": "fps-form-04be-e-owner-void-half-y-evidence-v1",
+      "current_base_artifact_sha256": "e301dd8c1881ff1334acde4cd61bb0ffdb3eb7017c8cd7784fe58b1aac7ee007",
+      "current_base_candidate_id": "candidate-f4a7d01ea8174dd4821c21fcd8ff06fa",
+      "current_base_candidate_state_sha256": "da53deaadbbc74e1c859f9c0d4b1c85427a8b2dcfa9f9bb6748c07bd6da354aa",
+      "current_base_form_art_evidence_receipt_object_sha256": "e1240c5f175569b029341638218788197d0bff5dc7e88f85f586912dae54247e",
+      "diagnostic_status": "TWO_VIEW_SIDE_APERTURE_OCCLUDERS_CALIBRATED_REPAIR_PLAN_ONLY",
+      "export_performed": false,
+      "failure_diagnostic_canonical_sha256": "68e838cebbabccec0fa042d59c5f9d4685b727216dc5a45171282cf957f16fa3",
+      "failure_diagnostic_id": "fps-form-04be-f-failure-diagnostic-v1",
+      "form_quality_v2_status": "NOT_CREATED",
+      "geometry_repair_authorized": false,
+      "next_atomic_action": "AUTHOR_HASH_BOUND_TYPED_TWO_VIEW_SIDE_APERTURE_REPAIR_PLAN_FOR_CALIBRATED_OCCLUDERS",
+      "operation": "forgecad.production.weapon.form-art-visibility-calibration-get@1",
+      "persistent_user_data_touched": false,
+      "production_stage_advanced": false,
+      "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+      "proposal_artifact_sha256": "1039baef457832e97c0facd3a51e19834e08f31024c9a700ad52bdbf0e615c80",
+      "proposal_candidate_id": "candidate-6f6ddeff15b94d5db9eb74d6c639cf8a",
+      "proposal_candidate_state_sha256": "1a0bf325f55d2cffa6924d35dbbfa46c8d1142e35fad4850ac6e2c3d56f260d2",
+      "proposal_form_art_evidence_receipt_object_sha256": "0af3ded026923d2612560ba3e446e8c777887a3a4c2436385e83e8a110d15bff",
+      "proposal_id": "fps-form-04be-e-owner-void-half-y-v1",
+      "quality_status": "QUALITY_TARGET_NOT_MET",
+      "repair_plan_authorized": true,
+      "runtime_write_performed": false,
+      "schema_version": "ProductionWeaponFormArtVisibilityCalibrationGetResult@1",
+      "secondary_form_approved": "NOT_CREATED",
+      "session_id": "fps-form-04a-session",
+      "side_aperture_occluders_calibrated": true,
+      "single_common_side_aperture_occluder": false,
+      "version_created": false,
+      "views": [
+        {
+          "baseline_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+          "baseline_triangle_ids_sha256": "b66c9ad7dd7ca7b3670380861d656036e0ebd4a18d71df9a62ada31cc48d3c39",
+          "camera_canonical_sha256": "d046f61fd2670b9d7ace430ebf3d2b3eaa18d7a0d2bce4d6fab9a9f51ef9d3c3",
+          "camera_hash": "2ba94a37aa6e9285d047d235b806183d22a6f3fffa40c6c9c577f369753afedb",
+          "depth_changed_pixel_count": 39,
+          "part_id_changed_pixel_count": 39,
+          "proposal_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+          "proposal_triangle_ids_sha256": "23e2d5be168bb338f5f8feb1799ccad2d2368701ba97efeacae6183e7b3d8e16",
+          "ranked_transform": "identity",
+          "silhouette_changed_pixel_count": 39,
+          "structures": [
+            {
+              "baseline_sources": [
+                {
+                  "pixel_count": 548,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 114,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "baseline_visible_source_pixel_count": 662,
+              "classification": "OPEN_EVIDENCE_WITH_VISIBLE_SOURCE_OVERLAP",
+              "depth_changed_pixel_count": 0,
+              "evidence_status": "observed",
+              "highest_proposal_source": {
+                "pixel_count": 548,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              "missing": false,
+              "part_id_changed_pixel_count": 0,
+              "proposal_sources": [
+                {
+                  "pixel_count": 548,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 114,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "proposal_visible_source_pixel_count": 662,
+              "ranked_expected_void_mask_sha256": "65757413486a4b8e696edb9a0229e126ca2a15643a2fe452102da720589003a8",
+              "ranked_expected_void_pixel_count": 1018,
+              "ranked_region_mask_sha256": "d434c516b3c14f7c37abfd3ec68acd0c79587ab8ac3147a35cf63ce3b2aaf8c6",
+              "ranked_transform": "identity",
+              "reference_baseline_sources": [
+                {
+                  "pixel_count": 548,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 114,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "reference_baseline_visible_source_pixel_count": 662,
+              "reference_expected_void_mask_sha256": "65757413486a4b8e696edb9a0229e126ca2a15643a2fe452102da720589003a8",
+              "reference_proposal_sources": [
+                {
+                  "pixel_count": 548,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 114,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "reference_proposal_visible_source_pixel_count": 662,
+              "reference_region_mask_sha256": "d434c516b3c14f7c37abfd3ec68acd0c79587ab8ac3147a35cf63ce3b2aaf8c6",
+              "reviewed_region_canonical_sha256": "6c804da605b1290ea864e7a83277fd07a4f680fcf2ef98598623b45cb8e233cf",
+              "sealed": false,
+              "silhouette_changed_pixel_count": 0,
+              "structure_id": "left.open-stock-void",
+              "unique_highest_proposal_source": true,
+              "winner_changed_pixel_count": 2
+            },
+            {
+              "baseline_sources": [
+                {
+                  "pixel_count": 175,
+                  "semantic_part_id": "side-panel-a",
+                  "source_node_id": "side-panel-a"
+                },
+                {
+                  "pixel_count": 63,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                }
+              ],
+              "baseline_visible_source_pixel_count": 238,
+              "classification": "SEALED_BY_UNIQUE_VISIBLE_SOURCE",
+              "depth_changed_pixel_count": 0,
+              "evidence_status": "unknown",
+              "highest_proposal_source": {
+                "pixel_count": 175,
+                "semantic_part_id": "side-panel-a",
+                "source_node_id": "side-panel-a"
+              },
+              "missing": false,
+              "part_id_changed_pixel_count": 0,
+              "proposal_sources": [
+                {
+                  "pixel_count": 175,
+                  "semantic_part_id": "side-panel-a",
+                  "source_node_id": "side-panel-a"
+                },
+                {
+                  "pixel_count": 63,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                }
+              ],
+              "proposal_visible_source_pixel_count": 238,
+              "ranked_expected_void_mask_sha256": "f171485d082081222962255161b71b3ba1f7eff4f758bcd49a6dffa43a06d357",
+              "ranked_expected_void_pixel_count": 238,
+              "ranked_region_mask_sha256": "92963c0ff15a8dd9da8add4703eb9633d8a127a7c024ded557b6555cd319004c",
+              "ranked_transform": "identity",
+              "reference_baseline_sources": [
+                {
+                  "pixel_count": 175,
+                  "semantic_part_id": "side-panel-a",
+                  "source_node_id": "side-panel-a"
+                },
+                {
+                  "pixel_count": 63,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                }
+              ],
+              "reference_baseline_visible_source_pixel_count": 238,
+              "reference_expected_void_mask_sha256": "f171485d082081222962255161b71b3ba1f7eff4f758bcd49a6dffa43a06d357",
+              "reference_proposal_sources": [
+                {
+                  "pixel_count": 175,
+                  "semantic_part_id": "side-panel-a",
+                  "source_node_id": "side-panel-a"
+                },
+                {
+                  "pixel_count": 63,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                }
+              ],
+              "reference_proposal_visible_source_pixel_count": 238,
+              "reference_region_mask_sha256": "92963c0ff15a8dd9da8add4703eb9633d8a127a7c024ded557b6555cd319004c",
+              "reviewed_region_canonical_sha256": "fdd70bf380aeba081f801fa82bbad133a095d53825a8edc09b351d9bf6af8c0f",
+              "sealed": true,
+              "silhouette_changed_pixel_count": 0,
+              "structure_id": "left.trigger-void",
+              "unique_highest_proposal_source": true,
+              "winner_changed_pixel_count": 0
+            }
+          ],
+          "view_id": "fps-form-04a-left-view",
+          "view_kind": "left",
+          "winner_changed_pixel_count": 43
+        },
+        {
+          "baseline_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+          "baseline_triangle_ids_sha256": "6c1e2bd402fabcddf07cac6752030b9c4c8edcbb7f755c7a9321eb6e6d34615e",
+          "camera_canonical_sha256": "8b8bcfc81185c37ac8966e3ea7b61890098a4a0a74d3f8d107ec0f55f4dec671",
+          "camera_hash": "86b2484a31b6c568713d08947e54b600c6aab1686e8e07aaffc013f5d34518a7",
+          "depth_changed_pixel_count": 18,
+          "part_id_changed_pixel_count": 18,
+          "proposal_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+          "proposal_triangle_ids_sha256": "232af641247041551d21dea8575d08a9dfff441754076b780f17b0f9d8bce08f",
+          "ranked_transform": "identity",
+          "silhouette_changed_pixel_count": 13,
+          "structures": [
+            {
+              "baseline_sources": [
+                {
+                  "pixel_count": 931,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 561,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "baseline_visible_source_pixel_count": 1492,
+              "classification": "OPEN_EVIDENCE_WITH_VISIBLE_SOURCE_OVERLAP",
+              "depth_changed_pixel_count": 9,
+              "evidence_status": "observed",
+              "highest_proposal_source": {
+                "pixel_count": 940,
+                "semantic_part_id": "rear-stock",
+                "source_node_id": "rear-stock"
+              },
+              "missing": false,
+              "part_id_changed_pixel_count": 9,
+              "proposal_sources": [
+                {
+                  "pixel_count": 940,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 556,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "proposal_visible_source_pixel_count": 1496,
+              "ranked_expected_void_mask_sha256": "263899cf95c025e7ddfba69a04c3a4860afee888a10096e39c41be3f9463a9ee",
+              "ranked_expected_void_pixel_count": 1623,
+              "ranked_region_mask_sha256": "74895681e69e1c463860842032e6243eb93e30ffda9c0755977ea783bceae9e8",
+              "ranked_transform": "identity",
+              "reference_baseline_sources": [
+                {
+                  "pixel_count": 931,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 561,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "reference_baseline_visible_source_pixel_count": 1492,
+              "reference_expected_void_mask_sha256": "263899cf95c025e7ddfba69a04c3a4860afee888a10096e39c41be3f9463a9ee",
+              "reference_proposal_sources": [
+                {
+                  "pixel_count": 940,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 556,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "reference_proposal_visible_source_pixel_count": 1496,
+              "reference_region_mask_sha256": "74895681e69e1c463860842032e6243eb93e30ffda9c0755977ea783bceae9e8",
+              "reviewed_region_canonical_sha256": "fd840524b2e49d56363308cb272eaa014a390922c1bcbe09144c5faa6504b6cc",
+              "sealed": false,
+              "silhouette_changed_pixel_count": 4,
+              "structure_id": "right.open-stock-void",
+              "unique_highest_proposal_source": true,
+              "winner_changed_pixel_count": 12
+            },
+            {
+              "baseline_sources": [
+                {
+                  "pixel_count": 186,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                },
+                {
+                  "pixel_count": 42,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                },
+                {
+                  "pixel_count": 18,
+                  "semantic_part_id": "side-panel-a",
+                  "source_node_id": "side-panel-a"
+                },
+                {
+                  "pixel_count": 11,
+                  "semantic_part_id": "core-housing",
+                  "source_node_id": "core-housing"
+                }
+              ],
+              "baseline_visible_source_pixel_count": 257,
+              "classification": "SEALED_BY_UNIQUE_VISIBLE_SOURCE",
+              "depth_changed_pixel_count": 0,
+              "evidence_status": "unknown",
+              "highest_proposal_source": {
+                "pixel_count": 186,
+                "semantic_part_id": "receiver-upper",
+                "source_node_id": "receiver-upper"
+              },
+              "missing": false,
+              "part_id_changed_pixel_count": 0,
+              "proposal_sources": [
+                {
+                  "pixel_count": 186,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                },
+                {
+                  "pixel_count": 42,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                },
+                {
+                  "pixel_count": 18,
+                  "semantic_part_id": "side-panel-a",
+                  "source_node_id": "side-panel-a"
+                },
+                {
+                  "pixel_count": 11,
+                  "semantic_part_id": "core-housing",
+                  "source_node_id": "core-housing"
+                }
+              ],
+              "proposal_visible_source_pixel_count": 257,
+              "ranked_expected_void_mask_sha256": "7b84e82843e8e342fcbf3e78f16b75a15a5ecfebf75bdc3156c53581b535e699",
+              "ranked_expected_void_pixel_count": 257,
+              "ranked_region_mask_sha256": "564ea5101f643e9d54ef4df3da3336ae5ecd0a45854e5ddaefc4179ace97618f",
+              "ranked_transform": "identity",
+              "reference_baseline_sources": [
+                {
+                  "pixel_count": 186,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                },
+                {
+                  "pixel_count": 42,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                },
+                {
+                  "pixel_count": 18,
+                  "semantic_part_id": "side-panel-a",
+                  "source_node_id": "side-panel-a"
+                },
+                {
+                  "pixel_count": 11,
+                  "semantic_part_id": "core-housing",
+                  "source_node_id": "core-housing"
+                }
+              ],
+              "reference_baseline_visible_source_pixel_count": 257,
+              "reference_expected_void_mask_sha256": "7b84e82843e8e342fcbf3e78f16b75a15a5ecfebf75bdc3156c53581b535e699",
+              "reference_proposal_sources": [
+                {
+                  "pixel_count": 186,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                },
+                {
+                  "pixel_count": 42,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                },
+                {
+                  "pixel_count": 18,
+                  "semantic_part_id": "side-panel-a",
+                  "source_node_id": "side-panel-a"
+                },
+                {
+                  "pixel_count": 11,
+                  "semantic_part_id": "core-housing",
+                  "source_node_id": "core-housing"
+                }
+              ],
+              "reference_proposal_visible_source_pixel_count": 257,
+              "reference_region_mask_sha256": "564ea5101f643e9d54ef4df3da3336ae5ecd0a45854e5ddaefc4179ace97618f",
+              "reviewed_region_canonical_sha256": "afca69c27438b7c0b1af9cecee653db08ce2e67b4411538532a48fbd9614a233",
+              "sealed": true,
+              "silhouette_changed_pixel_count": 0,
+              "structure_id": "right.trigger-void",
+              "unique_highest_proposal_source": true,
+              "winner_changed_pixel_count": 0
+            }
+          ],
+          "view_id": "fps-form-04a-right-view",
+          "view_kind": "right",
+          "winner_changed_pixel_count": 23
+        },
+        {
+          "baseline_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+          "baseline_triangle_ids_sha256": "a0e3f446a4ddbdded07cd3c21e4590895e796920950501a1984373d7e344a547",
+          "camera_canonical_sha256": "efffde77533a5791d438291f24509b9e5df9bec27ca03ce2a6871648000f1d33",
+          "camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb",
+          "depth_changed_pixel_count": 5,
+          "part_id_changed_pixel_count": 5,
+          "proposal_source_table_sha256": "07825fe97cad7e5aad8ba6daa388d5267b9f8f7c68734e77659dc232b7725048",
+          "proposal_triangle_ids_sha256": "b1f17e882fc0a5d2e2e14a76e270f03a6f309e99b9cdb06ff10999e22f00f124",
+          "ranked_transform": "vertical-flip",
+          "silhouette_changed_pixel_count": 0,
+          "structures": [
+            {
+              "baseline_sources": [
+                {
+                  "pixel_count": 1061,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                },
+                {
+                  "pixel_count": 622,
+                  "semantic_part_id": "side-panel-b",
+                  "source_node_id": "side-panel-b"
+                },
+                {
+                  "pixel_count": 577,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 316,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                },
+                {
+                  "pixel_count": 197,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock-lower-beam"
+                },
+                {
+                  "pixel_count": 153,
+                  "semantic_part_id": "rear-cap",
+                  "source_node_id": "rear-cap"
+                },
+                {
+                  "pixel_count": 147,
+                  "semantic_part_id": "grip",
+                  "source_node_id": "grip"
+                },
+                {
+                  "pixel_count": 52,
+                  "semantic_part_id": "trigger-guard",
+                  "source_node_id": "trigger-guard"
+                },
+                {
+                  "pixel_count": 29,
+                  "semantic_part_id": "receiver-lower",
+                  "source_node_id": "receiver-lower"
+                },
+                {
+                  "pixel_count": 17,
+                  "semantic_part_id": "bottom-rail",
+                  "source_node_id": "bottom-rail"
+                },
+                {
+                  "pixel_count": 7,
+                  "semantic_part_id": "magazine",
+                  "source_node_id": "magazine"
+                }
+              ],
+              "baseline_visible_source_pixel_count": 3178,
+              "classification": "OPEN_EVIDENCE_WITH_VISIBLE_SOURCE_OVERLAP",
+              "depth_changed_pixel_count": 0,
+              "evidence_status": "observed",
+              "highest_proposal_source": {
+                "pixel_count": 1061,
+                "semantic_part_id": "receiver-main",
+                "source_node_id": "receiver-main"
+              },
+              "missing": false,
+              "part_id_changed_pixel_count": 0,
+              "proposal_sources": [
+                {
+                  "pixel_count": 1061,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                },
+                {
+                  "pixel_count": 622,
+                  "semantic_part_id": "side-panel-b",
+                  "source_node_id": "side-panel-b"
+                },
+                {
+                  "pixel_count": 577,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock"
+                },
+                {
+                  "pixel_count": 316,
+                  "semantic_part_id": "receiver-upper",
+                  "source_node_id": "receiver-upper"
+                },
+                {
+                  "pixel_count": 197,
+                  "semantic_part_id": "rear-stock",
+                  "source_node_id": "rear-stock-lower-beam"
+                },
+                {
+                  "pixel_count": 153,
+                  "semantic_part_id": "rear-cap",
+                  "source_node_id": "rear-cap"
+                },
+                {
+                  "pixel_count": 147,
+                  "semantic_part_id": "grip",
+                  "source_node_id": "grip"
+                },
+                {
+                  "pixel_count": 52,
+                  "semantic_part_id": "trigger-guard",
+                  "source_node_id": "trigger-guard"
+                },
+                {
+                  "pixel_count": 29,
+                  "semantic_part_id": "receiver-lower",
+                  "source_node_id": "receiver-lower"
+                },
+                {
+                  "pixel_count": 17,
+                  "semantic_part_id": "bottom-rail",
+                  "source_node_id": "bottom-rail"
+                },
+                {
+                  "pixel_count": 7,
+                  "semantic_part_id": "magazine",
+                  "source_node_id": "magazine"
+                }
+              ],
+              "proposal_visible_source_pixel_count": 3178,
+              "ranked_expected_void_mask_sha256": "b8805118cb54486b116de1f08fbab86cedd613186b9925c9c97dde8d80be149a",
+              "ranked_expected_void_pixel_count": 3792,
+              "ranked_region_mask_sha256": "f26fe1dc313725db1d0c232787855cf38a3084453db6aaabd00656f1a9f8d1d8",
+              "ranked_transform": "vertical-flip",
+              "reference_baseline_sources": [
+                {
+                  "pixel_count": 151,
+                  "semantic_part_id": "grip",
+                  "source_node_id": "grip"
+                }
+              ],
+              "reference_baseline_visible_source_pixel_count": 151,
+              "reference_expected_void_mask_sha256": "cfef2c54a468c958971228644c007dc3bed3fd033e695d349c75af3b04bff2ea",
+              "reference_proposal_sources": [
+                {
+                  "pixel_count": 151,
+                  "semantic_part_id": "grip",
+                  "source_node_id": "grip"
+                }
+              ],
+              "reference_proposal_visible_source_pixel_count": 151,
+              "reference_region_mask_sha256": "278e2897311b1ab4fb6189ecefa0bba0cd115f795782bae31376f314ad402df0",
+              "reviewed_region_canonical_sha256": "0bd1466bbe8288c889a5865391e03ca5db3aea45a8725aeefb280dbbf1ca3177",
+              "sealed": false,
+              "silhouette_changed_pixel_count": 0,
+              "structure_id": "rear3q.open-stock-void",
+              "unique_highest_proposal_source": true,
+              "winner_changed_pixel_count": 0
+            },
+            {
+              "baseline_sources": [
+                {
+                  "pixel_count": 207,
+                  "semantic_part_id": "side-light-right",
+                  "source_node_id": "side-light-right"
+                },
+                {
+                  "pixel_count": 148,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "baseline_visible_source_pixel_count": 355,
+              "classification": "OPEN_EVIDENCE_WITH_VISIBLE_SOURCE_OVERLAP",
+              "depth_changed_pixel_count": 0,
+              "evidence_status": "observed",
+              "highest_proposal_source": {
+                "pixel_count": 207,
+                "semantic_part_id": "side-light-right",
+                "source_node_id": "side-light-right"
+              },
+              "missing": false,
+              "part_id_changed_pixel_count": 0,
+              "proposal_sources": [
+                {
+                  "pixel_count": 207,
+                  "semantic_part_id": "side-light-right",
+                  "source_node_id": "side-light-right"
+                },
+                {
+                  "pixel_count": 148,
+                  "semantic_part_id": "receiver-main",
+                  "source_node_id": "receiver-main"
+                }
+              ],
+              "proposal_visible_source_pixel_count": 355,
+              "ranked_expected_void_mask_sha256": "bbeb11c53cd80b18b2d55225f57894e0f9116af4df7785891f1c2567169d1b48",
+              "ranked_expected_void_pixel_count": 355,
+              "ranked_region_mask_sha256": "8f5afd85c59843253eb40dc56d4cc1c683a51741b4c1f8a349a3459f73383b9e",
+              "ranked_transform": "vertical-flip",
+              "reference_baseline_sources": [],
+              "reference_baseline_visible_source_pixel_count": 0,
+              "reference_expected_void_mask_sha256": "f6f777c9d203357b5ab03be342d729ab1a277d506417ed19b3c5c4d288c3617b",
+              "reference_proposal_sources": [],
+              "reference_proposal_visible_source_pixel_count": 0,
+              "reference_region_mask_sha256": "6fda101a1142a2e84d10a686b9db8a0034b868c9ec0a57a935be732a14632b39",
+              "reviewed_region_canonical_sha256": "9c03d323a289bfc8acd4577383aa860e0fd4352da2eebb71be74fb98fdbcc412",
+              "sealed": false,
+              "silhouette_changed_pixel_count": 0,
+              "structure_id": "rear3q.trigger-void",
+              "unique_highest_proposal_source": true,
+              "winner_changed_pixel_count": 0
+            }
+          ],
+          "view_id": "fps-form-04a-rear-three-quarter-view",
+          "view_kind": "rear-three-quarter",
+          "winner_changed_pixel_count": 9
+        }
+      ],
+      "worker_started": true
+    },
+    "canonical_hash_equal": true
+  },
+  "schema_version": "ForgeCADProductionWeaponFormArtVisibilityCalibrationRealD1Gate@1",
+  "status": "PASS_READ_ONLY_EXACT_RASTER_VISIBILITY_CALIBRATION",
+  "task_id": "FPS-FORM-04BE-G"
+}

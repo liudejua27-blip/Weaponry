@@ -1,0 +1,57 @@
+{
+  "schema_version": "WeaponryAuthoringMeshTransactionSourceGate@1",
+  "task_id": "WPN-AUTH-001",
+  "recorded_date": "2026-08-29",
+  "status": "PASS_SOURCE_STRUCTURAL_DURABLE_TRANSACTION",
+  "current_source": {
+    "schema_count": 589,
+    "read_tool_count": 132,
+    "write_tool_count": 95,
+    "total_tool_count": 227,
+    "contract_manifest_sha256": "6b81bf46fe9aaf7183e65369187714f092dea95d0c220f6d312cca44f086173e",
+    "schema_content_set_sha256": "ce1a9510926a384e50be8c387181104b16be3aeb73cdcf0a976039a25e715655",
+    "runtime_source_sha256": "56f958273801648a5cd5021136099f69185790546969a59d93af96b17101e5ed",
+    "compiled_summary_sha256": "474a55c3c3d4d4a13311fe99eaeec5679a90bcb928be30fc926e145aae4619f6",
+    "build_cohort_sha256": null
+  },
+  "implementation_source_sha256": {
+    "runtime_authoring_mesh_transaction_rs": "7692832b74e2cdf84a225ec8718d11f53c341a92470f93401fa1a062a57a4a0e",
+    "store_authoring_mesh_v2_transaction_rs": "40b5f1be49b99596c85d9cb5fc7ef255cf536022978daa505dcacae28ae3f59a",
+    "mcp_authoring_mesh_transaction_tools_rs": "3fdbf69374bea91920cbbc2cdf3d5658dd3a1bd0b3bca3ad41704c04d0dc0833",
+    "journal_schema_json": "942e24c774d94fb4de2d1fb4531bafd346351f37c6e6039c0298a4d86aa64de4",
+    "result_schema_json": "ddcb297096fd1f716c9714ca573b2ee506d63de152b5f9b5d61d62a8272ba6c8"
+  },
+  "contract": {
+    "journal": "AuthoringMeshTransaction@1",
+    "commands": ["SplitEdge", "MoveVertices", "FaceExtrude"],
+    "max_commands": 32,
+    "generated_reference_policy": "earlier-command-only-and-kind-checked",
+    "closed_envelopes": true
+  },
+  "gates": {
+    "contract_checker": "PASS",
+    "runtime_focused_tests": "PASS_3_OF_3",
+    "mcp_focused_test": "PASS_1_OF_1",
+    "store_runtime_mcp_check": "PASS",
+    "compiled_source_manifest_vs_independent_parser": "PASS",
+    "mcp010f_stage0_truth": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "atomicity_truth": {
+    "sqlite_visibility": "all-child-revisions-aggregate-receipt-idempotency-and-reachability-in-one-sqlite-transaction",
+    "cas_protocol": "reservation-stage-validate-then-sqlite-publish-with-failure-cleanup",
+    "cross_media_distributed_acid_claimed": false,
+    "late_failure_visible_aggregate_rows": 0,
+    "late_failure_visible_child_rows": 0
+  },
+  "limitations": {
+    "modifier_evaluation_graph": "NOT_IMPLEMENTED",
+    "blender_parity": "NOT_PROVEN",
+    "crossfire_weapon_visual_acceptance": "NOT_RUN",
+    "engine_acceptance": "NOT_RUN",
+    "human_art_review": "NOT_RUN",
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "commercial_status": "NOT_PROVEN"
+  },
+  "historical_receipts_mutated": false
+}

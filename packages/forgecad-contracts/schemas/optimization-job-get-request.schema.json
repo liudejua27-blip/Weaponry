@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/optimization-job-get-request.schema.json",
+  "title": "OptimizationJobGetRequest@1",
+  "description": "Closed lookup request for one project- and candidate-bound OptimizationJob.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "candidate_id", "job_id"],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "job_id": {"$ref": "#/$defs/identifier"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
+  }
+}

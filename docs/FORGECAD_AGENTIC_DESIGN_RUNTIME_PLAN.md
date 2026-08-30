@@ -1,5 +1,7 @@
 # ForgeCAD Agentic Design Runtime 重规划
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-27 `FPS-FORM-04AV`：Agentic 编排现可调用 Runtime-owned 只读 `production_weapon_owner_reviewed_void_calibration_get`，但不得自行提交 mask/transform/camera 或改写 projection。投影将 calibration eligible 与 strict owner-void PASS 分开：前者只允许一个 bounded repair draft，后者与六视图/FormArt/用户 secondary approval 仍决定是否能离开 Form。当前 source/compile PASS，real-D1 projection 未运行，所以 Agentic Runtime 不得推进 Stage 或触发 High→Low→UV→Bake。
 
 > 2026-08-26 现行 source：**527 schemas / 115 read + 87 write = 202 tools**。真实 D1 已通过 Runtime-owned bounded stable-ID vertex move 形成派生候选与六视图 replay，但缺 fresh proposal-side FormArt owner evidence，尚未成为 secondary approval；AuthoringMesh/High/Low/UV/Bake/Material/FPS/Engine 仍未组成商业单资产 orchestrator 或视觉 PASS。

@@ -1,0 +1,129 @@
+{
+  "schema_version": "WeaponryEvaluationArchitectureGateReceipt@1",
+  "task_id": "WPN-ARCH-EVALUATION-001",
+  "recorded_date": "2026-08-30",
+  "status": "PASS_SOURCE_DIRECT_TYPED_SERVICE_JOB_AGGREGATE_PARTIAL",
+  "source_drift_detected": false,
+  "evaluation_profile": {
+    "facades": ["observe", "quality_review", "job"],
+    "active_operation_count": 41,
+    "active_read_count": 30,
+    "active_write_count": 11,
+    "facade_operation_counts": {
+      "observe": 10,
+      "quality_review": 23,
+      "job": 8
+    }
+  },
+  "runtime_boundary": {
+    "service": "runtime_services::evaluation_service",
+    "router": "RuntimeOperationRouter -> evaluation_service::invoke",
+    "compatibility_bridge": "Runtime::dispatch_ipc -> evaluation_service::invoke",
+    "legacy_active_match_arms_remaining": 0,
+    "dispatch_ipc_reentry_from_service": false,
+    "presentation_dispatch": "LEGACY_DISPATCH",
+    "delivery_dispatch": "LEGACY_DISPATCH"
+  },
+  "query_command_ownership_correction": {
+    "authoring_mesh_transaction_prepare": "authoring_transaction/Authoring",
+    "authoring_mesh_transaction_get": "observe/Evaluation projection",
+    "authoring_mesh_v2_durable_prepare": "authoring_transaction/Authoring",
+    "authoring_mesh_v2_durable_get": "observe/Evaluation projection",
+    "mcp_mapping_check": "capability facade and domain are both checked for every mapped operation",
+    "status": "PASS_NO_RUNTIME_DOMAIN_MISMATCH"
+  },
+  "contract_runtime_store_mcp_mapping": {
+    "observe_read_model": {
+      "persistence": "Projection",
+      "status": "PARTIAL_READ_MODEL_REPOSITORY_GAP"
+    },
+    "silhouette_evaluation": {
+      "contract": "SilhouetteEvaluationObjective@1",
+      "persistence": "None",
+      "mcp_facade": "quality_review",
+      "status": "COMPLETE_NON_DURABLE"
+    },
+    "runtime_job_lifecycle": {
+      "contract": "RuntimeJob@1",
+      "runtime": "evaluation_service::runtime_job_lifecycle",
+      "store": "EvaluationRepository/JobRepository -> JobRecord, JobEventRecord, JobSummary",
+      "mcp_facade": "job",
+      "persistence": "DurableTransaction",
+      "status": "PARTIAL_SUBCONTRACTS"
+    }
+  },
+  "store_boundary": {
+    "repository": "borrowed EvaluationRepository<'store>/JobRepository<'store>",
+    "owns_connection": false,
+    "owns_migration_sequence": false,
+    "owns_separate_cas_root": false,
+    "job_insert_update_sql_in_store_root": false,
+    "single_migration_owner_preserved": true,
+    "remaining_aggregates": ["ReadModel", "QualityEvidence"]
+  },
+  "structure_budget": {
+    "locked_baseline": {
+      "runtime_lib_lines": 52927,
+      "store_lib_lines": 81050,
+      "mcp_main_lines": 20508
+    },
+    "current": {
+      "runtime_lib_lines": 52638,
+      "store_lib_lines": 80329,
+      "mcp_main_lines": 1081,
+      "mcp_agentic_write_tools_lines": 22800,
+      "runtime_root_module_declarations": 92
+    },
+    "net_reduction_from_locked_baseline": {
+      "runtime_lib_lines": 289,
+      "store_lib_lines": 721,
+      "mcp_main_lines": 19427
+    }
+  },
+  "request_schema": {
+    "active_operation_count": 125,
+    "closed_request_schema_count": 12,
+    "runtime_validated_request_schema_count": 113,
+    "evaluation_closed_request_schema_count": 1,
+    "evaluation_operation_count": 41,
+    "closure_status": "PARTIAL"
+  },
+  "architecture_fast_gate": {
+    "target": "/tmp/weaponry-arch-evaluation-001-final",
+    "build_cohort_sha256": "81eca9cbfd5cb5d2428fa46f8491c423076f881aba258e6be8b4d4d652c711ff",
+    "passed": 65,
+    "failed": 0,
+    "ignored": 0,
+    "duration_seconds": 166,
+    "duration_budget_seconds": 900,
+    "local_generated_receipt_sha256": "11b8022bc1965745997c923b34792f794d885ca9da19177a567f5453fb8dfedc",
+    "source_drift_detected": false
+  },
+  "focused_gates": {
+    "contract_domain_map": {"passed": 8, "failed": 0},
+    "store_repository_boundaries": {"passed": 10, "failed": 0},
+    "runtime_operation_router": {"passed": 8, "failed": 0},
+    "runtime_evaluation_service": {"passed": 5, "failed": 0},
+    "mcp_default": {"passed": 23, "failed": 0},
+    "mcp_legacy_feature": {"passed": 23, "failed": 0},
+    "compatibility_manifest": {"read": 131, "write": 95, "total": 226}
+  },
+  "stage0_current_source_truth": {
+    "status": "PASS_WITH_RETAINED_HISTORICAL_VISUAL_FAILURES",
+    "schema_count": 589,
+    "schema_content_set_sha256": "5035860aba3610f67b3eaa8e53d607e7c1d0912f953ce5e22b854d282231b7c0",
+    "runtime_source_sha256": "9dc104e7dd98414fdd3c2043e82098e735822150069f8776f74fa8479119b280",
+    "source_tool_summary_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca",
+    "truth_canonical_sha256": "26a2a98a33dcf2bb27af0743672ac7e08ca0b480838c1092a9d62a7a0143c0c7",
+    "historical_visual_ledger": "camera mismatch, surface raw failure and missing bindings retained"
+  },
+  "truth_boundaries": {
+    "user_data_mutated": false,
+    "historical_receipts_mutated": false,
+    "runtime_full_reexecuted": false,
+    "runtime_full_preserved_baseline": "554 passed / 0 failed / 37 ignored",
+    "visual_promotion": false,
+    "commercial_promotion": false,
+    "quality_claim": "architecture/source gate only; High-Low-UV-Bake, material, FPS, engine, human review and commercial quality remain not proven"
+  }
+}

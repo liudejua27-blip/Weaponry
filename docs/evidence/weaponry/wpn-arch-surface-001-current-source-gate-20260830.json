@@ -1,0 +1,175 @@
+{
+  "schema_version": "WeaponrySurfaceArchitectureGateReceipt@1",
+  "task_id": "WPN-ARCH-SURFACE-001",
+  "recorded_date": "2026-08-30",
+  "status": "PASS_SOURCE_DIRECT_TYPED_SERVICE_BORROWED_AGGREGATE_PARTIAL",
+  "source_drift_detected": false,
+  "surface_profile": {
+    "facade": "surface_pipeline",
+    "active_operation_count": 15,
+    "active_read_count": 8,
+    "active_write_count": 7,
+    "read_operations": [
+      "appearance_source_lineage_get",
+      "hero_uv_durable_get",
+      "low_quad_draft_durable_get",
+      "production_weapon_form_quality_v2_preflight_get",
+      "production_weapon_formal_high_get",
+      "production_weapon_high_low_bake_get",
+      "production_weapon_high_low_bake_preflight_get",
+      "production_weapon_retopology_cage_source_get"
+    ],
+    "write_operations": [
+      "appearance_prepare",
+      "appearance_source_lineage_prepare",
+      "hero_uv_durable_prepare",
+      "low_quad_draft_durable_prepare",
+      "production_weapon_formal_high_prepare",
+      "production_weapon_high_low_bake_prepare",
+      "production_weapon_retopology_cage_source_prepare"
+    ],
+    "profile_source_anchor": "packages/forgecad-contracts/profiles/weaponry-knife-p0.json:122-162"
+  },
+  "compatibility_only_aliases": {
+    "count": 2,
+    "operations": [
+      "production_weapon_retopology_cage_source_bundle_prepare",
+      "production_weapon_retopology_cage_source_bundle_get"
+    ],
+    "source_anchor": "apps/desktop/src-tauri/crates/forgecad-runtime/src/surface_service.rs:30-31"
+  },
+  "contract_runtime_store_mcp_mapping": [
+    {
+      "operations": ["appearance_prepare"],
+      "contract": "operation-level Surface profile entry; no separate central capability row",
+      "runtime": "surface_service::invoke -> Runtime::prepare_appearance_candidate",
+      "store": "Runtime-owned candidate, appearance artifact, RenderSet and quality records in Store root",
+      "mcp_facade": "surface_pipeline",
+      "status": "DIRECT_TYPED_SERVICE"
+    },
+    {
+      "operations": [
+        "appearance_source_lineage_prepare",
+        "appearance_source_lineage_get"
+      ],
+      "contract": "operation-level Surface profile entries; no separate central capability row",
+      "runtime": "surface_service::invoke -> Runtime::appearance_source_lineage_prepare/get",
+      "store": "AppearanceSourceLineageLinkRecord in Store root",
+      "mcp_facade": "surface_pipeline",
+      "status": "DIRECT_TYPED_SERVICE"
+    },
+    {
+      "operations": ["hero_uv_durable_prepare", "hero_uv_durable_get"],
+      "contract": "HeroUvDurableLink@1",
+      "contract_mapping_status": "Partial",
+      "runtime": "surface_service::invoke -> Runtime::hero_uv_durable_prepare/get",
+      "store": "HeroUvDurableRecord in Store root",
+      "mcp_facade": "surface_pipeline",
+      "status": "DIRECT_TYPED_SERVICE_REPOSITORY_NOT_YET_ABSORBED"
+    },
+    {
+      "operations": ["low_quad_draft_durable_prepare", "low_quad_draft_durable_get"],
+      "contract": "LowQuadDraftDurableLink@1",
+      "contract_mapping_status": "Partial",
+      "runtime": "surface_service::invoke -> Runtime::low_quad_draft_durable_prepare/get",
+      "store": "LowQuadDraftDurableRecord in Store root",
+      "mcp_facade": "surface_pipeline",
+      "status": "DIRECT_TYPED_SERVICE_REPOSITORY_NOT_YET_ABSORBED"
+    },
+    {
+      "operations": ["production_weapon_form_quality_v2_preflight_get"],
+      "contract": "operation-level Surface profile entry; no separate central capability row",
+      "runtime": "surface_service::invoke -> Runtime::production_weapon_form_quality_v2_preflight_get",
+      "store": "read-only Stage/FormQuality projection in Store root; no new record",
+      "mcp_facade": "surface_pipeline",
+      "status": "DIRECT_TYPED_QUERY_NO_DURABLE_RECORD"
+    },
+    {
+      "operations": ["production_weapon_formal_high_prepare", "production_weapon_formal_high_get"],
+      "contract": "ProductionWeaponHighArtifact@1",
+      "contract_mapping_status": "Complete",
+      "runtime": "surface_service::invoke -> Runtime::production_weapon_formal_high_prepare/get",
+      "store": "ProductionWeaponFormalHighCommitBundle and formal-high tables in Store root",
+      "mcp_facade": "surface_pipeline",
+      "status": "DIRECT_TYPED_SERVICE_AGGREGATE_NOT_YET_ABSORBED"
+    },
+    {
+      "operations": [
+        "production_weapon_high_low_bake_prepare",
+        "production_weapon_high_low_bake_get",
+        "production_weapon_high_low_bake_preflight_get"
+      ],
+      "capability": "formal_high_low_cage_bake",
+      "contract": "ProductionWeaponHighLowBakeReceipt@1",
+      "contract_mapping_status": "Partial",
+      "runtime": "surface_service::invoke -> Runtime::production_weapon_high_low_bake_prepare/get/preflight_get",
+      "store": "borrowed Store::surface_repository() -> SurfaceRepository -> ProductionWeaponHighLowBakeCommitBundle; preflight uses source projection",
+      "mcp_facade": "surface_pipeline",
+      "status": "FIRST_AGGREGATE_SEAM",
+      "materialization_producer": "UNAVAILABLE",
+      "prepare_semantics": "EXACT_REPLAY_ONLY_UNTIL_PRODUCER_IS_WIRED"
+    },
+    {
+      "operations": [
+        "production_weapon_retopology_cage_source_prepare",
+        "production_weapon_retopology_cage_source_get"
+      ],
+      "contract": "operation-level Surface profile entries; source-only bundle contract is retained",
+      "runtime": "surface_service::invoke -> Runtime::production_weapon_retopology_cage_source_prepare/get",
+      "store": "ProductionWeaponRetopologyCageSourceBundle@1 in Store root",
+      "mcp_facade": "surface_pipeline",
+      "status": "DIRECT_TYPED_SERVICE_SOURCE_ONLY"
+    }
+  ],
+  "source_anchors": {
+    "surface_service_dispatch": "apps/desktop/src-tauri/crates/forgecad-runtime/src/surface_service.rs:48-105",
+    "runtime_service_boundary": "apps/desktop/src-tauri/crates/forgecad-runtime/src/runtime_services.rs:168-187,305-320",
+    "runtime_router_direct_surface": "apps/desktop/src-tauri/crates/forgecad-runtime/src/runtime_operation_router.rs:224-236",
+    "formal_high_low_cage_bake_mapping": "apps/desktop/src-tauri/crates/forgecad-contracts/src/weaponry_domain_map.rs:374-386",
+    "low_and_uv_mappings": "apps/desktop/src-tauri/crates/forgecad-contracts/src/weaponry_domain_map.rs:341-362",
+    "surface_repository": "apps/desktop/src-tauri/crates/forgecad-store/src/surface_repository.rs:86-152,154-270",
+    "bake_producer_unavailable": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_high_low_bake.rs:657-697",
+    "bake_preflight_repository_read": "apps/desktop/src-tauri/crates/forgecad-runtime/src/production_weapon_high_low_bake_preflight.rs:159-170"
+  },
+  "structure_budget": {
+    "runtime_lib_lines": 52854,
+    "store_lib_lines": 80878,
+    "mcp_main_lines": 1081,
+    "runtime_root_module_declarations": 92
+  },
+  "request_schema": {
+    "active_operation_count": 125,
+    "closed_request_schema_count": 12,
+    "runtime_validated_request_schema_count": 113,
+    "closure_status": "PARTIAL"
+  },
+  "architecture_fast_gate": {
+    "target": "/tmp/weaponry-arch-surface-001-final",
+    "build_cohort_sha256": "21911f161f4433ac0f40e3da5d47d0018b14fb8329eafe2792eec650fc29692f",
+    "passed": 53,
+    "failed": 0,
+    "ignored": 0,
+    "duration_seconds": 194,
+    "duration_budget_seconds": 900,
+    "local_generated_receipt_sha256": "595a42990c22efe716e390e8bbf58b168c13f18fbe7ad6004b0c85507f5e1e2c",
+    "source_drift_detected": false
+  },
+  "mcp_focused_gate": {
+    "default": {"passed": 22, "failed": 0, "ignored": 0},
+    "compatibility": {"passed": 230, "failed": 0, "ignored": 0},
+    "compatibility_manifest": {"read": 131, "write": 95, "total": 226}
+  },
+  "domain_boundary": {
+    "surface_repository_extraction": "FIRST_AGGREGATE_ONLY",
+    "evaluation": "LEGACY_DISPATCH",
+    "presentation": "LEGACY_DISPATCH",
+    "delivery": "LEGACY_DISPATCH",
+    "user_data_mutated": false,
+    "historical_receipts_mutated": false
+  },
+  "quality_boundary": {
+    "visual_promotion": false,
+    "commercial_promotion": false,
+    "quality_claim": "architecture/source gate only; High-Low-UV-Bake, visual, human, engine and commercial quality remain not proven"
+  }
+}

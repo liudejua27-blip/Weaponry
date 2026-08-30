@@ -55,6 +55,9 @@ pub const HERO_UV_LAYOUT_CAS_KIND: &str = "production-weapon-hero-uv-layout";
 pub const HERO_UV_LINK_CAS_KIND: &str = "production-weapon-hero-uv-durable-link";
 pub const LOW_ARTIFACT_CAS_KIND: &str = LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND;
 pub const LOW_READBACK_CAS_KIND: &str = LOW_QUAD_DRAFT_DURABLE_READBACK_KIND;
+pub const RETOPOLOGY_LOW_ARTIFACT_CAS_KIND: &str = "production-weapon-low-artifact-glb";
+pub const RETOPOLOGY_LOW_READBACK_CAS_KIND: &str = "production-weapon-low-artifact-receipt";
+pub const RETOPOLOGY_LOW_READBACK_SCHEMA: &str = "ProductionWeaponLowArtifactReadback@1";
 pub const JSON_MIME: &str = "application/json";
 pub const GLB_MIME: &str = "model/gltf-binary";
 // Keep Runtime's bound equal to the decoded GLB bound enforced by the
@@ -568,10 +571,13 @@ fn validate_source(
             "Low source artifact identity is not bound to its CAS object hash",
         ));
     }
+    let durable_low =
+        source.glb_kind == LOW_ARTIFACT_CAS_KIND && source.readback_kind == LOW_READBACK_CAS_KIND;
+    let retopology_low = source.glb_kind == RETOPOLOGY_LOW_ARTIFACT_CAS_KIND
+        && source.readback_kind == RETOPOLOGY_LOW_READBACK_CAS_KIND;
     if source.glb_mime != GLB_MIME
-        || source.glb_kind != LOW_ARTIFACT_CAS_KIND
         || source.readback_mime != JSON_MIME
-        || source.readback_kind != LOW_READBACK_CAS_KIND
+        || !(durable_low || retopology_low)
     {
         return Err(invalid("Low source CAS metadata differs"));
     }
@@ -594,23 +600,39 @@ fn validate_source(
     }
     let readback: Value = serde_json::from_slice(&source.readback_bytes)
         .map_err(|_| invalid("Low readback JSON is invalid"))?;
-    if readback.get("schema_version").and_then(Value::as_str)
-        != Some(LOW_QUAD_DRAFT_DURABLE_ARTIFACT_READBACK_SCHEMA_VERSION)
-        || readback.get("artifact_sha256").and_then(Value::as_str)
-            != Some(request.source_low_artifact_sha256.as_str())
-        || readback
+    let durable_readback = readback.get("schema_version").and_then(Value::as_str)
+        == Some(LOW_QUAD_DRAFT_DURABLE_ARTIFACT_READBACK_SCHEMA_VERSION)
+        && readback
             .get("artifact_object_sha256")
             .and_then(Value::as_str)
-            != Some(request.source_low_artifact_object_sha256.as_str())
-        || readback.get("validator_status").and_then(Value::as_str) != Some("passed")
-        || readback.get("hard_gate_passed") != Some(&Value::Bool(true))
-        || readback.get("quality_status").and_then(Value::as_str) != Some("structural_only")
-        || readback.get("edge_flow_status").and_then(Value::as_str) != Some("DRAFT_UNREVIEWED")
-        || readback.get("promotion_eligible") != Some(&Value::Bool(false))
-        || readback.get("production_stage_advanced") != Some(&Value::Bool(false))
-        || readback.get("candidate_confirmed") != Some(&Value::Bool(false))
-        || readback.get("version_created") != Some(&Value::Bool(false))
-        || readback.get("export_performed") != Some(&Value::Bool(false))
+            == Some(request.source_low_artifact_object_sha256.as_str())
+        && readback.get("validator_status").and_then(Value::as_str) == Some("passed")
+        && readback.get("hard_gate_passed") == Some(&Value::Bool(true))
+        && readback.get("quality_status").and_then(Value::as_str) == Some("structural_only")
+        && readback.get("edge_flow_status").and_then(Value::as_str) == Some("DRAFT_UNREVIEWED")
+        && readback.get("promotion_eligible") == Some(&Value::Bool(false))
+        && readback.get("production_stage_advanced") == Some(&Value::Bool(false))
+        && readback.get("candidate_confirmed") == Some(&Value::Bool(false))
+        && readback.get("version_created") == Some(&Value::Bool(false))
+        && readback.get("export_performed") == Some(&Value::Bool(false));
+    let retopology_readback = readback.get("schema_version").and_then(Value::as_str)
+        == Some(RETOPOLOGY_LOW_READBACK_SCHEMA)
+        && readback
+            .get("worker_readback")
+            .and_then(Value::as_object)
+            .is_some_and(|worker| {
+                worker.get("glb_parse_status").and_then(Value::as_str) == Some("passed")
+                    && worker
+                        .get("failure_codes")
+                        .and_then(Value::as_array)
+                        .is_some_and(Vec::is_empty)
+                    && worker.get("part_coverage").and_then(Value::as_f64) == Some(1.0)
+                    && worker.get("material_zone_coverage").and_then(Value::as_f64) == Some(1.0)
+                    && worker.get("source_coverage").and_then(Value::as_f64) == Some(1.0)
+            });
+    if readback.get("artifact_sha256").and_then(Value::as_str)
+        != Some(request.source_low_artifact_sha256.as_str())
+        || !((durable_low && durable_readback) || (retopology_low && retopology_readback))
     {
         return Err(invalid(
             "Low quad readback binding or strict status differs",
@@ -1361,23 +1383,55 @@ fn resolve_candidate_bound_low_source(
         .get_low_quad_draft_durable_by_candidate_artifact(
             &request.candidate_id,
             &request.source_low_artifact_sha256,
-        )?
-        .ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "candidate-bound Low durable provenance is unavailable".to_owned(),
-            )
-        })?;
-    if low_record.project_id != request.project_id
-        || low_record.candidate_id != request.candidate_id
-        || low_record.candidate_state_sha256 != request.candidate_state_sha256
-        || low_record.base_version_id != request.base_version_id
-        || low_record.artifact_object_sha256 != request.source_low_artifact_object_sha256
-        || low_record.artifact_sha256 != request.source_low_artifact_sha256
-        || low_record.readback_object_sha256 != request.source_low_artifact_readback_object_sha256
-        || low_record.readback_sha256 != request.source_low_artifact_readback_sha256
-    {
+        )?;
+    let source_bundle = if low_record.is_none() {
+        runtime
+            .store
+            .get_production_weapon_retopology_cage_source_bundle_by_candidate_low_artifact(
+                &request.project_id,
+                &request.candidate_id,
+                &request.source_low_artifact_sha256,
+            )?
+    } else {
+        None
+    };
+    if let Some(low_record) = &low_record {
+        if low_record.project_id != request.project_id
+            || low_record.candidate_id != request.candidate_id
+            || low_record.candidate_state_sha256 != request.candidate_state_sha256
+            || low_record.base_version_id != request.base_version_id
+            || low_record.artifact_object_sha256 != request.source_low_artifact_object_sha256
+            || low_record.artifact_sha256 != request.source_low_artifact_sha256
+            || low_record.readback_object_sha256
+                != request.source_low_artifact_readback_object_sha256
+            || low_record.readback_sha256 != request.source_low_artifact_readback_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "candidate-bound Low durable provenance differs".to_owned(),
+            ));
+        }
+    } else if let Some(bundle) = &source_bundle {
+        if bundle.get("project_id").and_then(Value::as_str) != Some(request.project_id.as_str())
+            || bundle.get("source_candidate_id").and_then(Value::as_str)
+                != Some(request.candidate_id.as_str())
+            || bundle
+                .get("source_candidate_state_sha256")
+                .and_then(Value::as_str)
+                != Some(request.candidate_state_sha256.as_str())
+            || bundle.get("low_artifact_sha256").and_then(Value::as_str)
+                != Some(request.source_low_artifact_sha256.as_str())
+            || bundle
+                .get("low_artifact_readback_object_sha256")
+                .and_then(Value::as_str)
+                != Some(request.source_low_artifact_readback_object_sha256.as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "candidate-bound retopology Low provenance differs".to_owned(),
+            ));
+        }
+    } else {
         return Err(RuntimeError::InvalidInput(
-            "candidate-bound Low durable provenance differs".to_owned(),
+            "candidate-bound Low durable provenance is unavailable".to_owned(),
         ));
     }
     let artifact_object = runtime
@@ -1386,8 +1440,13 @@ fn resolve_candidate_bound_low_source(
         .ok_or_else(|| {
             RuntimeError::InvalidInput("source Low artifact is unavailable".to_owned())
         })?;
+    let expected_artifact_kind = if low_record.is_some() {
+        LOW_ARTIFACT_CAS_KIND
+    } else {
+        RETOPOLOGY_LOW_ARTIFACT_CAS_KIND
+    };
     if artifact_object.mime != GLB_MIME
-        || artifact_object.kind != LOW_ARTIFACT_CAS_KIND
+        || artifact_object.kind != expected_artifact_kind
         || artifact_object.size_bytes == 0
         || artifact_object.size_bytes > MAX_GLB_BYTES as u64
     {
@@ -1417,8 +1476,13 @@ fn resolve_candidate_bound_low_source(
         .ok_or_else(|| {
             RuntimeError::InvalidInput("source Low readback is unavailable".to_owned())
         })?;
+    let expected_readback_kind = if low_record.is_some() {
+        LOW_READBACK_CAS_KIND
+    } else {
+        RETOPOLOGY_LOW_READBACK_CAS_KIND
+    };
     if readback_object.mime != JSON_MIME
-        || readback_object.kind != LOW_READBACK_CAS_KIND
+        || readback_object.kind != expected_readback_kind
         || readback_object.size_bytes == 0
         || readback_object.size_bytes > MAX_JSON_BYTES as u64
     {

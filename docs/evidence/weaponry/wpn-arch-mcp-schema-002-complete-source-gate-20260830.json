@@ -1,0 +1,71 @@
+{
+  "schema_version": "WeaponryArchitectureMcpSchemaClosureSourceGate@1",
+  "task_id": "WPN-ARCH-MCP-SCHEMA-002",
+  "status": "DONE_SCHEMA_CLOSURE_PARTIAL_PHYSICAL_EXTRACTION",
+  "recorded_at": "2026-08-30T15:27:00+08:00",
+  "scope": "current source contract and MCP request validation boundary only",
+  "contracts": {
+    "schema_count": 658,
+    "manifest_sha256": "4c09a6aca45b72967e073c0c0283eb6e29c2d0ac87b90ed43a5b16b665612274",
+    "schema_content_set_sha256": "29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1",
+    "manifest_entries_sha256": "85876f1d6acecea11245d3f4909b62144043fcc0f44e9dbb0ab7e480a6eed33e"
+  },
+  "active_request_schema_closure": {
+    "active_operation_count": 125,
+    "package_direct_schema_count": 122,
+    "explicit_alias_schema_count": 3,
+    "mcp_consumed_closed_schema_count": 125,
+    "blocked_operation_count": 0,
+    "runtime_fallback_count": 0,
+    "closure_status": "COMPLETE",
+    "active_schema_source_sha256": "9dba711b26925d65fcecfc63f7f754425ca8cb5be0f850849a0209b4763f5054",
+    "embedded_document_count": 140,
+    "validator_upgrade": "minProperties and maxProperties shape and value semantics are enforced"
+  },
+  "compatibility": {
+    "binary": "forgecad-mcp-compat",
+    "read_count": 131,
+    "write_count": 95,
+    "total_count": 226,
+    "source_summary_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca",
+    "default_binary_loads_raw_registry": false
+  },
+  "architecture_fast": {
+    "build_cohort_sha256": "265914b6699d101eb69030947c2419e26e7a99ceef52a63a3c834989af88f28c",
+    "passed": 87,
+    "failed": 0,
+    "ignored": 0,
+    "duration_seconds": 182,
+    "source_drift_detected": false,
+    "local_receipt_sha256": "6487663b3aed0a0c80a63ebad7ff6c344f1fd0ccc283f4a52f7ed3e703fc74f8",
+    "qualification_lane_status": "PRESERVED_NOT_EXECUTED_BY_FAST"
+  },
+  "tests": {
+    "forgecad_contracts": "PASS_658",
+    "schema_closure_self_test": "PASS_125_OF_125",
+    "knife_profile": "PASS_11_FACADES",
+    "runtime_skill_registry": "PASS_4_OF_4",
+    "mcp_default": "PASS_29_OF_29",
+    "mcp_compatibility": "PASS_237_OF_237",
+    "stage0_truth": "PASS_WITH_RETAINED_VISUAL_FAILURES"
+  },
+  "archify": {
+    "specification": "docs/architecture/weaponry-module-optimization-current-compact.archify.json",
+    "artifact": "docs/architecture/weaponry-module-optimization-current-compact.html",
+    "specification_sha256": "fcce55f402c1d36d398a6b462d841da2758f3bec3044cd069bdcfcb038dfba0b",
+    "artifact_sha256": "105819e08a5876b8fd5093b35f8044c38b5e53f83d4268b3457b2e62fb7a8c81",
+    "showcase_checks": "9/9",
+    "composition": "0_errors_0_warnings",
+    "desktop_containment": "PASS_1440_1600_1920_2048_LIGHT_DARK",
+    "visual_review": "PASS"
+  },
+  "retained_limits": {
+    "runtime_store_physical_extraction": "PARTIAL",
+    "runtime_full_current_source_qualification": "NOT_RERUN_IN_THIS_ATOM; prior 554 passed / 0 failed / 37 ignored retained",
+    "ignored_tests_execution": "NOT_PROVEN",
+    "high_low_uv_bake": "NOT_PROMOTED",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "commercial_quality": "NOT_PROVEN"
+  },
+  "next_action": "WPN-ARCH-MCP-SPLIT-001; only then WPN-ARCH-RETIRE-001 after replacement, compatibility replay, consumer-zero, Store/CAS migration, recovery receipt, and dirty-worktree deletion gate"
+}

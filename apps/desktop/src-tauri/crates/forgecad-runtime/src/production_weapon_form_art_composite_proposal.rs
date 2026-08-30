@@ -15,6 +15,11 @@ use super::{
 use crate::production_weapon_assembly_parameter_mutator::{
     production_weapon_rear_stock_owner_void_half_y_flat_z_mutate,
     production_weapon_rear_stock_owner_void_half_y_flat_z_profile_id,
+    production_weapon_receiver_upper_aperture_profile_ids,
+    production_weapon_receiver_upper_aperture_trial_mutate,
+    production_weapon_receiver_upper_u_topology_profile_ids,
+    production_weapon_side_panel_a_aperture_profile_ids,
+    production_weapon_side_panel_a_aperture_trial_mutate,
     production_weapon_trigger_guard_aperture_profile_id,
     production_weapon_trigger_guard_aperture_trial_mutate,
 };
@@ -302,6 +307,14 @@ pub(crate) fn validate_composite_proposal_plan(
             registered,
             ("rear-stock", "rear-stock", profile)
                 if profile == production_weapon_rear_stock_owner_void_half_y_flat_z_profile_id()
+        ) && !matches!(
+            registered,
+            ("side-panel-a", "side-panel-a", profile)
+                if production_weapon_side_panel_a_aperture_profile_ids().contains(&profile)
+        ) && !matches!(
+            registered,
+            ("receiver-upper", "receiver-upper", profile)
+                if production_weapon_receiver_upper_aperture_profile_ids().contains(&profile)
         ) {
             return Err(invalid("registered profile binding is unavailable"));
         }
@@ -423,8 +436,24 @@ pub(crate) fn validate_exact_composite_delta(
     validate_composite_proposal_plan(plan)?;
     let base_nodes = geometry_program_nodes(current_base_program, "current-base")?;
     let composed_nodes = geometry_program_nodes(composed_program, "composed")?;
-    if base_nodes.keys().collect::<Vec<_>>() != composed_nodes.keys().collect::<Vec<_>>() {
-        return Err(invalid("composite node ID set differs from current base"));
+    let u_topology_operation = plan.operations.iter().find(|operation| {
+        production_weapon_receiver_upper_u_topology_profile_ids()
+            .contains(&operation.registered_profile_id.as_str())
+    });
+    let base_node_ids = base_nodes.keys().cloned().collect::<BTreeSet<_>>();
+    let composed_node_ids = composed_nodes.keys().cloned().collect::<BTreeSet<_>>();
+    let node_ids_valid = if u_topology_operation.is_some() {
+        let mut expected = base_node_ids.clone();
+        expected.insert("receiver-upper-right".to_owned());
+        expected.insert("receiver-upper-bridge".to_owned());
+        composed_node_ids == expected
+    } else {
+        composed_node_ids == base_node_ids
+    };
+    if !node_ids_valid {
+        return Err(invalid(
+            "composite node ID set differs from closed registered edit",
+        ));
     }
 
     let changed_nodes = base_nodes
@@ -444,10 +473,73 @@ pub(crate) fn validate_exact_composite_delta(
         ));
     }
 
-    if current_base_program.get("part_outputs") != composed_program.get("part_outputs") {
-        return Err(invalid("part_outputs changed during composite composition"));
-    }
     let part_roots = geometry_program_part_roots(current_base_program, "current-base")?;
+    let composed_part_roots = geometry_program_part_roots(composed_program, "composed")?;
+    let part_outputs_valid = if let Some(operation) = u_topology_operation {
+        let expected_receiver_upper = vec![
+            operation.source_node_id.clone(),
+            "receiver-upper-right".to_owned(),
+            "receiver-upper-bridge".to_owned(),
+        ];
+        let base_outputs = current_base_program
+            .get("part_outputs")
+            .and_then(Value::as_array)
+            .ok_or_else(|| invalid("current-base part_outputs are unavailable"))?;
+        let composed_outputs = composed_program
+            .get("part_outputs")
+            .and_then(Value::as_array)
+            .ok_or_else(|| invalid("composed part_outputs are unavailable"))?;
+        let target_positions = base_outputs
+            .iter()
+            .enumerate()
+            .filter_map(|(position, output)| {
+                (output.get("part_id").and_then(Value::as_str) == Some(operation.part_id.as_str()))
+                    .then_some(position)
+            })
+            .collect::<Vec<_>>();
+        if target_positions.len() != 1 || base_outputs.len() != composed_outputs.len() {
+            false
+        } else {
+            let target_position = target_positions[0];
+            let mut expected_target = base_outputs[target_position].clone();
+            expected_target["input_node_ids"] = Value::Array(
+                expected_receiver_upper
+                    .iter()
+                    .cloned()
+                    .map(Value::String)
+                    .collect(),
+            );
+            base_outputs
+                .iter()
+                .enumerate()
+                .all(|(position, base_output)| {
+                    let composed_output = &composed_outputs[position];
+                    if position == target_position {
+                        composed_output == &expected_target
+                    } else {
+                        // A U-topology edit may replace only the registered
+                        // receiver-upper roots. Metadata, ordering, and every
+                        // other PartOutput remain byte-for-byte bound to the
+                        // current base.
+                        composed_output == base_output
+                    }
+                })
+                && part_roots.keys().collect::<Vec<_>>()
+                    == composed_part_roots.keys().collect::<Vec<_>>()
+                && part_roots.iter().all(|(part_id, roots)| {
+                    if part_id == &operation.part_id {
+                        composed_part_roots.get(part_id) == Some(&expected_receiver_upper)
+                    } else {
+                        composed_part_roots.get(part_id) == Some(roots)
+                    }
+                })
+        }
+    } else {
+        current_base_program.get("part_outputs") == composed_program.get("part_outputs")
+    };
+    if !part_outputs_valid {
+        return Err(invalid("part_outputs differ from closed registered edit"));
+    }
     let mut owners_by_node: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for (part_id, roots) in &part_roots {
         let closure = geometry_node_closure(&base_nodes, roots, "current-base")?;
@@ -512,6 +604,13 @@ pub(crate) fn compose_current_base_geometry_program(
                 if value == production_weapon_rear_stock_owner_void_half_y_flat_z_profile_id() =>
             {
                 composed = production_weapon_rear_stock_owner_void_half_y_flat_z_mutate(&composed)?;
+            }
+            value if production_weapon_side_panel_a_aperture_profile_ids().contains(&value) => {
+                composed = production_weapon_side_panel_a_aperture_trial_mutate(&composed, value)?;
+            }
+            value if production_weapon_receiver_upper_aperture_profile_ids().contains(&value) => {
+                composed =
+                    production_weapon_receiver_upper_aperture_trial_mutate(&composed, value)?;
             }
             _ => return Err(invalid("registered profile dispatch is unavailable")),
         }
@@ -629,7 +728,10 @@ fn record_projection(
 }
 
 pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, RuntimeError> {
-    let request = parse_prepare_request(request)?;
+    let request = parse_prepare_request(request).map_err(|error| {
+        eprintln!("FORGECAD_FORM_ART_COMPOSITE_STAGE=parse-prepare error={error}");
+        error
+    })?;
     if let Some(existing) = runtime
         .store
         .get_production_weapon_form_art_composite_proposal_by_idempotency(
@@ -688,8 +790,17 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
         &request.project_id,
         &session,
     )?;
+    // The immutable current base may have been authored by an older build
+    // cohort. Recompiling it under the current Worker changes embedded cohort
+    // metadata and therefore the GLB hash even when geometry is identical.
+    // Validate the persisted source artifact and lineage exactly here; the new
+    // composed child below is still compiled and read back by the current
+    // cohort through prepare_geometry_candidate_exact.
     let current_inspection =
-        super::agentic_action::recompile_candidate(runtime, &current_geometry)?;
+        super::agentic_action::inspect_persisted_candidate_for_cohort_transition(
+            runtime,
+            &current_geometry,
+        )?;
     let current_readback = super::agentic_action::verify_artifact_readback(
         runtime,
         &current_base_candidate,
@@ -736,7 +847,21 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
         return Err(invalid("current-base proposal evidence binding differs"));
     }
 
-    let composed = compose_current_base_geometry_program(&request.plan, &current_geometry.program)?;
+    let mut composed =
+        compose_current_base_geometry_program(&request.plan, &current_geometry.program).map_err(
+            |error| {
+                eprintln!("FORGECAD_FORM_ART_COMPOSITE_STAGE=compose-current-base error={error}");
+                error
+            },
+        )?;
+    // Seal the final composition at this write boundary. Individual registered
+    // mutators also hash their output, but the orchestrator owns the final
+    // ordered aggregate and must not rely on an intermediate operation hash.
+    composed
+        .as_object_mut()
+        .ok_or_else(|| invalid("composed GeometryProgram is not an object"))?
+        .remove("canonical_sha256");
+    composed["canonical_sha256"] = Value::String(canonical_json_hash(&composed));
     let composed_program_sha256 = composed
         .get("canonical_sha256")
         .and_then(Value::as_str)
@@ -756,16 +881,23 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
             "composed_geometry_program_sha256":composed_program_sha256,
         }))[..48]
     );
-    let prepared = runtime.prepare_geometry_candidate_exact(
-        &request.project_id,
-        base_version_id.as_deref(),
-        &candidate_key,
-        json!({
-            "typed":"geometry",
-            "reference_id":session.reference_id,
-            "geometry_program":composed,
-        }),
-    )?;
+    let prepared = runtime
+        .prepare_geometry_candidate_exact(
+            &request.project_id,
+            base_version_id.as_deref(),
+            &candidate_key,
+            json!({
+                "typed":"geometry",
+                "reference_id":session.reference_id,
+                "geometry_program":composed,
+            }),
+        )
+        .map_err(|error| {
+            eprintln!(
+                "FORGECAD_FORM_ART_COMPOSITE_STAGE=current-cohort-child-prepare error={error}"
+            );
+            error
+        })?;
     let candidate_value = prepared
         .get("candidate")
         .ok_or_else(|| invalid("prepared candidate is missing"))?;

@@ -1,5 +1,33 @@
 # ForgeCAD 架构与模块边界
 
+> **ADR-0030 knife-first successor:** 十天首交付只针对刀类。固定 Blender+插件可作为
+> `knife-prototype-worker` 隔离内部 provider：只接 closed job，只返回 embedded bytes/receipt，
+> 不读写 SQLite/CAS，不监听网络，不接受 caller code/path/URL。Rust Runtime 重新验证并拥有
+> 所有持久 lineage；`.blend` 和插件状态不成为真值。
+
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+> **2026-08-30 pre-physical-split projection（历史快照）:** 默认 Codex 面只有 11 个刀类 façade；125 个 active operation 已全部由 MCP 消费 package-owned closed request Schema，blocked=0，Runtime fallback=0。`WPN-ARCH-MCP-SPLIT-001` 已物理抽出 active session、manifest、共享 result adapter 和 compatibility handler：MCP default/compat 根为 996/19,332 行，`agentic_write_tools.rs=16,674`，fresh dep-info=10/43，兼容 manifest 保持 131/95/226。五域 direct typed Router/service 已接线，但 Runtime/Store 根仍为 52,542/79,841 行，物理迁移未完成；该快照的下一原子为 `WPN-ARCH-RUNTIME-STORE-SPLIT-001`。未满足 replacement/replay/consumer-zero/migration/CAS/recovery 前不退役历史模块。
+
+> **2026-08-30 physical split addendum:** `WPN-ARCH-RUNTIME-STORE-SPLIT-001` 已迁出 Runtime Evaluation reference-comparison/visual-evidence family、Store Delivery ApprovalLifecycle family 与 compatibility session/checkpoint/recovery family。当前根规模为 Runtime **51,603**、Store **78,865**、MCP default/compat **996/19,332**、compat agentic aggregate **16,532**；Runtime root modules 仍为 92，fresh dep-info=10/44。单 migration/CAS owner、Runtime 单写者与 131/95/226 replay 保持。整体迁移仍 pending，下一原子=`WPN-ARCH-RUNTIME-STORE-SPLIT-002`；Archify 当前图=`docs/architecture/weaponry-runtime-current.html`。
+
+## Weaponry P0 owned modules
+
+| Module | Owns | Must not own |
+| --- | --- | --- |
+| `weapon-authorization` | reference/source/license/use-scope hashes | geometry or approval inference |
+| `authoring-kernel` | stable-ID half-edge mesh, selection/query, command journal | weapon-specific form names |
+| `modifier-evaluator` | ordered graph, dirty closure, evaluated mesh | original AuthoringMesh mutation |
+| `hard-surface-worker` | generic edit/modifier algorithms | Store/CAS/network/scripts |
+| `game-surface` | High/Low/UV/Cage/Bake/PBR lineage | Form gate override |
+| `fps-presentation` | inspect/ADS/first-person cameras, sockets and clips | geometry truth or gameplay performance claims |
+| `engine-delivery` | LOD/collision/export/readback receipts | candidate confirmation |
+| `art-review` | fixed AOV/compare/critic/human decision projection | automatic human approval |
+| `knife-prototype-worker` | fixed Blender/add-on execution for bounded sculpt/retopo/UV/bake fixtures | Runtime state, arbitrary Python/add-ons, direct promotion, packaged dependency inference |
+
+现有 `fictional_energy_*`、`production_weapon_*`、`game_weapon_*` family 必须逐项分类为
+kernel、macro、presentation、legacy 或 delete；不得继续让 Runtime/MCP 按武器主题横向膨胀。
+
 > 2026-08-26 04AE：当前公共面为 **525 schemas / 112 read + 84 write = 196 tools**。Native High 与 MaterialLayerGraph 均通过专用 isolated Worker seam；它们不能写 Runtime/CAS/candidate，Runtime 仍是唯一产品状态写者。
 
 > 2026-08-26 商业生产边界：Manifold/OpenSubdiv/QuadriFlow/xatlas/Embree/OIIO/OCIO/MaterialX/meshoptimizer/glTF Transform 只能位于固定版本、typed、离线 Worker 内；Rust AuthoringMesh、stable lineage、correspondence、Cage owner policy、MaterialLayerGraph、Stage/approval/CAS 仍为 ForgeCAD 产品真值。详见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。

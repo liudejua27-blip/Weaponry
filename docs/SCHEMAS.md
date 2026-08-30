@@ -1,6 +1,30 @@
 # ForgeCAD Runtime Schema 规范
 
-> 2026-08-28 manifest 为 **579 schemas / 128 read + 94 opt-in write = 222 tools**，content-set=`2f959a94d113…764b1`。新增 `ProductionWeaponFormArtFailureDiagnosticGetRequest@1` 与 `ProductionWeaponFormArtFailureDiagnosticGetResult@1`；结果精确绑定 04BE-E proposal/composite evidence、before/after FormArt 与 GeometryProgram，输出六点 source-local delta、逐视图 owner delta、trigger aperture、line-flow、四类 diagnosis 与唯一下一原子。Schema 强制 `runtime_write_performed=false`、`candidate_confirm_allowed=false`、`form_quality_v2_status=NOT_CREATED`。
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+> 2026-08-30 current source：manifest=`658 schemas`；默认 Knife profile 的 125 个 active operation 已全部绑定 package-owned closed request Schema，blocked=0，Runtime fallback=0。MCP validator 已执行 `minProperties/maxProperties`；复杂组合关键字、循环 `$ref` 与预算耗尽仍需继续负向覆盖。以下旧数量均为历史 cohort。
+
+## Successor Schema families
+
+优先新增或收敛为：`WeaponAssetAuthorization@1`、`AuthoringTransaction@1`、
+`SelectionQuery@1`、`ModifierGraph@1`、`EvaluationReceipt@1`、`HighLowCorrespondence@1`、
+`HeroUvCageBake@1`、`CrossFireFpsPresentation@1`、`CrossFireEngineDelivery@1` 和
+`WeaponArtAcceptance@1`。Schema 只在有真实 producer/consumer、负向 fixture 和 replay 路径时
+注册；禁止为每个武器部件或试验阶段继续创建平行版本。
+
+> 2026-08-29 移除 Blender task/capability 六个占位 Schema 后，当前 manifest 为 **583 schemas / 131 read + 95 opt-in write = 226 tools**。`AuthoringMeshTransaction@1`、`AuthoringMeshTransactionPrepareRequest@1`、`AuthoringMeshTransactionGetRequest@1` 和 `AuthoringMeshTransactionResult@1` 继续保留。journal 限制 1–32 个连续 command_index，只含 SplitEdge/MoveVertices/FaceExtrude，generated ref 只可指向更早 command 且类型匹配。Result 将 first commit、exact replay 和 read-only found 分成三个互斥分支，禁止把 replay/get 伪报成持久写入。
+
+> 2026-08-29 当前 contract manifest 为 **585 schemas**。新增 `ProductionWeaponFormArtTargetOcclusionAttributionGetRequest/Result@1`，并扩展 composite proposal 的 closed registered profile enum 以承载 camera-target receiver U topology；调用方仍不能提交任意点、mesh、脚本、相机或 mask。
+
+> 2026-08-28 manifest 数量仍为 **583 schemas / 130 read + 94 opt-in write = 224 tools**，content-set=`514e8500d130…dda76e`。本阶段没有新增 Schema；`ProductionWeaponFormArtCompositeProposalPlan@1.operation` 的 closed oneOf 增加 `receiver-upper` 分支及 4 个 20/40mm min/max-X registered profile。调用者不能提交任意尺寸、mesh、script、path 或多 Part payload。
+
+> 2026-08-28 manifest 数量仍为 **583 schemas / 130 read + 94 opt-in write = 224 tools**，content-set=`ec0c0a695826…99bb27`。本阶段没有新增 Schema；仅扩展 `ProductionWeaponFormArtCompositeProposalPlan@1.registered_profile_id` 的 closed oneOf，加入 4 个 product-owned true-aperture `@1` 与 4 个 camera-mapped-aperture `@2`。`@2` 用于区分已产生不可变候选的早期试验语义，不能静默复用旧 ID；调用者仍不能提交任意 profile、mesh、script、camera 或 path。
+
+> 2026-08-28 manifest 仍为 **583 schemas / 130 read + 94 opt-in write = 224 tools**，content-set=`5521e44711ba…e36157`。本阶段没有新增 Schema；仅扩展现有 `ProductionWeaponFormArtCompositeProposalPlan@1` 的 closed oneOf，添加 `side-panel-a-retract-min-x-20mm@1`、`max-x-20mm@1`、`min-x-40mm@1`、`max-x-40mm@1`。变体仍必须绑定唯一 `side-panel-a` Part/node，不允许任意 profile/script/mesh 输入。
+
+> 2026-08-28 manifest 为 **583 schemas / 130 read + 94 opt-in write = 224 tools**，content-set=`262a56faa10f…e52013`。新增 `ProductionWeaponFormArtApertureRepairPlanGetRequest@1` 与 `ProductionWeaponFormArtApertureRepairPlanGetResult@1`；结果闭合 calibrated source bindings、当前节点 canonical、两个顺序 step、8 个 bounded 变体、依赖门和六视图重验条件。Schema 强制 trial=`NOT_RUN`、`repair_execution_allowed_by_this_tool=false`、`form_quality_v2_status=NOT_CREATED`。
+
+> 2026-08-28 manifest 为 **581 schemas / 129 read + 94 opt-in write = 223 tools**，content-set=`e0116e2f7ee0…8516a`。新增 `ProductionWeaponFormArtVisibilityCalibrationGetRequest@1` 与 `ProductionWeaponFormArtVisibilityCalibrationGetResult@1`；结果精确绑定 04BE-F diagnostic、before/after FormArt/GLB、CameraRig 与六个 reviewed structures，输出 reference/ranked masks、source counts、winner/depth/Part-ID/silhouette delta 及左右 calibrated source。Schema 强制 `geometry_repair_authorized=false`、`runtime_write_performed=false`、`form_quality_v2_status=NOT_CREATED`。
 
 > 2026-08-28 manifest 为 **577 schemas / 127 read + 94 opt-in write = 221 tools**，content-set=`22332f4de4c3…b81639`。新增 `ProductionWeaponFormArtRepairPlanGetRequest@1` 与 `ProductionWeaponFormArtRepairPlanGetResult@1`；输出绑定 exact composite evidence、CrossView/FormArt canonical、composed GeometryProgram、current/target 五站 profile、四个 failure issues、7 个 mandatory revalidation gates 与 8 个 preserved invariants。Schema 明确 `repair_execution_status=NOT_RUN`、`runtime_write_performed=false`、`candidate_confirm_allowed=false`，不能把 plan 当成 mesh mutation、FormQualityV2、secondary 或商业质量通过。
 
@@ -135,7 +159,7 @@ Stage 0 机器真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`；�
 
 `ReferenceCanvas@1` 的 view 项现可选绑定 `view_spec`、`target_sha256`、`mask_sha256` 与 `camera_claim.camera_canonical_sha256`；target/mask 必须成对出现，Runtime 还会检查它们与同一 `reference_id/reference_sha256`、CAS、相机和 evidence 的 lineage。`VisualEvidenceBundleProjection@1` 会投影这些 per-view hash，跨视图 compare 不得使用另一视图的 target，RepairIntent 的 evaluation kind 集合必须与 `coverage.supplied_views` 一一对应。旧 unbound 单视图仍显式使用 null，不能将兼容字段缺失解释为质量通过。
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 ## 1. 唯一来源
@@ -292,3 +316,5 @@ parent_refs / lineage
 ## 7. 负向 Gate
 
 每个 Schema 至少测试 unknown fields、超长字符串/数组、深嵌套、非有限数、错误单位/ID/hash、路径/URL/secret-like 字段、循环 DAG、预算溢出、stale base、重复 key 和版本不兼容。
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

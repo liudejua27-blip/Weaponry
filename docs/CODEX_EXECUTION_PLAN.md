@@ -1,6 +1,37 @@
 # ForgeCAD Codex-only MVP 执行计划
 
-> 2026-08-28 执行点：`FPS-FORM-04BE-F` 已将 04BE-E 的失败从“继续试 Mesh 参数”升级为 closed typed evidence diagnosis。Runtime 从 durable parent/proposal GeometryProgram、CrossView 与 before/after FormArt 重新派生六顶点真实 delta、三 owner view delta、左右 trigger aperture、rear3q negative-space 和六视图 line-flow 状态；MCP 只接受 identity/hash，默认 read-only，不返回 AOV bytes，不启动 Worker。真实 D1/restart/zero-write PASS 后，下一 `FPS-FORM-04BE-G` 固定为 exact camera/crop/Part-ID/depth/silhouette attribution 与 side-aperture visibility calibration；在它给出唯一 screen-space cause 前，不注册新正/负 Y profile，也不进入 FormQualityV2、secondary 或 High→Low→UV→Bake。
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+## Weaponry 一月 successor 执行链
+
+| 顺序 | 原子 | 唯一退出条件 |
+| ---: | --- | --- |
+| 1 | `WPN-AUTH-001` | Authoring transaction 公共 preview/prepare、单事务 Store/CAS、restart replay PASS |
+| 2 | `WPN-MOD-001` | original/evaluated 分离、ordered modifier graph、dirty closure PASS |
+| 3 | `WPN-MESH-001` | 核心硬表面 edit vocabulary 与 robust boolean/subdivision/normal PASS |
+| 4 | `WPN-HILO-001` | approved Authoring→High→artist-editable Low correspondence PASS |
+| 5 | `WPN-UVBAKE-001` | Hero UV + Cage + zero-hidden-fallback normal/AO bake PASS |
+| 6 | `WPN-MAT-001` | Material Layer Graph/PBR/decal/wear channel readback PASS |
+| 7 | `WPN-FPS-001` | first-person/inspect/ADS/socket/clip review package PASS |
+| 8 | `WPN-ENGINE-001` | LOD/collision/export/target-engine round-trip PASS |
+| 9 | `WPN-ACCEPT-001` | authorized CrossFire + original control 同 cohort 独立美术人审通过 |
+
+不得并行新增只服务单一候选的 Tool。算法研究、Viewer 优化和历史 MCP010F 修复只能作为当前
+原子的子证据，不能改变上述顺序。
+
+> 2026-08-29 执行增量：`FPS-FORM-04BE-U` 已将用户授权的 0.01 Form 偏移编码为 bounded secondary review，并用同 cohort Runtime/MCP/Geometry/Render 证据选出 wide 作为下一修形基线。当前不执行 High/Low/UV/PBR write：先关闭 negative-space、owner attribution、line-flow，再创建 fresh FormQualityV2/Stage transition。随后的最短工程切片是 Formal High positive/replay/restart，而不是一次性跳到现在仍 unavailable 的正式 Bake producer。
+
+> 2026-08-29 执行增量：`FPS-FORM-04BE-M–T` 已完成遮挡链归因、camera-target receiver U topology 与 layered side-panel aperture。目标孔现可由 typed 组合稳定打开（最佳 IoU 0.637），但 exact six-view no-regression 未通过；`FPS-FORM-04BE-U` 只做 wide/calibrated 局部收敛或真人审稿，不越级进入 appearance/UV/PBR。
+
+> 2026-08-28 执行点：`FPS-FORM-04BE-L` 已按用户授权执行 4 个 `receiver-upper` bounded retraction 候选。结构、AOV 和重启闭环通过，但目标孔无背景像素响应且六视图全部回退，四者已拒绝。当前进入 `FPS-FORM-04BE-M`：只从 exact parent/L candidate、approved right camera、target mask、depth 与 Part-ID 派生遮挡归因；不再盲扫尺寸，不开放 FormQualityV2、secondary 或 High→Low→UV→Bake。
+
+> 2026-08-28 执行点：`FPS-FORM-04BE-J/K` 已完成真实 `side-panel-a` 多环孔拓扑与相机映射位置族的 8 个候选运行；8/8 结构/readback/AOV/restart PASS，但视觉目标 8/8 sealed、六视图 8/8 回退，全部拒绝。当前进入 `FPS-FORM-04BE-L`：从 exact candidate GLB、approved camera、target mask、depth 与 Part-ID 只读派生每像素 depth winner 和遮挡 Part 排名；该诊断不写 geometry，不授权 `receiver-upper`，不开放 FormQualityV2、secondary 或 High→Low→UV→Bake。
+
+> 2026-08-28 执行点：`FPS-FORM-04BE-I` 已用同一母候选/批准六相机执行 `side-panel-a` 四个 registered 回撤变体，并完成 4×54 AOV 与 Runtime restart exact readback。四者均无 aperture 开口响应且六视图回退，已全部拒绝。下一 `FPS-FORM-04BE-J` 只能重构 `side-panel-a` 的 product-owned registered aperture/内边界变形语义，先证明 target-region 可见响应再重跑六视图；不执行 `receiver-upper`，不开放 FormQualityV2、secondary 或 High→Low→UV→Bake。
+
+> 2026-08-28 执行点：`FPS-FORM-04BE-H` 已将 04BE-G 的两个不同 owner 固化为顺序 typed plan，而非同时猜测多 Part。第 1 步 `side-panel-a` 的 20/40mm min/max-X 边界回撤将在 `FPS-FORM-04BE-I` 内以同批次六视图/54 AOV 选择；只有保留一个不回退结果才可进入 `receiver-upper`。本阶段不执行 geometry，不开放 FormQualityV2、secondary 或 High→Low→UV→Bake。
+
+> 2026-08-28 执行点：`FPS-FORM-04BE-G` 已把 04BE-F 的归因问题落到 exact raster source：Runtime 从 durable before/after GLB、批准 CameraRig、ReferenceCanvas 和固定 AOV 重新派生 triangle winner/depth/Part-ID/silhouette，MCP 只接受 identity/hash，默认 read-only，不返回 raster bytes。真实 D1/restart/zero-write PASS；left/right aperture 分别校准到 `side-panel-a` 与 `receiver-upper`，旧 rear-stock repair 在两孔内 delta=0。下一 `FPS-FORM-04BE-H` 固定为双视图/多 Part typed repair plan；不得直接改 geometry，也不进入 FormQualityV2、secondary 或 High→Low→UV→Bake。
 
 > 2026-08-28 执行点：`FPS-FORM-04BE-E` 已把 04BE-D 登记的 rear-stock half-Y/flat-Z profile 物化为新 reviewable candidate，并用 original source、same-cohort fresh baseline 和批准六相机完成 54 AOV、CrossView、proposal FormArt、Runtime restart GET。真实结果否定了该修复方向：left owner overlap 538‰ 未改善、right 573→579‰ 轻微变差，rear3q owner region/adjacency 继续为 0；side trigger void 在 left/right 仍 sealed，多数 line-flow 仍 inferred/unknown。下一 `FPS-FORM-04BE-F` 必须先把 rear-stock source-local Y 与图像内空腔边界的方向语义、rear3q identity attribution 和 trigger aperture side visibility 分离校准，再只开放一个有证据的 Part 修复。FormArt ready 前 fresh FormQualityV2 不创建，secondary/High→Low→UV→Bake 保持锁定。
 

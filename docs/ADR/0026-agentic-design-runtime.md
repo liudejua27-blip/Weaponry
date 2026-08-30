@@ -1,5 +1,7 @@
 # ADR-0026: Agentic Design Runtime
 
+> **Status: partially superseded by ADR-0029 (2026-08-29).** 本 ADR 的 Runtime 唯一写者、typed Worker、证据和批准边界继续有效；产品范围、Action Space 和一个月交付优先级以 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 与 ADR-0029 为准。
+
 > 2026-08-25 解释性补充：Agentic Runtime 可以观察、规划、提出 Repair 并组织证据，但不等于艺术总监、专业 retopo/bake 工具或独立验收者。商业 Hero Asset 的完整阶段、缺口和五轴 Gate 由 `../COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md` 约束；Critic/Codex 自评不能生成 human 或 engine PASS。
 
 > 2026-08-26 Cage/Bake 解释：Agentic plan/critic 只能引用 Runtime-owned durable High/Low/Hero UV/Cage IDs 与阻断状态，不能携带 inline artifact truth、重算 canonical hash 或绕过 `production_weapon_high_low_bake_preflight_get`。producer unavailable 时计划必须停在当前阶段；Agentic 层不得调用长测、推进 Material/Stage 或把 source seam 评为视觉 PASS。

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-get-request.schema.json",
+  "title": "ReferenceGetRequest",
+  "additionalProperties": false,
+  "properties": {
+    "reference_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "reference_id"
+  ],
+  "type": "object"
+}

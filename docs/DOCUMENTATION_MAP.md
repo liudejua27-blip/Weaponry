@@ -1,6 +1,33 @@
-# ForgeCAD 文档地图
+# Weaponry 文档地图
 
-> 2026-08-28 `FPS-FORM-04BE-F` 已完成只读失败诊断：新增 `ProductionWeaponFormArtFailureDiagnosticGetRequest/Result@1`、Runtime exact evidence revalidation 与默认只读 `production_weapon_form_art_failure_diagnostic_get`，当前公共面为 **579 schemas / 128 read + 94 opt-in write = 222 tools**。真实 D1 与隔离重启结果 canonical=`68e838ce…6fa3` 完全一致，SQLite/CAS 不变；它证明 04BE-E 的负 Y repair 在 left boundary 退化、right owner intrusion 增加、rear3q owner attribution 冲突、side trigger aperture sealed 与 line-flow 独立失败之间不能继续盲猜。下一原子 `FPS-FORM-04BE-G` 只做 hash-bound owner attribution 与 side-aperture visibility calibration，不注册新几何 profile。证据：`docs/evidence/mcp010f/production-weapon-form-art-failure-diagnostic-real-d1-04be-f-20260828.json`。
+> 2026-08-30 current architecture：Contracts=`658 schemas`，默认 Knife profile=`11 façades / 125 active operations / 125 closed request schemas`，blocked=0，Runtime fallback=0；compatibility 仍为显式 `131/95/226`。五域 Router 已闭合但 Runtime/Store 物理抽取仍 partial；当前 Archify 图为 `architecture/weaponry-module-optimization-current-compact.html`，下一原子为 `WPN-ARCH-MCP-SPLIT-001`。
+
+> `WPN-KNIFE-CURVE-001` 当前状态为
+> `done_source_durable_evaluated_mesh_structural_no_downstream_quality`：manifest/schema=`589`
+>（由 Profile 的 `586` 演进），旧 MCP `218/218`、默认 11 façade、显式 compatibility `226` 及
+> `KnifeCurveModifierGraph@1` replay 保持不变。Core evaluated-mesh=`17/17 PASS`、Store full=
+> `169/169 PASS`、Runtime `knife_curve_`=`6/6 PASS`（evaluated public=`4/4`）、MCP full same-cohort=
+> `221/221 PASS`（evaluated=`3/3`）。这只证明 source/structural/durable evaluated-mesh；未创建或晋级
+> durable candidate/version。GLB/High/Low/UV/Bake/visual/human/engine=`NOT_RUN`，commercial=`NOT_PROVEN`，
+> 旧 MCP010F receipts 不改写。
+
+> 2026-08-29 最新入口：ADR-0030 与 `WEAPONRY_KNIFE_10_DAY_DELIVERY_PLAN.md` 将首个商业
+> cohort 收缩为刀类，并允许受控 Blender 内部原型。AuthoringMesh transaction 已接入 closed
+> Contract、Store/CAS、Runtime 和 MCP；纯 Rust Modifier/Dependency/EvaluatedMesh 目前仍仅 core
+> 单元切片，尚未完成公共纵切。当前 source truth 为 **583 schemas / 131 read + 95 write = 226 tools**；
+> 刀类默认 Tool profile 尚未落地，商业状态仍 `NOT_PROVEN`。
+
+> 2026-08-29 当前入口：`WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 是产品最高权威；ADR-0029 定义 Rust-owned、Codex-operated 武器专用 Agent-native DCC；`WEAPONRY_ONE_MONTH_DELIVERY_PLAN.md` 给出 CrossFire V1 交付边界；`WEAPONRY_DOCUMENTATION_COVERAGE_20260829.md` 证明 124/124 Markdown 已分类。当前仅在既有 `AuthoringMesh@2` 内新增 pure in-memory 多操作事务原型与 focused tests；未接 MCP/Store/CAS、未打包、未完成 Modifier/Evaluation Graph，也不改变 `QUALITY_TARGET_NOT_MET / commercial=NOT_PROVEN`。
+
+> 2026-08-28 `FPS-FORM-04BE-L` 已完成用户授权的 `receiver-upper` 四候选真实执行；4/4 strict GLB、54 AOV、restart exact PASS，4/4 目标孔 sealed 且六视图回退，因此全部拒绝、父候选保留。公共面仍 **583 schemas / 130 read + 94 opt-in write = 224 tools**；下一 `FPS-FORM-04BE-M` 为 read-only occlusion attribution。
+
+> 2026-08-28 `FPS-FORM-04BE-J/K` 已将 `side-panel-a` 从回撤试验升级为真实多环孔拓扑并完成 8 个同源候选的 strict GLB、54 AOV 与 restart exact 回读。所有候选仍 sealed 且六视图回退，已全部拒绝并保留父候选。公共面仍为 **583 schemas / 130 read + 94 opt-in write = 224 tools**；下一原子 `FPS-FORM-04BE-L` 只读解析 target-region depth winner/occluder，`receiver-upper` 继续未授权。
+
+> 2026-08-28 `FPS-FORM-04BE-I` 已完成 `side-panel-a` step 1 真实灵敏度执行：在同一 04BE-H plan/批准六相机下，4 个 registered min/max-X 20/40mm 变体均通过 strict GLB readback，各生成 54 AOV 并在 Runtime 重启后 proposal/evidence exact equal。但四者均 `CrossView.non_regressing=false` 且 `left.trigger-void.sealed=true`，因此全部拒绝并保留母候选 `candidate-6f6ddeff…cf8a`。公共面仍为 **583 schemas / 130 read + 94 opt-in write = 224 tools**；`receiver-upper` step 2 未授权，下一原子 `FPS-FORM-04BE-J` 必须先重设计 `side-panel-a` aperture mutation family。
+
+> 2026-08-28 `FPS-FORM-04BE-H` 已完成 hash-bound 顺序 aperture repair plan：新增 `ProductionWeaponFormArtApertureRepairPlanGetRequest/Result@1` 与默认只读 `production_weapon_form_art_aperture_repair_plan_get`，当前公共面为 **583 schemas / 130 read + 94 opt-in write = 224 tools**。Runtime 重放 04BE-G/F 并回读 CAS GeometryProgram=`a9d447e5…e7f11`；计划严格先对 `side-panel-a` 做 4 个 20/40mm min/max-X 边界回撤试验，仅当六视图不回退时才允许对 `receiver-upper` 做第二组 4 试验。真实 D1 双重启 canonical=`fe7c8ecf…680b61`、SQLite/CAS 零写；未执行 geometry。下一原子 `FPS-FORM-04BE-I` 只执行 step 1 的有界灵敏度试验。
+
+> 2026-08-28 `FPS-FORM-04BE-G` 已完成 exact raster visibility calibration：新增 `ProductionWeaponFormArtVisibilityCalibrationGetRequest/Result@1`、Runtime-owned before/after triangle/depth/Part-ID/silhouette 重放与默认只读 `production_weapon_form_art_visibility_calibration_get`，当前公共面为 **581 schemas / 129 read + 94 opt-in write = 223 tools**。真实 D1 两次隔离启动 canonical=`3d3cd762…e7196` 一致且 SQLite/CAS 不变；left trigger void 主遮挡=`side-panel-a` 175/238px，right 主遮挡=`receiver-upper` 186/257px，两孔内旧 rear-stock repair 的四类 delta 均为 0。下一原子 `FPS-FORM-04BE-H` 只编制 hash-bound 双视图/多 Part aperture repair plan，不执行 geometry。证据：`docs/evidence/mcp010f/production-weapon-form-art-visibility-calibration-real-d1-04be-g-20260828.json`。
 
 > 2026-08-28 `FPS-FORM-04BE-D` 已完成 evidence-bound typed repair plan：新增闭合 GET request/result、Runtime-only evidence derivation 与默认只读 MCP `production_weapon_form_art_repair_plan_get`，当前公共面为 **577 schemas / 127 read + 94 opt-in write = 221 tools**。真实 D1 在 mandatory `ponytail-preflight@0.1.0` 后，从 04BE-C exact sidecar/CrossView/FormArt/GeometryProgram 派生 `rear-stock-owner-void-half-y-flat-z@1`；重启前后 canonical=`d6f74060…85fd` 完全一致，116 个业务表/2520 rows 的逻辑摘要和 1639 个 CAS objects 树均未变化。该计划只把 current quarter-Y/flat-Z 描述为下一次 registered half-Y/flat-Z repair，`repair_execution_status=NOT_RUN / QUALITY_TARGET_NOT_MET`，不创建 FormQualityV2、secondary、confirm、version、export 或 High→Low→UV→Bake。证据：`docs/evidence/mcp010f/production-weapon-form-art-repair-plan-real-d1-04be-d-20260828.json`。
 
@@ -127,34 +154,41 @@ ForgeCAD 当前仍是可验证高级灰模/技术管线，不是商业级资产�
 
 ## 阅读顺序
 
-1. `DOCUMENTATION_STATUS.md`：当前事实和能力标签
-2. `CODEX_HANDOFF.md`：本分支证据、命令和剩余阻断
-3. `ADR/0025-codex-only-mcp-3d-runtime.md`：产品断代决策
-4. `ADR/0026-agentic-design-runtime.md`：Agentic Design Runtime 目标架构；定义 DesignSession、SemanticSceneGraph、ReferenceCanvas、阶段门、Visual Evidence 和 Critic/Repair loop
-5. `ADR/0027-native-fps-weapon-production-executor.md`：无 Blender 运行时的 ForgeCAD 原生 FPS 武器生产架构；定义 High/Low/Cage Bake、Hero UV、精细 Production Stage 与 Artistic/Engine Gate；`ADR/0028-blender-headless-worker-evaluation.md` 仅是 additive evaluation addendum
-6. `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`：商业级武器的 Brief→Form→High/Low→UV/Cage/Bake→Material→FPS→Engine→Human 完整能力合同、当前证据缺口和原生 Worker 采用路线
-7. `FORGECAD_AGENTIC_DESIGN_RUNTIME_PLAN.md`：本次大调整的执行规划；包含已实现的 projection 与 durable prepare/readback slice 和未完成的 orchestrator/Repair backlog
-8. `ARCHITECTURE_MODULE_BOUNDARY.md`：当前模块权责、目标模块和 active/archive 目录边界
-9. `DEPRECATED_ISOLATION_PLAN.md`：废弃文档、代码、模块的隔离位置、状态定义和验证流程
-10. `RESET_MIGRATION_PLAN.md`：删除/迁移/升级清单
-11. `CODEX_EXECUTION_PLAN.md`：阶段与退出门
-12. `CODEX_TASK_INDEX.md`：Luna 唯一任务队列
-13. `MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`：MCP010A–F 的唯一质量升级执行合同
-14. `CODEX_GEOMETRY_V2_WORKFLOW.md`：MCP010B 期间 Codex/Luna 发现 live OperatorCatalog、构造 GeometryProgram@2、判读 ArtifactReadback@2、固定同级 Worker 隔离证据和 V1 过渡的受限工作流
-15. `CODEX_SINGLE_REFERENCE_OPERATING_GUIDE.md`：Codex 使用单张授权参考图的可执行调用顺序、停止条件、失败映射和 C–F 交接边界
-16. `CODEX_REFERENCE_DETAIL_INVENTORY.md`：Codex 单图参考的授权 intake、可见/推断/未知细节清单、分阶段修正队列、质量合同和停止规则；它是编排模板，不是 Runtime 合同
-17. `CODEX_SILHOUETTE_FIT_WORKFLOW.md`：轮廓目标、相机搜索、边界误差和 Codex/Luna 单 Part 修正纪律；当前 source slice 已接入 Runtime/MCP，但真实用户 likeness 仍需独立证据
-18. `MCP010C_READINESS_AUDIT.md`：固定渲染/参考比较的当前实现审计、C1–C4 证据、未运行视觉门和 Luna 检查清单；当前 C source Gate 已通过但不代表真实用户 likeness 或 packaged/live 完成
-19. `AUTHORITATIVE_STATE.md`：Runtime 数据真值
-20. `MVP_DELIVERY_PLAN.md`：MVP 范围、MCP005–009 退出门、工具采用决策和当前证据边界
-21. `LUNA_GOAL_EXECUTION_GUIDE.md`：Goal 执行协议、当前可调用工具和真实 host 验收动作
-22. `LUNA_GITHUB_REPLICATION_PLAYBOOK.md`：Luna 研究 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 的冻结 revision、选择性源文件复刻、quarantine、审查和接受流程
-23. `BLENDER_CAPABILITY_ADAPTATION_PLAN.md`：Blender 官方 frozen revision/许可证研究、ForgeCAD clean-room Mesh/Modifier/Subdivision/Render/rigid animation 能力映射与分期路线；官方 reference-only receipt 位于 `evidence/adoption/blender/`
-24. `EXTERNAL_PROJECT_ADOPTION.md`：第三方采用状态、research receipt 和 accepted 入口
-25. `CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`：Codex 经 MCP 进入 3D 设计前必须读取的 first-party preflight Skill、会话顺序、边界和维护规则
-26. 任务相关合同：`MCP_RUNTIME_CONTRACT.md`、`CODEX_INTEGRATION.md`、`COMPILER_PIPELINE.md`、`WORKBENCH_VIEWER.md`、`SKILL_PACKAGE_STANDARD.md`、`SCHEMAS.md`、`DATABASE.md`
-27. `MVP_ARCHITECTURE.md`：单用户启动、文件锁和最小运行边界
-28. `MVP_TOOL_CATALOG.md`：当前源码的 live 工具数量以 `evidence/mcp010f/current-benchmark-truth.json` 为准；C/D/E/F 的结构 Gate、真实 likeness、人评/PBR/纹理和 360 仍必须另标 planned/unavailable
+1. `WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md`：当前唯一产品范围、架构、质量、授权和文档权威
+2. `ADR/0029-weaponry-agent-native-dcc.md`：开放 typed Action Space 与 AuthoringMesh/Modifier/Evaluation state model
+3. `WEAPONRY_ONE_MONTH_DELIVERY_PLAN.md`：穿越火线武器 V1 四周交付队列
+4. `WEAPONRY_DOCUMENTATION_COVERAGE_20260829.md`：所有 Markdown 的 active/history/evidence/hash-bound 分类
+5. `DOCUMENTATION_STATUS.md`：当前事实和能力标签
+6. `CODEX_HANDOFF.md`：当前实现证据和下一原子
+7. `CODEX_TASK_INDEX.md`：唯一 successor task queue
+8. `CODEX_EXECUTION_PLAN.md`：阶段、依赖和退出门
+9. `AUTHORITATIVE_STATE.md`：Runtime 数据真值
+10. `WEAPONRY_ARCHITECTURE_TOOL_SKILL_AUDIT_20260829.md`：模块、Tool、Schema 和 Skill 去留
+11. `WEAPONRY_RUNTIME_FIVE_DOMAIN_REFACTOR_20260829.md`：11 façade、五域 Runtime/Store、compatibility 隔离的当前事实、缺口和物理迁移顺序
+12. `WEAPONRY_MODULE_EVALUATION_20260830.md`：逐模块规模、所有权、物理隔离、删除条件与下一升级顺序；包含 FAST-003 真实结果
+13. `architecture/weaponry-module-optimization-current-compact.html`：Archify 当前单屏高层图；如实标记 compatibility 已隔离、request closure 125/125 与 Runtime/Store 巨型根未拆分
+14. `architecture/weaponry-module-optimization-baseline.html`：FAST-003 时点的 Archify 历史基线图，不覆盖当前兼容隔离结果
+15. `WEAPONRY_DELETION_MANIFEST_20260829.md`：删除批次、恢复边界和待迁移 surface
+16. `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`：Form→Engine→Human 商业质量合同
+17. `ARCHITECTURE_MODULE_BOUNDARY.md`：模块权责与 active/archive 边界
+18. `MVP_ARCHITECTURE.md`：Runtime/MCP/Worker/Viewer/Store/CAS 运行架构
+19. `MCP_RUNTIME_CONTRACT.md`：公共 Tool 和 Runtime 事务边界
+20. `SCHEMAS.md`：successor Schema family 和版本规则
+21. `COMPILER_PIPELINE.md`：Authoring→Evaluated→game-ready 派生链
+22. `DATABASE.md`：事务 journal、revision 和生产血缘持久化
+23. `MVP_TOOL_CATALOG.md`：Tool profile、legacy surface 和当前 live manifest
+21. `SKILL_PACKAGE_STANDARD.md`：武器生产 Bundle successor 规则
+22. `WORKBENCH_VIEWER.md`：Weapon Art Director 只读 Viewer
+23. `TEST_STRATEGY.md` 与 `CODEX_DEFINITION_OF_DONE.md`：测试和完成定义
+24. `MVP_DELIVERY_PLAN.md` 与 `PRODUCTION_RELEASE_CHECKLIST.md`：交付、验收和发布分层
+25. `EXTERNAL_PROJECT_ADOPTION.md` 与 `THIRD_PARTY_LICENSES.md`：外部算法/许可证/SBOM
+26. `CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`：每个设计会话的 mandatory preflight
+26. `LUNA_GITHUB_REPLICATION_PLAYBOOK.md`：选择性研究、隔离、审计和退出方案
+27. `DEPRECATED_ISOLATION_PLAN.md` 与 `RESET_MIGRATION_PLAN.md`：legacy/archive/delete 迁移规则
+28. `ADR/0025`、`0026`、`0027`：仍保留边界但被 ADR-0029 部分取代的历史决策
+29. `ADR/0028-blender-headless-worker-evaluation.md`：superseded，无当前执行权
+30. `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`、`BLENDER_CAPABILITY_ADAPTATION_PLAN.md`、`IMG2THREEJS_PIPELINE_ADOPTION_PLAN.md`、`MCP010C_READINESS_AUDIT.md`：reference-only 研究/审计
+31. `docs/evidence/**`：不可变历史证据；不得从中反推当前产品方向或改写质量状态
 ## 生命周期
 
 - `已实现`：当前代码和对应 Gate 通过；

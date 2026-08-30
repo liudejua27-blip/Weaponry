@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/candidate-confirm-request.schema.json",
+  "title": "CandidateConfirmRequest@1",
+  "description": "Closed MCP request envelope for explicit approval of one prepared candidate. The optional base version is nullable and remains optional as in the Runtime struct.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "candidate_id",
+    "prepared_object_id",
+    "prepared_object_sha256",
+    "quality_report_id",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_session_id",
+    "approval_expires_at",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "base_version_id": {"$ref": "#/$defs/nullable_identifier"},
+    "prepared_object_id": {"$ref": "#/$defs/identifier"},
+    "prepared_object_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_id": {"$ref": "#/$defs/identifier"},
+    "approval_receipt_id": {"$ref": "#/$defs/identifier"},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "approval_session_id": {"$ref": "#/$defs/identifier"},
+    "approval_expires_at": {"type": "string", "minLength": 1, "maxLength": 64},
+    "idempotency_key": {"$ref": "#/$defs/identifier"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "nullable_identifier": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

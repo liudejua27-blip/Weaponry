@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-target-occlusion-attribution-get-result.schema.json",
+  "title": "ProductionWeaponFormArtTargetOcclusionAttributionGetResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "attribution_id", "project_id", "session_id",
+    "target_view_kind", "target_structure_id", "camera_hash", "camera_canonical_sha256",
+    "camera_rig_object_sha256", "reference_canvas_object_sha256", "reviewed_region_canonical_sha256",
+    "ranked_transform", "ranked_expected_void_mask_sha256", "target_pixel_count", "parent", "trials",
+    "all_parent_and_trials_sealed", "all_trials_zero_target_response", "attributed_part_id",
+    "diagnostic_status", "next_atomic_action", "geometry_repair_authorized",
+    "appearance_uv_pbr_write_authorized", "topology_stage_unlocked", "quality_status",
+    "form_quality_v2_status", "candidate_confirm_allowed", "secondary_form_approved",
+    "production_stage_advanced", "runtime_write_performed", "persistent_user_data_touched",
+    "worker_started", "attribution_policy", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "ProductionWeaponFormArtTargetOcclusionAttributionGetResult@1" },
+    "operation": { "const": "forgecad.production.weapon.form-art-target-occlusion-attribution-get@1" },
+    "attribution_id": { "$ref": "#/$defs/id" },
+    "project_id": { "$ref": "#/$defs/id" },
+    "session_id": { "$ref": "#/$defs/id" },
+    "target_view_kind": { "const": "right" },
+    "target_structure_id": { "const": "right.trigger-void" },
+    "camera_hash": { "$ref": "#/$defs/sha256" },
+    "camera_canonical_sha256": { "$ref": "#/$defs/sha256" },
+    "camera_rig_object_sha256": { "$ref": "#/$defs/sha256" },
+    "reference_canvas_object_sha256": { "$ref": "#/$defs/sha256" },
+    "reviewed_region_canonical_sha256": { "$ref": "#/$defs/sha256" },
+    "ranked_transform": { "enum": ["identity", "horizontal-flip", "vertical-flip", "both-flip"] },
+    "ranked_expected_void_mask_sha256": { "$ref": "#/$defs/sha256" },
+    "target_pixel_count": { "type": "integer", "minimum": 1, "maximum": 262144 },
+    "parent": { "$ref": "#/$defs/attribution" },
+    "trials": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/trial_attribution" } },
+    "all_parent_and_trials_sealed": { "type": "boolean" },
+    "all_trials_zero_target_response": { "type": "boolean" },
+    "attributed_part_id": { "type": ["string", "null"] },
+    "diagnostic_status": { "enum": ["NON_RECEIVER_TARGET_OCCLUDER_ATTRIBUTED", "RECEIVER_UPPER_REMAINS_OCCLUDER_X_RETRACTION_MISSES_OCCLUSION_MECHANISM", "TARGET_REGION_UNCHANGED_OCCLUDER_REMAINS_AMBIGUOUS", "TARGET_REGION_RESPONDED_WITHOUT_SINGLE_STABLE_OCCLUDER"] },
+    "next_atomic_action": { "type": "string", "minLength": 1 },
+    "geometry_repair_authorized": { "const": false },
+    "appearance_uv_pbr_write_authorized": { "const": false },
+    "topology_stage_unlocked": { "const": false },
+    "quality_status": { "const": "QUALITY_TARGET_NOT_MET" },
+    "form_quality_v2_status": { "const": "NOT_CREATED" },
+    "candidate_confirm_allowed": { "const": false },
+    "secondary_form_approved": { "const": "NOT_CREATED" },
+    "production_stage_advanced": { "const": false },
+    "runtime_write_performed": { "const": false },
+    "persistent_user_data_touched": { "const": false },
+    "worker_started": { "const": true },
+    "attribution_policy": { "const": "exact-parent-closed-receiver-upper-family-right-trigger-void-attribution@1" },
+    "canonical_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["semantic_part_id", "source_node_id", "pixel_count"],
+      "properties": {
+        "semantic_part_id": { "type": "string", "minLength": 1 },
+        "source_node_id": { "type": "string", "minLength": 1 },
+        "pixel_count": { "type": "integer", "minimum": 1, "maximum": 262144 }
+      }
+    },
+    "attribution": {
+      "type": "object", "additionalProperties": true,
+      "required": ["candidate_id", "candidate_state_sha256", "artifact_sha256", "form_art_evidence_receipt_object_sha256", "sealed", "visible_source_pixel_count", "background_pixel_count", "receiver_upper_pixel_count", "highest_source", "sources", "triangle_ids_sha256", "source_table_sha256"],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/id" },
+        "candidate_state_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "form_art_evidence_receipt_object_sha256": { "$ref": "#/$defs/sha256" },
+        "sealed": { "type": "boolean" },
+        "visible_source_pixel_count": { "type": "integer", "minimum": 0 },
+        "background_pixel_count": { "type": "integer", "minimum": 0 },
+        "receiver_upper_pixel_count": { "type": "integer", "minimum": 0 },
+        "highest_source": { "oneOf": [{ "$ref": "#/$defs/source" }, { "type": "null" }] },
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+        "triangle_ids_sha256": { "$ref": "#/$defs/sha256" },
+        "source_table_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "trial_attribution": {
+      "allOf": [
+        { "$ref": "#/$defs/attribution" },
+        {
+          "required": ["registered_profile_id", "proposal_id", "composite_evidence_id", "target_pixel_count", "receiver_upper_pixel_delta", "unique_highest_source", "winner_changed_pixel_count", "depth_changed_pixel_count", "part_id_changed_pixel_count", "silhouette_changed_pixel_count"],
+          "properties": {
+            "registered_profile_id": { "type": "string", "minLength": 1 },
+            "proposal_id": { "$ref": "#/$defs/id" },
+            "composite_evidence_id": { "$ref": "#/$defs/id" },
+            "target_pixel_count": { "type": "integer", "minimum": 1 },
+            "receiver_upper_pixel_delta": { "type": "integer" },
+            "unique_highest_source": { "type": "boolean" },
+            "winner_changed_pixel_count": { "type": "integer", "minimum": 0 },
+            "depth_changed_pixel_count": { "type": "integer", "minimum": 0 },
+            "part_id_changed_pixel_count": { "type": "integer", "minimum": 0 },
+            "silhouette_changed_pixel_count": { "type": "integer", "minimum": 0 }
+          }
+        }
+      ]
+    }
+  }
+}

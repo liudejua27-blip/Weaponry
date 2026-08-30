@@ -664,12 +664,16 @@ impl Runtime {
     ) -> Result<Value, RuntimeError> {
         let request = parse_prepare(&value)?;
         validate_current_stage_head(self, &request)?;
-        if let Some(existing) = self.store.get_production_weapon_high_low_bake(
-            &request.project_id,
-            &request.session_id,
-            &request.bake_receipt_id,
-            &request.gate_scope,
-        )? {
+        if let Some(existing) = self
+            .store
+            .surface_repository()
+            .get_production_weapon_high_low_bake(
+                &request.project_id,
+                &request.session_id,
+                &request.bake_receipt_id,
+                &request.gate_scope,
+            )?
+        {
             if !receipt_matches_prepare(&existing.bake_receipt, &request) {
                 return Err(invalid("PRODUCTION_WEAPON_HIGH_LOW_BAKE_REPLAY_CONFLICT"));
             }
@@ -698,6 +702,7 @@ impl Runtime {
         let request = parse_get(&value)?;
         let result = self
             .store
+            .surface_repository()
             .get_production_weapon_high_low_bake(
                 &request.project_id,
                 &request.session_id,

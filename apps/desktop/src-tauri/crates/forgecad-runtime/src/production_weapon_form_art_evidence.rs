@@ -2363,10 +2363,15 @@ fn reviewed_region_expected_void_mask_with_rotation(
     }
     if !matches!(
         structure_id,
-        "left.open-stock-void" | "right.open-stock-void" | "rear3q.open-stock-void"
+        "left.open-stock-void"
+            | "right.open-stock-void"
+            | "rear3q.open-stock-void"
+            | "left.trigger-void"
+            | "right.trigger-void"
+            | "rear3q.trigger-void"
     ) {
         return Err(invalid(
-            "PART_BINDING_CALIBRATION_BLOCKED: structure id is not an exact open-stock id",
+            "PART_BINDING_CALIBRATION_BLOCKED: structure id is not an exact reviewed negative-space id",
         ));
     }
     let regions = structure

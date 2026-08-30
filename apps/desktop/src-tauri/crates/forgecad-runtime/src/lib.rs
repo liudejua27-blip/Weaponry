@@ -10,9 +10,11 @@ mod authoring_mesh;
 mod authoring_mesh_durable;
 mod authoring_mesh_identity;
 mod authoring_mesh_identity_durable;
+mod authoring_mesh_transaction;
 mod authoring_mesh_v2;
 mod authoring_mesh_v2_durable;
 mod authoring_mesh_v2_geometry;
+mod authoring_service;
 mod authoring_topology;
 mod boolean_lineage;
 mod candidate_animation_vfx_quality;
@@ -35,6 +37,8 @@ mod game_weapon_animated_glb_socket_v2;
 mod geometry_worker;
 mod hero_uv_durable;
 mod ipc;
+mod knife_curve_evaluated_mesh;
+mod knife_curve_modifier_graph;
 mod low_quad_durable;
 mod mechanical_animation_clip_v2;
 mod mechanical_animation_glb_v2;
@@ -45,7 +49,6 @@ mod native_high_glb_readback;
 mod optimization;
 mod parametric_group;
 mod process_lock;
-mod production_blender_worker_capability;
 mod production_camera_lock_registration_lineage_preflight;
 mod production_weapon_art_decision_proposal;
 mod production_weapon_assembly_parameter_mutator;
@@ -53,6 +56,7 @@ mod production_weapon_assembly_parameter_sink;
 mod production_weapon_authoring_mesh_v2_source;
 mod production_weapon_d1_review_profile;
 mod production_weapon_d1_seed;
+mod production_weapon_form_art_aperture_repair_plan;
 mod production_weapon_form_art_baseline;
 mod production_weapon_form_art_baseline_single_flight;
 mod production_weapon_form_art_composite_evidence;
@@ -61,6 +65,8 @@ mod production_weapon_form_art_evidence;
 mod production_weapon_form_art_failure_diagnostic;
 mod production_weapon_form_art_mesh_proposal;
 mod production_weapon_form_art_repair_plan;
+mod production_weapon_form_art_target_occlusion_attribution;
+mod production_weapon_form_art_visibility_calibration;
 mod production_weapon_form_evidence;
 mod production_weapon_form_quality;
 mod production_weapon_form_quality_v2;
@@ -74,6 +80,8 @@ mod production_weapon_retopology_cage_source;
 mod render_evidence_integrity;
 mod render_worker;
 mod rigid_animation_glb;
+mod runtime_operation_router;
+mod runtime_services;
 mod skill_registry;
 mod subdivision_artifact_lineage;
 mod subdivision_crease;
@@ -117,6 +125,15 @@ use forgecad_worker_protocol::{
     operator_catalog_sha256, MATERIAL_PACK_ID,
 };
 pub use ipc::{IpcError, LocalIpcClient, LocalIpcEndpoint, LocalIpcServer};
+pub use runtime_operation_router::{
+    parse_domain as parse_weaponry_service_domain, RuntimeOperationAccess,
+    RuntimeOperationEnvelope, RuntimeOperationRoute, RuntimeOperationRouter,
+};
+pub use runtime_services::{
+    AuthoringService, DeliveryService, EvaluationService, KnifeFacadeBinding, PresentationService,
+    RuntimeService, RuntimeServiceBoundary, RuntimeServiceDomain, RuntimeServiceOperationAccess,
+    SurfaceService, KNIFE_FACADE_BINDINGS, KNIFE_SERVICE_BOUNDARIES,
+};
 
 use forgecad_contracts::{
     CandidateConfirmRequest, CandidateConfirmResult, CandidatePrepareResult, CandidateRecord,
@@ -6080,7 +6097,10 @@ impl Runtime {
         Ok(result)
     }
 
-    fn read_silhouette_target(&self, target_sha256: &str) -> Result<Value, RuntimeError> {
+    pub(crate) fn read_silhouette_target(
+        &self,
+        target_sha256: &str,
+    ) -> Result<Value, RuntimeError> {
         if !forgecad_contracts::is_sha256(target_sha256) {
             return Err(RuntimeError::InvalidInput(
                 "REFERENCE_MASK_INVALID: target_sha256 is not a SHA-256".to_owned(),
@@ -6094,7 +6114,7 @@ impl Runtime {
         Ok(target)
     }
 
-    fn target_mask(
+    pub(crate) fn target_mask(
         &self,
         target_sha256: &str,
         target: &Value,
@@ -6340,945 +6360,6 @@ impl Runtime {
     /// Render a candidate against one user-authorized reference and persist a
     /// temporary RenderSet@2, mask, comparison report and QualityReport@2.
     /// No immutable version is created by this method.
-    pub fn prepare_reference_comparison(
-        &self,
-        project_id: &str,
-        request: Value,
-    ) -> Result<Value, RuntimeError> {
-        let mut ignored_objects = Vec::new();
-        self.prepare_reference_comparison_with_projection(
-            project_id,
-            request,
-            true,
-            None,
-            None,
-            &mut ignored_objects,
-        )
-    }
-
-    /// Produce immutable comparison artifacts without replacing the mutable
-    /// latest-view observation projection. Cross-view evidence owns and links
-    /// these hashes directly, so historical DesignSession/FormEvidence
-    /// bindings remain restart-readable after the comparison.
-    pub(crate) fn prepare_reference_comparison_detached(
-        &self,
-        project_id: &str,
-        request: Value,
-        reservation: &forgecad_store::CasReservation,
-        reserved_objects: &mut Vec<CasObject>,
-    ) -> Result<Value, RuntimeError> {
-        self.prepare_reference_comparison_with_projection(
-            project_id,
-            request,
-            false,
-            Some(reservation),
-            None,
-            reserved_objects,
-        )
-    }
-
-    /// Fresh FormArt baseline variant of the detached comparison producer.
-    /// Every derived CAS object is preclaimed by the Store-owned durable batch
-    /// before bytes are installed, closing the process-crash ownership gap.
-    pub(crate) fn prepare_reference_comparison_detached_form_art_batch(
-        &self,
-        project_id: &str,
-        request: Value,
-        batch: &forgecad_store::ProductionWeaponFormArtBaselineCasBatch,
-        reserved_objects: &mut Vec<CasObject>,
-    ) -> Result<Value, RuntimeError> {
-        self.prepare_reference_comparison_with_projection(
-            project_id,
-            request,
-            false,
-            Some(batch.reservation()),
-            Some(batch),
-            reserved_objects,
-        )
-    }
-
-    fn prepare_reference_comparison_with_projection(
-        &self,
-        project_id: &str,
-        request: Value,
-        update_visual_evidence_projection: bool,
-        reservation: Option<&forgecad_store::CasReservation>,
-        form_art_batch: Option<&forgecad_store::ProductionWeaponFormArtBaselineCasBatch>,
-        reserved_objects: &mut Vec<CasObject>,
-    ) -> Result<Value, RuntimeError> {
-        validate_id(project_id)?;
-        let object = request.as_object().ok_or_else(|| {
-            RuntimeError::InvalidInput("reference comparison request must be an object".to_owned())
-        })?;
-        validate_request_keys(
-            object,
-            &[
-                "project_id",
-                "candidate_id",
-                "reference_id",
-                "view_spec",
-                "camera",
-                "target_sha256",
-                "view_id",
-            ],
-            "reference_compare_prepare",
-        )?;
-        let candidate_id = required_value_id(object.get("candidate_id"), "candidate_id")?;
-        let reference_id = required_value_id(object.get("reference_id"), "reference_id")?;
-        let view_id = object
-            .get("view_id")
-            .map(|value| required_value_id(Some(value), "view_id"))
-            .transpose()?
-            .map(str::to_owned);
-        let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
-            RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
-        })?;
-        if candidate.project_id != project_id {
-            return Err(RuntimeError::InvalidInput(
-                "PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned(),
-            ));
-        }
-        let reference = self.reference(reference_id)?.ok_or_else(|| {
-            RuntimeError::InvalidInput("NOT_FOUND: reference not found".to_owned())
-        })?;
-        if reference.project_id != project_id {
-            return Err(RuntimeError::InvalidInput(
-                "REFERENCE_SCOPE_DENIED: reference is outside the target project".to_owned(),
-            ));
-        }
-        let view_spec = object
-            .get("view_spec")
-            .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_VIEW_SPEC_REQUIRED".to_owned()))?;
-        validate_reference_view_spec(view_spec, &reference)?;
-        let explicit_camera = object.get("camera").is_some_and(|value| !value.is_null());
-        let target_sha256 = object
-            .get("target_sha256")
-            .map(|value| required_value_sha(Some(value), "target_sha256"))
-            .transpose()?
-            .map(str::to_owned);
-        if let Some(target_sha256) = target_sha256.as_deref() {
-            let target = self.read_silhouette_target(target_sha256)?;
-            if target.get("reference_id").and_then(Value::as_str) != Some(reference_id) {
-                return Err(RuntimeError::InvalidInput(
-                    "REFERENCE_SCOPE_DENIED: silhouette target is bound to another reference"
-                        .to_owned(),
-                ));
-            }
-        }
-        let mut reused_cached_camera_fit = false;
-        let mut camera = match object.get("camera").filter(|value| !value.is_null()) {
-            None => {
-                let cached_camera = target_sha256.as_deref().and_then(|target_sha256| {
-                    let cache_key = camera_fit_cache_key(project_id, candidate_id, target_sha256);
-                    self.camera_fit_cache
-                        .lock()
-                        .ok()
-                        .and_then(|cache| cache.get(&cache_key).cloned())
-                        .and_then(|result| result.get("selected_camera").cloned())
-                });
-                if let Some(cached_camera) = cached_camera {
-                    reused_cached_camera_fit = true;
-                    cached_camera
-                } else {
-                    default_camera_calibration()
-                }
-            }
-            Some(value)
-                if value.get("schema_version").and_then(Value::as_str)
-                    == Some("CameraCalibrationRef@1") =>
-            {
-                let target_sha256 = target_sha256.as_deref().ok_or_else(|| {
-                    RuntimeError::InvalidInput(
-                        "CAMERA_CALIBRATION_INVALID: CameraCalibrationRef@1 requires target_sha256"
-                            .to_owned(),
-                    )
-                })?;
-                self.resolve_silhouette_fit_camera(project_id, candidate_id, target_sha256, value)?
-            }
-            Some(value) => value.clone(),
-        };
-        validate_camera_calibration(&camera)?;
-        let artifact_sha256 = candidate
-            .manifest_hash
-            .clone()
-            .or(candidate.prepared_object_sha256.clone())
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput("CANDIDATE_ARTIFACT_UNAVAILABLE".to_owned())
-            })?;
-        let glb = self.cas_read(&artifact_sha256)?;
-        let inspection = strict_glb_inspection(&glb)?;
-        if !inspection.hard_gate_passed {
-            return Err(RuntimeError::InvalidInput(format!(
-                "RENDER_REJECTED: strict GLB readback failed: {}",
-                inspection.failure_codes.join(",")
-            )));
-        }
-        let initial_render = render_glb_with_runtime_worker_identity(&glb, &camera)
-            .map_err(|error| RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}")))?;
-        let mut render_worker_cohort = initial_render.build_cohort_sha256.clone();
-        let render_profile = initial_render.render_profile.clone();
-        let mut render_passes = initial_render.passes;
-        let (mut reference_mask, reference_mask_method, reference_mask_revision) =
-            if let Some(target_sha256) = target_sha256.as_deref() {
-                // A caller-supplied SilhouetteTarget is the reviewed contour
-                // truth for this comparison. Falling back to a fresh
-                // flood-fill here would make camera fitting and the final
-                // quality gate evaluate different masks despite sharing one
-                // target hash.
-                let target = self.read_silhouette_target(target_sha256)?;
-                (
-                    self.target_mask(target_sha256, &target)?,
-                    "silhouette-target",
-                    "target-1",
-                )
-            } else {
-                let reference_bytes = self.cas_read(&reference.object_sha256)?;
-                (
-                    reference_mask_png(&reference_bytes)?,
-                    "local-border-flood-fill-morphology",
-                    "mask-2",
-                )
-            };
-        reference_mask.mask = project_reference_mask_to_view(
-            &reference_mask.mask,
-            view_spec,
-            target_sha256.is_some(),
-        )?;
-        reference_mask.png = mask_to_png(&reference_mask.mask)?;
-        if !explicit_camera && !reused_cached_camera_fit {
-            let initial_silhouette = render_passes
-                .iter()
-                .find(|pass| pass.pass == "silhouette")
-                .map(|pass| decode_binary_mask(&pass.png))
-                .transpose()?;
-            if let Some(initial_silhouette) = initial_silhouette {
-                // Compare a small deterministic set of framing candidates and
-                // keep the one with the best combined silhouette/boundary/
-                // extent/centroid score. This prevents a height-only fit from
-                // improving one metric while making the overall reference
-                // comparison worse. Only the winning render is persisted.
-                let mut best_camera = camera.clone();
-                let mut best_passes = std::mem::take(&mut render_passes);
-                let mut best_score = camera_fit_score(&reference_mask.mask, &initial_silhouette);
-                for candidate in [
-                    calibrate_default_camera_height_only(
-                        &camera,
-                        &reference_mask.mask,
-                        &initial_silhouette,
-                    ),
-                    calibrate_default_camera(&camera, &reference_mask.mask, &initial_silhouette),
-                ] {
-                    if candidate == camera {
-                        continue;
-                    }
-                    validate_camera_calibration(&candidate)?;
-                    let candidate_render =
-                        render_glb_with_runtime_worker_identity(&glb, &candidate).map_err(
-                            |error| RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}")),
-                        )?;
-                    let candidate_silhouette = candidate_render
-                        .passes
-                        .iter()
-                        .find(|pass| pass.pass == "silhouette")
-                        .map(|pass| decode_binary_mask(&pass.png))
-                        .transpose()?
-                        .ok_or_else(|| {
-                            RuntimeError::InvalidInput(
-                                "RENDER_REJECTED: calibrated silhouette pass missing".to_owned(),
-                            )
-                        })?;
-                    let score = camera_fit_score(&reference_mask.mask, &candidate_silhouette);
-                    if score > best_score {
-                        best_score = score;
-                        best_camera = candidate;
-                        render_worker_cohort = candidate_render.build_cohort_sha256.clone();
-                        best_passes = candidate_render.passes;
-                    }
-                }
-                camera = best_camera;
-                render_passes = best_passes;
-            }
-        }
-        let camera_bytes = canonical_json_bytes(&camera)
-            .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-        let camera_object = self.put_reference_comparison_object(
-            reservation,
-            form_art_batch,
-            reserved_objects,
-            &camera_bytes,
-            None,
-            "application/json",
-            "camera-calibration",
-        )?;
-        if render_passes.len() != 9
-            || render_passes
-                .iter()
-                .any(|pass| pass.width != 512 || pass.height != 512)
-        {
-            return Err(RuntimeError::InvalidInput(
-                "RENDER_REJECTED: fixed renderer did not return nine 512x512 passes".to_owned(),
-            ));
-        }
-        let mut pass_artifacts = serde_json::Map::new();
-        let mut pass_bytes = std::collections::HashMap::new();
-        for pass in &render_passes {
-            let stored = self.put_reference_comparison_object(
-                reservation,
-                form_art_batch,
-                reserved_objects,
-                &pass.png,
-                None,
-                "image/png",
-                &format!("render-pass-{}", pass.pass),
-            )?;
-            pass_bytes.insert(pass.pass.clone(), pass.png.clone());
-            pass_artifacts.insert(
-                pass.pass.clone(),
-                json!({
-                    "sha256":stored.record.sha256,
-                    "mime":"image/png",
-                    "size_bytes":stored.record.size_bytes,
-                    "width":512,
-                    "height":512,
-                    "channels":"rgba8",
-                    "color_space":if pass.pass == "beauty" {"srgb"} else {"data"}
-                }),
-            );
-        }
-        let mut render_set = json!({
-            "schema_version":"RenderSet@2",
-            "render_set_id":format!("render-set-{}", &artifact_sha256[..32]),
-            "candidate_id":candidate_id,
-            "artifact_sha256":artifact_sha256,
-            "program_sha256":inspection.program_sha256,
-            "reference_id":reference_id,
-            "camera_hash":camera["camera_hash"].clone(),
-            "camera_object_sha256":camera_object.record.sha256.clone(),
-            "renderer_hash":sha256_hex(b"forgecad-renderer-2"),
-            "render_profile":render_profile.clone(),
-            "render_profile_sha256":render_profile["canonical_sha256"].clone(),
-            "aov_definition_sha256":render_profile["aov_definition_sha256"].clone(),
-            "color_pipeline_sha256":render_profile["color_pipeline_sha256"].clone(),
-            "id_palette_definition_sha256":render_profile["id_palette_definition_sha256"].clone(),
-            "render_worker_build_cohort_sha256":render_worker_cohort.clone(),
-            "render_worker_binding_status":render_worker_binding_status(render_worker_cohort.as_ref()),
-            "width":512,
-            "height":512,
-            "passes":["beauty","silhouette","depth","normal","ao","part-id","material-id","wireframe","uv-stretch"],
-            "pass_artifacts":pass_artifacts,
-            "canonical_sha256":""
-        });
-        if let Some(view_id) = view_id.as_deref() {
-            render_set["view_id"] = Value::String(view_id.to_owned());
-        }
-        render_set["canonical_sha256"] = Value::String(canonical_json_hash(&render_set));
-        validate_render_set_v2_output(&render_set)?;
-        let render_set_bytes = canonical_json_bytes(&render_set)
-            .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-        let render_set_object = self.put_reference_comparison_object(
-            reservation,
-            form_art_batch,
-            reserved_objects,
-            &render_set_bytes,
-            None,
-            "application/json",
-            "render-set-v2",
-        )?;
-        let render_set_hash = render_set_object.record.sha256.clone();
-        let mask_object = self.put_reference_comparison_object(
-            reservation,
-            form_art_batch,
-            reserved_objects,
-            &reference_mask.png,
-            None,
-            "image/png",
-            // reference_mask_prepare may already have admitted these exact
-            // deterministic bytes. Reuse its stable CAS kind so the later
-            // compare stage remains idempotent instead of colliding on
-            // metadata for the same content hash.
-            "reference-silhouette-mask-v1",
-        )?;
-        let model_mask = pass_bytes.get("silhouette").ok_or_else(|| {
-            RuntimeError::InvalidInput("RENDER_REJECTED: silhouette pass missing".to_owned())
-        })?;
-        let metrics = compare_masks_with_parts(
-            &reference_mask.mask,
-            &decode_binary_mask(model_mask)?,
-            view_spec,
-            pass_bytes
-                .get("part-id")
-                .map(|bytes| (bytes.as_slice(), inspection.part_ids.as_slice())),
-        );
-        let annotation_readiness = reference_annotation_readiness(
-            self,
-            project_id,
-            candidate_id,
-            reference_id,
-            target_sha256.as_deref(),
-            view_spec,
-            &camera,
-        )?;
-        let visual_status = if annotation_readiness.benchmark_eligibility == "READY_PARTIAL_VIEW"
-            && visible_view_gate_passes(&metrics)
-        {
-            "PARTIAL_VISIBLE_VIEW_PASS"
-        } else {
-            "QUALITY_TARGET_NOT_MET"
-        };
-        let mut comparison = json!({
-            "schema_version":"ReferenceComparisonReport@1",
-            "report_id":format!("comparison-{}", &render_set_hash[..32]),
-            "candidate_id":candidate_id,
-            "artifact_sha256":artifact_sha256,
-            "reference_id":reference_id,
-            "reference_sha256":reference.object_sha256,
-            "render_set_hash":render_set_hash,
-            "camera_hash":camera["camera_hash"].clone(),
-            "benchmark_eligibility":annotation_readiness.benchmark_eligibility,
-            "mask":{"method":reference_mask_method,"revision":reference_mask_revision,"sha256":mask_object.record.sha256,"width":512,"height":512},
-            "metrics":metrics,
-            "status":visual_status,
-            "canonical_sha256":""
-        });
-        if let Some(view_id) = view_id.as_deref() {
-            comparison["view_id"] = Value::String(view_id.to_owned());
-        }
-        comparison["canonical_sha256"] = Value::String(canonical_json_hash(&comparison));
-        validate_reference_comparison_report(&comparison)?;
-        let comparison_object = self.put_reference_comparison_object(
-            reservation,
-            form_art_batch,
-            reserved_objects,
-            &canonical_json_bytes(&comparison)
-                .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
-            None,
-            "application/json",
-            "reference-comparison-report",
-        )?;
-        let comparison_hash = comparison_object.record.sha256.clone();
-        let quality_id = format!("quality-c-{}", Uuid::new_v4().simple());
-        let mut limitations = vec![
-            "human_visual_review_not_run".to_owned(),
-            "single_reference_view_only".to_owned(),
-            "HQ_360_PASS_BLOCKED_REFERENCE_COVERAGE".to_owned(),
-        ];
-        limitations.push(format!(
-            "benchmark_eligibility:{}",
-            annotation_readiness.benchmark_eligibility
-        ));
-        limitations.extend(
-            annotation_readiness
-                .reasons
-                .iter()
-                .map(|reason| format!("reference_annotation:{reason}")),
-        );
-        let mut quality = json!({
-            "schema_version":"QualityReport@2",
-            "quality_report_id":quality_id,
-            "candidate_id":candidate_id,
-            "artifact_sha256":artifact_sha256,
-            "program_sha256":inspection.program_sha256,
-            "reference_id":reference_id,
-            "reference_sha256":reference.object_sha256,
-            "render_set_hash":render_set_hash,
-            "comparison_report_hash":comparison_hash,
-            "human_receipt_hash":Value::Null,
-            "structural_status":"passed",
-            "visual_status":visual_status,
-            "hard_gate_passed":visual_status == "PARTIAL_VISIBLE_VIEW_PASS",
-            "threshold_revision":VISIBLE_VIEW_THRESHOLD_REVISION,
-            "threshold_policy_sha256":visible_view_threshold_policy_sha256(),
-            "threshold_source":VISIBLE_VIEW_THRESHOLD_SOURCE,
-            "metric_gate_results":visible_view_gate_checks(&metrics),
-            "benchmark_eligibility":annotation_readiness.benchmark_eligibility,
-            "limitations":limitations,
-            "canonical_sha256":""
-        });
-        if let Some(view_id) = view_id.as_deref() {
-            quality["view_id"] = Value::String(view_id.to_owned());
-        }
-        quality["canonical_sha256"] = Value::String(canonical_json_hash(&quality));
-        validate_quality_report_v2_output(&quality)?;
-        let quality_object = self.put_reference_comparison_object(
-            reservation,
-            form_art_batch,
-            reserved_objects,
-            &canonical_json_bytes(&quality)
-                .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
-            None,
-            "application/json",
-            "quality-report-v2",
-        )?;
-        let now = now_string();
-        if update_visual_evidence_projection {
-            self.store.upsert_visual_evidence(&VisualEvidenceRecord {
-                candidate_id: candidate_id.to_owned(),
-                project_id: project_id.to_owned(),
-                reference_id: reference_id.to_owned(),
-                target_sha256: target_sha256.clone(),
-                render_set_object_sha256: render_set_object.record.sha256.clone(),
-                comparison_report_object_sha256: Some(comparison_object.record.sha256.clone()),
-                visual_review_object_sha256: None,
-                quality_report_object_sha256: quality_object.record.sha256.clone(),
-                human_receipt_object_sha256: None,
-                created_at: now.clone(),
-                updated_at: now,
-            })?;
-            if let Some(view_id) = view_id {
-                let now = now_string();
-                self.store.upsert_visual_evidence_view(
-                    &forgecad_store::VisualEvidenceViewRecord {
-                        candidate_id: candidate_id.to_owned(),
-                        project_id: project_id.to_owned(),
-                        view_id,
-                        reference_id: reference_id.to_owned(),
-                        reference_sha256: reference.object_sha256.clone(),
-                        camera_hash: camera["camera_hash"]
-                            .as_str()
-                            .unwrap_or_default()
-                            .to_owned(),
-                        render_set_object_sha256: render_set_object.record.sha256.clone(),
-                        comparison_report_object_sha256: Some(
-                            comparison_object.record.sha256.clone(),
-                        ),
-                        quality_report_object_sha256: quality_object.record.sha256.clone(),
-                        quality_status: visual_status.to_owned(),
-                        created_at: now.clone(),
-                        updated_at: now,
-                    },
-                )?;
-            }
-        }
-        Ok(json!({
-            "schema_version":"ReferenceComparisonPrepareResult@1",
-            "candidate_id":candidate_id,
-            "reference_id":reference_id,
-            "camera":camera,
-            "camera_object_sha256":camera_object.record.sha256,
-            "render_set":render_set,
-            "render_set_hash":render_set_object.record.sha256,
-            "render_set_object_sha256":render_set_object.record.sha256,
-            "comparison_report":comparison,
-            "comparison_report_hash":comparison_object.record.sha256,
-            "comparison_report_object_sha256":comparison_object.record.sha256,
-            "quality_report":quality,
-            "quality_report_object_sha256":quality_object.record.sha256
-        }))
-    }
-
-    fn put_reference_comparison_object(
-        &self,
-        reservation: Option<&forgecad_store::CasReservation>,
-        form_art_batch: Option<&forgecad_store::ProductionWeaponFormArtBaselineCasBatch>,
-        reserved_objects: &mut Vec<CasObject>,
-        bytes: &[u8],
-        expected_sha256: Option<&str>,
-        mime: &str,
-        kind: &str,
-    ) -> Result<CasObject, RuntimeError> {
-        let object = match (form_art_batch, reservation) {
-            (Some(batch), Some(_)) => self
-                .store
-                .put_production_weapon_form_art_baseline_cas_object(
-                    batch,
-                    bytes,
-                    expected_sha256,
-                    mime,
-                    kind,
-                    &now_string(),
-                )?,
-            (None, Some(reservation)) => self.store.put_object_reserved(
-                reservation,
-                bytes,
-                expected_sha256,
-                mime,
-                kind,
-                &now_string(),
-            )?,
-            (None, None) => self.put_object(bytes, expected_sha256, mime, kind)?,
-            (Some(_), None) => {
-                return Err(RuntimeError::InvalidInput(
-                    "FORM_ART_CAS_BATCH_RESERVATION_MISSING".to_owned(),
-                ))
-            }
-        };
-        if reservation.is_some() && object.record.reachability == "temporary" {
-            reserved_objects.push(object.clone());
-        }
-        Ok(object)
-    }
-
-    pub fn render_pass_get(
-        &self,
-        render_set_hash: &str,
-        pass_name: &str,
-    ) -> Result<Value, RuntimeError> {
-        if !forgecad_contracts::is_sha256(render_set_hash) {
-            return Err(RuntimeError::InvalidInput(
-                "RENDER_PASS_INVALID: render_set_hash is invalid".to_owned(),
-            ));
-        }
-        let render_set: Value = serde_json::from_slice(&self.cas_read(render_set_hash)?)
-            .map_err(|error| RuntimeError::InvalidInput(format!("RENDER_PASS_INVALID: {error}")))?;
-        validate_render_set_v2_output(&render_set)?;
-        let artifact = render_set
-            .get("pass_artifacts")
-            .and_then(|value| value.get(pass_name))
-            .ok_or_else(|| RuntimeError::InvalidInput("RENDER_PASS_NOT_FOUND".to_owned()))?;
-        let pass_hash = artifact
-            .get("sha256")
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput("RENDER_PASS_INVALID: pass hash is missing".to_owned())
-            })?;
-        let png = self.cas_read(pass_hash)?;
-        if !png.starts_with(b"\x89PNG\r\n\x1a\n") {
-            return Err(RuntimeError::InvalidInput(
-                "RENDER_PASS_INVALID: CAS bytes are not PNG".to_owned(),
-            ));
-        }
-        Ok(
-            json!({"schema_version":"RenderPassGet@1","render_set_hash":render_set_hash,"candidate_id":render_set["candidate_id"],"pass":pass_name,"mime":"image/png","width":512,"height":512,"sha256":pass_hash,"png_base64":base64::engine::general_purpose::STANDARD.encode(png)}),
-        )
-    }
-
-    /// Return the candidate-bound visual evidence needed by the optional
-    /// Viewer. Reports stay in CAS and are re-read/validated here; the
-    /// projection contains no image bytes and performs no writes.
-    pub fn visual_evidence(&self, candidate_id: &str) -> Result<Value, RuntimeError> {
-        validate_id(candidate_id)?;
-        let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "VISUAL_EVIDENCE_UNAVAILABLE: candidate not found".to_owned(),
-            )
-        })?;
-        let evidence = self
-            .store
-            .get_visual_evidence(candidate_id)?
-            .ok_or_else(|| RuntimeError::InvalidInput("VISUAL_EVIDENCE_UNAVAILABLE".to_owned()))?;
-        let reference = self.reference(&evidence.reference_id)?.ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "VISUAL_EVIDENCE_UNAVAILABLE: reference not found".to_owned(),
-            )
-        })?;
-        if reference.project_id != candidate.project_id
-            || evidence.project_id != candidate.project_id
-        {
-            return Err(RuntimeError::InvalidInput(
-                "VISUAL_EVIDENCE_BINDING_MISMATCH: project differs".to_owned(),
-            ));
-        }
-        let render_set: Value = serde_json::from_slice(
-            &self.cas_read(&evidence.render_set_object_sha256)?,
-        )
-        .map_err(|error| {
-            RuntimeError::InvalidInput(format!("VISUAL_EVIDENCE_INVALID: RenderSet: {error}"))
-        })?;
-        validate_render_set_v2_output(&render_set)?;
-        if render_set.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
-            || render_set.get("reference_id").and_then(Value::as_str)
-                != Some(evidence.reference_id.as_str())
-        {
-            return Err(RuntimeError::InvalidInput(
-                "VISUAL_EVIDENCE_BINDING_MISMATCH: RenderSet candidate differs".to_owned(),
-            ));
-        }
-        let candidate_artifact_sha256 = candidate
-            .prepared_object_sha256
-            .as_deref()
-            .or(candidate.manifest_hash.as_deref())
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "VISUAL_EVIDENCE_UNAVAILABLE: candidate artifact is missing".to_owned(),
-                )
-            })?;
-        if !forgecad_contracts::is_sha256(candidate_artifact_sha256)
-            || candidate
-                .prepared_object_sha256
-                .as_deref()
-                .is_some_and(|hash| !forgecad_contracts::is_sha256(hash))
-            || candidate
-                .manifest_hash
-                .as_deref()
-                .is_some_and(|hash| !forgecad_contracts::is_sha256(hash))
-            || candidate
-                .prepared_object_sha256
-                .as_deref()
-                .zip(candidate.manifest_hash.as_deref())
-                .is_some_and(|(prepared, manifest)| prepared != manifest)
-            || render_set.get("artifact_sha256").and_then(Value::as_str)
-                != Some(candidate_artifact_sha256)
-        {
-            return Err(RuntimeError::InvalidInput(
-                "VISUAL_EVIDENCE_BINDING_MISMATCH: RenderSet artifact differs from candidate"
-                    .to_owned(),
-            ));
-        }
-        if let Some(target_sha256) = evidence.target_sha256.as_deref() {
-            let target = self.read_silhouette_target(target_sha256)?;
-            if target.get("reference_id").and_then(Value::as_str)
-                != Some(evidence.reference_id.as_str())
-                || target.get("reference_sha256").and_then(Value::as_str)
-                    != Some(reference.object_sha256.as_str())
-            {
-                return Err(RuntimeError::InvalidInput(
-                    "VISUAL_EVIDENCE_BINDING_MISMATCH: silhouette target differs from reference"
-                        .to_owned(),
-                ));
-            }
-        }
-        let comparison_report = if let Some(hash) =
-            evidence.comparison_report_object_sha256.as_deref()
-        {
-            let report: Value = serde_json::from_slice(&self.cas_read(hash)?).map_err(|error| {
-                RuntimeError::InvalidInput(format!(
-                    "VISUAL_EVIDENCE_INVALID: comparison report: {error}"
-                ))
-            })?;
-            validate_reference_comparison_report(&report)?;
-            if report.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
-                || report.get("reference_id").and_then(Value::as_str)
-                    != Some(evidence.reference_id.as_str())
-                || report.get("artifact_sha256").and_then(Value::as_str)
-                    != Some(candidate_artifact_sha256)
-                || report.get("reference_sha256").and_then(Value::as_str)
-                    != Some(reference.object_sha256.as_str())
-                || report.get("render_set_hash").and_then(Value::as_str)
-                    != Some(evidence.render_set_object_sha256.as_str())
-                || report.get("camera_hash") != render_set.get("camera_hash")
-            {
-                return Err(RuntimeError::InvalidInput(
-                    "VISUAL_EVIDENCE_BINDING_MISMATCH: comparison report lineage differs"
-                        .to_owned(),
-                ));
-            }
-            Some(report)
-        } else {
-            return Err(RuntimeError::InvalidInput(
-                "VISUAL_EVIDENCE_UNAVAILABLE: comparison report is missing".to_owned(),
-            ));
-        };
-        let quality_report = self.quality(candidate_id, Some(&evidence.reference_id))?;
-        validate_quality_report_v2_output(&quality_report)?;
-        if quality_report.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
-            || quality_report
-                .get("artifact_sha256")
-                .and_then(Value::as_str)
-                != Some(candidate_artifact_sha256)
-            || quality_report.get("reference_id").and_then(Value::as_str)
-                != Some(evidence.reference_id.as_str())
-            || quality_report
-                .get("reference_sha256")
-                .and_then(Value::as_str)
-                != Some(reference.object_sha256.as_str())
-            || quality_report
-                .get("render_set_hash")
-                .and_then(Value::as_str)
-                != Some(evidence.render_set_object_sha256.as_str())
-            || quality_report
-                .get("comparison_report_hash")
-                .and_then(Value::as_str)
-                != evidence.comparison_report_object_sha256.as_deref()
-        {
-            return Err(RuntimeError::InvalidInput(
-                "VISUAL_EVIDENCE_BINDING_MISMATCH: QualityReport lineage differs".to_owned(),
-            ));
-        }
-        Ok(json!({
-            "schema_version":"ViewerVisualEvidence@1",
-            "candidate_id":candidate_id,
-            "project_id":evidence.project_id,
-            "reference_id":evidence.reference_id,
-            "target_sha256":evidence.target_sha256,
-            "render_set_hash":evidence.render_set_object_sha256,
-            "comparison_report_hash":evidence.comparison_report_object_sha256,
-            "quality_report_hash":evidence.quality_report_object_sha256,
-            "render_set":render_set,
-            "comparison_report":comparison_report,
-            "quality_report":quality_report
-        }))
-    }
-
-    pub fn submit_visual_review(&self, request: Value) -> Result<Value, RuntimeError> {
-        let object = request.as_object().ok_or_else(|| {
-            RuntimeError::InvalidInput("visual review request must be an object".to_owned())
-        })?;
-        let candidate_id = required_value_id(object.get("candidate_id"), "candidate_id")?;
-        let reference_id = required_value_id(object.get("reference_id"), "reference_id")?;
-        let evidence = self
-            .store
-            .get_visual_evidence(candidate_id)?
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "VISUAL_REVIEW_UNAVAILABLE: run reference_compare_prepare first".to_owned(),
-                )
-            })?;
-        if evidence.reference_id != reference_id {
-            return Err(RuntimeError::InvalidInput(
-                "REFERENCE_BINDING_MISMATCH: review reference differs from candidate evidence"
-                    .to_owned(),
-            ));
-        }
-        let render_set_hash = required_value_sha(object.get("render_set_hash"), "render_set_hash")?;
-        let render_set: Value = serde_json::from_slice(
-            &self.cas_read(&evidence.render_set_object_sha256)?,
-        )
-        .map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "VISUAL_REVIEW_UNAVAILABLE: RenderSet is invalid: {error}"
-            ))
-        })?;
-        validate_render_set_v2_output(&render_set)?;
-        if evidence.render_set_object_sha256 != render_set_hash {
-            return Err(RuntimeError::InvalidInput(
-                "VISUAL_REVIEW_BINDING_MISMATCH: RenderSet hash is not candidate-bound".to_owned(),
-            ));
-        }
-        let comparison_hash = required_value_sha(
-            object.get("comparison_report_hash"),
-            "comparison_report_hash",
-        )?;
-        let comparison_object_sha = evidence
-            .comparison_report_object_sha256
-            .as_deref()
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "VISUAL_REVIEW_UNAVAILABLE: comparison report is missing".to_owned(),
-                )
-            })?;
-        let comparison: Value = serde_json::from_slice(&self.cas_read(comparison_object_sha)?)
-            .map_err(|error| {
-                RuntimeError::InvalidInput(format!(
-                    "VISUAL_REVIEW_UNAVAILABLE: comparison report is invalid: {error}"
-                ))
-            })?;
-        validate_reference_comparison_report(&comparison)?;
-        if evidence.comparison_report_object_sha256.as_deref() != Some(comparison_hash) {
-            return Err(RuntimeError::InvalidInput(
-                "VISUAL_REVIEW_BINDING_MISMATCH: comparison report is not candidate-bound"
-                    .to_owned(),
-            ));
-        }
-        let mut report = json!({"schema_version":"VisualReviewReport@1","review_id":format!("review-{}",Uuid::new_v4().simple()),"candidate_id":candidate_id,"reference_id":reference_id,"render_set_hash":render_set_hash,"comparison_report_hash":comparison_hash,"round":object.get("round").cloned().unwrap_or(Value::Null),"stage":object.get("stage").cloned().unwrap_or(Value::Null),"issues":object.get("issues").cloned().unwrap_or(Value::Array(Vec::new())),"status":object.get("status").cloned().unwrap_or(Value::String("submitted".to_owned())),"canonical_sha256":""});
-        report["canonical_sha256"] = Value::String(canonical_json_hash(&report));
-        validate_visual_review_report(&report)?;
-        let report_object = self.put_object(
-            &canonical_json_bytes(&report)
-                .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
-            None,
-            "application/json",
-            "visual-review-report",
-        )?;
-        let now = now_string();
-        self.store.upsert_visual_evidence(&VisualEvidenceRecord {
-            visual_review_object_sha256: Some(report_object.record.sha256.clone()),
-            updated_at: now.clone(),
-            ..evidence
-        })?;
-        Ok(
-            json!({"schema_version":"VisualReviewSubmitResult@1","review":report,"review_object_sha256":report_object.record.sha256}),
-        )
-    }
-
-    pub fn submit_human_visual_review(&self, request: Value) -> Result<Value, RuntimeError> {
-        let object = request.as_object().ok_or_else(|| {
-            RuntimeError::InvalidInput("human visual review request must be an object".to_owned())
-        })?;
-        let candidate_id = required_value_id(object.get("candidate_id"), "candidate_id")?;
-        let reference_id = required_value_id(object.get("reference_id"), "reference_id")?;
-        let evidence = self
-            .store
-            .get_visual_evidence(candidate_id)?
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "HUMAN_REVIEW_UNAVAILABLE: run reference_compare_prepare first".to_owned(),
-                )
-            })?;
-        if evidence.reference_id != reference_id {
-            return Err(RuntimeError::InvalidInput("REFERENCE_BINDING_MISMATCH: human review reference differs from candidate evidence".to_owned()));
-        }
-        let render_set_hash = required_value_sha(object.get("render_set_hash"), "render_set_hash")?;
-        let comparison_hash = required_value_sha(
-            object.get("comparison_report_hash"),
-            "comparison_report_hash",
-        )?;
-        let render_set: Value = serde_json::from_slice(
-            &self.cas_read(&evidence.render_set_object_sha256)?,
-        )
-        .map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "HUMAN_REVIEW_UNAVAILABLE: RenderSet is invalid: {error}"
-            ))
-        })?;
-        validate_render_set_v2_output(&render_set)?;
-        if evidence.render_set_object_sha256 != render_set_hash {
-            return Err(RuntimeError::InvalidInput(
-                "HUMAN_REVIEW_BINDING_MISMATCH: RenderSet hash is not candidate-bound".to_owned(),
-            ));
-        }
-        let comparison_object_sha = evidence
-            .comparison_report_object_sha256
-            .as_deref()
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "HUMAN_REVIEW_UNAVAILABLE: comparison report is missing".to_owned(),
-                )
-            })?;
-        let comparison: Value = serde_json::from_slice(&self.cas_read(comparison_object_sha)?)
-            .map_err(|error| {
-                RuntimeError::InvalidInput(format!(
-                    "HUMAN_REVIEW_UNAVAILABLE: comparison report is invalid: {error}"
-                ))
-            })?;
-        validate_reference_comparison_report(&comparison)?;
-        if evidence.comparison_report_object_sha256.as_deref() != Some(comparison_hash) {
-            return Err(RuntimeError::InvalidInput(
-                "HUMAN_REVIEW_BINDING_MISMATCH: comparison report is not candidate-bound"
-                    .to_owned(),
-            ));
-        }
-        let scores = object
-            .get("scores")
-            .cloned()
-            .ok_or_else(|| RuntimeError::InvalidInput("HUMAN_REVIEW_SCORES_REQUIRED".to_owned()))?;
-        let mut receipt = json!({"schema_version":"HumanVisualReviewReceipt@1","receipt_id":format!("human-review-{}",Uuid::new_v4().simple()),"candidate_id":candidate_id,"reference_id":reference_id,"render_set_hash":render_set_hash,"comparison_report_hash":comparison_hash,"scores":scores,"approved":object.get("approved").cloned().unwrap_or(Value::Bool(false)),"recorded_at":now_string(),"canonical_sha256":""});
-        receipt["canonical_sha256"] = Value::String(canonical_json_hash(&receipt));
-        validate_human_review_receipt(&receipt)?;
-        let receipt_object = self.put_object(
-            &canonical_json_bytes(&receipt)
-                .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
-            None,
-            "application/json",
-            "human-visual-review-receipt",
-        )?;
-        let mut quality: Value =
-            serde_json::from_slice(&self.cas_read(&evidence.quality_report_object_sha256)?)
-                .map_err(|error| {
-                    RuntimeError::InvalidInput(format!("QUALITY_REPORT_INVALID: {error}"))
-                })?;
-        quality["human_receipt_hash"] = Value::String(receipt_object.record.sha256.clone());
-        quality["canonical_sha256"] = Value::String(String::new());
-        quality["canonical_sha256"] = Value::String(canonical_json_hash(&quality));
-        validate_quality_report_v2_output(&quality)?;
-        let quality_object = self.put_object(
-            &canonical_json_bytes(&quality)
-                .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
-            None,
-            "application/json",
-            "quality-report-v2",
-        )?;
-        let now = now_string();
-        self.store.upsert_visual_evidence(&VisualEvidenceRecord {
-            human_receipt_object_sha256: Some(receipt_object.record.sha256.clone()),
-            quality_report_object_sha256: quality_object.record.sha256.clone(),
-            updated_at: now,
-            ..evidence
-        })?;
-        Ok(
-            json!({"schema_version":"HumanVisualReviewSubmitResult@1","receipt":receipt,"receipt_object_sha256":receipt_object.record.sha256,"quality_report":quality,"quality_report_object_sha256":quality_object.record.sha256}),
-        )
-    }
-
     pub fn version_diff(
         &self,
         version_id: &str,
@@ -11857,6 +10938,54 @@ impl Runtime {
         authoring_mesh_v2_durable::get(self, request)
     }
 
+    /// Atomically prepare a bounded multi-operation AuthoringMesh@2
+    /// transaction. Runtime derives all child revision and CAS hashes; this
+    /// does not confirm a candidate, create a version, or export an artifact.
+    pub fn authoring_mesh_transaction_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        authoring_mesh_transaction::prepare(self, request)
+    }
+
+    /// Read one multi-operation AuthoringMesh transaction from Store/CAS and
+    /// revalidate the complete immutable revision chain after restart.
+    pub fn authoring_mesh_transaction_get(&self, request: &Value) -> Result<Value, RuntimeError> {
+        authoring_mesh_transaction::get(self, request)
+    }
+
+    /// Persist the bounded knife Curve + ModifierGraph structural slice. The
+    /// current evaluator samples curves and derives dependency/recompute data;
+    /// it deliberately does not create an evaluated mesh or geometry artifact.
+    pub fn knife_curve_modifier_graph_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        knife_curve_modifier_graph::prepare(self, request)
+    }
+
+    /// Read and revalidate one durable knife Curve + ModifierGraph structural
+    /// receipt from Store/CAS. This path performs no write or stage promotion.
+    pub fn knife_curve_modifier_graph_get(&self, request: &Value) -> Result<Value, RuntimeError> {
+        knife_curve_modifier_graph::get(self, request)
+    }
+
+    /// Evaluate the closed knife BladeSpine/BladeEdge curve sweep against the
+    /// durable structural graph. The mesh is disposable and is never an
+    /// AuthoringMesh, GLB, candidate confirmation, or version.
+    pub fn knife_curve_evaluated_mesh_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        knife_curve_evaluated_mesh::prepare(self, request)
+    }
+
+    /// Read and strictly revalidate one durable knife EvaluatedMesh and its
+    /// Core identity/link after a Runtime restart. This path is read-only.
+    pub fn knife_curve_evaluated_mesh_get(&self, request: &Value) -> Result<Value, RuntimeError> {
+        knife_curve_evaluated_mesh::get(self, request)
+    }
+
     /// Prepare a closed, Runtime-owned typed import for one embedded FPS
     /// foundation source. The output is a hash-only structural draft; the
     /// compact topology remains in CAS and AuthoringMesh materialization is
@@ -12013,6 +11142,33 @@ impl Runtime {
         production_weapon_form_art_failure_diagnostic::get(self, request)
     }
 
+    /// Replay exact before/after candidate rasters under the registered
+    /// cameras and calibrate triangle/source ownership, depth-winner changes
+    /// and sealed side-aperture occluders without writing product state.
+    pub fn production_weapon_form_art_visibility_calibration_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_visibility_calibration::get(self, request)
+    }
+
+    pub fn production_weapon_form_art_target_occlusion_attribution_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_target_occlusion_attribution::get(self, request)
+    }
+
+    /// Re-derive the exact raster calibration and emit two strictly ordered,
+    /// bounded one-Part aperture sensitivity steps without mutating product
+    /// state or creating a candidate.
+    pub fn production_weapon_form_art_aperture_repair_plan_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        production_weapon_form_art_aperture_repair_plan::get(self, request)
+    }
+
     /// Materialize one Runtime-owned `AuthoringMeshIdentityLineage@1` CAS
     /// payload from the current durable AuthoringMesh source.  Stable authored
     /// IDs never use candidate/program/evaluated artifact/readback hashes as
@@ -12149,21 +11305,6 @@ impl Runtime {
     /// from CAS and checked against its content hash and canonical binding.
     pub fn game_asset_delivery_get(&self, request: &Value) -> Result<Value, RuntimeError> {
         game_asset_delivery::get(self, request)
-    }
-
-    /// Persist one immutable candidate-bound Appearance source lineage sidecar
-    /// for a three-LOD fictional-energy weapon cohort.
-    pub fn appearance_source_lineage_prepare(
-        &self,
-        request: &Value,
-    ) -> Result<Value, RuntimeError> {
-        appearance_source_lineage::prepare(self, request)
-    }
-
-    /// Read and re-verify one durable Appearance source lineage sidecar after
-    /// Runtime restart. Missing/tampered source objects fail closed.
-    pub fn appearance_source_lineage_get(&self, request: &Value) -> Result<Value, RuntimeError> {
-        appearance_source_lineage::get(self, request)
     }
 
     /// Derive two bounded lower-detail GeometryProgram variants from one exact
@@ -13947,7 +13088,31 @@ impl Runtime {
         method: &str,
         payload: &Value,
     ) -> Result<Value, RuntimeError> {
+        // Keep legacy IPC callers compatible while routing migrated Surface,
+        // Evaluation, and Delivery/Approval operations through typed services.
+        // The public Weaponry router calls these services directly; these
+        // branches are only the compatibility bridge for older envelopes.
+        if runtime_services::surface_service::is_surface_operation(method) {
+            return runtime_services::surface_service::invoke(self, method, payload);
+        }
+        if runtime_services::evaluation_service::is_evaluation_operation(method) {
+            return runtime_services::evaluation_service::invoke(self, method, payload);
+        }
+        if runtime_services::presentation_service::is_presentation_operation(method) {
+            return runtime_services::presentation_service::invoke(self, method, payload);
+        }
+        if runtime_services::delivery_service::is_delivery_operation(method) {
+            return runtime_services::delivery_service::invoke(self, method, payload);
+        }
         match method {
+            "weaponry_domain_operation" => {
+                let envelope = RuntimeOperationEnvelope::from_ipc_payload(payload)?;
+                self.invoke_weaponry_operation(
+                    envelope.domain,
+                    &envelope.operation,
+                    &envelope.payload,
+                )
+            }
             "agentic_scene_observe" => {
                 let project_id = payload
                     .get("project_id")
@@ -14044,7 +13209,6 @@ impl Runtime {
             | "checkpoint_get"
             | "checkpoint_restore_prepare"
             | "production_stage_transition_prepare"
-            | "production_stage_transition_get"
             | "production_stage_transition_v2_prepare"
             | "production_stage_transition_v2_get"
             | "production_stage_transition_v3_prepare"
@@ -14058,14 +13222,10 @@ impl Runtime {
             | "production_weapon_form_art_baseline_preflight_get"
             | "production_weapon_form_art_baseline_prepare"
             | "production_weapon_form_art_baseline_get"
-            | "candidate_material_surface_quality_prepare"
-            | "candidate_material_surface_quality_get"
             | "candidate_animation_vfx_quality_prepare"
             | "candidate_animation_vfx_quality_get"
             | "candidate_animation_vfx_quality_v2_prepare"
             | "candidate_animation_vfx_quality_v2_get"
-            | "candidate_topology_quality_prepare"
-            | "candidate_topology_quality_get"
             | "production_weapon_form_evidence_prepare"
             | "production_weapon_form_evidence_get"
             | "production_weapon_form_art_evidence_prepare"
@@ -14078,39 +13238,18 @@ impl Runtime {
             | "production_weapon_form_art_composite_evidence_get"
             | "production_weapon_form_art_repair_plan_get"
             | "production_weapon_form_art_failure_diagnostic_get"
+            | "production_weapon_form_art_visibility_calibration_get"
+            | "production_weapon_form_art_target_occlusion_attribution_get"
+            | "production_weapon_form_art_aperture_repair_plan_get"
             | "production_weapon_owner_reviewed_void_calibration_get"
             | "production_weapon_art_decision_proposal_get"
             | "production_weapon_assembly_parameter_sink_get"
-            | "production_weapon_form_quality_prepare"
-            | "production_weapon_form_quality_get"
-            | "production_weapon_form_quality_v2_prepare"
-            | "production_weapon_form_quality_v2_get"
-            | "production_weapon_form_quality_v2_preflight_get"
-            | "production_blender_worker_capability_get"
-            | "production_weapon_formal_high_prepare"
-            | "production_weapon_formal_high_get"
-            | "production_weapon_high_low_bake_prepare"
-            | "production_weapon_high_low_bake_get"
-            | "production_weapon_high_low_bake_preflight_get"
-            | "production_weapon_retopology_cage_source_bundle_prepare"
-            | "production_weapon_retopology_cage_source_bundle_get"
-            | "production_weapon_retopology_cage_source_prepare"
-            | "production_weapon_retopology_cage_source_get"
             | "native_high_durable_prepare"
             | "native_high_durable_get"
-            | "low_quad_draft_durable_prepare"
-            | "low_quad_draft_durable_get"
-            | "hero_uv_durable_prepare"
-            | "hero_uv_durable_get"
             | "weapon_foundation_asset_prepare"
             | "weapon_foundation_asset_get"
             | "weapon_foundation_authoring_materialization_prepare"
             | "weapon_foundation_authoring_materialization_get"
-            | "fps_presentation_package_v2_prepare"
-            | "fps_presentation_package_v2_get"
-            | "fps_presentation_package_v2_production_preflight_get"
-            | "fps_presentation_package_v2_candidate_prepare"
-            | "fps_presentation_package_v2_candidate_get"
             | "design_action_run_prepare"
             | "repair_intent_run_prepare"
             | "design_action_run_get"
@@ -14123,9 +13262,6 @@ impl Runtime {
                 "checkpoint_restore_prepare" => self.checkpoint_restore_prepare(payload.clone()),
                 "production_stage_transition_prepare" => {
                     self.production_stage_transition_prepare(payload.clone())
-                }
-                "production_stage_transition_get" => {
-                    self.production_stage_transition_get(payload.clone())
                 }
                 "production_stage_transition_v2_prepare" => {
                     self.production_stage_transition_v2_prepare(payload.clone())
@@ -14165,12 +13301,6 @@ impl Runtime {
                 "production_weapon_form_art_baseline_get" => {
                     self.production_weapon_form_art_baseline_get(payload.clone())
                 }
-                "candidate_material_surface_quality_prepare" => {
-                    self.candidate_material_surface_quality_prepare(payload.clone())
-                }
-                "candidate_material_surface_quality_get" => {
-                    self.candidate_material_surface_quality_get(payload.clone())
-                }
                 "candidate_animation_vfx_quality_prepare" => {
                     self.candidate_animation_vfx_quality_prepare(payload.clone())
                 }
@@ -14182,12 +13312,6 @@ impl Runtime {
                 }
                 "candidate_animation_vfx_quality_v2_get" => {
                     self.candidate_animation_vfx_quality_v2_get(payload.clone())
-                }
-                "candidate_topology_quality_prepare" => {
-                    self.candidate_topology_quality_prepare(payload.clone())
-                }
-                "candidate_topology_quality_get" => {
-                    self.candidate_topology_quality_get(payload.clone())
                 }
                 "production_weapon_form_evidence_prepare" => {
                     self.production_weapon_form_evidence_prepare(payload.clone())
@@ -14225,6 +13349,15 @@ impl Runtime {
                 "production_weapon_form_art_failure_diagnostic_get" => {
                     self.production_weapon_form_art_failure_diagnostic_get(payload)
                 }
+                "production_weapon_form_art_visibility_calibration_get" => {
+                    self.production_weapon_form_art_visibility_calibration_get(payload)
+                }
+                "production_weapon_form_art_target_occlusion_attribution_get" => {
+                    self.production_weapon_form_art_target_occlusion_attribution_get(payload)
+                }
+                "production_weapon_form_art_aperture_repair_plan_get" => {
+                    self.production_weapon_form_art_aperture_repair_plan_get(payload)
+                }
                 "production_weapon_owner_reviewed_void_calibration_get" => {
                     self.production_weapon_owner_reviewed_void_calibration_get(payload.clone())
                 }
@@ -14234,59 +13367,8 @@ impl Runtime {
                 "production_weapon_assembly_parameter_sink_get" => {
                     self.production_weapon_assembly_parameter_sink_get(payload.clone())
                 }
-                "production_weapon_form_quality_prepare" => {
-                    self.production_weapon_form_quality_prepare(payload.clone())
-                }
-                "production_weapon_form_quality_get" => {
-                    self.production_weapon_form_quality_get(payload.clone())
-                }
-                "production_weapon_form_quality_v2_prepare" => {
-                    self.production_weapon_form_quality_v2_prepare(payload.clone())
-                }
-                "production_weapon_form_quality_v2_get" => {
-                    self.production_weapon_form_quality_v2_get(payload.clone())
-                }
-                "production_weapon_form_quality_v2_preflight_get" => {
-                    self.production_weapon_form_quality_v2_preflight_get(payload.clone())
-                }
-                "production_blender_worker_capability_get" => {
-                    self.production_blender_worker_capability_get(payload.clone())
-                }
-                "production_weapon_formal_high_prepare" => {
-                    self.production_weapon_formal_high_prepare(payload.clone())
-                }
-                "production_weapon_formal_high_get" => {
-                    self.production_weapon_formal_high_get(payload.clone())
-                }
-                "production_weapon_high_low_bake_prepare" => {
-                    self.production_weapon_high_low_bake_prepare(payload.clone())
-                }
-                "production_weapon_high_low_bake_get" => {
-                    self.production_weapon_high_low_bake_get(payload.clone())
-                }
-                "production_weapon_high_low_bake_preflight_get" => {
-                    self.production_weapon_high_low_bake_preflight_get(payload.clone())
-                }
-                "production_weapon_retopology_cage_source_bundle_prepare" => {
-                    self.production_weapon_retopology_cage_source_bundle_prepare(payload.clone())
-                }
-                "production_weapon_retopology_cage_source_bundle_get" => {
-                    self.production_weapon_retopology_cage_source_bundle_get(payload.clone())
-                }
-                "production_weapon_retopology_cage_source_prepare" => {
-                    self.production_weapon_retopology_cage_source_prepare(payload.clone())
-                }
-                "production_weapon_retopology_cage_source_get" => {
-                    self.production_weapon_retopology_cage_source_get(payload.clone())
-                }
                 "native_high_durable_prepare" => self.native_high_durable_prepare(payload.clone()),
                 "native_high_durable_get" => self.native_high_durable_get(payload.clone()),
-                "low_quad_draft_durable_prepare" => {
-                    self.low_quad_draft_durable_prepare(payload.clone())
-                }
-                "low_quad_draft_durable_get" => self.low_quad_draft_durable_get(payload.clone()),
-                "hero_uv_durable_prepare" => self.hero_uv_durable_prepare(payload.clone()),
-                "hero_uv_durable_get" => self.hero_uv_durable_get(payload.clone()),
                 "weapon_foundation_asset_prepare" => self.weapon_foundation_asset_prepare(payload),
                 "weapon_foundation_asset_get" => self.weapon_foundation_asset_get(payload),
                 "weapon_foundation_authoring_materialization_prepare" => {
@@ -14295,19 +13377,6 @@ impl Runtime {
                 "weapon_foundation_authoring_materialization_get" => {
                     self.weapon_foundation_authoring_materialization_get(payload)
                 }
-                "fps_presentation_package_v2_prepare" => {
-                    self.fps_presentation_package_v2_prepare(payload)
-                }
-                "fps_presentation_package_v2_get" => self.fps_presentation_package_v2_get(payload),
-                "fps_presentation_package_v2_production_preflight_get" => {
-                    self.fps_presentation_package_v2_production_preflight_get(payload)
-                }
-                "fps_presentation_package_v2_candidate_prepare" => {
-                    self.fps_presentation_package_v2_candidate_prepare(payload)
-                }
-                "fps_presentation_package_v2_candidate_get" => {
-                    self.fps_presentation_package_v2_candidate_get(payload)
-                }
                 "design_action_run_prepare" => self.design_action_run_prepare(payload.clone()),
                 "repair_intent_run_prepare" => self.repair_intent_run_prepare(payload.clone()),
                 "design_action_run_get" => self.design_action_run_get(payload.clone()),
@@ -14315,28 +13384,11 @@ impl Runtime {
                 "design_composition_prepare" => self.design_composition_prepare(payload.clone()),
                 _ => unreachable!("Agentic session IPC method dispatch arm is exhaustive"),
             },
-            "optimization_job_get" | "optimization_job_prepare" | "optimization_job_resume" => {
-                match method {
-                    "optimization_job_get" => self.optimization_job_get(payload.clone()),
-                    "optimization_job_prepare" => self.optimization_job_prepare(payload.clone()),
-                    "optimization_job_resume" => self.optimization_job_resume(payload.clone()),
-                    _ => unreachable!("OptimizationJob IPC method dispatch arm is exhaustive"),
-                }
-            }
             "capabilities_get" => Ok(serde_json::to_value(self.capabilities())
                 .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?),
             "operator_catalog_get" => Ok(self.active_operator_catalog()),
             "material_pack_get" => self.material_pack_get(payload),
             "geometry_program_hash" => self.geometry_program_hash(payload),
-            "silhouette_rig_hash" => {
-                let project_id = payload
-                    .get("project_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("project_id is required".to_owned())
-                    })?;
-                self.silhouette_rig_hash(project_id, payload)
-            }
             "silhouette_fit_intent_hash" => {
                 let project_id = payload
                     .get("project_id")
@@ -14345,15 +13397,6 @@ impl Runtime {
                         RuntimeError::InvalidInput("project_id is required".to_owned())
                     })?;
                 self.silhouette_fit_intent_hash(project_id, payload)
-            }
-            "silhouette_target_get" => {
-                let target_sha256 = payload
-                    .get("target_sha256")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("target_sha256 is required".to_owned())
-                    })?;
-                self.silhouette_target_get(target_sha256)
             }
             "boundary_error_get" => {
                 let candidate_id = payload
@@ -14374,30 +13417,6 @@ impl Runtime {
                     payload.get("max_segments").and_then(Value::as_u64),
                 )
             }
-            "silhouette_part_error_get" => {
-                let project_id = payload
-                    .get("project_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("project_id is required".to_owned())
-                    })?;
-                self.silhouette_part_error(project_id, payload.clone())
-            }
-            "render_pass_get" => {
-                let render_set_hash = payload
-                    .get("render_set_hash")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("render_set_hash is required".to_owned())
-                    })?;
-                let pass = payload
-                    .get("pass")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("pass is required".to_owned()))?;
-                self.render_pass_get(render_set_hash, pass)
-            }
-            "render_evidence_integrity_get" => self.render_evidence_integrity_get(payload.clone()),
-            "render_evidence_replay_get" => self.render_evidence_replay_get(payload.clone()),
             "boolean_operand_lineage_preview" => {
                 self.boolean_operand_lineage_preview(payload.clone())
             }
@@ -14486,21 +13505,6 @@ impl Runtime {
                     .ok_or_else(|| RuntimeError::InvalidInput("version is required".to_owned()))?;
                 skill_registry::get_result(skill_id, version).map_err(RuntimeError::InvalidInput)
             }
-            "artifact_readback_get" => {
-                let artifact_id = payload
-                    .get("artifact_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("artifact_id is required".to_owned())
-                    })?;
-                let candidate_id = payload
-                    .get("candidate_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("candidate_id is required".to_owned())
-                    })?;
-                Ok(self.artifact_readback(artifact_id, candidate_id)?)
-            }
             "topology_snapshot_get" => {
                 let object = payload.as_object().ok_or_else(|| {
                     RuntimeError::InvalidInput(
@@ -14560,10 +13564,7 @@ impl Runtime {
                 )?)
             }
             "authoring_topology_get" => Ok(self.authoring_topology(payload)?),
-            "authoring_mesh_get" => Ok(self.authoring_mesh(payload)?),
-            "authoring_mesh_durable_get" => Ok(self.authoring_mesh_durable_get(payload)?),
             "authoring_mesh_durable_prepare" => Ok(self.authoring_mesh_durable_prepare(payload)?),
-            "authoring_mesh_v2_durable_get" => Ok(self.authoring_mesh_v2_durable_get(payload)?),
             "authoring_mesh_v2_durable_prepare" => {
                 Ok(self.authoring_mesh_v2_durable_prepare(payload)?)
             }
@@ -14582,29 +13583,9 @@ impl Runtime {
             "mechanical_pose_geometry_preview" => {
                 Ok(self.mechanical_pose_geometry_preview(payload)?)
             }
-            "mechanical_animation_clip_prepare" => {
-                Ok(self.mechanical_animation_clip_prepare(payload)?)
-            }
-            "mechanical_animation_clip_get" => Ok(self.mechanical_animation_clip_get(payload)?),
             "mechanical_animation_clip_inventory" => {
                 Ok(self.mechanical_animation_clip_inventory(payload)?)
             }
-            "mechanical_animation_clip_preview_get" => {
-                Ok(self.mechanical_animation_clip_preview_get(payload)?)
-            }
-            "mechanical_animation_clip_v2_prepare" => {
-                Ok(self.mechanical_animation_clip_v2_prepare(payload)?)
-            }
-            "mechanical_animation_clip_v2_get" => {
-                Ok(self.mechanical_animation_clip_v2_get(payload)?)
-            }
-            "mechanical_animation_clip_v2_preview_get" => {
-                Ok(self.mechanical_animation_clip_v2_preview_get(payload)?)
-            }
-            "mechanical_animation_glb_v2_prepare" => {
-                Ok(self.mechanical_animation_glb_v2_prepare(payload)?)
-            }
-            "mechanical_animation_glb_v2_get" => Ok(self.mechanical_animation_glb_v2_get(payload)?),
             "game_weapon_animated_glb_socket_v2_prepare" => {
                 Ok(self.game_weapon_animated_glb_socket_v2_prepare(payload)?)
             }
@@ -14613,35 +13594,6 @@ impl Runtime {
             }
             "mechanical_animation_glb_prepare" => {
                 Ok(self.mechanical_animation_glb_prepare(payload)?)
-            }
-            "game_asset_delivery_prepare" => Ok(self.game_asset_delivery_prepare(payload)?),
-            "game_asset_delivery_get" => Ok(self.game_asset_delivery_get(payload)?),
-            "game_asset_lod_derive" => Ok(self.game_asset_lod_derive(payload)?),
-            "appearance_source_lineage_prepare" => {
-                Ok(self.appearance_source_lineage_prepare(payload)?)
-            }
-            "appearance_source_lineage_get" => Ok(self.appearance_source_lineage_get(payload)?),
-            "game_weapon_anchor_prepare" => Ok(self.game_weapon_anchor_prepare(payload)?),
-            "game_weapon_anchor_get" => Ok(self.game_weapon_anchor_get(payload)?),
-            "game_weapon_glb_socket_prepare" => Ok(self.game_weapon_glb_socket_prepare(payload)?),
-            "game_weapon_glb_socket_get" => Ok(self.game_weapon_glb_socket_get(payload)?),
-            "game_weapon_animated_glb_socket_prepare" => {
-                Ok(self.game_weapon_animated_glb_socket_prepare(payload)?)
-            }
-            "game_weapon_animated_glb_socket_get" => {
-                Ok(self.game_weapon_animated_glb_socket_get(payload)?)
-            }
-            "game_weapon_animated_glb_socket_transform_projection_prepare" => {
-                Ok(self.game_weapon_animated_glb_socket_transform_projection_prepare(payload)?)
-            }
-            "game_weapon_animated_glb_socket_transform_projection_get" => {
-                Ok(self.game_weapon_animated_glb_socket_transform_projection_get(payload)?)
-            }
-            "game_weapon_animated_glb_socket_transform_projection_v2_prepare" => {
-                Ok(self.game_weapon_animated_glb_socket_transform_projection_v2_prepare(payload)?)
-            }
-            "game_weapon_animated_glb_socket_transform_projection_v2_get" => {
-                Ok(self.game_weapon_animated_glb_socket_transform_projection_v2_get(payload)?)
             }
             "fictional_energy_vfx_prepare" => Ok(self.fictional_energy_vfx_prepare(payload)?),
             "fictional_energy_vfx_get" => Ok(self.fictional_energy_vfx_get(payload)?),
@@ -14765,28 +13717,6 @@ impl Runtime {
                     })?;
                 Ok(self.reference_bytes(reference_id, project_id)?)
             }
-            "snapshot_get" => {
-                let id = payload
-                    .get("snapshot_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("snapshot_id is required".to_owned())
-                    })?;
-                Ok(serde_json::to_value(self.snapshot(id)?)
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
-            }
-            "selection_get" => Ok(serde_json::to_value(self.selection())
-                .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?),
-            "candidate_get" => {
-                let id = payload
-                    .get("candidate_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("candidate_id is required".to_owned())
-                    })?;
-                Ok(serde_json::to_value(self.candidate(id)?)
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
-            }
             "candidate_list" => {
                 let project_id = payload
                     .get("project_id")
@@ -14796,58 +13726,6 @@ impl Runtime {
                     })?;
                 Ok(serde_json::to_value(self.candidates(project_id)?)
                     .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
-            }
-            "quality_get" => {
-                let candidate_id = payload
-                    .get("candidate_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("candidate_id is required".to_owned())
-                    })?;
-                let reference_id = payload.get("reference_id").and_then(Value::as_str);
-                Ok(self.quality(candidate_id, reference_id)?)
-            }
-            "version_diff" => {
-                let version_id = payload
-                    .get("version_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("version_id is required".to_owned())
-                    })?;
-                let compare_to_version_id = payload
-                    .get("compare_to_version_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("compare_to_version_id is required".to_owned())
-                    })?;
-                Ok(self.version_diff(version_id, compare_to_version_id)?)
-            }
-            "job_get" => {
-                let id = payload
-                    .get("job_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("job_id is required".to_owned()))?;
-                Ok(serde_json::to_value(self.job(id)?)
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
-            }
-            "job_events_read" => {
-                let id = payload
-                    .get("job_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("job_id is required".to_owned()))?;
-                let after_sequence = payload
-                    .get("after_sequence")
-                    .and_then(Value::as_i64)
-                    .unwrap_or(0);
-                Ok(serde_json::to_value(self.job_events(id, after_sequence)?)
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
-            }
-            "job_result_get" => {
-                let id = payload
-                    .get("job_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("job_id is required".to_owned()))?;
-                Ok(self.job_result(id)?)
             }
             "version_list" => {
                 let project_id = payload.get("project_id").and_then(Value::as_str);
@@ -14939,15 +13817,6 @@ impl Runtime {
                     Ok(self.prepare_geometry_candidate(project_id, base_version_id, request)?)
                 }
             }
-            "reference_compare_prepare" => {
-                let project_id = payload
-                    .get("project_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("project_id is required".to_owned())
-                    })?;
-                self.prepare_reference_comparison(project_id, payload.clone())
-            }
             "reference_mask_prepare" => {
                 let project_id = payload
                     .get("project_id")
@@ -14975,15 +13844,6 @@ impl Runtime {
                     })?;
                 self.prepare_camera_fit(project_id, payload.clone())
             }
-            "silhouette_fit_prepare" => {
-                let project_id = payload
-                    .get("project_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("project_id is required".to_owned())
-                    })?;
-                self.silhouette_fit_prepare(project_id, payload.clone())
-            }
             "primary_form_repair_prepare" => {
                 let project_id = payload
                     .get("project_id")
@@ -14994,16 +13854,6 @@ impl Runtime {
                 let base_version_id = payload.get("base_version_id").and_then(Value::as_str);
                 self.primary_form_repair_prepare(project_id, base_version_id, payload.clone())
             }
-            "primary_form_repair_job_prepare" => {
-                let project_id = payload
-                    .get("project_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("project_id is required".to_owned())
-                    })?;
-                let base_version_id = payload.get("base_version_id").and_then(Value::as_str);
-                self.primary_form_repair_job_prepare(project_id, base_version_id, payload.clone())
-            }
             "part_contour_fit_prepare" => {
                 let project_id = payload
                     .get("project_id")
@@ -15013,24 +13863,6 @@ impl Runtime {
                     })?;
                 self.part_contour_fit_prepare(project_id, payload.clone())
             }
-            "silhouette_candidate_compare" => {
-                let project_id = payload
-                    .get("project_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("project_id is required".to_owned())
-                    })?;
-                self.silhouette_candidate_compare(project_id, payload.clone())
-            }
-            "silhouette_evaluation_objective_prepare" => {
-                let project_id = payload
-                    .get("project_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("project_id is required".to_owned())
-                    })?;
-                self.silhouette_evaluation_objective_prepare(project_id, payload.clone())
-            }
             "silhouette_objective_compare" => {
                 let project_id = payload
                     .get("project_id")
@@ -15039,31 +13871,6 @@ impl Runtime {
                         RuntimeError::InvalidInput("project_id is required".to_owned())
                     })?;
                 self.silhouette_objective_compare(project_id, payload.clone())
-            }
-            "visual_review_submit" => self.submit_visual_review(payload.clone()),
-            "human_visual_review_submit" => self.submit_human_visual_review(payload.clone()),
-            "appearance_prepare" => {
-                let project_id = payload
-                    .get("project_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        RuntimeError::InvalidInput("project_id is required".to_owned())
-                    })?;
-                let base_version_id = payload.get("base_version_id").and_then(Value::as_str);
-                let request = payload.get("request").cloned().unwrap_or_else(|| json!({}));
-                Ok(self.prepare_appearance_candidate(project_id, base_version_id, request)?)
-            }
-            "candidate_confirm" => {
-                let request: CandidateConfirmRequest = serde_json::from_value(payload.clone())
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                Ok(serde_json::to_value(self.confirm_candidate(&request)?)
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
-            }
-            "candidate_reject" => {
-                let request: CandidateRejectRequest = serde_json::from_value(payload.clone())
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                Ok(serde_json::to_value(self.reject_candidate(&request)?)
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
             }
             "restore_prepare" => {
                 let request: RestorePrepareRequest = serde_json::from_value(payload.clone())
@@ -15075,26 +13882,6 @@ impl Runtime {
                 let request: RestoreConfirmRequest = serde_json::from_value(payload.clone())
                     .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
                 Ok(serde_json::to_value(self.confirm_restore(&request)?)
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
-            }
-            "export_prepare" => {
-                let request: ExportPrepareRequest = serde_json::from_value(payload.clone())
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                Ok(serde_json::to_value(self.prepare_export(&request)?)
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
-            }
-            "export_confirm" => {
-                let request: ExportConfirmRequest = serde_json::from_value(payload.clone())
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-                Ok(serde_json::to_value(self.confirm_export(&request)?)
-                    .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
-            }
-            "job_cancel" => {
-                let id = payload
-                    .get("job_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("job_id is required".to_owned()))?;
-                Ok(serde_json::to_value(self.cancel_job(id)?)
                     .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
             }
             "resources_list" => Ok(serde_json::to_value(self.resource_descriptors()?)
@@ -20189,12 +18976,12 @@ fn validate_candidate_surface_bake_receipt_output(value: &Value) -> Result<(), R
 }
 
 #[derive(Debug, Clone)]
-struct ReferenceMask {
-    mask: Vec<bool>,
-    png: Vec<u8>,
+pub(crate) struct ReferenceMask {
+    pub(crate) mask: Vec<bool>,
+    pub(crate) png: Vec<u8>,
 }
 
-fn reference_view_crop(view_spec: &Value) -> Result<[f64; 4], RuntimeError> {
+pub(crate) fn reference_view_crop(view_spec: &Value) -> Result<[f64; 4], RuntimeError> {
     let crop = view_spec
         .get("image")
         .and_then(|value| value.get("crop"))
@@ -20231,7 +19018,7 @@ fn reference_view_crop(view_spec: &Value) -> Result<[f64; 4], RuntimeError> {
 /// Positive angles are clockwise because normalized image coordinates use a
 /// downward-positive Y axis.  The rotation is applied after crop projection;
 /// it is reference registration, never a post-render AOV transform.
-fn reference_view_rotation_degrees(view_spec: &Value) -> Result<f64, RuntimeError> {
+pub(crate) fn reference_view_rotation_degrees(view_spec: &Value) -> Result<f64, RuntimeError> {
     let rotation = view_spec
         .get("image")
         .and_then(Value::as_object)
@@ -20267,7 +19054,7 @@ fn rotate_reference_view_point(point: [f64; 2], rotation_degrees: f64) -> [f64; 
 /// observation derived for comparison and FormArt evidence. Reviewed targets
 /// require a non-empty crop; automatic flood-fill aids may remain empty so the
 /// caller can retain an explicit quality failure instead of promoting them.
-fn project_reference_mask_to_view(
+pub(crate) fn project_reference_mask_to_view(
     source: &[bool],
     view_spec: &Value,
     require_non_empty: bool,

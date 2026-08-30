@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-transaction-get-request.schema.json",
+  "title": "AuthoringMeshTransactionGetRequest@1",
+  "description": "Closed read-only Runtime request for durable AuthoringMeshTransaction@1 receipt lookup. The caller supplies only project/receipt hashes and transport policy; Store/CAS are never mutated by this envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "transaction_id",
+    "transaction_sha256",
+    "transaction_object_sha256",
+    "max_response_bytes",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "writer_policy",
+    "canonicalization_policy",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringMeshTransactionGetRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "transaction_id": {"$ref": "#/$defs/identifier"},
+    "transaction_sha256": {"$ref": "#/$defs/sha256"},
+    "transaction_object_sha256": {"$ref": "#/$defs/sha256"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

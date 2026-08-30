@@ -1,5 +1,7 @@
 # Sci-fi FPS weapon Bundle proposal
 
+> **Status: superseded / no current execution authority (2026-08-29).** 本文仅保留决策历史，不能创建当前任务、公共 Tool、active Skill 或产品依赖；当前穿越火线武器方向以 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 与 ADR-0029 为准。
+
 Status: `target-design` / `development-only` / `not registered` / `execution unavailable`.
 
 This directory is intentionally outside `packages/forgecad-skills/bundles/**` so the

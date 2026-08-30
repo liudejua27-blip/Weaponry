@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/candidate-get-request.schema.json",
+  "title": "CandidateGetRequest",
+  "additionalProperties": false,
+  "properties": {
+    "candidate_id": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_id"
+  ],
+  "type": "object"
+}

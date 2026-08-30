@@ -1,5 +1,11 @@
 # ForgeCAD Runtime 打包合同
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+Weaponry V1 安装包必须离线包含已接受的 Rust Runtime、固定 Workers、武器生产 Skills、
+材质/AssetPack、Viewer 和 validator；不得包含合作方私有源资产、Blender、任意脚本环境或
+研究缓存。Package receipt 必须绑定与验收 cohort 相同的 build/operator/skill/asset hashes。
+
 > 2026-08-26 `04AF`：当前新回执属于 source Runtime/MCP 真实 D1 与隔离 AuthoringMesh restart，不是 packaged Desktop、Unreal/Unity import 或 commercial delivery PASS。最终打包必须携带同 export hash 的 canonical GLB、KTX2/texture set、LOD/collision/socket、FPS presentation sidecars、engine validation 与 human approval；当前均未闭合。
 
 > 2026-08-26 现行 source：**525 schemas / 112 read + 84 write = 196 tools**。新增商业资产内核仍仅通过本地 source compile/link；packaged same-cohort 资产闭环与 Hero Weapon 交付仍 `NOT_RUN/NOT_PROVEN`。

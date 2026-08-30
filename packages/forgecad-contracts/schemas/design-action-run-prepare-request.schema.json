@@ -1,0 +1,807 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/design-action-run-prepare-request.schema.json",
+  "title": "DesignActionRunPrepareRequest",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope_kind": {
+                "const": "session"
+              }
+            },
+            "required": [
+              "scope_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "target_id": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope_kind": {
+                "enum": [
+                  "part",
+                  "material-zone",
+                  "reference"
+                ]
+              }
+            },
+            "required": [
+              "scope_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "target_id": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_kind": {
+                "const": "request-reference"
+              }
+            },
+            "required": [
+              "action_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scope_kind": {
+                "const": "reference"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "action_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+          "type": "string"
+        },
+        "action_kind": {
+          "enum": [
+            "reference-import",
+            "coverage-annotation",
+            "mark-unknown",
+            "primary-blockout",
+            "primary-form-adjustment",
+            "secondary-structure",
+            "tertiary-detail",
+            "material-zone",
+            "final-review",
+            "request-reference",
+            "bounded-repair",
+            "checkpoint",
+            "rollback",
+            "human-review",
+            "next-stage",
+            "uv-pbr"
+          ]
+        },
+        "bounded": {
+          "const": true
+        },
+        "description": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "operator_id": {
+          "enum": [
+            null,
+            "forgecad.geometry.primitive@2",
+            "forgecad.geometry.profile-extrude@1",
+            "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.profile-loft@2",
+            "forgecad.geometry.multi-loop-profile-loft@1",
+            "forgecad.geometry.longitudinal-section-loft@1",
+            "forgecad.geometry.subd-cage@1",
+            "forgecad.geometry.subd-cage@2",
+            "forgecad.geometry.authoring-mesh@1",
+            "forgecad.geometry.surface-patch@1",
+            "forgecad.geometry.surface-shell@1",
+            "forgecad.geometry.revolve@1",
+            "forgecad.geometry.tube-sweep@1",
+            "forgecad.geometry.transform@2",
+            "forgecad.geometry.mirror@1",
+            "forgecad.geometry.array@1",
+            "forgecad.geometry.bevel@1",
+            "forgecad.geometry.normal-policy@1",
+            "forgecad.geometry.panel@1",
+            "forgecad.geometry.panel@2",
+            "forgecad.geometry.vent-array@1",
+            "forgecad.geometry.vent-array@2",
+            "forgecad.geometry.recessed-channel@1",
+            "forgecad.geometry.energy-core@1",
+            "forgecad.geometry.joint-stack@1",
+            "forgecad.geometry.boolean@1",
+            "forgecad.geometry.part-output@1"
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parameter_changes": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "after": {
+                "maximum": 1000,
+                "minimum": -1000,
+                "type": "number"
+              },
+              "before": {
+                "maximum": 1000,
+                "minimum": -1000,
+                "type": "number"
+              },
+              "maximum": {
+                "maximum": 1000,
+                "minimum": -1000,
+                "type": "number"
+              },
+              "minimum": {
+                "maximum": 1000,
+                "minimum": -1000,
+                "type": "number"
+              },
+              "parameter_id": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+                "type": "string"
+              },
+              "unit": {
+                "enum": [
+                  "meter",
+                  "radian",
+                  "ratio",
+                  "count"
+                ]
+              }
+            },
+            "required": [
+              "parameter_id",
+              "before",
+              "after",
+              "minimum",
+              "maximum",
+              "unit"
+            ],
+            "type": "object"
+          },
+          "maxItems": 8,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "scope_kind": {
+          "enum": [
+            "session",
+            "part",
+            "material-zone",
+            "reference"
+          ]
+        },
+        "target_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "action_id",
+        "action_kind",
+        "scope_kind",
+        "target_id",
+        "operator_id",
+        "parameter_changes",
+        "bounded",
+        "description"
+      ],
+      "type": "object"
+    },
+    "approval_expires_at": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+    },
+    "approval_receipt_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "approval_session_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "approval_summary": {
+      "maxLength": 512,
+      "minLength": 1,
+      "type": "string"
+    },
+    "approved": {
+      "const": true
+    },
+    "candidate_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "input_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "observation_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "optimization_intent": {
+      "additionalProperties": false,
+      "properties": {
+        "action_run_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "budget": {
+          "type": "object"
+        },
+        "camera": {
+          "type": "object"
+        },
+        "camera_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "candidate_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+          "type": "string"
+        },
+        "canonical_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "evaluation_objective_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "fidelity": {
+          "type": "object"
+        },
+        "intent_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+          "type": "string"
+        },
+        "job_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+          "type": "string"
+        },
+        "objective": {
+          "type": "object"
+        },
+        "part_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+          "type": "string"
+        },
+        "program_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "project_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+          "type": "string"
+        },
+        "reference_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+          "type": "string"
+        },
+        "reference_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "residual": {
+          "additionalProperties": false,
+          "properties": {
+            "canonical_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "node_id": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+              "type": "string"
+            },
+            "operation": {
+              "enum": [
+                "union",
+                "difference",
+                "intersection"
+              ]
+            },
+            "parameters": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "position_m": {
+                      "items": {
+                        "maximum": 10.0,
+                        "minimum": -10.0,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "rotation_rad": {
+                      "items": {
+                        "maximum": 6.283185307179586,
+                        "minimum": -6.283185307179586,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "shape": {
+                      "const": "box"
+                    },
+                    "size_m": {
+                      "items": {
+                        "maximum": 10.0,
+                        "minimum": 0.0,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "shape",
+                    "size_m",
+                    "position_m",
+                    "rotation_rad"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "height_m": {
+                      "maximum": 10.0,
+                      "minimum": 1e-07,
+                      "type": "number"
+                    },
+                    "position_m": {
+                      "items": {
+                        "maximum": 10.0,
+                        "minimum": -10.0,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "radial_segments": {
+                      "maximum": 64,
+                      "minimum": 8,
+                      "type": "integer"
+                    },
+                    "radius_m": {
+                      "maximum": 5.0,
+                      "minimum": 1e-07,
+                      "type": "number"
+                    },
+                    "rotation_rad": {
+                      "items": {
+                        "maximum": 6.283185307179586,
+                        "minimum": -6.283185307179586,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "shape": {
+                      "const": "cylinder"
+                    }
+                  },
+                  "required": [
+                    "shape",
+                    "radius_m",
+                    "height_m",
+                    "radial_segments",
+                    "position_m",
+                    "rotation_rad"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "latitude_segments": {
+                      "maximum": 64,
+                      "minimum": 4,
+                      "type": "integer"
+                    },
+                    "longitude_segments": {
+                      "maximum": 64,
+                      "minimum": 8,
+                      "type": "integer"
+                    },
+                    "position_m": {
+                      "items": {
+                        "maximum": 10.0,
+                        "minimum": -10.0,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "radii_m": {
+                      "items": {
+                        "maximum": 5.0,
+                        "minimum": 0.0,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "rotation_rad": {
+                      "items": {
+                        "maximum": 6.283185307179586,
+                        "minimum": -6.283185307179586,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "shape": {
+                      "const": "ellipsoid"
+                    }
+                  },
+                  "required": [
+                    "shape",
+                    "radii_m",
+                    "longitude_segments",
+                    "latitude_segments",
+                    "position_m",
+                    "rotation_rad"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "latitude_segments": {
+                      "maximum": 64,
+                      "minimum": 4,
+                      "type": "integer"
+                    },
+                    "longitude_segments": {
+                      "maximum": 64,
+                      "minimum": 8,
+                      "type": "integer"
+                    },
+                    "position_m": {
+                      "items": {
+                        "maximum": 10.0,
+                        "minimum": -10.0,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "radius_m": {
+                      "maximum": 5.0,
+                      "minimum": 1e-07,
+                      "type": "number"
+                    },
+                    "rotation_rad": {
+                      "items": {
+                        "maximum": 6.283185307179586,
+                        "minimum": -6.283185307179586,
+                        "type": "number"
+                      },
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "type": "array"
+                    },
+                    "shape": {
+                      "const": "sphere"
+                    }
+                  },
+                  "required": [
+                    "shape",
+                    "radius_m",
+                    "longitude_segments",
+                    "latitude_segments",
+                    "position_m",
+                    "rotation_rad"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "part_id": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "OptimizationResidual@1"
+            },
+            "source_critic_report_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "source_part_error_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "source_visual_surface_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "schema_version",
+            "part_id",
+            "node_id",
+            "operation",
+            "parameters",
+            "source_critic_report_sha256",
+            "source_part_error_sha256",
+            "canonical_sha256"
+          ],
+          "type": "object"
+        },
+        "rig": {
+          "type": "object"
+        },
+        "schema_version": {
+          "const": "OptimizationIntent@1"
+        },
+        "stage": {
+          "enum": [
+            "primary-form",
+            "secondary-structure",
+            "tertiary-detail",
+            "uv-pbr",
+            "final-review"
+          ]
+        },
+        "target_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "intent_id",
+        "job_id",
+        "project_id",
+        "candidate_id",
+        "reference_id",
+        "reference_sha256",
+        "program_sha256",
+        "target_sha256",
+        "camera",
+        "camera_hash",
+        "part_id",
+        "stage",
+        "rig",
+        "fidelity",
+        "budget",
+        "objective",
+        "canonical_sha256"
+      ],
+      "type": "object"
+    },
+    "project_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "proposal": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "camera": {
+              "type": "object"
+            },
+            "geometry_program": {
+              "type": "object"
+            },
+            "repair_intent": {
+              "type": "object"
+            },
+            "view_evaluations": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "camera": {
+                    "type": "object"
+                  },
+                  "reference_id": {
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+                    "type": "string"
+                  },
+                  "reference_sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "view_id": {
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+                    "type": "string"
+                  },
+                  "view_spec": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "view_id",
+                  "reference_id",
+                  "reference_sha256",
+                  "view_spec",
+                  "camera"
+                ],
+                "type": "object"
+              },
+              "maxItems": 8,
+              "minItems": 2,
+              "type": "array"
+            },
+            "view_spec": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "repair_intent",
+            "geometry_program",
+            "view_spec",
+            "camera"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "camera": {
+              "type": "object"
+            },
+            "parameter_patch": {
+              "additionalProperties": false,
+              "properties": {
+                "schema_version": {
+                  "const": "RuntimeParameterPatch@1"
+                },
+                "strategy": {
+                  "enum": [
+                    "primitive-dimensions-v1",
+                    "surface-control-points-v1",
+                    "hard-surface-finish-v1",
+                    "rear-stock-profile-reconstruction-v1"
+                  ]
+                }
+              },
+              "required": [
+                "schema_version",
+                "strategy"
+              ],
+              "type": "object"
+            },
+            "view_evaluations": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "camera": {
+                    "type": "object"
+                  },
+                  "reference_id": {
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+                    "type": "string"
+                  },
+                  "reference_sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "view_id": {
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+                    "type": "string"
+                  },
+                  "view_spec": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "view_id",
+                  "reference_id",
+                  "reference_sha256",
+                  "view_spec",
+                  "camera"
+                ],
+                "type": "object"
+              },
+              "maxItems": 8,
+              "minItems": 2,
+              "type": "array"
+            },
+            "view_spec": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "parameter_patch",
+            "view_spec",
+            "camera"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "requested_stage": {
+      "enum": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ]
+    },
+    "run_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "session_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "view_spec": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "project_id",
+    "session_id",
+    "candidate_id",
+    "run_id",
+    "action",
+    "input_sha256",
+    "requested_stage",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "approval_session_id",
+    "observation_sha256",
+    "idempotency_key"
+  ],
+  "type": "object"
+}

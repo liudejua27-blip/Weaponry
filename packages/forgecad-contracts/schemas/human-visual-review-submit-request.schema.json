@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/human-visual-review-submit-request.schema.json",
+  "title": "HumanVisualReviewSubmitRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidate_id", "reference_id", "render_set_hash", "comparison_report_hash", "scores", "approved"],
+  "properties": {
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "render_set_hash": {"$ref": "#/$defs/sha256"},
+    "comparison_report_hash": {"$ref": "#/$defs/sha256"},
+    "scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["likeness", "geometry_detail", "material_fidelity", "editability"],
+      "properties": {
+        "likeness": {"type": "integer", "minimum": 1, "maximum": 5},
+        "geometry_detail": {"type": "integer", "minimum": 1, "maximum": 5},
+        "material_fidelity": {"type": "integer", "minimum": 1, "maximum": 5},
+        "editability": {"type": "integer", "minimum": 1, "maximum": 5}
+      }
+    },
+    "approved": {"type": "boolean"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

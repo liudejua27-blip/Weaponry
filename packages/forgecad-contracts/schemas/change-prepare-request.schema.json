@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/change-prepare-request.schema.json",
+  "title": "ChangePrepareRequest",
+  "additionalProperties": false,
+  "properties": {
+    "base_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "appearance_program": {
+          "type": "object"
+        },
+        "change_set": {
+          "additionalProperties": false,
+          "properties": {
+            "operation": {
+              "enum": [
+                "transform",
+                "material_update",
+                "replace_geometry"
+              ]
+            },
+            "parameters": {
+              "maxProperties": 16,
+              "type": "object"
+            },
+            "part_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "reason": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "required": [
+            "part_id",
+            "operation",
+            "parameters"
+          ],
+          "type": "object"
+        },
+        "geometry_program": {
+          "type": "object"
+        },
+        "reference_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "typed": {
+          "const": "change"
+        }
+      },
+      "required": [
+        "typed",
+        "change_set",
+        "geometry_program",
+        "appearance_program"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "project_id",
+    "base_version_id",
+    "request"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,120 @@
+{
+  "schema_version": "WeaponryPresentationArchitectureGateReceipt@1",
+  "task_id": "WPN-ARCH-PRESENTATION-001",
+  "recorded_date": "2026-08-30",
+  "status": "PASS_SOURCE_DIRECT_TYPED_SERVICE_MECHANICAL_CLIP_V1_AGGREGATE_PARTIAL",
+  "source_drift_detected": false,
+  "presentation_profile": {
+    "facades": ["fps_presentation"],
+    "active_operation_count": 21,
+    "active_read_count": 12,
+    "active_write_count": 9
+  },
+  "runtime_boundary": {
+    "service": "runtime_services::presentation_service",
+    "router": "RuntimeOperationRouter -> presentation_service::invoke",
+    "compatibility_bridge": "Runtime::dispatch_ipc -> presentation_service::invoke",
+    "legacy_active_match_arms_remaining": 0,
+    "dispatch_ipc_reentry_from_service": false,
+    "delivery_dispatch": "LEGACY_DISPATCH_AT_PRESENTATION_COHORT"
+  },
+  "contract_runtime_store_mcp_mapping": {
+    "capability_count": 9,
+    "mapped_operation_count": 21,
+    "unique_operation_owner": true,
+    "domain": "Presentation",
+    "mcp_facade": "fps_presentation",
+    "families": [
+      "fps_presentation_package",
+      "fps_presentation_candidate",
+      "fps_presentation_anchor",
+      "fps_presentation_animated_socket",
+      "fps_presentation_socket_transform_projection",
+      "fps_presentation_socket_transform_projection_v2",
+      "fps_presentation_animation_clip",
+      "fps_presentation_animation_clip_v2",
+      "fps_presentation_animation_glb_v2"
+    ]
+  },
+  "store_boundary": {
+    "repository": "borrowed PresentationRepository<'store>",
+    "extracted_aggregate": "MechanicalAnimationClipLinkRecord / MechanicalAnimationClip@1",
+    "extracted_methods": [
+      "record_mechanical_animation_clip_link",
+      "get_mechanical_animation_clip_link",
+      "list_mechanical_animation_clip_links",
+      "discard_new_temporary_mechanical_animation_clip"
+    ],
+    "owns_connection": false,
+    "owns_migration_sequence": false,
+    "owns_separate_cas_root": false,
+    "single_migration_owner_preserved": true,
+    "remaining_aggregates": [
+      "MechanicalAnimationClip@2 and MechanicalAnimationGlb@2",
+      "game weapon anchor and animated socket families",
+      "FPS presentation package and candidate binding",
+      "form-art and visual evidence projections"
+    ]
+  },
+  "structure_budget": {
+    "locked_baseline": {
+      "runtime_lib_lines": 52927,
+      "store_lib_lines": 81050,
+      "mcp_main_lines": 20508
+    },
+    "current": {
+      "runtime_lib_lines": 52583,
+      "store_lib_lines": 80027,
+      "mcp_main_lines": 1081,
+      "mcp_agentic_write_tools_lines": 22800,
+      "runtime_root_module_declarations": 92
+    },
+    "net_reduction_from_locked_baseline": {
+      "runtime_lib_lines": 344,
+      "store_lib_lines": 1023,
+      "mcp_main_lines": 19427
+    }
+  },
+  "request_schema": {
+    "active_operation_count": 125,
+    "closed_request_schema_count": 12,
+    "runtime_validated_request_schema_count": 113,
+    "presentation_closed_request_schema_count": "NOT_SEPARATELY_PROMOTED",
+    "closure_status": "PARTIAL"
+  },
+  "architecture_fast_gate": {
+    "target": "/tmp/weaponry-arch-presentation-001-final",
+    "build_cohort_sha256": "63e8fc84469721a32221f96d6759e58df6a5921ca56a78dd13707a45dbe5f0e5",
+    "passed": 74,
+    "failed": 0,
+    "ignored": 0,
+    "duration_seconds": 164,
+    "duration_budget_seconds": 900,
+    "local_generated_receipt_sha256": "e29a70490a3011c7109311983282f7e92c7e1fa3ff785d9c57a4113057e81a7a",
+    "source_drift_detected": false
+  },
+  "focused_gates": {
+    "contract_domain_map": {"passed": 10, "failed": 0},
+    "store_repository_boundaries": {"passed": 11, "failed": 0},
+    "store_full": {"passed": 187, "failed": 0},
+    "runtime_operation_router": {"passed": 9, "failed": 0},
+    "runtime_presentation_service": {"passed": 6, "failed": 0},
+    "mcp_default": {"passed": 23, "failed": 0},
+    "mcp_legacy_feature": {"passed": 23, "failed": 0},
+    "compatibility_manifest": {"read": 131, "write": 95, "total": 226}
+  },
+  "stage0_current_source_truth": {
+    "status": "DEFERRED_TO_FINAL_COMBINED_SOURCE_AFTER_DELIVERY",
+    "historical_receipts_mutated": false
+  },
+  "truth_boundaries": {
+    "user_data_mutated": false,
+    "historical_receipts_mutated": false,
+    "runtime_full_reexecuted": false,
+    "runtime_full_preserved_baseline": "554 passed / 0 failed / 37 ignored",
+    "ignored_tests_executed_by_fast": 0,
+    "visual_promotion": false,
+    "commercial_promotion": false,
+    "quality_claim": "architecture regression only; FPS presentation visual quality, engine integration, human review and commercial quality remain not proven"
+  }
+}

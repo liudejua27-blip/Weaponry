@@ -1019,6 +1019,13 @@ mod tests {
     #[test]
     fn executable_receiver_and_muzzle_sinks_are_ready_while_unimplemented_groups_stay_blocked() {
         let mut program = crate::production_weapon_assembly_parameter_mutator::production_weapon_assembly_parameter_test_fixture();
+        let existing_part_ids = program["part_outputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|output| output.get("part_id").and_then(Value::as_str))
+            .map(str::to_owned)
+            .collect::<BTreeSet<_>>();
         for part_id in [
             "energy-ring",
             "energy-core",
@@ -1033,6 +1040,14 @@ mod tests {
             "top-rail",
             "bottom-rail",
         ] {
+            // The shared assembly fixture already owns receiver/muzzle and
+            // the two stable stock outputs.  Add only genuinely missing
+            // group Parts; duplicate PartOutputs must remain rejected by the
+            // production registry parser rather than being hidden by a test
+            // fixture that replaces or tolerates them.
+            if existing_part_ids.contains(part_id) {
+                continue;
+            }
             let node_id = format!("{part_id}-node");
             program["nodes"].as_array_mut().unwrap().push(json!({
                 "node_id":node_id,
@@ -1072,7 +1087,17 @@ mod tests {
             assert_eq!(decision.status, "READY_FOR_SEARCH");
             assert!(decision.blocker_codes.is_empty());
         }
-        for group_id in ["stock-open-frame", "trigger-void", "rail-spine"] {
+        // The fixture now contains the closed stock aggregate binding used by
+        // the product-owned mutator.  Keep it search-ready; only the trigger
+        // and rail groups remain intentionally unavailable until they acquire
+        // an exact typed sink.
+        let stock = decisions
+            .iter()
+            .find(|decision| decision.group_id == "stock-open-frame")
+            .expect("stock assembly group");
+        assert_eq!(stock.status, "READY_FOR_SEARCH");
+        assert!(stock.blocker_codes.is_empty());
+        for group_id in ["trigger-void", "rail-spine"] {
             let decision = decisions
                 .iter()
                 .find(|decision| decision.group_id == group_id)

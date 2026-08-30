@@ -3,11 +3,11 @@
 //! original/current/final lineage restart-queryable and reachable.
 
 use super::{
-    canonical_json_bytes, canonical_json_hash, is_opaque_id, is_sha256,
-    mark_reachable_in_transaction, Store, StoreError,
+    Store, StoreError, canonical_json_bytes, canonical_json_hash, is_opaque_id, is_sha256,
+    mark_reachable_in_transaction,
 };
 use forgecad_contracts::CasObjectRecord;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

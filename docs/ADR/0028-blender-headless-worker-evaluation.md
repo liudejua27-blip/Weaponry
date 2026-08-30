@@ -1,5 +1,7 @@
 # ADR-0028：Blender headless Worker evaluation addendum
 
+> **Status: superseded / no current execution authority (2026-08-29).** 本文仅保留决策历史，不能创建当前任务、公共 Tool、active Skill 或产品依赖；当前穿越火线武器方向以 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 与 ADR-0029 为准。
+
 版本：2026-08-24
 状态：`NON_PRODUCT_RESEARCH_LANE`；产品 Worker 评估入口已被 ForgeCAD-only 商业质量路线取代，未集成、未执行
 补充范围：仅保留历史威胁模型、许可证和 sandbox 研究；不再构成产品 adoption、ProductionStage、package 或 Runtime allowlist 入口

@@ -1,6 +1,40 @@
 # ForgeCAD MVP 工具、Skill 与外部项目目录
 
-> 2026-08-28 当前目录为 **579 schemas / 128 read + 94 opt-in write = 222 tools**。新增默认只读 `production_weapon_form_art_failure_diagnostic_get`：请求只接受 04BE-E durable proposal/evidence IDs 与 exact hashes；Runtime 重读 before/after GeometryProgram、CrossView、FormArt、六视图 owner/negative-space/line-flow 证据后返回失败归因。工具不接受 raw mesh、任意顶点、相机、脚本、路径或 URL，也不写 Store/CAS、不调 Worker、不创建 FormQualityV2 或推进 Stage。
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+> 2026-08-30 current catalog：默认 Action Space 是 11 个 Knife façade、125 个 active operation、125/125 closed request Schema；兼容面是显式 226 raw tools。当前下一步是 MCP/Runtime/Store 物理拆分，不以继续增加工具数量作为能力或质量指标。
+
+## Weaponry public Tool profile
+
+新公共能力优先复用和扩展五个稳定任务面，而不是新增主题化工具：
+
+| Surface | 责任 | 示例目标 |
+| --- | --- | --- |
+| Observe/Query | 授权、参考、拓扑、选择、Modifier、候选、证据 | `authoring_document_get`, `selection_query` |
+| Author | 原子 journal preview/prepare | 扩展现有 `authoring_mesh_edit_preview/prepare` |
+| Evaluate | Modifier、High/Low/UV/Bake/PBR、固定渲染 | `evaluation_prepare/get` family |
+| Review | AOV、compare、critic、human/engine receipt | candidate-bound read surfaces |
+| Version/Deliver | checkpoint、confirm、restore、export | 现有事务面收敛 |
+
+`fictional_energy_*`、`production_weapon_*`、`game_weapon_*` 和 V1/V2/V3 surface 先进入
+legacy/replay profile；只有完成 persisted-record reachability 和 successor migration 才能删除。
+
+> 2026-08-29 移除 Blender task/capability 占位链后的 current-source 为 **583 schemas / 131 read + 95 opt-in write = 226 tools**。新的稳定任务面是默认只读 `authoring_mesh_transaction_get` 和显式写 `authoring_mesh_transaction_prepare`。它们提供通用原子 journal，不绑定某把武器/candidate/session；上层候选、审批和质量流程必须通过独立编排组合，不得塞进几何原语以缩小 action space。
+本月不得用 Tool 数量增长证明 Action Space 或质量提升。
+
+> 2026-08-29 当前公共面仍为 **585 schemas / 131 default-read + 94 opt-in write = 225 tools**。本轮没有新工具或 Schema；仅将 `production_weapon_form_art_composite_evidence_prepare` 内部的 secondary Form 评审 policy 升级为 `@2`，对 core 512px raster metrics 允许绝对 tradeoff `0.01`。semantic/topology/hash/UV/Bake/human 门不变，因此该变更不新增商业质量能力计数。
+
+> 2026-08-29 当前公共面：**585 schemas / 131 default-read + 94 opt-in write = 225 tools**。新增默认只读 `production_weapon_form_art_target_occlusion_attribution_get`；它只从 hash-bound candidate/FormArt/camera/target/AOV 派生像素遮挡归因，不写 Runtime 状态、不授权 confirm 或外观阶段。
+
+> 2026-08-28 当前目录仍为 **583 schemas / 130 read + 94 opt-in write = 224 tools**。现有 composite proposal write tool 新增 4 个 `receiver-upper` registered profile；它们只接受 canonical D1 box 父节点与空 inputs，分别回撤 min/max-X 20/40mm。真实 L 四候选均视觉失败，因此只证明 bounded Part mutation 和拒绝闭环，不证明孔洞质量能力。
+
+> 2026-08-28 当前目录仍为 **583 schemas / 130 read + 94 opt-in write = 224 tools**。`production_weapon_form_art_composite_proposal_prepare` 的闭合 profile 集新增 4 个 `side-panel-a` 真孔 `@1` 与 4 个相机映射真孔 `@2`；Runtime 只接受完整 canonical parent node、空 inputs 与注册参数，并以 product-owned `multi-loop-profile-loft` 生成真实内外环。真实 J/K 8 个候选均未打开 approved target，因此这些 profile 是结构能力而非视觉质量能力。
+
+> 2026-08-28 当前目录仍为 **583 schemas / 130 read + 94 opt-in write = 224 tools**。`production_weapon_form_art_composite_proposal_prepare` 的闭合操作集现包含 4 个 `side-panel-a` aperture sensitivity profile：min/max-X 各 20/40mm。它们只能改变 exact `side-panel-a` panel node，必须在同源 baseline 上运行 strict readback 和 54 AOV。真实 04BE-I 四变体全部退化且目标孔洞仍 sealed，因此没有新增可保留的网格能力结论。
+
+> 2026-08-28 当前目录为 **583 schemas / 130 read + 94 opt-in write = 224 tools**。新增默认只读 `production_weapon_form_art_aperture_repair_plan_get`：请求只接受 04BE-G/F 与 durable proposal 的 exact IDs/hashes；Runtime 自行重放并从 CAS 验证 GeometryProgram 节点。返回 2 个严格顺序步骤和 8 个 bounded 变体，但不调 geometry worker 执行变体、不写 Store/CAS、不推进生产门。
+
+> 2026-08-28 当前目录为 **581 schemas / 129 read + 94 opt-in write = 223 tools**。新增默认只读 `production_weapon_form_art_visibility_calibration_get`：请求只接受 04BE-F diagnostic 与 04BE-E durable evidence 的 exact IDs/hashes；Runtime 重读 before/after GLB、ReferenceCanvas、CameraRig/AOV 并由隔离 Render Worker 派生 raster attribution。工具不接受 raw mesh、mask、AOV bytes、camera、脚本、路径或 URL，不写 Store/CAS；它只授权后续 typed plan，不创建 FormQualityV2 或推进 Stage。
 
 > 2026-08-28 当前目录为 **577 schemas / 127 read + 94 opt-in write = 221 tools**。新增默认只读 `production_weapon_form_art_repair_plan_get`：请求只含 durable IDs/hashes 和 input hash；Runtime 重读 04BE-C sidecar、CrossView、proposal FormArt 与 composed GeometryProgram，派生固定 `rear-stock-owner-void-half-y-flat-z@1` 计划。该工具不调 Worker、不写 SQLite/CAS、不执行 repair、不推进 Stage/confirm/version/export，也不接受 raw mesh、vertex selection、camera、script、path 或 URL。真实 D1 restart equality PASS，但质量仍 `QUALITY_TARGET_NOT_MET`。
 
@@ -150,7 +184,7 @@ Native High 的目录声明必须保持 **source-only structural/durable slice**
 
 Stage 0 机器真值读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，候选状态是 `QUALITY_TARGET_NOT_MET`，证据完整性是 `INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`，packaged Viewer 为不同 cohort/artifact，尚未绑定该 observation。工具或 Viewer 已实现不等于这些缺口已通过，也不能提升 human/PBR/export-restart/360 状态。
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 ## 1. MVP 运行边界
@@ -386,3 +420,5 @@ ADR-0026 额外研究项目的当前口径：Pi Agent、NVIDIA Omniverse Kit、O
 
 - `production_camera_lock_registration_lineage_get`：默认可见的只读 exact-scope/restart-verified lookup。
 - `production_camera_lock_registration_lineage_prepare`：只在显式 write opt-in 可见；接受用户 rear-three-quarter rotation 与审批原语，不接受 caller-authored program/ordering/orientation/RigV2 对象或输出 hash。
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

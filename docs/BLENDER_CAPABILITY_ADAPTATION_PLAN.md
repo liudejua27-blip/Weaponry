@@ -1,5 +1,7 @@
 # Blender 能力研究与 ForgeCAD 适配计划
 
+> **Status: reference-only historical document (2026-08-29).** 本文保留研究或审计发生时的事实，不再定义当前产品范围或任务顺序。可复用结论必须经过 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md`、ADR-0029 和当前真实证据重新验证后，才能进入穿越火线武器主线。
+
 > 2026-08-26 现行 source 为 **525 schemas / 112 read + 84 write = 196 tools**。Native High/Material plan 仍由 ForgeCAD typed Worker 负责，不把 Blender/DCC 状态设为产品真值；真实 D1 仍阻断于 authored orientation。
 
 > 2026-08-25 商业质量收口：本文件只保留 clean-room 概念研究。ForgeCAD 商业武器主链由自有 AuthoringMesh/High/Low/UV/Cage/Bake/Surface Workers 执行；Blender、`bpy`、`.blend`、BlenderMCP 或任意脚本不是产品依赖、fallback 或质量真值。新的原生落地顺序见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。

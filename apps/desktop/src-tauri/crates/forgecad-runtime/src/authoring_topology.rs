@@ -23,7 +23,7 @@ const AUTHORING_TOPOLOGY_POLICY_SHA256: &str =
     "a6fb36a530e49537673b66d65ecb6e4fb4f51ffb3e7d01a0980be71f28cb367d";
 const EDIT_POLICY: &str = "forgecad-authoring-mesh-edit-preview@1:translate-vertices-or-single-face-extrude-or-typed-split-collapse-dissolve:source-program-bound:worker-double-replay:glb-64mib:response-1mib:no-write:source-element-proof-only";
 const EDIT_POLICY_SHA256: &str = "fc76c6dffef2a41c05ff0a65ff160c8fce5eb37d312a3ef7f78043ef92539144";
-const TOPOLOGY_OPERATION_PROOF_SCHEMA: &str = "TopologyOperationProof@1";
+const TOPOLOGY_OPERATION_PROOF_SCHEMA: &str = "AuthoringMeshTopologyOperationProof@1";
 const MAX_TOPOLOGY_OPERATION_REVISION: u64 = 1_000_000;
 
 pub(super) struct AuthoringContext {
@@ -1675,6 +1675,11 @@ fn apply_collapse_edge(
     if !retired_edge_ids.iter().any(|id| id == &target_edge_id) {
         return Err(invalid("collapse target edge is not retired"));
     }
+    // Face-loop replacement validates every generated child edge against the
+    // transient post-collapse edge set.  Keep that set visible while the
+    // affected faces are rebuilt; the final assignment below still installs
+    // the same deterministic `next_edges` vector.
+    parameters.insert("edges".to_owned(), Value::Array(next_edges.clone()));
     let loop_map = topology_loop_map(parameters)?;
     let faces_snapshot = value_array(parameters, "faces")?.clone();
     let mut next_faces = Vec::new();
@@ -3070,9 +3075,9 @@ mod tests {
                 {"element_id":"e12","vertex_ids":["v1","v2"]}
             ],
             "loops":[
-                {"element_id":"l0","face_id":"f0","ordinal":0,"vertex_id":"v0","edge_id":"e01","edge_forward":true},
-                {"element_id":"l1","face_id":"f0","ordinal":1,"vertex_id":"v1","edge_id":"e12","edge_forward":true},
-                {"element_id":"l2","face_id":"f0","ordinal":2,"vertex_id":"v2","edge_id":"e02","edge_forward":false}
+                {"element_id":"l0","face_id":"f0","ordinal":0,"vertex_id":"v2","edge_id":"e02","edge_forward":false},
+                {"element_id":"l1","face_id":"f0","ordinal":1,"vertex_id":"v0","edge_id":"e01","edge_forward":true},
+                {"element_id":"l2","face_id":"f0","ordinal":2,"vertex_id":"v1","edge_id":"e12","edge_forward":true}
             ],
             "faces":[{"element_id":"f0","loop_ids":["l0","l1","l2"]}],
             "position_m":[0.0,0.0,0.0],

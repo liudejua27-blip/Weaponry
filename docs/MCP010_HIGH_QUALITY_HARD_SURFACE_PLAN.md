@@ -1,6 +1,22 @@
 # FGC-MCP010 高质量硬表面参考闭环计划
 
-> 2026-08-28 `FPS-FORM-04BE-F` 已闭合 rejected-repair failure diagnosis：当前为 **579 个 JSON Schema / 128 read + 94 opt-in write = 222 tools**。Runtime 对 exact 04BE-E durable evidence 的两次隔离读取 canonical 一致且零写；它证明负 source-local Y 方案没有改善 left owner、使 left boundary 回退并增加 right owner intrusion，同时把 rear3q high-IoU void 与 owner vertical-flip/zero-region、side trigger sealed、line-flow unresolved 分成独立 blockers。下一 `FPS-FORM-04BE-G` 只允许建立 camera/crop/Part-ID/depth/silhouette changed-pixel 的 hash-bound calibration；在 calibration 选出唯一可验证原因前，任何新 profile 均不可领取。`QUALITY_TARGET_NOT_MET`、secondary=`NOT_CREATED`、High/Low/UV/Bake=`NOT_RUN` 不变。
+> 2026-08-30 current-source truth 已由 source-only compatibility MCP 编译产物重建；当前为 **658 个 JSON Schema / compatibility 131 read + 95 opt-in write = 226 tools / default 11 knife façades**。默认 125 个 active operation 已全部消费 package-owned closed request Schema，blocked=0，Runtime fallback=0。该数字只描述当前协议与请求边界；attempt35 仍为 `QUALITY_TARGET_NOT_MET / INCOMPLETE_TRUTH_BINDING / camera MISMATCH`，不因架构或 bounded evaluated-mesh 纵切接入而升级。
+
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+> 2026-08-29 `FPS-FORM-04BE-U`：用户已明确将 Form 栅格精度偏移放宽到 `0.01`。实现采用 additive `form-art-secondary-pareto-review@2`，而非改写旧 exact CrossView。wide layered candidate 已在新 policy 下选为下一修形基线，但 semantic FormArt 内容门仍未达标。因此执行顺序保持：`wide FormArt 闭合 → fresh FormQualityV2 → secondary-form-approved → Formal High → Low/Correspondence/Cage → Hero UV → zero-fallback Bake → layered PBR`。现有 Hero UV 只是 structural conservative layout，正式 Bake producer 仍 `UNAVAILABLE`，不得写成商业资产闭环已通。
+
+> 2026-08-29 `FPS-FORM-04BE-M–T`：当前公共合同为 **585 个 JSON Schema / 131 read + 94 opt-in write = 225 tools**。已停止错误 X 区间盲扫，固定右相机把 target 映射到 world X≈`0.72–1.08`、Y≈`1.71–1.87`。receiver U topology 与 side-panel true aperture 的 layered proposal 首次让目标孔 4/4 open，最佳 IoU=`0.637`；但 left/right silhouette exact no-regression 未通过。下一步只允许对 wide/calibrated 的局部轮廓/桥高做收敛或真人审稿，未通过前不进入材质、UV、Bake 或商业质量宣称。
+
+> 2026-08-28 `FPS-FORM-04BE-L` 已在用户明确授权下执行 H 计划的 `receiver-upper` step 2。4 个 20/40mm 单边回撤均未打开 `right.trigger-void`，并触发六视图回退，因此没有保留任何子候选。下一 `FPS-FORM-04BE-M` 先解析精确遮挡链，不能把回撤幅度继续加倍或同时改 `receiver-main/core-housing`。`QUALITY_TARGET_NOT_MET`、FormQualityV2/secondary=`NOT_CREATED`、High/Low/UV/Bake=`NOT_RUN` 不变。
+
+> 2026-08-28 `FPS-FORM-04BE-J/K` 已证明 `side-panel-a` 具备真实 multi-loop through-hole 拓扑，而不是视觉贴片或整体盒体回撤；同时也证明单独移动该孔不能改变 approved left target 的可见开口。8 个候选全部结构通过、视觉拒绝并保留父候选。下一 `FPS-FORM-04BE-L` 先以只读 depth/Part-ID winner 解析真孔后的剩余遮挡链，再决定是否满足 H 计划中 `receiver-upper` 的顺序授权条件。`QUALITY_TARGET_NOT_MET`、FormQualityV2/secondary=`NOT_CREATED`、High/Low/UV/Bake=`NOT_RUN` 不变。
+
+> 2026-08-28 `FPS-FORM-04BE-I` 已执行 H 计划的 step 1，但真实数据否定了“整体 X 边界回撤”这个形变族：4 个 20/40mm min/max-X candidate 都通过 strict GLB、54 AOV 和 restart readback，却全部六视图回退，且 left trigger aperture 没有任何开口响应。因此 parent 保留，`receiver-upper` step 2 不可开始。下一 `FPS-FORM-04BE-J` 先将 `side-panel-a` 能力从整体 panel 尺寸改成真正可控的 aperture/内边界拓扑变形，仍用相同六视图门。`QUALITY_TARGET_NOT_MET`、FormQualityV2/secondary=`NOT_CREATED`、High/Low/UV/Bake=`NOT_RUN` 不变。
+
+> 2026-08-28 `FPS-FORM-04BE-H` 已闭合为 **583 个 JSON Schema / 130 read + 94 opt-in write = 224 tools** 的 read-only typed plan。它将侧面孔遮挡问题拆成 `side-panel-a` 先行、`receiver-upper` 条件后续的两个单 Part 灵敏度阶段，每阶段最多 4 个变体。真实 restart/zero-write PASS，但还没有执行任何变体；下一 `FPS-FORM-04BE-I` 只开放 step 1。`QUALITY_TARGET_NOT_MET`、FormQualityV2/secondary=`NOT_CREATED`、High/Low/UV/Bake=`NOT_RUN` 不变。
+
+> 2026-08-28 `FPS-FORM-04BE-G` 已闭合 rejected-repair raster visibility calibration：当前为 **581 个 JSON Schema / 129 read + 94 opt-in write = 223 tools**。Runtime 对 exact before/after GLB、批准 camera 与 reviewed trigger masks 的两次隔离重放 canonical 一致且零写；left aperture 的首要 owner 是 `side-panel-a`，right 是 `receiver-upper`，且旧 rear-stock repair 在两孔内无 winner/depth/Part-ID/silhouette 响应。下一 `FPS-FORM-04BE-H` 只允许建立绑定两个视图/两个主源的 hash-bound typed plan；不能继续领取 rear-stock profile，也不能直接执行 geometry。`QUALITY_TARGET_NOT_MET`、FormQualityV2/secondary=`NOT_CREATED`、High/Low/UV/Bake=`NOT_RUN` 不变。
 
 > 2026-08-28 `FPS-FORM-04BE-E` 已执行而且被真实门拒绝。candidate=`candidate-6f6ddeff…cf8a` 通过几何/GLB/54-AOV/重启证据，但 half-Y/flat-Z rear-stock inner-boundary 改动对 left overlap 无改善，并使 right overlap 573→579‰；rear3q owner attribution 仍为 0，side trigger void 与多数 line-flow 也未闭合。因此 FormArt-ready=false，FormQualityV2 不得创建。下一 `FPS-FORM-04BE-F` 从“继续改 Mesh”切换为有界根因闭环：先校准 source-local axis→screen-space void 边界、验证 rear3q identity owner attribution 与 trigger aperture side 可见性，再决定唯一 Part/Operator 修复。`QUALITY_TARGET_NOT_MET`、secondary=`NOT_CREATED`、High/Low/UV/Bake=`NOT_RUN` 保持不变。
 
@@ -353,7 +369,7 @@ Stage 0 机器真值唯一入口为 `docs/evidence/mcp010f/current-benchmark-tru
 
 2026-08-15 Primary Form local-group convergence follow-up：when the Runtime joint evidence proposal is rejected, the bounded geometry phase now tests Part-local coupled width/height/offset hypotheses before scalar coordinate probes. This preserves the Runtime/Worker ownership boundary and does not expose a continuous search trace to Codex; focused tests pass, but no new real reference receipt has been generated and the previous visual truth remains below gate.
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 本文是 MCP010A–F 的唯一详细执行合同。它不改写 MCP005–009 的历史 evidence，也不把目标 Schema、工具、Skill、库或素材写成当前能力。
@@ -674,3 +690,5 @@ Evidence 目录为 `docs/evidence/mcp010a/` 至 `mcp010f/`。每个 manifest 分
 - 不在缺少多视图时宣称 360，不在单个机器人通过后宣称通用高质量；
 - 不 commit、merge 或 push，除非用户另行明确要求。
 2026-08-25 `FPS-FORM-04L` checkpoint：已完成真实 D1 单变量 stock-clearance 闭集试验，`0.30/0.35/0.42` 均未达成三视图 owner intrusion=0；0.30 外轮廓回退，0.35/0.42 仅轮廓不回退。该参数方向已穷尽，不得用更大 clearance 替代新的 typed 几何证据；下一步先收敛 rear3q owner-binding 唯一性，再仅评估一个新的 stock-plane-position 自由度。
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

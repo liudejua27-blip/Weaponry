@@ -1,0 +1,129 @@
+{
+  "schema_version": "WeaponryDeliveryArchitectureGateReceipt@1",
+  "task_id": "WPN-ARCH-DELIVERY-001",
+  "recorded_date": "2026-08-30",
+  "status": "PASS_SOURCE_DIRECT_TYPED_SERVICE_GAME_ASSET_DELIVERY_V1_AGGREGATE_PARTIAL",
+  "source_drift_detected": false,
+  "delivery_profile": {
+    "facades": ["delivery", "approval"],
+    "active_operation_count": 11,
+    "active_read_count": 4,
+    "active_write_count": 7
+  },
+  "runtime_boundary": {
+    "service": "runtime_services::delivery_service",
+    "router": "RuntimeOperationRouter -> delivery_service::invoke",
+    "compatibility_bridge": "Runtime::dispatch_ipc -> delivery_service::invoke",
+    "legacy_active_match_arms_remaining": 0,
+    "dispatch_ipc_reentry_from_service": false
+  },
+  "contract_runtime_store_mcp_mapping": {
+    "capability_count": 9,
+    "mapped_operation_count": 11,
+    "unique_operation_owner": true,
+    "domain": "Delivery",
+    "mcp_facades": ["delivery", "approval"],
+    "mapping_status": "PARTIAL",
+    "families": [
+      "game_asset_delivery",
+      "game_asset_lod",
+      "game_weapon_glb_socket",
+      "export_prepare",
+      "version_diff",
+      "candidate_confirm",
+      "candidate_reject",
+      "cross_view_promotion",
+      "export_confirm"
+    ]
+  },
+  "store_boundary": {
+    "repository": "borrowed DeliveryRepository<'store>",
+    "extracted_aggregate": "GameAssetDeliveryLinkRecord / GameAssetDelivery@1",
+    "extracted_methods": [
+      "record_game_asset_delivery_link",
+      "get_game_asset_delivery_link",
+      "list_game_asset_delivery_links",
+      "commit_game_asset_delivery_link"
+    ],
+    "owns_connection": false,
+    "owns_migration_sequence": false,
+    "owns_separate_cas_root": false,
+    "single_migration_owner_preserved": true,
+    "remaining_aggregates": [
+      "ApprovalReceipt and DesignAssetVersion lifecycle",
+      "ExportManifest and export confirmation lifecycle",
+      "game weapon socket and anchor records",
+      "Candidate and CAS helper families"
+    ]
+  },
+  "structure_budget": {
+    "locked_baseline": {
+      "runtime_lib_lines": 52927,
+      "store_lib_lines": 81050,
+      "mcp_main_lines": 20508
+    },
+    "current": {
+      "runtime_lib_lines": 52542,
+      "store_lib_lines": 79841,
+      "mcp_main_lines": 1081,
+      "mcp_agentic_write_tools_lines": 22800,
+      "runtime_root_module_declarations": 92
+    },
+    "net_reduction_from_locked_baseline": {
+      "runtime_lib_lines": 385,
+      "store_lib_lines": 1209,
+      "mcp_main_lines": 19427
+    }
+  },
+  "request_schema": {
+    "active_operation_count": 125,
+    "closed_request_schema_count": 12,
+    "runtime_validated_request_schema_count": 113,
+    "delivery_operation_count": 11,
+    "delivery_closed_request_schema_count": 1,
+    "delivery_runtime_validated_request_schema_count": 10,
+    "closed_delivery_request": "version_diff",
+    "closure_status": "PARTIAL"
+  },
+  "architecture_fast_gate": {
+    "target": "/tmp/weaponry-arch-delivery-001-final",
+    "build_cohort_sha256": "641a87b74c6ac1f28c5db25efadb52125f04624ee36ce1600f08ffdb43ccfbad",
+    "passed": 82,
+    "failed": 0,
+    "ignored": 0,
+    "duration_seconds": 190,
+    "duration_budget_seconds": 900,
+    "local_generated_receipt_sha256": "193bc2b523e2c6b225a775bb786875e52ea7b865fe928062103e0b250c576cb1",
+    "source_drift_detected": false
+  },
+  "focused_gates": {
+    "contract_domain_map": {"passed": 12, "failed": 0},
+    "store_delivery_repository": {"passed": 4, "failed": 0},
+    "store_full": {"passed": 191, "failed": 0},
+    "runtime_operation_router": {"passed": 9, "failed": 0},
+    "runtime_delivery_service": {"passed": 4, "failed": 0},
+    "mcp_default": {"passed": 23, "failed": 0},
+    "mcp_legacy_feature": {"passed": 23, "failed": 0},
+    "compatibility_manifest": {"read": 131, "write": 95, "total": 226}
+  },
+  "stage0_current_source_truth": {
+    "status": "PASS",
+    "schema_count": 589,
+    "schema_content_set_sha256": "5035860aba3610f67b3eaa8e53d607e7c1d0912f953ce5e22b854d282231b7c0",
+    "contract_manifest_sha256": "3e3f6f24a6eadffc09f8c71407b7f5c72ab5fc730a653452899b6ed7af826489",
+    "runtime_source_sha256": "085714f60445ed831809564d5324424aed9a734f7dec3c782a90876fa1c5d708",
+    "truth_canonical_sha256": "b3779f20dfd24da9f7b60f8c908f99537661e29fa5051075360a10636c180e83",
+    "compatibility_summary_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca",
+    "historical_receipts_mutated": false
+  },
+  "truth_boundaries": {
+    "user_data_mutated": false,
+    "historical_receipts_mutated": false,
+    "runtime_full_reexecuted": false,
+    "runtime_full_preserved_baseline": "554 passed / 0 failed / 37 ignored",
+    "ignored_tests_executed_by_fast": 0,
+    "visual_promotion": false,
+    "commercial_promotion": false,
+    "quality_claim": "architecture regression only; High-to-Low, UV, Bake, visual quality, engine integration, human review and commercial quality remain not proven"
+  }
+}

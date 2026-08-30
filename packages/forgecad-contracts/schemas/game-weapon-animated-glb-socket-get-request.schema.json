@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-animated-glb-socket-get-request.schema.json",
+  "title": "GameWeaponAnimatedGlbSocketGetRequest",
+  "additionalProperties": false,
+  "properties": {
+    "animated_socket_materialization_key_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "GameWeaponAnimatedGlbSocketMaterializationGetRequest@1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project_id",
+    "animated_socket_materialization_key_sha256"
+  ],
+  "type": "object"
+}

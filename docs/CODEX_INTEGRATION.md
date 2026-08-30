@@ -1,5 +1,12 @@
 # Codex 与 ForgeCAD 集成
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+Codex 的标准武器循环改为：`authorize/observe → select/query → compose transaction → preview →
+prepare → evaluate modifiers → inspect AOV/compare → checkpoint/repair → explicit approval`。
+Codex 不通过连续聊天生成整把枪，也不在本地维护 mesh；它必须读取 Runtime stable IDs 和前序
+command outputs，组合可回放事务，并在 Form 失败时停止 High/Low/PBR。
+
 > 2026-08-26 04AE：当前 **525 schemas / 112 read + 84 write = 196 tools**。MaterialLayerGraph 只新增专用无状态 Worker operation，没有扩大 MCP 写面；CameraLock Prepare 仍只传朝向决策与审批，所有对象/hash 由 Runtime 派生。
 
 > 2026-08-26 商业 Goal：Codex 的成功不是调用更多工具，而是让同一 candidate 依次产出并批准 `HeroSourceAsset@1`、`FpsPresentationPackage@1`、`EngineDeliveryPackage@1`。每轮只修一个有 evidence 的高影响问题；自动 draft 不 promotion，目标引擎和独立人审不能由 Codex 自评替代。

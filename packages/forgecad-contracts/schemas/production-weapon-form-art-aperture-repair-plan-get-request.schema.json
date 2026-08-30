@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-aperture-repair-plan-get-request.schema.json",
+  "title": "ProductionWeaponFormArtApertureRepairPlanGetRequest@1",
+  "description": "Closed read-only request that binds one exact raster visibility calibration and its immutable parent evidence. Geometry, masks, raster bytes, cameras, scripts, paths and URLs are not accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "aperture_repair_plan_id", "visibility_calibration_id",
+    "visibility_calibration_canonical_sha256", "visibility_calibration_input_sha256",
+    "failure_diagnostic_id", "failure_diagnostic_canonical_sha256", "failure_diagnostic_input_sha256",
+    "composite_evidence_id", "proposal_id", "session_id", "project_id",
+    "composite_evidence_record_canonical_sha256", "composite_evidence_receipt_object_sha256",
+    "cross_view_evidence_bundle_sha256", "proposal_form_art_evidence_receipt_object_sha256",
+    "max_response_bytes", "runtime_write_performed", "persistent_user_data_touched",
+    "derivation_policy", "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtApertureRepairPlanGetRequest@1"},
+    "operation": {"const": "forgecad.production.weapon.form-art-aperture-repair-plan-get@1"},
+    "aperture_repair_plan_id": {"$ref": "#/$defs/id"},
+    "visibility_calibration_id": {"$ref": "#/$defs/id"},
+    "visibility_calibration_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "visibility_calibration_input_sha256": {"$ref": "#/$defs/sha256"},
+    "failure_diagnostic_id": {"$ref": "#/$defs/id"},
+    "failure_diagnostic_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "failure_diagnostic_input_sha256": {"$ref": "#/$defs/sha256"},
+    "composite_evidence_id": {"$ref": "#/$defs/id"},
+    "proposal_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "composite_evidence_record_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "composite_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "cross_view_evidence_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_form_art_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "derivation_policy": {"const": "exact-raster-calibrated-sequential-aperture-sensitivity-plan@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

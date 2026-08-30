@@ -4,7 +4,8 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use super::{CasError, Runtime, RuntimeError, StoreError};
+use super::{CasError, Runtime, RuntimeError, RuntimeOperationEnvelope, StoreError};
+use forgecad_contracts::WeaponryServiceDomain;
 
 const MAX_IPC_MESSAGE_BYTES: usize = 8 * 1024 * 1024;
 const IPC_AUTHENTICATION_TIMEOUT: Duration = Duration::from_millis(500);
@@ -224,6 +225,20 @@ mod platform {
                 ));
             }
             response.payload.ok_or(IpcError::Protocol)
+        }
+
+        /// Call the typed Weaponry domain envelope over authenticated local
+        /// IPC.  Raw `call` remains available for compatibility, but this
+        /// method makes the domain explicit and lets Runtime reject unknown
+        /// or cross-domain operations before dispatch.
+        pub fn call_weaponry_operation(
+            &mut self,
+            domain: WeaponryServiceDomain,
+            operation: &str,
+            payload: Value,
+        ) -> Result<Value, IpcError> {
+            let envelope = RuntimeOperationEnvelope::new(domain, operation, payload);
+            self.call("weaponry_domain_operation", envelope.to_ipc_payload())
         }
 
         #[cfg(test)]
@@ -646,6 +661,7 @@ fn runtime_error_code(error: &RuntimeError) -> String {
                 .map(str::trim)
                 .find(|value| {
                     value.starts_with("AGENTIC_")
+                    || value.starts_with("RUNTIME_OPERATION_")
                     || value.starts_with("PRIMARY_FORM_REPAIR_")
                     || value.starts_with("SILHOUETTE_FIT_GEOMETRY_")
                     || value.starts_with("SILHOUETTE_FIT_RENDER_FAILED")
@@ -741,6 +757,15 @@ mod platform {
             Err(IpcError::UnsupportedPlatform)
         }
         pub fn call(&mut self, _method: &str, _payload: Value) -> Result<Value, IpcError> {
+            Err(IpcError::UnsupportedPlatform)
+        }
+
+        pub fn call_weaponry_operation(
+            &mut self,
+            _domain: WeaponryServiceDomain,
+            _operation: &str,
+            _payload: Value,
+        ) -> Result<Value, IpcError> {
             Err(IpcError::UnsupportedPlatform)
         }
     }
@@ -945,9 +970,59 @@ mod tests {
     }
 
     #[test]
-    fn request_timeout_fits_geometry_and_codex_budgets() {
-        assert!(IPC_REQUEST_TIMEOUT > Duration::from_secs(10));
-        assert!(IPC_REQUEST_TIMEOUT < Duration::from_secs(60));
+    fn request_timeout_covers_fixed_worker_and_transaction_budgets() {
+        // The ordinary geometry Worker is capped at 10 seconds, while the
+        // closed 2K fixed-pack path may run for 120 seconds.  A six-view
+        // Runtime-owned transaction therefore needs the explicit 180-second
+        // transport deadline; the old 55-second assertion belonged to the
+        // pre-six-view single-request contract.
+        assert!(IPC_REQUEST_TIMEOUT >= Duration::from_secs(120));
+        assert_eq!(IPC_REQUEST_TIMEOUT, Duration::from_secs(180));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn typed_weaponry_operation_round_trips_and_rejects_cross_domain() {
+        let directory = std::env::temp_dir().join(format!(
+            "fc-domain-route-{}",
+            &uuid::Uuid::new_v4().simple().to_string()[..8]
+        ));
+        fs::create_dir_all(&directory).expect("directory");
+        let endpoint = LocalIpcEndpoint::new(&directory).expect("endpoint");
+        let runtime = std::sync::Arc::new(Runtime::ephemeral().expect("runtime"));
+        let server = runtime.ipc_server(&endpoint).expect("server");
+        let runtime_for_thread = runtime.clone();
+        let server_thread = thread::spawn(move || server.serve_forever(&runtime_for_thread));
+
+        let mut client = LocalIpcClient::connect(&endpoint).expect("client");
+        let capabilities = client
+            .call_weaponry_operation(
+                WeaponryServiceDomain::Authoring,
+                "capabilities_get",
+                Value::Null,
+            )
+            .expect("typed operation");
+        assert_eq!(capabilities["status"], "alpha-mcp004");
+
+        let cross_domain = client
+            .call_weaponry_operation(
+                WeaponryServiceDomain::Delivery,
+                "capabilities_get",
+                Value::Null,
+            )
+            .expect_err("cross-domain operation must fail closed");
+        assert!(matches!(
+            cross_domain,
+            IpcError::RuntimeRequest(code) if code == "RUNTIME_OPERATION_DOMAIN_MISMATCH"
+        ));
+
+        client
+            .call("runtime_shutdown", Value::Null)
+            .expect("shutdown");
+        assert!(server_thread.join().expect("server thread").is_ok());
+        drop(client);
+        drop(runtime);
+        let _ = fs::remove_dir_all(directory);
     }
 
     #[cfg(unix)]

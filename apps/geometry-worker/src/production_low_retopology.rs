@@ -145,7 +145,12 @@ pub fn run(payload: &Map<String, Value>) -> Result<Value, GeometryError> {
         },
     )?;
     let low_mesh = low_mesh_value(&derived);
-    let low_mesh_sha256 = crate::canonical_hash(&low_mesh);
+    // Bind the exact JSON value that crosses the Worker wire. Some source
+    // coordinates contain signed zero / f32 spellings whose in-memory serde
+    // number representation is normalized during serialization. Runtime
+    // validates the received value, so the mapping hash must use that same
+    // wire-normalized representation.
+    let low_mesh_sha256 = wire_value_hash(&low_mesh)?;
     let low_artifact = lower_low_glb(&derived, &low_mesh_sha256)?;
     let low_artifact_sha256 = sha256_hex(&low_artifact.glb);
     let low_readback = integrity::inspect_glb(&low_artifact.glb)?;
@@ -904,6 +909,14 @@ fn wire_canonical_hash(value: &Value) -> Result<String, GeometryError> {
     Ok(crate::canonical_hash(&wire))
 }
 
+fn wire_value_hash(value: &Value) -> Result<String, GeometryError> {
+    let bytes = serde_json::to_vec(value)
+        .map_err(|_| invalid("LOW_RETOPOLOGY_VALUE_CANONICAL_SERIALIZE_FAILED"))?;
+    let wire: Value = serde_json::from_slice(&bytes)
+        .map_err(|_| invalid("LOW_RETOPOLOGY_VALUE_CANONICAL_PARSE_FAILED"))?;
+    Ok(crate::canonical_hash(&wire))
+}
+
 fn lower_low_glb(
     mesh: &DerivedLowMesh,
     program_sha256: &str,
@@ -1028,22 +1041,45 @@ fn logical_vertex_normals(
 }
 
 fn low_mesh_value(mesh: &DerivedLowMesh) -> Value {
-    Value::Array(mesh.primitives.iter().map(|primitive| json!({
-        "part_id":primitive.part_id,
-        "source_node_id":primitive.source_node_id,
-        "material_zone_id":primitive.material_zone_id,
-        "solid":primitive.solid,
-        "positions":primitive.positions,
-        "indices":primitive.indices,
-        "vertex_correspondence":primitive.vertex_correspondence.iter().map(|entry| json!({
-            "low_vertex_index":entry.low_vertex_index,
-            "source_vertex_indices":entry.source_vertex_indices
-        })).collect::<Vec<_>>(),
-        "face_correspondence":primitive.face_correspondence.iter().map(|entry| json!({
-            "low_face_index":entry.low_face_index,
-            "source_face_index":entry.source_face_index
-        })).collect::<Vec<_>>()
-    })).collect())
+    // `lower_low_glb` deliberately expands every triangle corner so hard
+    // normals and UV seams remain explicit in the exported Low.  The durable
+    // correspondence must bind that exported topology, not the compact
+    // logical mesh that existed immediately after edge collapse.  Expanding
+    // the mapping here in the same deterministic face/corner order keeps the
+    // Low GLB, Cage input and later bake rays on one exact vertex/index truth.
+    Value::Array(
+        mesh.primitives
+            .iter()
+            .map(|primitive| {
+                let mut positions = Vec::with_capacity(primitive.indices.len());
+                let mut indices = Vec::with_capacity(primitive.indices.len());
+                let mut vertex_correspondence = Vec::with_capacity(primitive.indices.len());
+                for logical_index in &primitive.indices {
+                    let logical_index = *logical_index as usize;
+                    let expanded_index = positions.len() as u32;
+                    positions.push(primitive.positions[logical_index]);
+                    indices.push(expanded_index);
+                    vertex_correspondence.push(json!({
+                        "low_vertex_index":expanded_index,
+                        "source_vertex_indices":primitive.vertex_correspondence[logical_index].source_vertex_indices
+                    }));
+                }
+                json!({
+                    "part_id":primitive.part_id,
+                    "source_node_id":primitive.source_node_id,
+                    "material_zone_id":primitive.material_zone_id,
+                    "solid":primitive.solid,
+                    "positions":positions,
+                    "indices":indices,
+                    "vertex_correspondence":vertex_correspondence,
+                    "face_correspondence":primitive.face_correspondence.iter().map(|entry| json!({
+                        "low_face_index":entry.low_face_index,
+                        "source_face_index":entry.source_face_index
+                    })).collect::<Vec<_>>()
+                })
+            })
+            .collect(),
+    )
 }
 
 fn parse_locked_vertices(
@@ -1307,8 +1343,15 @@ struct WorkingMesh {
     protected_edges: BTreeSet<(u32, u32)>,
 }
 
-/// Derive a strictly smaller Low mesh. A request that cannot safely reduce
-/// the admitted closed topology fails instead of returning a copied High.
+/// Derive a strictly smaller Low mesh.
+///
+/// Reduction is enforced for the complete assembly, not for every primitive.
+/// A hard-surface assembly routinely contains already-minimal closed parts
+/// (boxes, caps, short rail blocks) whose every edge is a protected crease.
+/// Requiring each such Part to lose a face makes an otherwise reducible weapon
+/// fail before the Worker reaches its denser panels. Minimal Parts therefore
+/// pass through byte-deterministically; the final assembly must still be
+/// strictly smaller and must reach the caller's global triangle target.
 pub fn derive_bounded_low(
     high: &DiagnosticMesh,
     policy: &LowRetopologyPolicy,
@@ -1360,9 +1403,6 @@ pub fn derive_bounded_low(
             };
             working = next;
             collapse_budget -= 1;
-        }
-        if working.faces.len() >= source_triangles {
-            return Err(invalid("LOW_RETOPOLOGY_NO_SAFE_COLLAPSE"));
         }
         remaining_target = remaining_target.saturating_sub(working.faces.len());
         remaining_source = remaining_source.saturating_sub(source_triangles);

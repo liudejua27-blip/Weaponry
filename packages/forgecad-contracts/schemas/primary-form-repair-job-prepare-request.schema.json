@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/primary-form-repair-job-prepare-request.schema.json",
+  "title": "PrimaryFormRepairJobPrepareRequest@1",
+  "description": "Closed request to queue one Runtime-owned bounded Primary Form repair job.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "candidate_id",
+    "target_sha256",
+    "rig",
+    "base_camera",
+    "optimizer",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "project_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "candidate_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "target_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "part_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "rig": {"type": "object"},
+    "base_camera": {"type": "object"},
+    "optimizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "max_iterations", "max_evaluations", "step_fraction"],
+      "properties": {
+        "algorithm": {"enum": ["grid", "coordinate_descent"]},
+        "max_iterations": {"type": "integer", "minimum": 1, "maximum": 8},
+        "max_evaluations": {"type": "integer", "minimum": 1, "maximum": 64},
+        "step_fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.5}
+      }
+    },
+    "view_spec": {"type": "object"},
+    "base_version_id": {"type": ["string", "null"], "maxLength": 128},
+    "canonical_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,5 +1,14 @@
 # ForgeCAD Skill Package 标准
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+## CrossFire weapon Skill migration
+
+Active Bundle 必须通过 successor version 迁移到授权 intake、hard-surface authoring、High/Low、
+Hero UV/Cage/Bake、PBR、FPS/engine delivery 和 evidence/recovery 七类生产职责。Benchmark 至少
+包含 authorized CrossFire cohort 与 original control cohort，且不得携带合作方私有源资产。
+旧 Bundle knowledge 内容 hash-bound，禁止原地改字；迁移完成前状态为 `MIGRATION_REQUIRED`。
+
 > 2026-08-26 商业 Skill 补充：武器生产 Skill 必须声明适用 Stage、输入/输出 typed artifact、draft/promotion policy、fixed worker/dependency lock、预算与真实 asset benchmark。Skill 可以携带 Art Direction 语法、High recipe、retopo/UV/material policy，但不能运行 DCC/脚本、自动批准 Low/UV/Bake、或用 benchmark/source pass 宣称 Hero Asset 通过。
 
 > 2026-08-25 Native High 最新边界：未注册 proposal 的嵌入合同已与公共 Schema byte-exact 同步，Worker/source lock 已绑定当前 cohort；公共 MCP source/focused 与同 cohort Runtime durable restart **1/1 PASS**。在 packaged cohort 和 candidate-bound quality Gate 通过前继续 `registered=false`、`FPS-HIGH-05=NOT_PASSED`；Skill 不得把这个 source slice 写成 active 或视觉 PASS。

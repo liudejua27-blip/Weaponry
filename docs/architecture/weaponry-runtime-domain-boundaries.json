@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Weaponry 刀类 Runtime：五域模块的实际物理状态",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1380, 780],
+    "views": [
+      {"id": "ownership-map", "label": "中央所有权映射", "focus": ["facades", "contracts", "mcp-router", "runtime-router"], "note": "façade、domain 和 execution target 的唯一定义在 forgecad-contracts。"},
+      {"id": "authoring-slice", "label": "Authoring 首切", "focus": ["runtime-router", "authoring", "authoring-repo", "state"], "note": "Authoring 只有三个 durable family 穿过独立 Repository，其余仍返回巨型根。"},
+      {"id": "remaining-debt", "label": "剩余物理债务", "focus": ["evaluation", "surface", "presentation", "delivery", "legacy-root", "state"], "note": "四域仅有路由所有权，还没有独立 service/repository 实现。"}
+    ]
+  },
+  "components": [
+    {"id": "facades", "type": "frontend", "label": "11 Knife Façade", "sublabel": "124 profile operations", "tag": "默认公共面", "pos": [575, 0], "size": [230, 58]},
+    {"id": "contracts", "type": "security", "label": "Contract Domain Authority", "sublabel": "façade → domain → execution target", "tag": "single map", "pos": [540, 92], "size": [300, 60]},
+    {"id": "mcp-router", "type": "frontend", "label": "MCP Domain Router", "sublabel": "closed validation + typed IPC envelope", "tag": "已物理接线", "pos": [550, 186], "size": [280, 60]},
+    {"id": "runtime-router", "type": "backend", "label": "Runtime Operation Router", "sublabel": "unknown / cross-domain fail closed", "tag": "已物理接线", "pos": [550, 280], "size": [280, 60]},
+    {"id": "authoring", "type": "backend", "label": "Authoring Service", "sublabel": "Mesh · Curve · Transaction", "tag": "partial physical slice", "pos": [30, 410], "size": [220, 66]},
+    {"id": "evaluation", "type": "backend", "label": "Evaluation", "sublabel": "observe · quality · job", "tag": "dispatch_ipc fallback", "pos": [320, 410], "size": [220, 66]},
+    {"id": "surface", "type": "backend", "label": "Surface", "sublabel": "High · Low · UV · Bake · PBR", "tag": "dispatch_ipc fallback", "pos": [610, 410], "size": [260, 66]},
+    {"id": "presentation", "type": "backend", "label": "Presentation", "sublabel": "FPS · camera · socket · clip", "tag": "dispatch_ipc fallback", "pos": [890, 410], "size": [230, 66]},
+    {"id": "delivery", "type": "backend", "label": "Delivery", "sublabel": "approval · version · export", "tag": "dispatch_ipc fallback", "pos": [1160, 410], "size": [190, 66]},
+    {"id": "authoring-repo", "type": "database", "label": "Authoring Repository", "sublabel": "transaction + CurveGraph + EvaluatedMesh", "tag": "3 families", "pos": [30, 535], "size": [250, 62]},
+    {"id": "legacy-root", "type": "database", "label": "Runtime / Store 巨型根", "sublabel": "52,927 + 81,050 lines", "tag": "主要实现仍在此", "pos": [540, 535], "size": [300, 62]},
+    {"id": "state", "type": "database", "label": "SQLite + CAS", "sublabel": "单迁移所有者 / GC roots", "tag": "Runtime-owned truth", "pos": [540, 670], "size": [300, 62]}
+  ],
+  "boundaries": [
+    {"kind": "region", "label": "中央路由与五域所有权", "wraps": ["contracts", "mcp-router", "runtime-router", "authoring", "evaluation", "surface", "presentation", "delivery"], "pad": 20},
+    {"kind": "security-group", "label": "唯一持久化真值", "wraps": ["authoring-repo", "legacy-root", "state"], "pad": 18}
+  ],
+  "connections": [
+    {"id": "facades-contracts", "from": "facades", "to": "contracts", "label": "closed operation set", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "contracts-mcp", "from": "contracts", "to": "mcp-router", "label": "resolve owner", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "mcp-runtime", "from": "mcp-router", "to": "runtime-router", "label": "weaponry_domain_operation", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "runtime-authoring", "from": "runtime-router", "to": "authoring", "variant": "emphasis", "fromSide": "bottom", "toSide": "top"},
+    {"id": "runtime-evaluation", "from": "runtime-router", "to": "evaluation", "fromSide": "bottom", "toSide": "top"},
+    {"id": "runtime-surface", "from": "runtime-router", "to": "surface", "fromSide": "bottom", "toSide": "top"},
+    {"id": "runtime-presentation", "from": "runtime-router", "to": "presentation", "fromSide": "bottom", "toSide": "top"},
+    {"id": "runtime-delivery", "from": "runtime-router", "to": "delivery", "fromSide": "bottom", "toSide": "top"},
+    {"id": "authoring-repository", "from": "authoring", "to": "authoring-repo", "variant": "emphasis", "fromSide": "bottom", "toSide": "top"},
+    {"id": "authoring-fallback", "from": "authoring", "to": "legacy-root", "variant": "dashed", "fromSide": "bottom", "toSide": "top"},
+    {"id": "evaluation-fallback", "from": "evaluation", "to": "legacy-root", "variant": "dashed", "fromSide": "bottom", "toSide": "top"},
+    {"id": "surface-fallback", "from": "surface", "to": "legacy-root", "variant": "dashed", "fromSide": "bottom", "toSide": "top"},
+    {"id": "presentation-fallback", "from": "presentation", "to": "legacy-root", "variant": "dashed", "fromSide": "bottom", "toSide": "top"},
+    {"id": "delivery-fallback", "from": "delivery", "to": "legacy-root", "variant": "dashed", "fromSide": "bottom", "toSide": "top"},
+    {"id": "authoring-state", "from": "authoring-repo", "to": "state", "label": "borrowed Store", "variant": "security", "fromSide": "bottom", "toSide": "left"},
+    {"id": "root-state", "from": "legacy-root", "to": "state", "label": "current migration + CAS", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDy": 24}
+  ],
+  "cards": [
+    {"dot": "emerald", "title": "稳定的是 ownership", "items": ["11 façade → 5 domain 唯一归属，unknown / cross-domain 提前拒绝", "Runtime 仍是 SQLite/CAS/migration 唯一写者"]},
+    {"dot": "amber", "title": "下一批整理", "items": ["先做 FAST-003，再按 Surface → Evaluation → Presentation → Delivery 物理抽取", "fictional-energy / D1 FormArt / compatibility Skill 须经替代与 replay 门后才能退役"]}
+  ]
+}

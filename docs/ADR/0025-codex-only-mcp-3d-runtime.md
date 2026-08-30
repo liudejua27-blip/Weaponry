@@ -1,5 +1,7 @@
 # ADR-0025：Codex-only MCP 3D Runtime
 
+> **Status: partially superseded by ADR-0029 (2026-08-29).** 本 ADR 的 Runtime 唯一写者、typed Worker、证据和批准边界继续有效；产品范围、Action Space 和一个月交付优先级以 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 与 ADR-0029 为准。
+
 > 2026-08-25 解释性补充：商业游戏武器质量路线仍完全服从本 ADR。ForgeCAD Runtime 继续是唯一写者；商业级缺口由 ForgeCAD-owned typed Worker/Schema/Gate 补齐，不通过 Blender、DCC 插件、Provider、任意脚本或第二项目真值绕过。执行基线见 `../COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
 
 > 2026-08-26 Cage/Bake 解释：public preflight/get/prepare 与 Store seam 不授权 caller 提交 inline High/Low/UV/Cage truth。Runtime 必须从同 project/session/candidate/Stage head 的 durable records 解析输入，resolver 零写；任一 binding/provenance/cohort 缺失都 fail closed。当前 producer unavailable 与零写结果符合本 ADR，不能因 Worker/source seam PASS 解释为商业 Bake 已完成。

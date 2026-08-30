@@ -1,6 +1,7 @@
 use sha2::{Digest, Sha256};
 
 pub mod feature_graph;
+pub mod weaponry_dcc;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {

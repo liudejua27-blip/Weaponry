@@ -1,0 +1,123 @@
+{
+  "schema_version": "WeaponryArchitectureMcpSplitSourceGate@1",
+  "task_id": "WPN-ARCH-MCP-SPLIT-001",
+  "status": "PASS_SOURCE_PHYSICAL_SPLIT_REPLAY",
+  "date": "2026-08-30",
+  "scope": "MCP active session, active manifest, shared result adapter, compatibility runtime handler, and compatibility test responsibility extraction",
+  "source_changes": {
+    "active_session": {
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/active_session.rs",
+      "lines": 340,
+      "sha256": "137dd64dc6b64c1650a81f4e769c85dfdb944ed18513d65da638d8432a782230"
+    },
+    "active_manifest": {
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/active_manifest.rs",
+      "lines": 184,
+      "sha256": "cec93c3e549aef8439bbbb7dabaef123bf7982573be062ce1a980d81ca775a9e"
+    },
+    "shared_result_adapter": {
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/result_adapter.rs",
+      "lines": 533,
+      "sha256": "d9a2d7bf6cb5309a14f10c4ae3e391fc014c48d37bbeeaeb9a86fa7c2acac727"
+    },
+    "compatibility_handler": {
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/compat_handler.rs",
+      "lines": 982,
+      "sha256": "ce90a87ab35aa5b78ca7e2f0f83058f6af09e13730c516b74c5fde8d800f81a3"
+    },
+    "compatibility_tests": {
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools_tests.rs",
+      "lines": 6102,
+      "sha256": "be8cf67f449d0d1089635e6088923e1d116d45fbd87d0a2d65f132e4ec6990ad"
+    }
+  },
+  "root_line_counts": {
+    "mcp_main_before": 1081,
+    "mcp_main_after": 996,
+    "compat_main_before": 20514,
+    "compat_main_after": 19332,
+    "agentic_write_tools_before": 22800,
+    "agentic_write_tools_after": 16674,
+    "runtime_lib_current": 52542,
+    "store_lib_current": 79841,
+    "runtime_root_module_declarations": 92
+  },
+  "compile_graph": {
+    "default_mcp_source_count": 10,
+    "compatibility_mcp_source_count": 43,
+    "default_contains_compatibility_registry": false,
+    "default_contains_compatibility_handler": false,
+    "status": "PASS_EXACT_SOURCE_SET"
+  },
+  "tests": {
+    "default_mcp": {
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0
+    },
+    "compatibility_mcp": {
+      "passed": 237,
+      "failed": 0,
+      "ignored": 0
+    },
+    "agentic_compatibility_focused": {
+      "passed": 71,
+      "failed": 0
+    },
+    "architecture_fast": {
+      "build_cohort_sha256": "bb681a794bc9aa775c939e5c94a3308d30c3d792487e8a1eb98d32daa349bc64",
+      "passed": 88,
+      "failed": 0,
+      "ignored": 0,
+      "duration_seconds": 185,
+      "duration_budget_seconds": 900,
+      "source_drift_detected": false,
+      "four_build_identities_verified": true
+    },
+    "full_runtime_qualification": {
+      "status": "PRESERVED_NOT_EXECUTED_BY_THIS_ATOM",
+      "previous_passed": 554,
+      "previous_failed": 0,
+      "previous_ignored": 37,
+      "current_cohort_ignored_tests_executed": 0
+    }
+  },
+  "manifest_replay": {
+    "default_facade_count": 11,
+    "active_operation_count": 125,
+    "closed_request_schema_count": 125,
+    "runtime_fallback_count": 0,
+    "compatibility_read_count": 131,
+    "compatibility_write_count": 95,
+    "compatibility_total_count": 226,
+    "compatibility_summary_canonical_sha256": "d7ba7f612fdfa2ace4703818313dfa5e48d6acb391417c4918056e0578f31c90",
+    "compatibility_summary_receipt_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca"
+  },
+  "architecture_budget": {
+    "ceiling_mode": "PASS",
+    "require_decrease_mode": "PASS"
+  },
+  "retirement_gate": {
+    "status": "BLOCKED_PENDING_RUNTIME_STORE_SPLIT",
+    "required": [
+      "replacement_pass",
+      "compatibility_replay_pass",
+      "active_consumer_zero",
+      "migration_and_cas_reachability_pass",
+      "recovery_pass",
+      "dirty_worktree_deletion_gate"
+    ],
+    "next_task": "WPN-ARCH-RUNTIME-STORE-SPLIT-001",
+    "then_task": "WPN-ARCH-RETIRE-001"
+  },
+  "truth_boundaries": {
+    "historical_receipts_mutated": false,
+    "runtime_store_physical_split_complete": false,
+    "user_data_touched": false,
+    "high_low_uv_bake_promoted": false,
+    "visual_quality_promoted": false,
+    "human_review_promoted": false,
+    "engine_quality_promoted": false,
+    "commercial_quality": "NOT_PROVEN"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-animation-clip-preview-get-request.schema.json",
+  "title": "MechanicalAnimationClipPreviewGetRequest",
+  "additionalProperties": false,
+  "properties": {
+    "candidate_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "canonical_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "clip_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "preview_policy": {
+      "const": "single-tick-transient-double-worker-replay@1"
+    },
+    "project_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "sample_time_ticks": {
+      "maximum": 1000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "MechanicalAnimationClipPreviewRequest@1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project_id",
+    "candidate_id",
+    "clip_id",
+    "sample_time_ticks",
+    "preview_policy",
+    "canonical_sha256"
+  ],
+  "type": "object"
+}

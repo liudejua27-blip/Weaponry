@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/session-get-request.schema.json",
+  "title": "SessionGetRequest",
+  "description": "Read one Runtime-owned design session bound to its project and candidate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "session_id",
+    "project_id",
+    "candidate_id"
+  ],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  }
+}

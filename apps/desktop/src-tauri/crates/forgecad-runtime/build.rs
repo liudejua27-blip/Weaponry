@@ -1,5 +1,7 @@
 use serde::Deserialize;
+use std::collections::BTreeSet;
 use std::env;
+use std::fmt::Write as FmtWrite;
 use std::fs;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
@@ -16,7 +18,11 @@ const ARCHIVE_MAGIC: &[u8; 8] = b"FCBNDL01";
 // for the commercial-asset Low/UV contract families. The previous 768 cap
 // was already saturated by 499 public schemas plus the active first-party
 // Bundle files, so adding closed contracts could not compile at all.
-const MAX_ARCHIVE_FILES: usize = 896;
+// The archive contains every package-owned Contract schema as well as the
+// active declarative Skill bundles. Keep a hard count bound, but leave enough
+// room for the 658-schema Knife profile closure (925 current files) without
+// weakening the independent 3 MiB byte budget below.
+const MAX_ARCHIVE_FILES: usize = 1_024;
 // Declarative file contents remain capped at 3 MiB. The serialized envelope
 // additionally carries one bounded path and two length fields per file.
 const MAX_ARCHIVE_BYTES: usize = 3 * 1024 * 1024;
@@ -33,6 +39,136 @@ struct SkillRegistry {
 struct RegistrySkill {
     skill_id: String,
     version: String,
+}
+
+#[derive(Deserialize)]
+struct KnifeToolProfile {
+    facades: std::collections::BTreeMap<String, KnifeFacadeProfile>,
+    native_operations: std::collections::BTreeMap<String, KnifeNativeOperation>,
+}
+
+#[derive(Deserialize)]
+struct KnifeFacadeProfile {
+    facade_name: String,
+    read_tools: Vec<String>,
+    write_tools: Vec<String>,
+    underlying_operations: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct KnifeNativeOperation {
+    operation_name: String,
+    classification: String,
+    facade_name: String,
+}
+
+fn generate_weaponry_operation_routes(repository_root: &Path, out_dir: &Path) {
+    let profile_path =
+        repository_root.join("packages/forgecad-contracts/profiles/weaponry-knife-p0.json");
+    println!("cargo:rerun-if-changed={}", profile_path.display());
+    let profile_bytes = fs::read(&profile_path).unwrap_or_else(|error| {
+        panic!(
+            "cannot read Weaponry knife profile {}: {error}",
+            profile_path.display()
+        )
+    });
+    let profile: KnifeToolProfile =
+        serde_json::from_slice(&profile_bytes).unwrap_or_else(|error| {
+            panic!(
+                "cannot parse Weaponry knife profile {}: {error}",
+                profile_path.display()
+            )
+        });
+
+    let native_operations = profile.native_operations;
+    for (operation, native) in &native_operations {
+        if operation != &native.operation_name {
+            panic!(
+                "Weaponry native operation key {operation} drifts from operation_name {}",
+                native.operation_name
+            );
+        }
+        let facade = profile.facades.get(&native.facade_name).unwrap_or_else(|| {
+            panic!(
+                "Weaponry native operation {operation} references unknown facade {}",
+                native.facade_name
+            )
+        });
+        if facade.facade_name != native.facade_name {
+            panic!(
+                "Weaponry native operation {operation} facade_name {} drifts from facade key {}",
+                native.facade_name, facade.facade_name
+            );
+        }
+        if !facade
+            .underlying_operations
+            .iter()
+            .any(|candidate| candidate == operation)
+        {
+            panic!(
+                "Weaponry native operation {operation} is not owned by facade {}",
+                native.facade_name
+            );
+        }
+    }
+
+    let mut routes = Vec::new();
+    let mut operation_names = BTreeSet::new();
+    for (facade, binding) in profile.facades {
+        for operation in binding.underlying_operations {
+            if !operation_names.insert(operation.clone()) {
+                panic!("Weaponry knife profile repeats operation {operation}");
+            }
+            let access = if let Some(native) = native_operations.get(&operation) {
+                match native.classification.as_str() {
+                    "read" => "Read",
+                    "write" => "Write",
+                    classification => panic!(
+                        "Weaponry native operation {operation} has unsupported classification {classification}"
+                    ),
+                }
+            } else if binding
+                .write_tools
+                .iter()
+                .any(|candidate| candidate == &operation)
+            {
+                "Write"
+            } else if binding
+                .read_tools
+                .iter()
+                .any(|candidate| candidate == &operation)
+            {
+                "Read"
+            } else {
+                panic!("Weaponry knife profile leaves operation {operation} unclassified");
+            };
+            routes.push((operation, facade.clone(), access));
+        }
+    }
+    routes.sort_by(|left, right| left.0.cmp(&right.0));
+
+    let mut generated = String::from(
+        "// @generated by forgecad-runtime/build.rs from the checked-in Weaponry knife profile.\n",
+    );
+    generated
+        .push_str("pub(crate) const KNIFE_OPERATION_ROUTES: &[GeneratedOperationRoute] = &[\n");
+    for (operation, facade, access) in &routes {
+        writeln!(
+            generated,
+            "    GeneratedOperationRoute {{ operation: {:?}, facade: {:?}, access: GeneratedOperationAccess::{access} }},",
+            operation, facade
+        )
+        .expect("write generated Weaponry operation route");
+    }
+    generated.push_str("];\n");
+    writeln!(
+        generated,
+        "pub(crate) const KNIFE_OPERATION_ROUTE_COUNT: usize = {};",
+        routes.len()
+    )
+    .expect("write generated Weaponry operation route count");
+    fs::write(out_dir.join("weaponry_operation_routes.rs"), generated)
+        .unwrap_or_else(|error| panic!("cannot write generated Weaponry routes: {error}"));
 }
 
 fn collect_files(root: &Path, prefix: &Path, files: &mut Vec<(String, Vec<u8>)>) {
@@ -160,6 +296,11 @@ fn main() {
     println!("cargo:rerun-if-changed={}", skill_bundles.display());
     println!("cargo:rerun-if-changed={}", skill_registry.display());
     println!("cargo:rerun-if-changed={}", contract_schemas.display());
+
+    generate_weaponry_operation_routes(
+        &repository_root,
+        &PathBuf::from(env::var("OUT_DIR").expect("Cargo output dir")),
+    );
 
     // `collect_files` stores paths relative to each passed source directory.
     // Add only fixed, relative prefixes so the Runtime never needs a worktree

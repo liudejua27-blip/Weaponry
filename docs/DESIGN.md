@@ -1,5 +1,7 @@
 # ForgeCAD Codex-only MCP Runtime 设计
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-26 商业设计补充：创作真值采用 `AuthoringMesh revision DAG → HighRecipe/evaluated High → AutoRetopoDraft → approved LowAuthoringMesh → explicit correspondence/Cage/Bake → MaterialLayerGraph`；表现与交付分别进入 FPS package 和 Engine package。Runtime 继续唯一写入 SQLite/CAS，Worker 仅接受 closed typed request，Viewer 仅做 Art Director 只读审查。
 
 版本：2026-08-25

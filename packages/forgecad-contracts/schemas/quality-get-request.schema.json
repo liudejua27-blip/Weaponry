@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/quality-get-request.schema.json",
+  "title": "QualityGetRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidate_id"],
+  "properties": {
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "reference_id": {"$ref": "#/$defs/id"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"}
+  }
+}

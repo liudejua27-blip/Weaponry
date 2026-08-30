@@ -1,0 +1,57 @@
+{
+  "build_cohort_sha256": "5ae4d4e1c6e486a17537a84b3806e6f9243ee88755022041e65e41c3f589d616",
+  "duration_budget_seconds": 900,
+  "duration_seconds": 161,
+  "four_build_identities_verified": true,
+  "gate_artifacts": {
+    "architecture_fast_harness_sha256": "a8aca205946280eccef3a182416b8b23c2d5334f5c315105d92b216cddd06a5f",
+    "architecture_fast_wrapper_sha256": "e4f4b5d5fb41000a5816c795efe298d2914c782f0af0808ae7c25f2f015c1efc",
+    "baseline_checker_sha256": "2f31f1325e95142fc05f803c5a6a665b9b491aaf9a5fde6dac7b0c71bc0e14e3",
+    "ignored_test_policy_sha256": "e941141a3623869dd04902f4cf99e77242ae9abb71c4033a74eef53908d2cf3f",
+    "local_generated_receipt_sha256": "a2fea7a772525c360acd357d3d17865b46f60d4ed54afbf830289ec70dd2bfb2"
+  },
+  "ignored_test_policy": {
+    "current_cohort_ignored_tests_executed": 0,
+    "ignored_test_categories": {
+      "fixture_required": 10,
+      "historical_compatibility": 3,
+      "platform_limited": 21,
+      "real_coverage_gap": 3
+    },
+    "ignored_test_count": 37,
+    "ignored_test_execution_status": "NOT_PROVEN",
+    "ignored_test_inventory_status": "CLOSED",
+    "schema_version": "WeaponryRuntimeArchitectureBaselineCheck@1",
+    "status": "PASS",
+    "tool_timeout_sec": 180
+  },
+  "ignored_tests_executed_by_fast": 0,
+  "ignored_tests_execution_claim": "NOT_PROVEN",
+  "qualification_lane_preserved": "script/test_runtime_workers.sh",
+  "qualification_lane_status": "PRESERVED_NOT_EXECUTED_BY_FAST",
+  "quality_claim": "architecture-regression-only; no visual or commercial promotion",
+  "schema_version": "WeaponryArchitectureFastGateReceipt@1",
+  "source_drift_detected": false,
+  "status": "PASS",
+  "steps": [
+    { "name": "contracts-domain-map", "status": "PASS" },
+    { "name": "store-repository-boundaries", "status": "PASS" },
+    { "name": "runtime-service-boundaries", "status": "PASS" },
+    { "name": "runtime-domain-router", "status": "PASS" },
+    { "name": "runtime-timeout-contract", "status": "PASS" },
+    { "name": "runtime-authoring-transaction", "status": "PASS" },
+    { "name": "runtime-knife-curve-graph", "status": "PASS" },
+    { "name": "runtime-knife-evaluated-mesh", "status": "PASS" },
+    { "name": "mcp-default-domain-router", "status": "PASS" },
+    { "name": "mcp-default-knife-profile", "status": "PASS" },
+    { "name": "mcp-compat-domain-router", "status": "PASS" }
+  ],
+  "task_id": "WPN-ARCH-BASELINE-FAST-003",
+  "test_summary": {
+    "failed": 0,
+    "ignored": 0,
+    "passed": 47,
+    "result_lines": 11
+  },
+  "timeout_contract_seconds": 180
+}

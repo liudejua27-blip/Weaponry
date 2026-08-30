@@ -1,5 +1,11 @@
 # ForgeCAD MVP 与生产发布清单
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+发布前必须附带 authorized CrossFire + original control 的同 cohort acceptance matrix，并分别
+列出 Runtime、game-ready surface、visual、human、engine、package、合作方验收和 release 状态。
+缺独立武器美术人审或目标引擎 round-trip 时，不得以开发包或本地截图替代发布批准。
+
 > 2026-08-26 现行 source：**527 schemas / 115 read + 87 write = 202 tools**。真实 D1 网格编辑纵切仍为 owner-evidence-blocked reviewable tradeoff，不勾选任何 commercial release 项；完整 High/Low/UV/Bake、Material evaluator、FPS、Engine 与独立 Hero Art Review 均未通过。
 
 > 商业 FPS 发布新增硬门：canonical/optimized semantic diff、KTX2 decode hash、LOD/collision/socket/animation readback、Unreal clean import/reimport/restart/packaged run、Unity second profile、target-hardware p50/p95/p99、DPT 和 independent Hero Art Review。详见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。

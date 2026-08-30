@@ -1,5 +1,23 @@
 # ForgeCAD 完成定义
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+## 穿越火线武器 V1 完成门
+
+只有同一 approved candidate hash 同时具备以下证据，才允许写“高质量穿越火线武器已完成”：
+
+- 逐资产授权/provenance PASS；
+- 可编辑 AuthoringMesh、事务 journal、ModifierGraph 和确定性 restart replay PASS；
+- High、artist-editable Low、Hero UV、Cage/normal/AO Bake PASS；
+- PBR/Material Layer/decals/wear channel readback PASS；
+- first-person、inspect、ADS、socket/animation review PASS；
+- LOD/collision/export 与目标商业引擎 round-trip PASS；
+- 固定多视图参考比较 PASS；
+- 独立穿越火线武器美术人审 accepted；
+- confirm/version/export/restart 完全绑定同一 lineage/hash。
+
+缺任一项只能报告局部状态，不能使用“基本完成、商业级、对标完成或可交付”。
+
 > 2026-08-26 现行 source 为 **527 schemas / 115 read + 87 write = 202 tools**。真实 D1 已有一条 `MoveVertices` 资产纵切，但仍是 `REVIEWABLE_TRADEOFF + BLOCKED_FORMART_OWNER_EVIDENCE`；没有完成同 lineage High→editable Low→Hero UV→Cage/Bake→Material→FPS→Engine→Human 证据时不得记 done。
 
 > 商业武器完成只接受同一 candidate/export hash 的 Form、Authoring、High、Low、UV、Cage/Bake、Material、FPS、Engine 和 independent Human 全门 PASS；source compile、Schema 数量、GLB 可打开、Three.js 或 Codex 自评均不是完成。详见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。

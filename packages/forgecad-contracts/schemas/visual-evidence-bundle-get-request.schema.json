@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/visual-evidence-bundle-get-request.schema.json",
+  "title": "VisualEvidenceBundleGetRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "candidate_id", "observation_sha256"],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "observation_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

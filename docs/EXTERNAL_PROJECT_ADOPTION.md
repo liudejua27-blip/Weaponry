@@ -1,5 +1,17 @@
 # 外部项目、Blender 与 GitHub 采用清单
 
+> **ADR-0030 knife-first exception:** Blender 与具体插件可从 `reference-only` 进入
+> `isolated-prototype`，但每个候选必须固定 revision、许可证、依赖锁、headless 行为、资源预算、
+> 刀类 fixture、确定性差分测试和 removal plan。该状态不等于 adopted、可分发或 Rust-native；
+> caller-supplied Python/add-on、Runtime 联网和 `.blend` 真值仍禁止。
+
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+采用优先级只按穿越火线武器生产缺口排序：robust Boolean/mesh repair、Subdivision、UV/pack、
+Cage/Bake/ray diagnostics、tangent/normal、texture compression、glTF/FBX/engine validation。
+Blender/BlenderMCP/img2threejs 继续 reference-only；BlenderTools 只借鉴交付纪律。任何库进入
+Runtime 前仍需冻结 revision、许可证/SBOM、determinism/resource/adversarial Benchmark 和退出方案。
+
 > 2026-08-27 foundation materialization 不改变第三方采用状态。Pichuliru、WRAD 与 Lightning 固定哈希母版只作为已审计 importer 输入；进入产品后的权威结果是 Runtime-owned Part-bounded `AuthoringMesh@2` 与其 CAS/SQLite lineage，而不是上游 GLB、Blender 状态或外部仓库。三份母版结构物化/replay/restart 已通过，但复合 FPS package、艺术拓扑、High→Low→UV→Bake、视觉/真人/引擎门仍未证明。
 
 > 2026-08-26 `04AF` 采用结论不变：用户已授权复制、下载与使用合法开源项目，但仅允许经固定 revision、license/SBOM、determinism/resource 审计后进入 isolated typed Worker。Manifold 仅 compile/link seam，OpenSubdiv/Embree/xatlas/QuadriFlow 等尚未因目标计划而自动成为 active Runtime 依赖。真实 D1 失败表明必须先完成自有 AuthoringMesh 的美术编辑能力，外部算法只能加速求值，不能代替 Art Direction。
@@ -10,7 +22,7 @@
 
 > 2026-08-26 用户授权：允许为本商业武器路线复制、下载、研究并在许可证允许范围内使用开源项目。列入本账本的候选可直接进入隔离 adoption cache 做冻结/许可证/SBOM/benchmark，无需逐仓再次请求；但只有窄范围 `accepted` receipt 才能进入 product Worker/lockfile/package，下载或编译本身不改变产品状态。
 
-版本：2026-08-25
+版本：2026-08-29
 状态：商业游戏武器质量研究已收口为采用队列，但没有新增产品依赖。固定 `mikktspace@0.3.0` 与 MCP010D 固定 revision Manifold C API 仍是仅有的 accepted third-party product slices。xatlas、Khronos Validator、OpenSubdiv、QuadriFlow、Embree、MaterialX、OpenImageIO、OpenColorIO 与 meshoptimizer 仍未进入产品真值。Native High 是 ForgeCAD 自有实现，其 source durable/MCP receipt 不属于第三方采用；proposal 保持 `registered=false`，不构成 active capability 或 High Gate。
 
 ## 1. 采用规则
@@ -198,9 +210,12 @@ MCP005–009 首个机器人仍只使用 typed procedural/PBR values。MCP010E �
 
 Runtime、Viewer 和安装器不得联网或接收素材 URL；远程链接不进入版本真值。010E 不实现通用 pack 安装/升级/撤销，这些属于 MCP012。
 
-## 6. Blender worker 历史研究边界（产品路径已拒绝）
+## 6. Blender public worker 历史研究边界（由 ADR-0030 局部替代）
 
-ADR-0028 现只保留非产品威胁模型与许可证研究，不再授权产品隔离评估 lane。Blender 官方 source/binary 仍不复制、不链接、不执行、不打包；相关能力固定 `unavailable-for-product`。下列条目只是若未来重新立 ADR 时必须重新满足的历史风险清单，不是当前实施步骤或晋级条件：
+ADR-0028 现只保留旧的公共 worker 威胁模型与许可证研究，不授权恢复通用 Blender MCP、
+任意 Python 或 `.blend` 真值。ADR-0030 只为刀类固定 provider 打开新的
+`isolated-prototype` lane，具体执行边界以 6.1 为准。下列条目是旧公共 worker 的历史风险
+清单，不覆盖 6.1，也不是产品能力 PASS：
 
 - 历史候选曾要求仅由产品发布并签名的固定 Recipe 启动 headless worker；当前产品禁止启动该 worker；
 - 输入是受限 Scene/Material/Bake/Render 合同，输出先由 Runtime hash/readback，再由 Runtime 拥有 CAS 工件和 receipt；
@@ -212,7 +227,135 @@ ADR-0028 现只保留非产品威胁模型与许可证研究，不再授权产�
 - 固定 binary、Recipe、冻结 Python bundle、license/SPDX/SBOM、签名/provenance、negative/security、determinism、resource、restart/rollback Gate 未完成前，不进入 lockfile/package/installer；
 - 分发前完成 GPL、动态/进程边界、源码提供义务和 NOTICE 的法律审查。
 
-当前不再创建 Blender render/evidence 评估 receipt。High/Low/UV/Cage/Bake 只由 ForgeCAD 原生 typed Worker 生产，并在独立 contract、strict readback、同 candidate/hash/lineage、Stage@3 quality 和 human/engine Gate 下验收；任何外部 DCC 输出都不能推进 Stage、confirm、version 或 export。
+当前尚未创建新的 Blender prototype receipt。若未来批准 6.1 provider，其输出只能是
+`PrototypeObservation`；High/Low/UV/Cage/Bake 的产品对象仍由 Rust Runtime 在独立 contract、
+strict readback、同 candidate/hash/lineage、quality 和 human/engine Gate 下验收。任何外部 DCC
+输出都不能直接推进 Stage、confirm、version 或 export。
+
+## 6.1 Blender 固定 revision 与刀类内部原型边界（2026-08-29）
+
+本节是 ADR-0030 的实现级补充。本轮只完成资料与边界审计，不下载、安装或执行
+Blender/插件；`isolated-prototype` 只描述一个未来可由单独批准开启的内部实验环境，
+不改变产品采用状态。
+
+### 固定版本、语言和许可证事实
+
+当前规划的 Blender 固定 revision 是
+[`72ccdd6e96ca119a1ffa3372559cc5654343b477`](https://github.com/blender/blender/commit/72ccdd6e96ca119a1ffa3372559cc5654343b477)，
+其上游提交标题为 FBX `CastShadows` 修复，不是 release tag。该 revision 的
+[`BKE_blender_version.h`](https://raw.githubusercontent.com/blender/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/blenkernel/BKE_blender_version.h)
+声明 `BLENDER_VERSION 503`、patch `0`、cycle `alpha`，因此应记录为 Blender
+5.3.0-alpha source snapshot，而不能把 Blender 4.5 LTS 手册或插件兼容性直接套在它上面。
+
+官方 [`COPYING`](https://raw.githubusercontent.com/blender/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477/COPYING)
+说明 Blender 本体使用 GNU GPL，且除 GPL 外没有另一个 Blender 总许可证；官方
+[`license` 页面](https://www.blender.org/about/license/)还说明公开发布的 Python
+add-on script 必须采用 GPL-compatible 许可，而 artwork、图片、电影、`.blend` 数据
+的权利要逐项确认。故“内部可运行”不等于“可以把 Blender/plugin 链接、复制或嵌入
+产品”；改写算法/数据语义仍需保持 clean-room，不复制 GPL 源码、Python、资产或
+内部对象布局，最终分发边界交法务复核。
+
+这不是一个可当作 Rust crate 的小工具：固定 source 的
+[`CMakeLists.txt`](https://raw.githubusercontent.com/blender/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477/CMakeLists.txt)
+要求 CMake 3.21，并声明 GCC 14/Clang 17 等编译器门槛、Python/Python security、
+可选 `WITH_HEADLESS`、OpenSubdiv、QuadriFlow、Manifold、OpenVDB、MaterialX、Embree、
+Cycles、MikkTSpace、meshoptimizer 等依赖。[
+`BMesh CMakeLists.txt`](https://raw.githubusercontent.com/blender/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/bmesh/CMakeLists.txt)
+列出 bevel、bridge、dissolve、extrude、inset、mirror、subdivide、symmetrize 等大批
+C++ operator、内部拓扑查询/遍历和 Eigen/TBB/Bullet 等依赖；[
+`depsgraph`](https://raw.githubusercontent.com/blender/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/depsgraph/CMakeLists.txt)
+与 [`nodes`](https://raw.githubusercontent.com/blender/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/nodes/CMakeLists.txt)
+还分别包含 copy-on-write、animation/modifier/pose 求值和 Geometry/Shader/Function
+节点生成/执行。结论是：Rust 重建的难点是语义、拓扑、求值图、宿主状态与依赖收敛的
+组合，而不是把几组 API 名称翻译成 Rust。
+
+### 刀类能力矩阵
+
+| 能力 | 固定 Blender 隔离原型可做什么 | 许可证/宿主/无头与 I/O 风险 | 产品结论、Rust 真值与退出条件 |
+|---|---|---|---|
+| BMesh/硬表面 | 用内置 BMesh、Edit Mesh、Modifier 快速试验刀身、护手、槽、倒角、桥接、法线和非破坏顺序；官方 API 说明 BMesh 提供连接关系及 split/separate/collapse/dissolve 等编辑操作（见 [`BMesh API`](https://docs.blender.org/api/main/bmesh.html)）。 | 本体 GPL；C++ BMesh 由 `bpy`/data-block/operator context 绑定。`-b/--background` 可无 UI 执行（见 [`command line`](https://docs.blender.org/manual/en/4.5/advanced/command_line/arguments.html)），但 background 不等于已证明的无图形 `WITH_HEADLESS` 构建，也不消除 Python、插件、路径和浮点/线程差异。输入为受限临时 `.blend`/嵌入 GLB+typed 参数，输出临时 mesh/GLB/AOV。 | `AuthoringMesh`、稳定语义 ID、原子事务、Modifier/Evaluation Graph、严格回读必须 Rust-owned；禁止复制 BMesh handles/context。Rust fixture 与两次回放在同一宿主通过后，停用该原型；原型输出永不推进 candidate/Stage。 |
+| High/雕刻/Multires/Subdivision | 用 Multires/Sculpt 观察刀刃圆滑、刻痕、磨损和细节层级；Multires 可在不同级别 sculpt，且可用 viewport level 作 Low、render level 作 High（见 [`Multires`](https://docs.blender.org/UATEST/manual/en/4.5/modeling/modifiers/generate/multiresolution.html)）。 | OpenSubdiv/OpenVDB 等可选依赖各有许可与平台差异；brush、sculpt session、modifier order、视图级别和资源峰值影响结果。输入高模/多级网格/固定 brush 参数，输出暂存 High/displacement/normal；不把 `.blend` 或 brush library 当资产真值。 | 十天只做 bounded high evaluator/细节 proposal；High topology、crease、位移 hash、预算与回读由 Rust 验证。完整 Sculpt parity 延后；Rust High fixture 与独立人审通过后移除原型。 |
+| Low/Retopo | 内置 Quad Remesh/Poly Build/overlay/snapping 试验低模轮廓、feature locks 和人工对应；官方手册明确 Quad Remesh 受 seed 影响，自动拓扑不是最终变形拓扑（见 [`Retopology`](https://docs.blender.org/manual/en/4.5/modeling/meshes/retopology.html)）。 | QuadriFlow 编译选项和其自身许可证/solver 需另审；人工 UI 操作不适合稳定 headless replay。输入 High、目标面数、seams/锁定区域/seed，输出只作 draft Low、对应关系和诊断。 | 可让 Blender/QuadriFlow 提供 `LowDraft` 观察；可编辑 Low、High→Low correspondence、语义 Part 和人审记录必须 Rust-owned。固定 seed 仍不代表艺术质量；Rust draft/negative fixture 通过后，退出所有外部 retopo lane。 |
+| UV | 内置 Unwrap/SLIM/Pack Islands 试验 seams、镜像/堆叠、UDIM、texel density 和 stretch；可观察其 UV face-corner 输出。 | UV 结果受 seams、版本、seed、margin、色彩/单位与插件宿主影响；输入 mesh+seams+UDIM/密度，输出 UV 坐标、atlas、stretch 诊断到临时文件。 | `HeroUvLayout`、稳定 island/face-corner 索引、密度/stretch 门和 CAS receipt 必须 Rust-owned；xatlas 仍只是候选研究，任何第三方 UV 输出不能成为 authored Low 或 export 真值。 |
+| Bake/Cage | Cycles Selected-to-Active、Multires bake、normal/AO/curvature/thickness/ID 和 cage 误差可做视觉/流程 prototype；官方说明 bake 需要 UV、目标 Image Texture/Color Attribute，Selected-to-Active 依赖 ray distance/extrusion/cage，手工 cage 要求相同拓扑的面数与顺序（见 [`Cycles baking`](https://docs.blender.org/UATEST/manual/en/4.5/render/cycles/baking.html)）。 | 受 render settings、设备、CPU 内存（每对象有固定 footprint）、margin、色彩管理和 image codec 影响；`-b` 可无 UI，但不能宣称跨平台字节确定。输入 High/Low/cage/UV/固定 bake settings，输出暂存 PNG/EXR/纹理与 ray diagnostics。 | Rust 必须拥有 cage/ray miss-skew-intersection 诊断、MikkTSpace 约定、map byte/decoded readback、PBR 通道和 provenance；当前仅 `mikktspace@0.3.0` accepted。两个同 host fresh scratch 回放和引擎回读均通过后退出 Blender bake；不能用美观截图代替门。 |
+| 材质/PBR | Principled BSDF/Shader Editor、通道打包、磨损层、节点连接和 AOV 预览可回答刀身金属/涂层/edge wear 的工作流问题；官方 Principled 以 OpenPBR 为基础并兼容 Disney/Standard Surface（见 [`Principled`](https://docs.blender.org/manual/en/4.5/render/shader_nodes/shader/principled.html)）。 | Blender 节点/data-block、图片路径、OCIO 配置和 renderer/device 绑定；输出是临时预览/贴图/graph 描述，不是产品材质状态。官方 Node Wrangler 源码是 GPL-2.0-or-later、`support: OFFICIAL`、导入 `bpy`，只能作为宿主 UX 参考。 | Rust `MaterialLayerGraph`、PBR slot/色彩策略、纹理 provenance 与 AOV/readback 是唯一真值；不复制 Node Wrangler/shader code。native graph fixture+decoded map gate 通过即移除插件/Blender。 |
+| FPS/检视 | 用 Camera、collection、约束、固定镜头测试持刀、inspect、ADS、刀刃反光和 socket framing；只作固定视图观察。 | 视图/约束/父子 data-block、hand asset、插件 modal UI 难以无头复现。MESHmachine、HardOps/Boxcutter、DECALmachine 等成熟硬表面工具多为商业 vendor terms；DECALmachine 官方文档只支持 Blender 4.3–5.1，5.2 alpha 已属 experimental，而固定 host 是 5.3 alpha。输入临时 scene+camera/socket，输出 preview/AOV/package 草案。 | `FpsPresentationPackage`、camera/occlusion/ADS/inspect 参数、hand/socket/engine readback 必须 Rust-owned；商业插件只可在有授权的本地手工 prototype，永不进包/lockfile。Rust FPS fixture+独立人审/引擎门通过后立即移除。 |
+| 动画 | 内置 Armature、Action/F-Curve、NLA、约束和 shape keys 试验刀柄/刀刃层级、idle/inspect/slash/stab clip、socket 与事件；官方说明 Action 存储 F-Curves，NLA 可作 strips（见 [`Actions`](https://docs.blender.org/manual/en/4.4/animation/actions.html)），Bake Action 会将约束/driver 等最终运动逐帧写成 keyframes（见 [`NLA bake`](https://docs.blender.org/manual/en/4.5/editors/nla/editing/strip.html)）。 | action slot/driver/constraint/NLA heuristics、父子关系和每帧 bake 会改变输入/输出；Rigify 为官方 bundled GPL-2.0-or-later add-on，但 feature set 可载入外部 rig，不能作为产品依赖。输入 armature/actions/constraints/keyframes，输出临时 clip/GLB/FBX/帧。 | Rust 只实现刀类刚性 hierarchy、socket、clip/event map、固定采样和导出回读；完整角色 rig、shape-key/NLA 编辑器 deferred。Rust clip fixture 与引擎 readback 通过后移除 Rigify/动画原型。 |
+| Geometry Nodes/NURBS | Geometry Nodes 可原型化槽纹、重复齿、实例、属性传递与有限 procedure；NURBS 可参考刀背/刃线曲线。官方 Geometry Nodes Bake 明确存储在 `.blend`/磁盘且不是 interchange，版本兼容不保证（见 [`Geometry Nodes`](https://docs.blender.org/manual/en/4.5/modeling/geometry_nodes/index.html) 与 [`Bake`](https://docs.blender.org/manual/en/4.5/modeling/geometry_nodes/geometry/operations/bake.html)）；NURBS 控制点/权重是数学曲线（见 [`NURBS structure`](https://docs.blender.org/manual/en/4.5/modeling/curves/structure.html)）。 | Nodes 构建含 Python discovery 与大型 C++ geometry/depsgraph/field/instance 依赖；NURBS 全 editor、trim、continuity、surface/B-rep 远超十天。输入只允许预声明 typed graph/curve，输出 evaluated mesh/attributes/curve diagnostics。 | Rust 仅收敛刀类 `ModifierGraph`/bounded node subgraph 与可重复曲线 tessellation；不实现通用 Geometry Nodes/NURBS parity，不把 node bake 或 `.blend` cache 当真值。 |
+
+### 官方/成熟插件处置矩阵
+
+| 插件/来源 | 许可证与宿主事实 | 隔离 prototype 结论 | Rust 迁移/退出 |
+|---|---|---|---|
+| [Node Wrangler fixed source](https://raw.githubusercontent.com/blender/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477/scripts/addons_core/node_wrangler/__init__.py) | GPL-2.0-or-later，`support: OFFICIAL`，依赖 `bpy`，source 标 Blender 5.0；不能从标记推断对 5.3-alpha 的兼容。 | 可用于材质节点 UX/快捷操作观察；不得接收 caller Python 或写 Runtime。 | 映射为 `MaterialLayerGraph@1` translator/validator 和固定 PBR enums；不复制脚本，native graph fixture 通过后移除。 |
+| [Rigify fixed source](https://raw.githubusercontent.com/blender/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477/scripts/addons_core/rigify/__init__.py) | GPL-2.0-or-later，`support: OFFICIAL`，bundled，依赖 `bpy`/文件与 feature-set 加载。 | 只做刀类 rigid/hand rig 工作流观察；外部 feature set、角色 rig 和文件访问全部 quarantine。 | 映射为 `WeaponRig@1` 的刚性 socket、clip、event map；不搬 rig Python/骨骼资产，native clip/engine gate 后移除。 |
+| [Magic UV Extensions](https://extensions.blender.org/add-ons/magic-uv/) | 官方 Extensions 页面标 GPL-2.0-or-later、Blender 4.2+、limited support；历史上曾 bundled。 | 可观察 UV 操作 UX，不当作稳定 solver；精确版本与 5.3-alpha host 仍需单独固定。 | 仅把 seam/island/packing 语义转成 `HeroUvLayout@1`；Rust validator 取代插件。 |
+| [RetopoFlow](https://github.com/CGCookie/retopoflow/blob/master/blender_manifest.toml) | manifest 标 `SPDX:GPL-2.0-or-later`、min Blender 4.2；官方 docs 又称 code GPL 3.0 且 non-code assets 不同，存在版本/资产许可冲突。 | 只能研究操作/交互；在冲突解决前不下载、不执行、不复制源码/非代码资产，也不列为 adopted。 | 只提取 `LowDraft@1` 行为合同、对应关系和人审；Rust authored Low 通过后删除研究缓存。 |
+| [UVPackmaster](https://uvpackmaster.com/doc3/blender/3.0.6/10-uvpackmaster-setup/) | addon 与 engine 分开许可；engine 需单独 EULA/安装，官方文档列 Windows/Linux 64-bit，版本必须匹配。 | 禁止作为可分发依赖；若未来有授权，只能离线手工比较 packing/密度，不能把安装脚本或 engine 放入产品。 | `HeroUvLayout` 只实现自有 deterministic packer/diagnostics；EULA engine 没有 Rust vendor/fallback 路径。 |
+| [Zen UV Checker](https://extensions.blender.org/add-ons/zenuvchecker/) | 官方页面标 GPL-3.0-or-later、Blender 4.2+，需 Files permission；它是 checker，不等于完整 Zen UV。 | 可研究 checker 的 stretch/UV 可视化；权限、版本和 GPL 均不适合作为 Runtime 插件。 | 映射为 Rust UV diagnostics/AOV；不复制贴图、脚本或完整 Zen UV。 |
+| [MESHmachine](https://machin3.io/MESHmachine/docs/) / [HardOps](https://hardops-manual.readthedocs.io/en/latest/installation/) / [Boxcutter](https://boxcutter-manual.readthedocs.io/en/latest/installation/) | 成熟硬表面商业工具，官方发布渠道是 vendor/marketplace；未找到可供本产品再分发的 SPDX 源码许可。 | 仅在另有商业授权、固定版本/host 的人工内部试验；不执行市场安装脚本，不把授权推定为可嵌入。 | 把 bevel/fillet/fuse/boolean/modal intent 写成 Rust typed operators/transactions；native hard-surface fixtures 通过即退出。 |
+| [DECALmachine](https://machin3.io/DECALmachine/docs/installation/) | 商业 vendor terms；当前文档支持 Blender 4.3–5.1，5.2 alpha 仅 experimental，advanced decal/trim/bake 还依赖 Pillow。 | 固定 5.3-alpha 不在官方支持范围，不能作为本轮 prototype provider。 | 只借鉴 decal/wear layer 语义，Rust 实现 typed mask/material layer；不携带 decal mesh、Pillow、插件或资产。 |
+
+“官方/成熟”只表示来源或市场成熟度，不代表 GPL 例外、可再分发或固定 5.3-alpha
+兼容。任何插件都必须单独记录 exact version/source hash、许可证文本、Python/engine
+依赖、宿主权限和移除 receipt；缺一项就保持 `reference-only`。
+
+### 原型宿主、确定性、输入输出和退出
+
+未来若 ADR-0030 单独批准 prototype，必须使用 exact source SHA、固定编译器/CMake
+flags、完整依赖 SBOM 和离线 scratch。`-b/--background` 只表示无 UI 的命令行模式；
+是否使用 `WITH_HEADLESS` 必须另行固定，不能用“headless”字样掩盖 Python 或插件能力。
+每个 job 只接受 closed typed scene/mesh/material/bake/animation contract、内嵌或 hash
+绑定的授权 fixture、固定 seed/frame/thread/CPU/color config；不得接受用户/Codex Python、
+add-on zip、任意路径、URL、环境变量或网络服务。输出只能是 scratch 中的 GLB/FBX、PNG/AOV、
+clip、诊断和 content-free receipt；不得直接写 Runtime SQLite/CAS/Stage。
+
+确定性门至少包括同一宿主 fresh scratch 两次运行的字节 hash，以及独立的 semantic
+readback（Part/拓扑/UV/tangent/PBR/socket/animation）；若 CPU/GPU、线程、OCIO、插件或
+图像 codec 导致差异，标 `NOT_PROVEN` 并 fail closed。产品侧仍须重新解析、单位/finite/
+预算/拓扑/通道/引擎回读，原型结果只能作为 `PrototypeObservation`，不能推进
+candidate、confirm、version 或 export。
+
+每个原型有独立 `prototype_id`、输入/输出 hash、许可证/依赖 receipt、资源与负向测试、
+退出条件。对应 Rust capability 完成 typed contract、同 fixture differential、确定性
+回放、strict readback、独立人审和引擎门后，关闭 provider、删除本地 plugin/binary/cache
+（保留 hash-only 研究 receipt及失败原因），不得静默 fallback；许可证/版本/资源任一失败
+即直接移除或保留 `rejected` 说明，不能将失败结果提升为产品能力。
+
+### 把 Blender 插件逐层迁移为 Rust 能力
+
+1. **许可和范围**：先区分 Blender/官方 GPL、第三方混合许可、商业 EULA；只提取公开
+   行为与输入输出，不复制代码、资产、Python、`.blend` 或内部对象布局。
+2. **行为盘点**：把 operator/menu/hotkey/modal workflow 记录为 capability；列出
+   输入、输出、side effect、宿主 API、文件/网络权限和失败语义。
+3. **合同先行**：设计 ForgeCAD Schema、closed enum/预算、canonical hash、provenance、
+   负向错误码和 removal receipt；先有 contract/test 再写实现。
+4. **数据模型解耦**：data-block/BMesh handle/context/undo 改为稳定 ID 的
+   `AuthoringMesh`、`Part`、`MaterialZone`、`Socket`、`Action`；evaluated mesh 只作可丢弃投影。
+5. **算法分层**：纯 Rust 做拓扑、UV、ray/bake、PBR/色彩和刀类动画；已 accepted 的
+   `mikktspace`/Manifold 也只能在受限 Worker 内使用，其他库/插件保持 research-only。
+6. **事务化执行**：把插件连续热键/模态操作变成 preview→prepare→commit/rollback 的
+   原子 journal；Runtime 是唯一写者，插件/外部进程无 Store/CAS 访问。
+7. **求值与验证**：固定 seed、CPU/thread、边界条件和资源；同 fixture 做 Blender
+   shadow 与 Rust differential，比较语义几何/UV/PBR/animation，而非截图或 `.blend` hash。
+8. **包装与退出**：为 Rust Worker 生成 LICENSE/NOTICE/SBOM/provenance/signature、
+   build cohort 和 capability manifest；Rust gate 全绿后停止 Blender provider，并保留
+   可审计 hash/差异报告。差异未解时保持 Rust `NOT_PROVEN`，不得用 Blender 作为产品 fallback。
+
+典型映射为：Node Wrangler → `MaterialLayerGraph@1`；QuadriFlow/RetopoFlow →
+`LowDraft@1`；Magic UV/UVPackmaster → `HeroUvLayout@1`；Rigify → `WeaponRig@1`；
+DECALmachine → typed decal/wear material masks。映射的是可验证语义，不是源码翻译。
+
+### 绝不允许的整仓/产品内嵌路径
+
+- 不整仓 clone、vendoring 或链接 Blender；不把 Blender binary、Python bundle、`.blend`、
+  plugin zip/cache、安装脚本、动态 loader、BlenderMCP/socket、任意 Python/JS 带入 Runtime、
+  active Skill、lockfile、安装包或 CAS。
+- 不让插件直接访问 SQLite/CAS/Stage，不让外部 `.blend`、插件输出或第二 renderer 成为
+  authored High/Low/UV/Bake/PBR/animation truth，不以“内部使用”规避 GPL/EULA/NOTICE/SBOM
+  与源码提供义务。
+- 不因插件“能跑”、单张截图、`.blend` 保存成功或 Blender 自评通过而跳过 Runtime strict
+  readback、确定性、资源/安全、独立人审和目标引擎回读。
 
 ## 7. 采用记录模板
 

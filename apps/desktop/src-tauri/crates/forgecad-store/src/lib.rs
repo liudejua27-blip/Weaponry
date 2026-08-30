@@ -1,13 +1,36 @@
+mod authoring_mesh_v2_transaction;
+mod approval_repository;
+pub mod authoring_repository;
 mod cas;
+pub mod delivery_repository;
+pub mod evaluation_repository;
 pub mod foundation_authoring_mesh_v2_materialization;
 pub mod fps_presentation_package_v2;
 pub mod hero_uv_durable;
 mod low_quad_durable;
+pub mod presentation_repository;
 mod production_weapon_form_art_baseline;
 mod production_weapon_form_art_composite_evidence;
 mod production_weapon_form_art_composite_proposal;
 mod production_weapon_formal_high;
+pub mod repository_boundaries;
+pub mod surface_repository;
 pub mod weapon_foundation_import;
+mod weaponry_curve_evaluated_mesh;
+mod weaponry_curve_modifier_graph;
+pub use authoring_mesh_v2_transaction::{
+    AUTHORING_MESH_V2_TRANSACTION_MAX_BYTES, AUTHORING_MESH_V2_TRANSACTION_MAX_COMMANDS,
+    AUTHORING_MESH_V2_TRANSACTION_OBJECT_KIND,
+    AUTHORING_MESH_V2_TRANSACTION_PAYLOAD_SCHEMA_VERSION,
+    AUTHORING_MESH_V2_TRANSACTION_RECORD_SCHEMA_VERSION, AUTHORING_MESH_V2_TRANSACTION_STATUS,
+    AuthoringMeshV2TransactionCommit, AuthoringMeshV2TransactionDurableRecord,
+    AuthoringMeshV2TransactionPayload, AuthoringMeshV2TransactionRevisionInput,
+};
+pub use authoring_repository::AuthoringRepository;
+pub use delivery_repository::DeliveryRepository;
+pub use evaluation_repository::{
+    EvaluationRepository, JobEventRecord, JobRecord, JobRepository, JobSummary,
+};
 pub use forgecad_contracts::{
     ProductionWeaponFormArtBaselineRecord, ProductionWeaponFormArtBaselineView,
 };
@@ -20,27 +43,49 @@ pub use foundation_authoring_mesh_v2_materialization::{
 pub use fps_presentation_package_v2::{
     FpsPresentationPackageV2CandidateStoreRecord, FpsPresentationPackageV2StoreRecord,
 };
+pub use presentation_repository::PresentationRepository;
 pub use production_weapon_form_art_baseline::{
-    ProductionWeaponFormArtBaselineCasBatch, ProductionWeaponFormArtBaselineCasBatchOwner,
-    ProductionWeaponFormArtBaselineCommitBundle,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_CAS_BATCH_OWNER_KIND,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_CAS_BATCH_SCHEMA_VERSION,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_CAS_BATCH_TIMEOUT_SECS,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_PARENT_OBJECT_KIND,
-    PRODUCTION_WEAPON_FORM_ART_BASELINE_VIEW_OBJECT_KIND,
+    PRODUCTION_WEAPON_FORM_ART_BASELINE_VIEW_OBJECT_KIND, ProductionWeaponFormArtBaselineCasBatch,
+    ProductionWeaponFormArtBaselineCasBatchOwner, ProductionWeaponFormArtBaselineCommitBundle,
 };
 pub use production_weapon_form_art_composite_evidence::{
-    record_canonical_sha256 as production_weapon_form_art_composite_evidence_record_canonical_sha256,
-    ProductionWeaponFormArtCompositeEvidenceRecord,
     PRODUCTION_WEAPON_FORM_ART_COMPOSITE_EVIDENCE_RECEIPT_OBJECT_KIND,
     PRODUCTION_WEAPON_FORM_ART_COMPOSITE_EVIDENCE_RECEIPT_SCHEMA_VERSION,
     PRODUCTION_WEAPON_FORM_ART_COMPOSITE_EVIDENCE_RECORD_SCHEMA_VERSION,
+    ProductionWeaponFormArtCompositeEvidenceRecord,
+    record_canonical_sha256 as production_weapon_form_art_composite_evidence_record_canonical_sha256,
 };
 pub use production_weapon_form_art_composite_proposal::{
-    record_canonical_sha256 as production_weapon_form_art_composite_proposal_record_canonical_sha256,
     ProductionWeaponFormArtCompositeProposalStoreRecord,
+    record_canonical_sha256 as production_weapon_form_art_composite_proposal_record_canonical_sha256,
 };
 pub use production_weapon_formal_high::ProductionWeaponFormalHighCommitBundle;
+pub use surface_repository::{
+    ProductionWeaponHighLowBakeCommitBundle, ProductionWeaponHighLowBakePreflightSourceSummary,
+    ProductionWeaponHighLowBakePreflightSources, SurfaceRepository,
+};
+pub use weaponry_curve_evaluated_mesh::{
+    KnifeCurveEvaluatedMeshCasBundle, KnifeCurveEvaluatedMeshCommit,
+    KnifeCurveEvaluatedMeshDurableRecord, WEAPONRY_CURVE_EVALUATED_MESH_JSON_MIME,
+    WEAPONRY_CURVE_EVALUATED_MESH_MAX_JSON_BYTES, WEAPONRY_CURVE_EVALUATED_MESH_RECORD_SCHEMA,
+    WEAPONRY_CURVE_EVALUATED_MESH_STATUS, WEAPONRY_CURVE_EVALUATION_PLAN_OBJECT_KIND,
+    WEAPONRY_EVALUATED_MESH_IDENTITY_OBJECT_KIND, WEAPONRY_EVALUATED_MESH_LINK_OBJECT_KIND,
+    WEAPONRY_EVALUATED_MESH_OBJECT_KIND, WeaponryCurveEvaluatedMeshCasBundle,
+    WeaponryCurveEvaluatedMeshCommit, WeaponryCurveEvaluatedMeshDurableRecord,
+    record_canonical_sha256 as weaponry_curve_evaluated_mesh_record_canonical_sha256,
+};
+pub use weaponry_curve_modifier_graph::{
+    WEAPONRY_CURVE_MODIFIER_GRAPH_JSON_MIME, WEAPONRY_CURVE_MODIFIER_GRAPH_MAX_JSON_BYTES,
+    WEAPONRY_CURVE_MODIFIER_GRAPH_RECORD_SCHEMA, WEAPONRY_CURVE_MODIFIER_GRAPH_STATUS,
+    WEAPONRY_CURVE_SET_OBJECT_KIND, WEAPONRY_DEPENDENCY_GRAPH_OBJECT_KIND,
+    WEAPONRY_MODIFIER_GRAPH_OBJECT_KIND, WEAPONRY_RECOMPUTE_PLAN_OBJECT_KIND,
+    WEAPONRY_SAMPLE_SET_OBJECT_KIND, WeaponryCurveModifierGraphCasBundle,
+    WeaponryCurveModifierGraphCommit, WeaponryCurveModifierGraphDurableRecord,
+};
 
 fn v2_value_string<'a>(value: &'a Value, field: &str) -> Result<&'a str, StoreError> {
     value
@@ -2503,15 +2548,18 @@ fn fictional_energy_vfx_animated_socket_trails_v2_reachable_hashes(
 
 pub use cas::{CasError, CasObject, CasStore};
 use forgecad_contracts::{
-    is_opaque_id, is_sha256, production_stage_v3_is_adjacent, AppearanceSourceLineageLinkRecord,
-    ApprovalReceiptRecord, AuditEventRecord, AuthoringMeshRevision,
-    AuthoringMeshTopologyOperationKind, AuthoringMeshTopologyOperationProof,
-    CandidateAnimationVfxQualityRecord, CandidateAnimationVfxQualityV2Record,
-    CandidateConfirmRequest, CandidateConfirmResult, CandidateMaterialSurfaceQualityHardGate,
-    CandidateMaterialSurfaceQualityRecord, CandidateRecord, CandidateRejectRequest,
-    CandidateRejectResult, CandidateTopologyQualityRecord, CasObjectRecord,
-    DesignAssetVersionRecord, ExportConfirmRequest, ExportConfirmResult, ExportManifestRecord,
-    ExportPrepareRequest, ExportPrepareResult,
+    AUTHORING_MESH_TOPOLOGY_CORRESPONDENCE_KINDS, AUTHORING_MESH_TOPOLOGY_EDIT_OPERATIONS,
+    AppearanceSourceLineageLinkRecord, ApprovalReceiptRecord, AuditEventRecord,
+    AuthoringMeshRevision, AuthoringMeshTopologyOperationKind, AuthoringMeshTopologyOperationProof,
+    CANDIDATE_ANIMATION_VFX_QUALITY_V2_BINDING_STATUS,
+    CANDIDATE_ANIMATION_VFX_QUALITY_V2_FRAME_COUNT,
+    CANDIDATE_ANIMATION_VFX_QUALITY_V2_FRAME_SET_SCHEMA, CANDIDATE_ANIMATION_VFX_QUALITY_V2_POLICY,
+    CANDIDATE_ANIMATION_VFX_QUALITY_V2_SCOPE, CandidateAnimationVfxQualityRecord,
+    CandidateAnimationVfxQualityV2Record, CandidateConfirmRequest, CandidateConfirmResult,
+    CandidateMaterialSurfaceQualityHardGate, CandidateMaterialSurfaceQualityRecord,
+    CandidateRecord, CandidateRejectRequest, CandidateRejectResult, CandidateTopologyQualityRecord,
+    CasObjectRecord, DesignAssetVersionRecord, ExportConfirmRequest, ExportConfirmResult,
+    ExportManifestRecord, ExportPrepareRequest, ExportPrepareResult,
     FictionalEnergyVfxAnimatedSocketAttachmentFrameRecord,
     FictionalEnergyVfxAnimatedSocketAttachmentRecord,
     FictionalEnergyVfxAnimatedSocketAttachmentV2FrameRecord,
@@ -2539,35 +2587,13 @@ use forgecad_contracts::{
     GameWeaponAnimatedGlbSocketTransformProjectionV2,
     GameWeaponAnimatedGlbSocketTransformProjectionV2Frame,
     GameWeaponGlbSocketMaterializationLinkRecord, GameWeaponGlbSocketMaterializationLodRecord,
-    GeometryCandidateEvidenceRecord, JobEventRecord, JobRecord, JobSummary,
-    MechanicalAnimationClipLinkRecord, MechanicalAnimationClipV2LinkRecord,
-    MechanicalAnimationClipV2Record, MechanicalAnimationGlbV2LinkRecord,
-    MechanicalAnimationGlbV2ReceiptRecord, ProductionCameraLockRecord,
-    ProductionCameraLockRegistrationLineageRecord, ProductionStageHeadV2Record,
-    ProductionStageHeadV3Record, ProductionStageTransitionRecord,
-    ProductionStageTransitionV2Record, ProductionStageTransitionV3Record,
-    ProductionWeaponCageArtifactRecord, ProductionWeaponFormArtEvidenceRecord,
-    ProductionWeaponFormArtEvidenceViewRecord, ProductionWeaponFormEvidenceObservation,
-    ProductionWeaponFormEvidenceRecord, ProductionWeaponFormEvidenceViewRecord,
-    ProductionWeaponFormQualityEvidenceBinding, ProductionWeaponFormQualityNoRegression,
-    ProductionWeaponFormQualityRecord, ProductionWeaponFormQualityV2Aggregate,
-    ProductionWeaponFormQualityV2Record, ProductionWeaponFormQualityV2ViewDecision,
-    ProductionWeaponFormQualityViewRecord, ProductionWeaponHighArtifactRecord,
-    ProductionWeaponHighLowBakeGetResult, ProductionWeaponHighLowBakePlanRecord,
-    ProductionWeaponHighLowBakePrepareResult, ProductionWeaponHighLowBakeReceiptRecord,
-    ProductionWeaponHighLowCorrespondenceRecord, ProductionWeaponHighLowDiagnosticRecord,
-    ProductionWeaponLowArtifactRecord, ProjectRecord, ProjectSummary, ReferenceAuthorization,
-    ReferenceEvidenceRecord, RestoreConfirmRequest, RestoreConfirmResult, RestorePrepareRequest,
-    RestorePrepareResult, SnapshotRecord, SnapshotSummary, SubdivisionArtifactLineageLinkRecord,
-    AUTHORING_MESH_TOPOLOGY_CORRESPONDENCE_KINDS, AUTHORING_MESH_TOPOLOGY_EDIT_OPERATIONS,
-    CANDIDATE_ANIMATION_VFX_QUALITY_V2_BINDING_STATUS,
-    CANDIDATE_ANIMATION_VFX_QUALITY_V2_FRAME_COUNT,
-    CANDIDATE_ANIMATION_VFX_QUALITY_V2_FRAME_SET_SCHEMA, CANDIDATE_ANIMATION_VFX_QUALITY_V2_POLICY,
-    CANDIDATE_ANIMATION_VFX_QUALITY_V2_SCOPE, PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY,
-    PRODUCTION_CAMERA_LOCK_CALIBRATION_STATUS, PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS,
-    PRODUCTION_CAMERA_LOCK_DISTRIBUTION_STATUS, PRODUCTION_CAMERA_LOCK_ENGINE_STATUS,
-    PRODUCTION_CAMERA_LOCK_HUMAN_STATUS, PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND,
-    PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS,
+    GeometryCandidateEvidenceRecord, MechanicalAnimationClipLinkRecord,
+    MechanicalAnimationClipV2LinkRecord, MechanicalAnimationClipV2Record,
+    MechanicalAnimationGlbV2LinkRecord, MechanicalAnimationGlbV2ReceiptRecord,
+    PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY, PRODUCTION_CAMERA_LOCK_CALIBRATION_STATUS,
+    PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS, PRODUCTION_CAMERA_LOCK_DISTRIBUTION_STATUS,
+    PRODUCTION_CAMERA_LOCK_ENGINE_STATUS, PRODUCTION_CAMERA_LOCK_HUMAN_STATUS,
+    PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND, PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS,
     PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_AUTHORED_ORIENTATION_SCHEMA_VERSION,
     PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GEOMETRY_PROGRAM_SCHEMA_VERSION,
     PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_POLICY,
@@ -2626,10 +2652,26 @@ use forgecad_contracts::{
     PRODUCTION_WEAPON_HIGH_LOW_BAKE_PLAN_POLICY, PRODUCTION_WEAPON_HIGH_LOW_BAKE_POLICY,
     PRODUCTION_WEAPON_HIGH_LOW_BAKE_RECEIPT_KIND, PRODUCTION_WEAPON_HIGH_LOW_CORRESPONDENCE_KIND,
     PRODUCTION_WEAPON_HIGH_LOW_CORRESPONDENCE_POLICY, PRODUCTION_WEAPON_HIGH_LOW_DIAGNOSTIC_KIND,
-    PRODUCTION_WEAPON_HIGH_LOW_DIAGNOSTIC_POLICY, PRODUCTION_WEAPON_HIGH_LOW_GATE_SCOPES,
-    PRODUCTION_WEAPON_HIGH_LOW_SOURCE_STAGES, PRODUCTION_WEAPON_HIGH_LOW_TARGET_STAGES,
-    PRODUCTION_WEAPON_LOW_ARTIFACT_KIND, PRODUCTION_WEAPON_LOW_ARTIFACT_POLICY,
-    PRODUCTION_WEAPON_LOW_ARTIFACT_RECEIPT_KIND,
+    PRODUCTION_WEAPON_HIGH_LOW_DIAGNOSTIC_POLICY, PRODUCTION_WEAPON_HIGH_LOW_SOURCE_STAGES,
+    PRODUCTION_WEAPON_HIGH_LOW_TARGET_STAGES, PRODUCTION_WEAPON_LOW_ARTIFACT_KIND,
+    PRODUCTION_WEAPON_LOW_ARTIFACT_POLICY, PRODUCTION_WEAPON_LOW_ARTIFACT_RECEIPT_KIND,
+    ProductionCameraLockRecord, ProductionCameraLockRegistrationLineageRecord,
+    ProductionStageHeadV2Record, ProductionStageHeadV3Record, ProductionStageTransitionRecord,
+    ProductionStageTransitionV2Record, ProductionStageTransitionV3Record,
+    ProductionWeaponCageArtifactRecord, ProductionWeaponFormArtEvidenceRecord,
+    ProductionWeaponFormArtEvidenceViewRecord, ProductionWeaponFormEvidenceObservation,
+    ProductionWeaponFormEvidenceRecord, ProductionWeaponFormEvidenceViewRecord,
+    ProductionWeaponFormQualityEvidenceBinding, ProductionWeaponFormQualityNoRegression,
+    ProductionWeaponFormQualityRecord, ProductionWeaponFormQualityV2Aggregate,
+    ProductionWeaponFormQualityV2Record, ProductionWeaponFormQualityV2ViewDecision,
+    ProductionWeaponFormQualityViewRecord, ProductionWeaponHighArtifactRecord,
+    ProductionWeaponHighLowBakeGetResult, ProductionWeaponHighLowBakePlanRecord,
+    ProductionWeaponHighLowBakePrepareResult, ProductionWeaponHighLowBakeReceiptRecord,
+    ProductionWeaponHighLowCorrespondenceRecord, ProductionWeaponHighLowDiagnosticRecord,
+    ProductionWeaponLowArtifactRecord, ProjectRecord, ProjectSummary, ReferenceAuthorization,
+    ReferenceEvidenceRecord, RestoreConfirmRequest, RestoreConfirmResult, RestorePrepareRequest,
+    RestorePrepareResult, SnapshotRecord, SnapshotSummary, SubdivisionArtifactLineageLinkRecord,
+    is_opaque_id, is_sha256, production_stage_v3_is_adjacent,
 };
 #[cfg(test)]
 use forgecad_contracts::{
@@ -2637,7 +2679,7 @@ use forgecad_contracts::{
     CandidateTopologyQualityThresholds,
 };
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{params, params_from_iter, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -2831,8 +2873,7 @@ const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_BLOOM_V2_FRAME_SCOPE: &str =
     "lod0-animation-trails-bloom-v2-source-frames-1-15-with-trails-v2-frame-zero-preroll@2";
 const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_BLOOM_V2_POLICY: &str =
     "projection-v2-driven-animated-socket-trails-bloom-dual-candidate@2";
-const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_BLOOM_V2_HISTORY_POLICY: &str =
-    "particles-v2-history-oldest-to-newest-ordinal-zero-last-immediate-previous-earlier-particle-frames-plus-current@2";
+const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_BLOOM_V2_HISTORY_POLICY: &str = "particles-v2-history-oldest-to-newest-ordinal-zero-last-immediate-previous-earlier-particle-frames-plus-current@2";
 const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_BLOOM_V2_HISTORY_PREROLL_POLICY: &str =
     "same-parent-particles-v2-frame-zero-is-preroll-output-frames-one-to-fifteen@2";
 const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_BLOOM_V2_TRAIL_KEY_SCOPE: &str =
@@ -2843,8 +2884,7 @@ const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_V2_FRAME_SCOPE: &str =
     "lod0-animation-trails-v2-source-frames-1-15-with-particles-v2-frame-zero-preroll@2";
 const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_V2_POLICY: &str =
     "projection-v2-driven-animated-socket-trails-dual-candidate@2";
-const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_V2_HISTORY_POLICY: &str =
-    "particles-v2-history-oldest-to-newest-ordinal-zero-last-immediate-previous-earlier-particle-frames-plus-current@2";
+const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_V2_HISTORY_POLICY: &str = "particles-v2-history-oldest-to-newest-ordinal-zero-last-immediate-previous-earlier-particle-frames-plus-current@2";
 const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_V2_HISTORY_PREROLL_POLICY: &str =
     "same-parent-particles-v2-frame-zero-is-preroll-output-frames-one-to-fifteen@2";
 const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_V2_STATUS: &str =
@@ -2863,8 +2903,7 @@ const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_FRAME_SCOPE: &str =
     "lod0-animation-trails-source-frames-1-15@1";
 const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_SEQUENCE_POLICY: &str =
     "projection-driven-animated-socket-trails@1";
-const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_HISTORY_POLICY: &str =
-    "one-to-eight-oldest-to-newest-ordinal-zero-last-immediate-previous-earlier-particle-frames-plus-current@1";
+const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_HISTORY_POLICY: &str = "one-to-eight-oldest-to-newest-ordinal-zero-last-immediate-previous-earlier-particle-frames-plus-current@1";
 const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_HISTORY_PREROLL_POLICY: &str =
     "same-parent-source-frame-zero-is-preroll-output-frames-one-to-fifteen@1";
 const FICTIONAL_ENERGY_VFX_ANIMATED_SOCKET_TRAILS_STATUS: &str =
@@ -3667,65 +3706,13 @@ pub struct AgenticActionRunRecord {
     pub created_at: String,
 }
 
-/// Read-only presence and hash summary for one immutable formal
-/// High/Low/Cage/Bake link. This is deliberately a projection of SQLite
-/// rows, not a formal Bake result and not a source-bundle alias.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProductionWeaponHighLowBakePreflightSourceSummary {
-    pub bake_receipt_id: String,
-    pub link_exists: bool,
-    pub high_exists: bool,
-    pub low_exists: bool,
-    pub cage_exists: bool,
-    pub correspondence_exists: bool,
-    pub plan_exists: bool,
-    pub diagnostic_exists: bool,
-    pub receipt_exists: bool,
-    /// All seven expected row roles are present. This is not typed/canonical
-    /// formal-bake verification and must never be promoted to a quality pass.
-    pub formal_rows_present: bool,
-    pub canonical_sha256: String,
-    pub receipt_object_sha256: String,
-    pub cage_artifact_sha256: String,
-    pub high_artifact_sha256: Option<String>,
-    pub high_artifact_readback_object_sha256: Option<String>,
-    pub low_artifact_sha256: Option<String>,
-    pub low_artifact_readback_object_sha256: Option<String>,
-    pub cage_artifact_readback_object_sha256: Option<String>,
-    pub correspondence_object_sha256: Option<String>,
-    pub bake_plan_object_sha256: Option<String>,
-    pub diagnostic_object_sha256: Option<String>,
-}
-
-/// Store-only read result for the exact project/session/root-candidate key.
-/// `head` is the current durable `ProductionStageHeadV3` projection; formal
-/// rows are reported independently and are never synthesized from a source
-/// bundle or from a candidate-surface bake.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProductionWeaponHighLowBakePreflightSources {
-    pub head: Option<ProductionStageHeadV3Record>,
-    pub formal_bake_links: Vec<ProductionWeaponHighLowBakePreflightSourceSummary>,
-}
-
-/// All immutable inputs for one formal High/Low/Cage/Bake Store commit.
-/// Runtime materializes the seven typed records and registers their CAS
-/// objects before handing this closed bundle to the Store.  `owned_objects`
-/// must contain every CAS root referenced by those records; the Store marks
-/// the complete set reachable in the same SQLite transaction as the seven
-/// child rows.
-#[derive(Debug, Clone)]
-pub struct ProductionWeaponHighLowBakeCommitBundle {
-    pub high: ProductionWeaponHighArtifactRecord,
-    pub low: ProductionWeaponLowArtifactRecord,
-    pub cage: ProductionWeaponCageArtifactRecord,
-    pub correspondence: ProductionWeaponHighLowCorrespondenceRecord,
-    pub plan: ProductionWeaponHighLowBakePlanRecord,
-    pub diagnostic: ProductionWeaponHighLowDiagnosticRecord,
-    pub receipt: ProductionWeaponHighLowBakeReceiptRecord,
-    pub owned_objects: Vec<CasObjectRecord>,
-}
-
 impl Store {
+    /// Borrow the physical Presentation repository without creating another
+    /// connection, CAS root, or migration owner.
+    pub fn presentation_repository(&self) -> PresentationRepository<'_> {
+        PresentationRepository::new(self)
+    }
+
     /// Claim the exact geometry-prepare idempotency domain before Worker/CAS
     /// materialization. The SQLite table remains the durable authority for
     /// completed writes; this shared in-process flight only closes the
@@ -4210,24 +4197,12 @@ impl Store {
                 candidate.updated_at,
             ],
         )?;
-        transaction.execute(
-            "INSERT INTO runtime_jobs (job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![
-                job.job_id,
-                job.project_id,
-                job.kind,
-                job.status,
-                i64::from(job.progress),
-                job.request_sha256,
-                job.checkpoint_sha256,
-                job.error_code,
-                job.created_at,
-                job.updated_at,
-            ],
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![event.job_id, event.sequence, event.kind, payload, event.created_at],
+        evaluation_repository::insert_job_and_event_in_transaction(
+            &transaction,
+            job,
+            event,
+            &payload,
+            &job.updated_at,
         )?;
         transaction.execute(
             "INSERT INTO audit_events (audit_id, project_id, kind, object_id, request_sha256, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -4632,24 +4607,12 @@ impl Store {
                 now,
             ],
         )?;
-        transaction.execute(
-            "INSERT INTO runtime_jobs (job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![
-                job.job_id,
-                job.project_id,
-                job.kind,
-                job.status,
-                i64::from(job.progress),
-                job.request_sha256,
-                job.checkpoint_sha256,
-                job.error_code,
-                job.created_at,
-                now,
-            ],
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![event.job_id, event.sequence, event.kind, event_payload, event.created_at],
+        evaluation_repository::insert_job_and_event_in_transaction(
+            &transaction,
+            job,
+            event,
+            &event_payload,
+            now,
         )?;
         insert_audit(&transaction, audit)?;
         transaction.execute(
@@ -5005,24 +4968,12 @@ impl Store {
                 now,
             ],
         )?;
-        transaction.execute(
-            "INSERT INTO runtime_jobs (job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![
-                job.job_id,
-                job.project_id,
-                job.kind,
-                job.status,
-                i64::from(job.progress),
-                job.request_sha256,
-                job.checkpoint_sha256,
-                job.error_code,
-                job.created_at,
-                now,
-            ],
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![event.job_id, event.sequence, event.kind, event_payload, event.created_at],
+        evaluation_repository::insert_job_and_event_in_transaction(
+            &transaction,
+            &job,
+            &event,
+            &event_payload,
+            now,
         )?;
         insert_audit(&transaction, audit)?;
         transaction.execute(
@@ -6927,228 +6878,23 @@ impl Store {
         Ok(Some(link))
     }
 
-    /// Atomically bind one canonical mechanical animation clip CAS object to
-    /// the exact candidate and durable geometry evidence cohort. Reusing the
-    /// same candidate/clip identity is idempotent only when every hash agrees.
+    /// Compatibility shim for the physically extracted Presentation repository.
     pub fn record_mechanical_animation_clip_link(
         &self,
         link: &MechanicalAnimationClipLinkRecord,
     ) -> Result<(), StoreError> {
-        validate_mechanical_animation_clip_link(link)?;
-        let clip_bytes = self
-            .cas
-            .read_verified_bounded(
-                &link.clip_object_sha256,
-                MAX_MECHANICAL_ANIMATION_CLIP_BYTES,
-            )
-            .map_err(StoreError::Cas)?;
-        if clip_bytes.is_empty() {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_BUDGET_EXCEEDED".to_owned(),
-                message: "mechanical animation clip CAS object is empty".to_owned(),
-            });
-        }
-
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        let candidate: Option<(String, Option<String>)> = transaction
-            .query_row(
-                "SELECT project_id, prepared_object_sha256 FROM candidates WHERE candidate_id = ?1",
-                params![link.candidate_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .optional()?;
-        let candidate = candidate.ok_or_else(|| StoreError::Contract {
-            code: "MECHANICAL_ANIMATION_CLIP_CANDIDATE_NOT_FOUND".to_owned(),
-            message: "candidate is unavailable for the mechanical animation clip".to_owned(),
-        })?;
-        if candidate.0 != link.project_id
-            || candidate.1.as_deref() != Some(link.artifact_id.as_str())
-        {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_CANDIDATE_BINDING_MISMATCH".to_owned(),
-                message: "candidate project or prepared artifact differs from the clip".to_owned(),
-            });
-        }
-        let evidence: Option<(String, String, String, String, String, String)> = transaction
-            .query_row(
-                "SELECT project_id, artifact_object_sha256, artifact_readback_object_sha256, canonical_sha256, geometry_program_sha256, operator_catalog_sha256 FROM geometry_candidate_evidence WHERE candidate_id = ?1",
-                params![link.candidate_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
-            )
-            .optional()?;
-        let evidence = evidence.ok_or_else(|| StoreError::Contract {
-            code: "MECHANICAL_ANIMATION_CLIP_EVIDENCE_NOT_FOUND".to_owned(),
-            message: "durable geometry evidence is unavailable for the clip".to_owned(),
-        })?;
-        if evidence.0 != link.project_id
-            || evidence.1 != link.artifact_id
-            || evidence.3 != link.geometry_candidate_evidence_sha256
-            || evidence.4 != link.program_sha256
-            || evidence.5 != link.operator_catalog_sha256
-        {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_EVIDENCE_BINDING_MISMATCH".to_owned(),
-                message: "geometry evidence differs from the clip link".to_owned(),
-            });
-        }
-        let readback_bytes = self
-            .cas
-            .read_verified_bounded(&evidence.2, MAX_MECHANICAL_ANIMATION_CLIP_BYTES)
-            .map_err(StoreError::Cas)?;
-        let readback: Value = serde_json::from_slice(&readback_bytes).map_err(|error| {
-            StoreError::InvalidData(format!("artifact readback is not valid JSON: {error}"))
-        })?;
-        if readback.get("canonical_sha256").and_then(Value::as_str)
-            != Some(link.artifact_readback_sha256.as_str())
-            || readback
-                .get("readback_config_sha256")
-                .and_then(Value::as_str)
-                != Some(link.readback_config_sha256.as_str())
-        {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_READBACK_BINDING_MISMATCH".to_owned(),
-                message: "ArtifactReadback differs from the clip link".to_owned(),
-            });
-        }
-        let clip_object: Option<(String, String, i64)> = transaction
-            .query_row(
-                "SELECT kind, mime, size_bytes FROM objects WHERE sha256 = ?1",
-                params![link.clip_object_sha256],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()?;
-        let clip_object = clip_object.ok_or_else(|| StoreError::Contract {
-            code: "MECHANICAL_ANIMATION_CLIP_OBJECT_UNAVAILABLE".to_owned(),
-            message: "clip CAS object is not registered in Runtime storage".to_owned(),
-        })?;
-        if clip_object.0 != MECHANICAL_ANIMATION_CLIP_KIND
-            || clip_object.1 != MECHANICAL_ANIMATION_CLIP_MIME
-            || clip_object.2 <= 0
-            || clip_object.2 as u64 > MAX_MECHANICAL_ANIMATION_CLIP_BYTES
-        {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_OBJECT_INVALID".to_owned(),
-                message: "clip CAS metadata is not the bounded JSON clip kind".to_owned(),
-            });
-        }
-        let existing = transaction
-            .query_row(
-                "SELECT project_id, candidate_id, artifact_id, artifact_readback_sha256, geometry_candidate_evidence_sha256, program_sha256, operator_catalog_sha256, readback_config_sha256, clip_id, request_sha256, clip_object_sha256, clip_sha256, rest_frame_sha256, pose_action_sha256, source_replay_worker_cohort_sha256, materialization_status, canonical_sha256, created_at FROM mechanical_animation_clip_links WHERE candidate_id = ?1 AND clip_id = ?2",
-                params![link.candidate_id, link.clip_id],
-                mechanical_animation_clip_link_from_row,
-            )
-            .optional()?;
-        if let Some(existing) = existing {
-            if !same_mechanical_animation_clip_link(&existing, link) {
-                return Err(StoreError::Contract {
-                    code: "MECHANICAL_ANIMATION_CLIP_LINK_CONFLICT".to_owned(),
-                    message: "candidate/clip is already bound to different content".to_owned(),
-                });
-            }
-            transaction.execute(
-                "UPDATE objects SET reachability = 'reachable' WHERE sha256 = ?1",
-                params![link.clip_object_sha256],
-            )?;
-            transaction.commit()?;
-            return Ok(());
-        }
-        transaction.execute(
-            "INSERT INTO mechanical_animation_clip_links (project_id, candidate_id, artifact_id, artifact_readback_sha256, geometry_candidate_evidence_sha256, program_sha256, operator_catalog_sha256, readback_config_sha256, clip_id, request_sha256, clip_object_sha256, clip_sha256, rest_frame_sha256, pose_action_sha256, source_replay_worker_cohort_sha256, materialization_status, canonical_sha256, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
-            params![link.project_id, link.candidate_id, link.artifact_id, link.artifact_readback_sha256, link.geometry_candidate_evidence_sha256, link.program_sha256, link.operator_catalog_sha256, link.readback_config_sha256, link.clip_id, link.request_sha256, link.clip_object_sha256, link.clip_sha256, link.rest_frame_sha256, link.pose_action_sha256, link.source_replay_worker_cohort_sha256, link.materialization_status, link.canonical_sha256, link.created_at],
-        )?;
-        let marked = transaction.execute(
-            "UPDATE objects SET reachability = 'reachable' WHERE sha256 = ?1",
-            params![link.clip_object_sha256],
-        )?;
-        if marked != 1 {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_OBJECT_UNAVAILABLE".to_owned(),
-                message: "clip CAS metadata disappeared during link commit".to_owned(),
-            });
-        }
-        transaction.commit()?;
-        Ok(())
+        self.presentation_repository()
+            .record_mechanical_animation_clip_link(link)
     }
 
+    /// Compatibility shim for the physically extracted Presentation repository.
     pub fn get_mechanical_animation_clip_link(
         &self,
         candidate_id: &str,
         clip_id: &str,
     ) -> Result<Option<MechanicalAnimationClipLinkRecord>, StoreError> {
-        if !is_opaque_id(candidate_id) || !is_opaque_id(clip_id) {
-            return Err(StoreError::InvalidData(
-                "mechanical animation clip identity is invalid".to_owned(),
-            ));
-        }
-        let connection = self.lock_connection()?;
-        let link = connection
-            .query_row(
-                "SELECT project_id, candidate_id, artifact_id, artifact_readback_sha256, geometry_candidate_evidence_sha256, program_sha256, operator_catalog_sha256, readback_config_sha256, clip_id, request_sha256, clip_object_sha256, clip_sha256, rest_frame_sha256, pose_action_sha256, source_replay_worker_cohort_sha256, materialization_status, canonical_sha256, created_at FROM mechanical_animation_clip_links WHERE candidate_id = ?1 AND clip_id = ?2",
-                params![candidate_id, clip_id],
-                mechanical_animation_clip_link_from_row,
-            )
-            .optional()?;
-        drop(connection);
-        let Some(link) = link else {
-            return Ok(None);
-        };
-        validate_mechanical_animation_clip_link(&link)?;
-        let candidate =
-            self.get_candidate(&link.candidate_id)?
-                .ok_or_else(|| StoreError::Contract {
-                    code: "MECHANICAL_ANIMATION_CLIP_CANDIDATE_NOT_FOUND".to_owned(),
-                    message: "linked candidate is unavailable".to_owned(),
-                })?;
-        if candidate.project_id != link.project_id
-            || candidate.prepared_object_sha256.as_deref() != Some(link.artifact_id.as_str())
-        {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_CANDIDATE_BINDING_MISMATCH".to_owned(),
-                message: "stored clip no longer matches the candidate".to_owned(),
-            });
-        }
-        let evidence = self
-            .get_geometry_candidate_evidence(&link.candidate_id)?
-            .ok_or_else(|| StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_EVIDENCE_NOT_FOUND".to_owned(),
-                message: "linked geometry evidence is unavailable".to_owned(),
-            })?;
-        if evidence.project_id != link.project_id
-            || evidence.artifact_object_sha256 != link.artifact_id
-            || evidence.canonical_sha256 != link.geometry_candidate_evidence_sha256
-            || evidence.geometry_program_sha256 != link.program_sha256
-            || evidence.operator_catalog_sha256 != link.operator_catalog_sha256
-            || evidence.readback_config_sha256 != link.readback_config_sha256
-        {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_EVIDENCE_BINDING_MISMATCH".to_owned(),
-                message: "stored clip no longer matches durable geometry evidence".to_owned(),
-            });
-        }
-        let object =
-            self.get_object(&link.clip_object_sha256)?
-                .ok_or_else(|| StoreError::Contract {
-                    code: "MECHANICAL_ANIMATION_CLIP_OBJECT_UNAVAILABLE".to_owned(),
-                    message: "linked clip CAS object is unavailable".to_owned(),
-                })?;
-        if object.kind != MECHANICAL_ANIMATION_CLIP_KIND
-            || object.mime != MECHANICAL_ANIMATION_CLIP_MIME
-            || object.size_bytes == 0
-            || object.size_bytes > MAX_MECHANICAL_ANIMATION_CLIP_BYTES
-        {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_OBJECT_INVALID".to_owned(),
-                message: "linked clip CAS metadata is invalid".to_owned(),
-            });
-        }
-        self.cas
-            .read_verified_bounded(
-                &link.clip_object_sha256,
-                MAX_MECHANICAL_ANIMATION_CLIP_BYTES,
-            )
-            .map_err(StoreError::Cas)?;
-        Ok(Some(link))
+        self.presentation_repository()
+            .get_mechanical_animation_clip_link(candidate_id, clip_id)
     }
 
     /// Atomically persist an appearance-aware MechanicalAnimationClip@2
@@ -7556,120 +7302,24 @@ impl Store {
         }
     }
 
-    /// Atomically make the four immutable delivery JSON objects durable and
-    /// bind them to the exact three candidate/artifact cohort. Content in CAS
-    /// remains the source of truth; this row is the restart-safe index and GC
-    /// root. Replaying an identical manifest is idempotent, while retargeting
-    /// a manifest hash to any different candidate or sidecar fails closed.
+    /// Compatibility shim for the borrowed Delivery repository. Content in
+    /// CAS remains the source of truth; the repository owns the transaction,
+    /// candidate bindings, replay/conflict policy and reachability roots.
     pub fn record_game_asset_delivery_link(
         &self,
         link: &GameAssetDeliveryLinkRecord,
     ) -> Result<GameAssetDeliveryLinkRecord, StoreError> {
-        validate_game_asset_delivery_link(link)?;
-        for sha256 in game_asset_delivery_json_hashes(link) {
-            let bytes = self
-                .cas
-                .read_verified_bounded(sha256, MAX_GAME_ASSET_DELIVERY_JSON_BYTES)
-                .map_err(StoreError::Cas)?;
-            if bytes.is_empty() {
-                return Err(StoreError::Contract {
-                    code: "GAME_ASSET_DELIVERY_OBJECT_INVALID".to_owned(),
-                    message: "game delivery JSON CAS object is empty".to_owned(),
-                });
-            }
-        }
-        if let Some(animation_sha256) = link.animation_artifact_sha256.as_deref() {
-            self.cas
-                .read_verified_bounded(animation_sha256, 64 * 1024 * 1024)
-                .map_err(StoreError::Cas)?;
-        }
-
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        validate_game_asset_delivery_bindings_in_transaction(&transaction, link)?;
-        let existing = transaction
-            .query_row(
-                "SELECT project_id, lod0_candidate_id, lod1_candidate_id, lod2_candidate_id, lod0_artifact_sha256, lod1_artifact_sha256, lod2_artifact_sha256, request_sha256, lod_receipt_object_sha256, collision_proxy_object_sha256, readiness_object_sha256, delivery_manifest_object_sha256, animation_artifact_sha256, materialization_status, canonical_sha256, created_at FROM game_asset_delivery_links WHERE delivery_manifest_object_sha256 = ?1",
-                params![link.delivery_manifest_object_sha256],
-                game_asset_delivery_link_from_row,
-            )
-            .optional()?;
-        if let Some(existing) = existing {
-            if !same_game_asset_delivery_link(&existing, link) {
-                return Err(StoreError::Contract {
-                    code: "GAME_ASSET_DELIVERY_LINK_CONFLICT".to_owned(),
-                    message: "delivery manifest is already bound to a different cohort".to_owned(),
-                });
-            }
-            mark_reachable_in_transaction(
-                &transaction,
-                &game_asset_delivery_reachable_hashes(&existing),
-            )?;
-            transaction.commit()?;
-            return Ok(existing);
-        }
-        transaction.execute(
-            "INSERT INTO game_asset_delivery_links (delivery_manifest_object_sha256, project_id, lod0_candidate_id, lod1_candidate_id, lod2_candidate_id, lod0_artifact_sha256, lod1_artifact_sha256, lod2_artifact_sha256, request_sha256, lod_receipt_object_sha256, collision_proxy_object_sha256, readiness_object_sha256, animation_artifact_sha256, materialization_status, canonical_sha256, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
-            params![
-                link.delivery_manifest_object_sha256,
-                link.project_id,
-                link.lod_candidate_ids[0],
-                link.lod_candidate_ids[1],
-                link.lod_candidate_ids[2],
-                link.lod_artifact_sha256s[0],
-                link.lod_artifact_sha256s[1],
-                link.lod_artifact_sha256s[2],
-                link.request_sha256,
-                link.lod_receipt_object_sha256,
-                link.collision_proxy_object_sha256,
-                link.readiness_object_sha256,
-                link.animation_artifact_sha256,
-                link.materialization_status,
-                link.canonical_sha256,
-                link.created_at,
-            ],
-        )?;
-        mark_reachable_in_transaction(&transaction, &game_asset_delivery_reachable_hashes(link))?;
-        transaction.commit()?;
-        Ok(link.clone())
+        self.delivery_repository()
+            .record_game_asset_delivery_link(link)
     }
 
+    /// Compatibility shim for the borrowed Delivery repository.
     pub fn get_game_asset_delivery_link(
         &self,
         delivery_manifest_object_sha256: &str,
     ) -> Result<Option<GameAssetDeliveryLinkRecord>, StoreError> {
-        if !is_sha256(delivery_manifest_object_sha256) {
-            return Err(StoreError::InvalidData(
-                "game delivery manifest hash is invalid".to_owned(),
-            ));
-        }
-        let connection = self.lock_connection()?;
-        let link = connection
-            .query_row(
-                "SELECT project_id, lod0_candidate_id, lod1_candidate_id, lod2_candidate_id, lod0_artifact_sha256, lod1_artifact_sha256, lod2_artifact_sha256, request_sha256, lod_receipt_object_sha256, collision_proxy_object_sha256, readiness_object_sha256, delivery_manifest_object_sha256, animation_artifact_sha256, materialization_status, canonical_sha256, created_at FROM game_asset_delivery_links WHERE delivery_manifest_object_sha256 = ?1",
-                params![delivery_manifest_object_sha256],
-                game_asset_delivery_link_from_row,
-            )
-            .optional()?;
-        drop(connection);
-        let Some(link) = link else {
-            return Ok(None);
-        };
-        validate_game_asset_delivery_link(&link)?;
-        let connection = self.lock_connection()?;
-        validate_game_asset_delivery_bindings_in_transaction(&connection, &link)?;
-        drop(connection);
-        for sha256 in game_asset_delivery_json_hashes(&link) {
-            self.cas
-                .read_verified_bounded(sha256, MAX_GAME_ASSET_DELIVERY_JSON_BYTES)
-                .map_err(StoreError::Cas)?;
-        }
-        if let Some(animation_sha256) = link.animation_artifact_sha256.as_deref() {
-            self.cas
-                .read_verified_bounded(animation_sha256, 64 * 1024 * 1024)
-                .map_err(StoreError::Cas)?;
-        }
-        Ok(Some(link))
+        self.delivery_repository()
+            .get_game_asset_delivery_link(delivery_manifest_object_sha256)
     }
 
     /// Atomically bind one immutable visual-authoring anchor sidecar to an
@@ -12467,102 +12117,21 @@ impl Store {
         }
     }
 
-    /// List the bounded immutable clip links for one candidate. Each returned
-    /// row is reloaded through the same fail-closed binding/CAS verification
-    /// as a direct lookup so the Viewer never receives a stale SQLite-only
-    /// projection.
+    /// Compatibility shims for the physically extracted Presentation repository.
     pub fn list_mechanical_animation_clip_links(
         &self,
         candidate_id: &str,
     ) -> Result<Vec<MechanicalAnimationClipLinkRecord>, StoreError> {
-        if !is_opaque_id(candidate_id) {
-            return Err(StoreError::InvalidData(
-                "mechanical animation clip candidate identity is invalid".to_owned(),
-            ));
-        }
-        let connection = self.lock_connection()?;
-        let mut statement = connection.prepare(
-            "SELECT clip_id FROM mechanical_animation_clip_links WHERE candidate_id = ?1 ORDER BY created_at DESC, clip_id ASC LIMIT ?2",
-        )?;
-        let clip_ids = statement
-            .query_map(
-                params![
-                    candidate_id,
-                    (MAX_MECHANICAL_ANIMATION_CLIPS_PER_CANDIDATE + 1) as i64
-                ],
-                |row| row.get::<_, String>(0),
-            )?
-            .collect::<Result<Vec<_>, _>>()?;
-        drop(statement);
-        drop(connection);
-        if clip_ids.len() > MAX_MECHANICAL_ANIMATION_CLIPS_PER_CANDIDATE {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_INVENTORY_BUDGET_EXCEEDED".to_owned(),
-                message: "candidate has more than 16 durable mechanical animation clips".to_owned(),
-            });
-        }
-        clip_ids
-            .into_iter()
-            .map(|clip_id| {
-                self.get_mechanical_animation_clip_link(candidate_id, &clip_id)?
-                    .ok_or_else(|| StoreError::Contract {
-                        code: "MECHANICAL_ANIMATION_CLIP_INVENTORY_CHANGED".to_owned(),
-                        message: "clip inventory changed during verified readback".to_owned(),
-                    })
-            })
-            .collect()
+        self.presentation_repository()
+            .list_mechanical_animation_clip_links(candidate_id)
     }
 
     pub fn discard_new_temporary_mechanical_animation_clip(
         &self,
         object: &CasObject,
     ) -> Result<bool, StoreError> {
-        if !object.created_new {
-            return Ok(false);
-        }
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        let metadata: Option<(String, String, String)> = transaction
-            .query_row(
-                "SELECT mime, kind, reachability FROM objects WHERE sha256 = ?1",
-                params![object.record.sha256],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()?;
-        let Some((mime, kind, reachability)) = metadata else {
-            return Ok(false);
-        };
-        if mime != MECHANICAL_ANIMATION_CLIP_MIME
-            || kind != MECHANICAL_ANIMATION_CLIP_KIND
-            || reachability != "temporary"
-        {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_ROLLBACK_DENIED".to_owned(),
-                message: "only the current operation's unlinked temporary clip may be rolled back"
-                    .to_owned(),
-            });
-        }
-        let link_count: i64 = transaction.query_row(
-            "SELECT COUNT(*) FROM mechanical_animation_clip_links WHERE clip_object_sha256 = ?1",
-            params![object.record.sha256],
-            |row| row.get(0),
-        )?;
-        if link_count != 0 {
-            return Err(StoreError::Contract {
-                code: "MECHANICAL_ANIMATION_CLIP_ROLLBACK_DENIED".to_owned(),
-                message: "linked clip CAS content cannot be rolled back".to_owned(),
-            });
-        }
-        transaction.execute(
-            "DELETE FROM objects WHERE sha256 = ?1 AND reachability = 'temporary'",
-            params![object.record.sha256],
-        )?;
-        transaction.commit()?;
-        match fs::remove_file(&object.path) {
-            Ok(()) => Ok(true),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(true),
-            Err(error) => Err(StoreError::Io(error)),
-        }
+        self.presentation_repository()
+            .discard_new_temporary_mechanical_animation_clip(object)
     }
 
     /// List the bounded appearance-aware V2 clips for one appearance
@@ -12673,541 +12242,6 @@ impl Store {
         }
     }
 
-    pub fn insert_version(&self, version: &DesignAssetVersionRecord) -> Result<(), StoreError> {
-        validate_version(version)?;
-        let connection = self.lock_connection()?;
-        connection.execute(
-            "INSERT INTO design_asset_versions (version_id, project_id, parent_version_id, candidate_id, manifest_hash, canonical_sha256, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![
-                version.version_id,
-                version.project_id,
-                version.parent_version_id,
-                version.candidate_id,
-                version.manifest_hash,
-                version.canonical_sha256,
-                version.created_at,
-            ],
-        )?;
-        Ok(())
-    }
-
-    pub fn get_version(
-        &self,
-        version_id: &str,
-    ) -> Result<Option<DesignAssetVersionRecord>, StoreError> {
-        let connection = self.lock_connection()?;
-        Ok(connection
-            .query_row(
-                "SELECT version_id, project_id, parent_version_id, candidate_id, manifest_hash, canonical_sha256, created_at FROM design_asset_versions WHERE version_id = ?1",
-                params![version_id],
-                |row| {
-                    Ok(DesignAssetVersionRecord {
-                        schema_version: "DesignAssetVersion@1".to_owned(),
-                        version_id: row.get(0)?,
-                        project_id: row.get(1)?,
-                        parent_version_id: row.get(2)?,
-                        candidate_id: row.get(3)?,
-                        manifest_hash: row.get(4)?,
-                        canonical_sha256: row.get(5)?,
-                        created_at: row.get(6)?,
-                    })
-                },
-            )
-            .optional()?)
-    }
-
-    pub fn list_versions(
-        &self,
-        project_id: Option<&str>,
-    ) -> Result<Vec<DesignAssetVersionRecord>, StoreError> {
-        let connection = self.lock_connection()?;
-        let mut statement = connection.prepare(
-            "SELECT version_id, project_id, parent_version_id, candidate_id, manifest_hash, canonical_sha256, created_at FROM design_asset_versions WHERE (?1 IS NULL OR project_id = ?1) ORDER BY created_at DESC, version_id ASC",
-        )?;
-        let rows = statement.query_map(params![project_id], |row| {
-            Ok(DesignAssetVersionRecord {
-                schema_version: "DesignAssetVersion@1".to_owned(),
-                version_id: row.get(0)?,
-                project_id: row.get(1)?,
-                parent_version_id: row.get(2)?,
-                candidate_id: row.get(3)?,
-                manifest_hash: row.get(4)?,
-                canonical_sha256: row.get(5)?,
-                created_at: row.get(6)?,
-            })
-        })?;
-        Ok(rows.collect::<Result<Vec<_>, _>>()?)
-    }
-
-    pub fn latest_version_for_project(
-        &self,
-        project_id: &str,
-    ) -> Result<Option<DesignAssetVersionRecord>, StoreError> {
-        let connection = self.lock_connection()?;
-        Ok(connection
-            .query_row(
-                "SELECT v.version_id, v.project_id, v.parent_version_id, v.candidate_id, v.manifest_hash, v.canonical_sha256, v.created_at FROM projects p JOIN snapshots s ON s.snapshot_id = p.head_snapshot_id JOIN design_asset_versions v ON v.candidate_id = s.candidate_id WHERE p.project_id = ?1 LIMIT 1",
-                params![project_id],
-                |row| {
-                    Ok(DesignAssetVersionRecord {
-                        schema_version: "DesignAssetVersion@1".to_owned(),
-                        version_id: row.get(0)?,
-                        project_id: row.get(1)?,
-                        parent_version_id: row.get(2)?,
-                        candidate_id: row.get(3)?,
-                        manifest_hash: row.get(4)?,
-                        canonical_sha256: row.get(5)?,
-                        created_at: row.get(6)?,
-                    })
-                },
-            )
-            .optional()?)
-    }
-
-    pub fn get_job(&self, job_id: &str) -> Result<Option<JobSummary>, StoreError> {
-        let connection = self.lock_connection()?;
-        Ok(connection
-            .query_row(
-                "SELECT job_id, project_id, kind, status, progress, error_code, created_at, updated_at FROM runtime_jobs WHERE job_id = ?1",
-                params![job_id],
-                |row| {
-                    let progress: i64 = row.get(4)?;
-                    let progress = u8::try_from(progress).map_err(|_| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            4,
-                            rusqlite::types::Type::Integer,
-                            "job progress outside u8".into(),
-                        )
-                    })?;
-                    Ok(JobSummary {
-                        job_id: row.get(0)?,
-                        project_id: row.get(1)?,
-                        kind: row.get(2)?,
-                        status: row.get(3)?,
-                        progress,
-                        error_code: row.get(5)?,
-                        created_at: row.get(6)?,
-                        updated_at: row.get(7)?,
-                    })
-                },
-            )
-            .optional()?)
-    }
-
-    pub fn get_job_record(&self, job_id: &str) -> Result<Option<JobRecord>, StoreError> {
-        if !is_opaque_id(job_id) {
-            return Err(StoreError::InvalidData("invalid job id".to_owned()));
-        }
-        let connection = self.lock_connection()?;
-        Ok(connection
-            .query_row(
-                "SELECT job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at FROM runtime_jobs WHERE job_id = ?1",
-                params![job_id],
-                |row| {
-                    let progress: i64 = row.get(4)?;
-                    let progress = u8::try_from(progress).map_err(|_| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            4,
-                            rusqlite::types::Type::Integer,
-                            "job progress outside u8".into(),
-                        )
-                    })?;
-                    Ok(JobRecord {
-                        schema_version: "RuntimeJob@1".to_owned(),
-                        job_id: row.get(0)?,
-                        project_id: row.get(1)?,
-                        kind: row.get(2)?,
-                        status: row.get(3)?,
-                        progress,
-                        request_sha256: row.get(5)?,
-                        checkpoint_sha256: row.get(6)?,
-                        error_code: row.get(7)?,
-                        created_at: row.get(8)?,
-                        updated_at: row.get(9)?,
-                    })
-                },
-            )
-            .optional()?)
-    }
-
-    /// Atomically create one durable Job and its first event.  Optimization
-    /// is intentionally built on this existing RuntimeJob table rather than
-    /// introducing a second job state machine.  A repeated job id is an
-    /// idempotent read only when its project/kind/request binding is exact.
-    pub fn insert_job_with_event(
-        &self,
-        job: &JobRecord,
-        event: &JobEventRecord,
-    ) -> Result<(), StoreError> {
-        self.insert_job_with_event_if_absent(job, event, &[])?;
-        Ok(())
-    }
-
-    /// Compatibility terminal update for Runtime-owned bounded jobs.  The
-    /// newer store path also records reachable CAS hashes; this wrapper keeps
-    /// the older Primary Form worker contract on the same durable state table.
-    pub fn finish_job_with_event(
-        &self,
-        job_id: &str,
-        status: &str,
-        progress: u8,
-        error_code: Option<&str>,
-        event_kind: &str,
-        payload: &Value,
-        updated_at: &str,
-    ) -> Result<JobSummary, StoreError> {
-        let mut job = self
-            .get_job_record(job_id)?
-            .ok_or_else(|| StoreError::Contract {
-                code: "NOT_FOUND".to_owned(),
-                message: "job not found".to_owned(),
-            })?;
-        if matches!(job.status.as_str(), "succeeded" | "failed" | "cancelled") {
-            return self
-                .get_job(job_id)?
-                .ok_or_else(|| StoreError::InvalidData("job disappeared".to_owned()));
-        }
-        job.status = status.to_owned();
-        job.progress = progress;
-        job.error_code = error_code.map(str::to_owned);
-        job.updated_at = updated_at.to_owned();
-        self.update_job_with_event(&job, event_kind, payload, &[])?;
-        self.get_job(job_id)?
-            .ok_or_else(|| StoreError::InvalidData("job disappeared after update".to_owned()))
-    }
-
-    pub fn insert_job_with_event_if_absent(
-        &self,
-        job: &JobRecord,
-        event: &JobEventRecord,
-        reachable_hashes: &[String],
-    ) -> Result<JobRecord, StoreError> {
-        validate_job(job)?;
-        validate_job_event(event)?;
-        if event.job_id != job.job_id || event.sequence != 1 {
-            return Err(StoreError::InvalidData(
-                "initial job event does not bind to job".to_owned(),
-            ));
-        }
-        validate_reachable_hashes(reachable_hashes)?;
-        let payload = serde_json::to_string(&event.payload)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        let existing = read_job_record_from_transaction(&transaction, &job.job_id)?;
-        if let Some(existing) = existing {
-            if existing.project_id != job.project_id
-                || existing.kind != job.kind
-                || existing.request_sha256 != job.request_sha256
-            {
-                return Err(StoreError::Contract {
-                    code: "JOB_IDEMPOTENCY_CONFLICT".to_owned(),
-                    message: "job id is already bound to another optimization request".to_owned(),
-                });
-            }
-            transaction.commit()?;
-            return Ok(existing);
-        }
-        transaction.execute(
-            "INSERT INTO runtime_jobs (job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![
-                job.job_id,
-                job.project_id,
-                job.kind,
-                job.status,
-                i64::from(job.progress),
-                job.request_sha256,
-                job.checkpoint_sha256,
-                job.error_code,
-                job.created_at,
-                job.updated_at,
-            ],
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![event.job_id, event.sequence, event.kind, payload, event.created_at],
-        )?;
-        mark_reachable_in_transaction(&transaction, reachable_hashes)?;
-        transaction.commit()?;
-        drop(connection);
-        self.get_job_record(&job.job_id)?.ok_or_else(|| {
-            StoreError::InvalidData("job disappeared after atomic create".to_owned())
-        })
-    }
-
-    /// Advance a durable Job and append the event/checkpoint in one SQLite
-    /// transaction.  Every CAS object referenced by the event becomes
-    /// reachable before the new state is visible to a reader.
-    pub fn update_job_with_event(
-        &self,
-        job: &JobRecord,
-        event_kind: &str,
-        event_payload: &Value,
-        reachable_hashes: &[String],
-    ) -> Result<JobRecord, StoreError> {
-        validate_job(job)?;
-        if event_kind.trim().is_empty() || !event_payload.is_object() {
-            return Err(StoreError::InvalidData(
-                "job event is not a bounded object".to_owned(),
-            ));
-        }
-        validate_reachable_hashes(reachable_hashes)?;
-        let payload = serde_json::to_string(event_payload)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        let existing =
-            read_job_record_from_transaction(&transaction, &job.job_id)?.ok_or_else(|| {
-                StoreError::Contract {
-                    code: "NOT_FOUND".to_owned(),
-                    message: "job not found".to_owned(),
-                }
-            })?;
-        if existing.project_id != job.project_id
-            || existing.kind != job.kind
-            || existing.request_sha256 != job.request_sha256
-        {
-            return Err(StoreError::Contract {
-                code: "JOB_BINDING_MISMATCH".to_owned(),
-                message: "job update does not bind to the original request".to_owned(),
-            });
-        }
-        if matches!(
-            existing.status.as_str(),
-            "succeeded" | "failed" | "cancelled"
-        ) {
-            return Err(StoreError::Contract {
-                code: "JOB_TERMINAL".to_owned(),
-                message: "job is already terminal".to_owned(),
-            });
-        }
-        let next_sequence: i64 = transaction.query_row(
-            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM runtime_job_events WHERE job_id = ?1",
-            params![job.job_id],
-            |row| row.get(0),
-        )?;
-        transaction.execute(
-            "UPDATE runtime_jobs SET status = ?1, progress = ?2, checkpoint_sha256 = ?3, error_code = ?4, updated_at = ?5 WHERE job_id = ?6",
-            params![
-                job.status,
-                i64::from(job.progress),
-                job.checkpoint_sha256,
-                job.error_code,
-                job.updated_at,
-                job.job_id,
-            ],
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![job.job_id, next_sequence, event_kind, payload, job.updated_at],
-        )?;
-        if let Some(checkpoint_sha256) = job.checkpoint_sha256.as_deref() {
-            transaction.execute(
-                "INSERT OR REPLACE INTO runtime_job_checkpoints (job_id, sequence, checkpoint_sha256, created_at) VALUES (?1, ?2, ?3, ?4)",
-                params![job.job_id, next_sequence, checkpoint_sha256, job.updated_at],
-            )?;
-        }
-        mark_reachable_in_transaction(&transaction, reachable_hashes)?;
-        transaction.commit()?;
-        drop(connection);
-        self.get_job_record(&job.job_id)?.ok_or_else(|| {
-            StoreError::InvalidData("job disappeared after atomic update".to_owned())
-        })
-    }
-
-    /// Claim a queued job exactly once.  This closes the small race between
-    /// two identical MCP reads both deciding to start the same detached
-    /// worker thread.
-    pub fn claim_job_running(
-        &self,
-        job_id: &str,
-        updated_at: &str,
-        payload: &Value,
-    ) -> Result<Option<JobRecord>, StoreError> {
-        if !is_opaque_id(job_id) || updated_at.is_empty() || !payload.is_object() {
-            return Err(StoreError::InvalidData(
-                "invalid job claim envelope".to_owned(),
-            ));
-        }
-        let payload = serde_json::to_string(payload)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        let current = read_job_record_from_transaction(&transaction, job_id)?;
-        let Some(current) = current else {
-            return Err(StoreError::Contract {
-                code: "NOT_FOUND".to_owned(),
-                message: "job not found".to_owned(),
-            });
-        };
-        if current.status != "queued" {
-            transaction.commit()?;
-            return Ok(None);
-        }
-        let updated = transaction.execute(
-            "UPDATE runtime_jobs SET status = 'running', error_code = NULL, updated_at = ?1 WHERE job_id = ?2 AND status = 'queued'",
-            params![updated_at, job_id],
-        )?;
-        if updated != 1 {
-            transaction.commit()?;
-            return Ok(None);
-        }
-        let sequence: i64 = transaction.query_row(
-            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM runtime_job_events WHERE job_id = ?1",
-            params![job_id],
-            |row| row.get(0),
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, 'optimization_started', ?3, ?4)",
-            params![job_id, sequence, payload, updated_at],
-        )?;
-        transaction.commit()?;
-        drop(connection);
-        self.get_job_record(job_id)
-    }
-
-    /// Requeue a non-terminal optimization after a user-approved recovery
-    /// request.  The previous CAS checkpoint remains immutable/reachable; a
-    /// resumed run starts from the same intent and records a new event.
-    pub fn requeue_job(
-        &self,
-        job_id: &str,
-        updated_at: &str,
-        payload: &Value,
-    ) -> Result<JobRecord, StoreError> {
-        if !is_opaque_id(job_id) || updated_at.is_empty() || !payload.is_object() {
-            return Err(StoreError::InvalidData(
-                "invalid job recovery envelope".to_owned(),
-            ));
-        }
-        let payload = serde_json::to_string(payload)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        let current = read_job_record_from_transaction(&transaction, job_id)?.ok_or_else(|| {
-            StoreError::Contract {
-                code: "NOT_FOUND".to_owned(),
-                message: "job not found".to_owned(),
-            }
-        })?;
-        if !matches!(current.status.as_str(), "running" | "failed" | "cancelled") {
-            return Err(StoreError::Contract {
-                code: "JOB_NOT_RECOVERABLE".to_owned(),
-                message: "only running, failed or cancelled jobs can be recovered".to_owned(),
-            });
-        }
-        let next_sequence: i64 = transaction.query_row(
-            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM runtime_job_events WHERE job_id = ?1",
-            params![job_id],
-            |row| row.get(0),
-        )?;
-        transaction.execute(
-            "UPDATE runtime_jobs SET status = 'queued', error_code = NULL, updated_at = ?1 WHERE job_id = ?2",
-            params![updated_at, job_id],
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, 'optimization_requeued', ?3, ?4)",
-            params![job_id, next_sequence, payload, updated_at],
-        )?;
-        transaction.commit()?;
-        drop(connection);
-        self.get_job_record(job_id)?
-            .ok_or_else(|| StoreError::InvalidData("job disappeared after recovery".to_owned()))
-    }
-
-    pub fn insert_job(&self, job: &JobRecord) -> Result<(), StoreError> {
-        validate_job(job)?;
-        let connection = self.lock_connection()?;
-        connection.execute(
-            "INSERT INTO runtime_jobs (job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![
-                job.job_id,
-                job.project_id,
-                job.kind,
-                job.status,
-                i64::from(job.progress),
-                job.request_sha256,
-                job.checkpoint_sha256,
-                job.error_code,
-                job.created_at,
-                job.updated_at,
-            ],
-        )?;
-        Ok(())
-    }
-
-    pub fn cancel_job(&self, job_id: &str, updated_at: &str) -> Result<JobSummary, StoreError> {
-        if !is_opaque_id(job_id) {
-            return Err(StoreError::InvalidData("invalid job id".to_owned()));
-        }
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        let status: Option<String> = transaction
-            .query_row(
-                "SELECT status FROM runtime_jobs WHERE job_id = ?1",
-                params![job_id],
-                |row| row.get(0),
-            )
-            .optional()?;
-        let Some(status) = status else {
-            return Err(StoreError::Contract {
-                code: "NOT_FOUND".to_owned(),
-                message: "job not found".to_owned(),
-            });
-        };
-        if matches!(status.as_str(), "succeeded" | "failed" | "cancelled") {
-            return Err(StoreError::Contract {
-                code: "JOB_NOT_CANCELLABLE".to_owned(),
-                message: "job is already terminal".to_owned(),
-            });
-        }
-        transaction.execute(
-            "UPDATE runtime_jobs SET status = 'cancelled', progress = 0, error_code = 'JOB_CANCELLED', updated_at = ?1 WHERE job_id = ?2",
-            params![updated_at, job_id],
-        )?;
-        let next_sequence: i64 = transaction.query_row(
-            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM runtime_job_events WHERE job_id = ?1",
-            params![job_id],
-            |row| row.get(0),
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, 'cancelled', '{}', ?3)",
-            params![job_id, next_sequence, updated_at],
-        )?;
-        let job = read_job_summary(&transaction, job_id)?;
-        transaction.commit()?;
-        Ok(job)
-    }
-
-    pub fn list_job_events(
-        &self,
-        job_id: &str,
-        after_sequence: i64,
-    ) -> Result<Vec<JobEventRecord>, StoreError> {
-        let connection = self.lock_connection()?;
-        let mut statement = connection.prepare(
-            "SELECT sequence, kind, payload_json, created_at FROM runtime_job_events WHERE job_id = ?1 AND sequence > ?2 ORDER BY sequence ASC",
-        )?;
-        let rows = statement.query_map(params![job_id, after_sequence], |row| {
-            let payload_json: String = row.get(2)?;
-            let payload = serde_json::from_str(&payload_json).map_err(|error| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    2,
-                    rusqlite::types::Type::Text,
-                    Box::new(error),
-                )
-            })?;
-            Ok(JobEventRecord {
-                schema_version: "RuntimeJobEvent@1".to_owned(),
-                job_id: job_id.to_owned(),
-                sequence: row.get(0)?,
-                kind: row.get(1)?,
-                payload,
-                created_at: row.get(3)?,
-            })
-        })?;
-        Ok(rows.collect::<Result<Vec<_>, _>>()?)
-    }
 
     pub fn register_object(&self, object: &CasObjectRecord) -> Result<(), StoreError> {
         self.cas.verify(&object.sha256, object.size_bytes)?;
@@ -14670,124 +13704,6 @@ impl Store {
         )
     }
 
-    /// Read the current V3 head and the exact formal High/Low/Cage/Bake rows
-    /// for one project/session/root-candidate key. This method is deliberately
-    /// Store-only: it does not write SQLite or CAS, mark objects reachable,
-    /// invoke a Worker, or reinterpret the source-only retopology/cage bundle
-    /// as a formal Bake result.
-    pub fn get_production_weapon_high_low_bake_preflight_sources(
-        &self,
-        project_id: &str,
-        session_id: &str,
-        candidate_id: &str,
-    ) -> Result<ProductionWeaponHighLowBakePreflightSources, StoreError> {
-        if !is_opaque_id(project_id) || !is_opaque_id(session_id) || !is_opaque_id(candidate_id) {
-            return Err(StoreError::InvalidData(
-                "ProductionWeaponHighLowBake preflight binding is invalid".to_owned(),
-            ));
-        }
-        let mut connection = self.lock_connection()?;
-        let head = read_production_stage_head_v3_for_connection(
-            &mut connection,
-            &self.cas,
-            session_id,
-            project_id,
-            candidate_id,
-        )?;
-        let formal_bake_links = read_production_weapon_high_low_bake_preflight_sources(
-            &connection,
-            &self.cas,
-            head.as_ref(),
-            project_id,
-            session_id,
-            candidate_id,
-        )?;
-        Ok(ProductionWeaponHighLowBakePreflightSources {
-            head,
-            formal_bake_links,
-        })
-    }
-
-    /// Atomically persist the formal High/Low/Cage/Bake link and all seven
-    /// typed child rows.  The operation is idempotent on `bake_receipt_id`:
-    /// an exact replay returns the durable receipt with `replayed = true`,
-    /// while a retargeted payload is rejected without leaving partial rows or
-    /// promoted CAS roots behind.
-    pub fn commit_production_weapon_high_low_bake(
-        &self,
-        bundle: &ProductionWeaponHighLowBakeCommitBundle,
-    ) -> Result<ProductionWeaponHighLowBakePrepareResult, StoreError> {
-        let prepared = prepare_production_weapon_high_low_bake(&self.cas, bundle)?;
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        let (receipt, replayed) = commit_production_weapon_high_low_bake_in_transaction(
-            &transaction,
-            &self.cas,
-            &prepared,
-        )?;
-        transaction.commit()?;
-        Ok(production_weapon_high_low_bake_prepare_result(
-            receipt, replayed,
-        ))
-    }
-
-    /// Read and re-verify one exact formal High/Low/Cage/Bake receipt after a
-    /// Store/CAS restart.  The project/session/receipt/scope tuple is the
-    /// complete lookup key; no caller-supplied replacement payload can alter
-    /// the returned receipt object hash.
-    pub fn get_production_weapon_high_low_bake(
-        &self,
-        project_id: &str,
-        session_id: &str,
-        bake_receipt_id: &str,
-        gate_scope: &str,
-    ) -> Result<Option<ProductionWeaponHighLowBakeGetResult>, StoreError> {
-        if !is_opaque_id(project_id) || !is_opaque_id(session_id) || !is_opaque_id(bake_receipt_id)
-        {
-            return Err(StoreError::InvalidData(
-                "ProductionWeaponHighLowBake lookup identity is invalid".to_owned(),
-            ));
-        }
-        if !PRODUCTION_WEAPON_HIGH_LOW_GATE_SCOPES.contains(&gate_scope) {
-            return Err(production_weapon_high_low_error(
-                "PRODUCTION_WEAPON_HIGH_LOW_GATE_SCOPE_INVALID",
-                "unknown bake gate scope",
-            ));
-        }
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        let Some(prepared) = read_production_weapon_high_low_bake_in_transaction(
-            &transaction,
-            &self.cas,
-            project_id,
-            session_id,
-            bake_receipt_id,
-            Some(gate_scope),
-        )?
-        else {
-            transaction.rollback()?;
-            return Ok(None);
-        };
-        if prepared
-            .owned_objects
-            .iter()
-            .any(|object| object.reachability != "reachable")
-        {
-            return Err(production_weapon_high_low_error(
-                "PRODUCTION_WEAPON_HIGH_LOW_REACHABILITY_MISMATCH",
-                "formal bake readback contains a temporary or quarantined owned CAS root",
-            ));
-        }
-        ensure_production_weapon_high_low_bake_bindings_in_transaction(
-            &transaction,
-            &prepared,
-            false,
-        )?;
-        let result = production_weapon_high_low_bake_get_result(&prepared.receipt);
-        transaction.commit()?;
-        Ok(Some(result))
-    }
-
     /// Read the transition owning a V3 head.  This linked query is useful to
     /// callers that need the immutable transition receipt after selecting a
     /// project/session/candidate head.
@@ -16096,13 +15012,12 @@ impl Store {
             "INSERT INTO candidates (candidate_id, project_id, base_version_id, source_version_id, prepared_object_id, prepared_object_sha256, state, request_sha256, manifest_hash, quality_report_id, quality_hard_gate_passed, canonical_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![candidate.candidate_id, candidate.project_id, candidate.base_version_id, candidate.source_version_id, candidate.prepared_object_id, candidate.prepared_object_sha256, candidate.state, candidate.request_sha256, candidate.manifest_hash, candidate.quality_report_id, candidate.quality_hard_gate_passed, candidate.canonical_sha256, candidate.error_code, candidate.created_at, candidate.updated_at],
         )?;
-        transaction.execute(
-            "INSERT INTO runtime_jobs (job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![job.job_id, job.project_id, job.kind, job.status, i64::from(job.progress), job.request_sha256, job.checkpoint_sha256, job.error_code, job.created_at, job.updated_at],
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![event.job_id, event.sequence, event.kind, event_payload, event.created_at],
+        evaluation_repository::insert_job_and_event_in_transaction(
+            &transaction,
+            &job,
+            &event,
+            &event_payload,
+            &job.updated_at,
         )?;
         transaction.execute(
             "INSERT INTO audit_events (audit_id, project_id, kind, object_id, request_sha256, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -16121,894 +15036,6 @@ impl Store {
         })
     }
 
-    pub fn confirm_candidate(
-        &self,
-        request: &CandidateConfirmRequest,
-        now: &str,
-    ) -> Result<CandidateConfirmResult, StoreError> {
-        self.confirm_candidate_with_tool(request, now, "candidate_confirm", None, None)
-    }
-
-    pub fn confirm_cross_view_candidate(
-        &self,
-        request: &CandidateConfirmRequest,
-        now: &str,
-        request_sha256: &str,
-    ) -> Result<CandidateConfirmResult, StoreError> {
-        if !is_sha256(request_sha256) {
-            return Err(StoreError::InvalidData(
-                "cross-view promotion request hash is invalid".to_owned(),
-            ));
-        }
-        self.confirm_candidate_with_tool(
-            request,
-            now,
-            "cross_view_promotion_confirm",
-            None,
-            Some(request_sha256),
-        )
-    }
-
-    pub fn confirm_repair_apply_candidate(
-        &self,
-        request: &CandidateConfirmRequest,
-        now: &str,
-        request_sha256: &str,
-    ) -> Result<CandidateConfirmResult, StoreError> {
-        if !is_sha256(request_sha256) {
-            return Err(StoreError::InvalidData(
-                "repair apply request hash is invalid".to_owned(),
-            ));
-        }
-        self.confirm_candidate_with_tool(
-            request,
-            now,
-            "repair_apply_confirm",
-            None,
-            Some(request_sha256),
-        )
-    }
-
-    pub fn restore_confirm(
-        &self,
-        request: &RestoreConfirmRequest,
-        now: &str,
-    ) -> Result<RestoreConfirmResult, StoreError> {
-        validate_restore_confirm_request(request)?;
-        let candidate_request = CandidateConfirmRequest {
-            project_id: request.project_id.clone(),
-            candidate_id: request.candidate_id.clone(),
-            base_version_id: request.base_version_id.clone(),
-            prepared_object_id: request.prepared_object_id.clone(),
-            prepared_object_sha256: request.prepared_object_sha256.clone(),
-            quality_report_id: request.quality_report_id.clone(),
-            approval_receipt_id: request.approval_receipt_id.clone(),
-            approval_summary: request.approval_summary.clone(),
-            approval_session_id: request.approval_session_id.clone(),
-            approval_expires_at: request.approval_expires_at.clone(),
-            idempotency_key: request.idempotency_key.clone(),
-        };
-        let result = self.confirm_candidate_with_tool(
-            &candidate_request,
-            now,
-            "restore_confirm",
-            Some(request.source_version_id.as_str()),
-            Some(&canonical_json_hash(
-                &serde_json::to_value(request)
-                    .map_err(|error| StoreError::InvalidData(error.to_string()))?,
-            )),
-        )?;
-        Ok(RestoreConfirmResult {
-            schema_version: "RestoreConfirmResult@1".to_owned(),
-            candidate_id: result.candidate_id,
-            project_id: result.project_id,
-            source_version_id: request.source_version_id.clone(),
-            version_id: result.version_id,
-            snapshot_id: result.snapshot_id,
-            approval_receipt_id: result.approval_receipt_id,
-            request_sha256: result.request_sha256,
-            replayed: result.replayed,
-        })
-    }
-
-    fn confirm_candidate_with_tool(
-        &self,
-        request: &CandidateConfirmRequest,
-        now: &str,
-        approval_tool: &str,
-        expected_source_version_id: Option<&str>,
-        request_sha256_override: Option<&str>,
-    ) -> Result<CandidateConfirmResult, StoreError> {
-        validate_confirm_request(request)?;
-        let request_value = serde_json::to_value(request)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-        let request_sha256 = request_sha256_override
-            .map(str::to_owned)
-            .unwrap_or_else(|| canonical_json_hash(&request_value));
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-
-        if let Some((project_id, tool, stored_hash, response_json)) = transaction
-            .query_row(
-                "SELECT project_id, tool, request_sha256, response_json FROM write_idempotency WHERE idempotency_key = ?1",
-                params![request.idempotency_key],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, String>(3)?,
-                    ))
-                },
-            )
-            .optional()?
-        {
-            if project_id != request.project_id
-                || tool != approval_tool
-                || stored_hash != request_sha256
-            {
-                return Err(StoreError::Contract {
-                    code: "IDEMPOTENCY_KEY_REUSED".to_owned(),
-                    message: "idempotency key is bound to a different request".to_owned(),
-                });
-            }
-            let mut result: CandidateConfirmResult = serde_json::from_str(&response_json)
-                .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-            result.replayed = true;
-            return Ok(result);
-        }
-
-        let project = transaction
-            .query_row(
-                "SELECT active_snapshot_revision, head_snapshot_id FROM projects WHERE project_id = ?1",
-                params![request.project_id],
-                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?)),
-            )
-            .optional()?
-            .ok_or_else(|| StoreError::Contract {
-                code: "PROJECT_SCOPE_DENIED".to_owned(),
-                message: "project does not exist".to_owned(),
-            })?;
-        let candidate = read_candidate_for_transaction(&transaction, &request.candidate_id)?
-            .ok_or_else(|| StoreError::Contract {
-                code: "NOT_FOUND".to_owned(),
-                message: "candidate not found".to_owned(),
-            })?;
-        if candidate.project_id != request.project_id {
-            return Err(StoreError::Contract {
-                code: "PROJECT_SCOPE_DENIED".to_owned(),
-                message: "candidate is outside the requested project".to_owned(),
-            });
-        }
-        if expected_source_version_id.is_some() {
-            if candidate.source_version_id.as_deref() != expected_source_version_id {
-                return Err(StoreError::Contract {
-                    code: "RESTORE_SOURCE_MISMATCH".to_owned(),
-                    message: "restore candidate is not bound to the requested source version"
-                        .to_owned(),
-                });
-            }
-        } else if candidate.source_version_id.is_some() {
-            return Err(StoreError::Contract {
-                code: "CANDIDATE_OPERATION_MISMATCH".to_owned(),
-                message: "restore candidate requires restore_confirm".to_owned(),
-            });
-        }
-        if candidate.state != "reviewable" || !candidate.quality_hard_gate_passed {
-            return Err(StoreError::Contract {
-                code: "QUALITY_HARD_GATE_FAILED".to_owned(),
-                message: "candidate is not reviewable with a passing hard quality gate".to_owned(),
-            });
-        }
-        if candidate.base_version_id != request.base_version_id {
-            return Err(StoreError::Contract {
-                code: "CANDIDATE_HASH_MISMATCH".to_owned(),
-                message: "confirm base does not match the prepared candidate".to_owned(),
-            });
-        }
-        if candidate.prepared_object_id.as_deref() != Some(request.prepared_object_id.as_str())
-            || candidate.prepared_object_sha256.as_deref()
-                != Some(request.prepared_object_sha256.as_str())
-            || candidate.quality_report_id.as_deref() != Some(request.quality_report_id.as_str())
-        {
-            return Err(StoreError::Contract {
-                code: "CANDIDATE_HASH_MISMATCH".to_owned(),
-                message: "prepared object or quality binding does not match the candidate"
-                    .to_owned(),
-            });
-        }
-        let current_head: Option<String> = transaction
-            .query_row(
-                "SELECT v.version_id FROM projects p JOIN snapshots s ON s.snapshot_id = p.head_snapshot_id JOIN design_asset_versions v ON v.candidate_id = s.candidate_id WHERE p.project_id = ?1 LIMIT 1",
-                params![request.project_id],
-                |row| row.get(0),
-            )
-            .optional()?;
-        if current_head != request.base_version_id {
-            return Err(StoreError::Contract {
-                code: "STALE_BASE_VERSION".to_owned(),
-                message: "project head changed after the candidate was prepared".to_owned(),
-            });
-        }
-        let object_exists: Option<i64> = transaction
-            .query_row(
-                "SELECT 1 FROM objects WHERE sha256 = ?1",
-                params![request.prepared_object_sha256],
-                |row| row.get(0),
-            )
-            .optional()?;
-        if object_exists.is_none() {
-            return Err(StoreError::Contract {
-                code: "REFERENCE_TRANSFER_UNAVAILABLE".to_owned(),
-                message: "prepared CAS object is unavailable".to_owned(),
-            });
-        }
-        // The caller supplies approval context, but the durable receipt ID is
-        // always minted by Runtime inside this transaction.
-        let approval_receipt_id = generated_approval_receipt_id();
-        if is_expired(now, &request.approval_expires_at)? {
-            let approval = approval_record(
-                request.project_id.as_str(),
-                approval_tool,
-                approval_receipt_id.as_str(),
-                candidate.base_version_id.as_deref(),
-                request.prepared_object_id.as_str(),
-                request.prepared_object_sha256.as_str(),
-                Some(request.quality_report_id.as_str()),
-                request.approval_summary.as_str(),
-                "expired",
-                request.approval_expires_at.as_str(),
-                request.approval_session_id.as_str(),
-                now,
-            )?;
-            insert_approval(&transaction, &approval)?;
-            transaction.commit()?;
-            return Err(StoreError::Contract {
-                code: "APPROVAL_EXPIRED".to_owned(),
-                message: "approval receipt expired before confirm".to_owned(),
-            });
-        }
-        let approval = approval_record(
-            request.project_id.as_str(),
-            approval_tool,
-            approval_receipt_id.as_str(),
-            candidate.base_version_id.as_deref(),
-            request.prepared_object_id.as_str(),
-            request.prepared_object_sha256.as_str(),
-            Some(request.quality_report_id.as_str()),
-            request.approval_summary.as_str(),
-            "approved",
-            request.approval_expires_at.as_str(),
-            request.approval_session_id.as_str(),
-            now,
-        )?;
-        insert_approval(&transaction, &approval)?;
-        let marked_reachable = transaction.execute(
-            "UPDATE objects SET reachability = 'reachable' WHERE sha256 = ?1",
-            params![request.prepared_object_sha256],
-        )?;
-        if marked_reachable != 1 {
-            return Err(StoreError::Contract {
-                code: "REFERENCE_TRANSFER_UNAVAILABLE".to_owned(),
-                message: "prepared CAS object disappeared before confirm".to_owned(),
-            });
-        }
-
-        let manifest_hash = candidate
-            .manifest_hash
-            .clone()
-            .or_else(|| candidate.prepared_object_sha256.clone())
-            .ok_or_else(|| StoreError::Contract {
-                code: "CANDIDATE_HASH_MISMATCH".to_owned(),
-                message: "candidate has no manifest hash".to_owned(),
-            })?;
-        if !is_sha256(&manifest_hash) {
-            return Err(StoreError::Contract {
-                code: "CANDIDATE_HASH_MISMATCH".to_owned(),
-                message: "candidate manifest hash is invalid".to_owned(),
-            });
-        }
-        let version_id = format!("version-{}", Uuid::new_v4().simple());
-        let version_created_at = now.to_owned();
-        let version_canonical_sha256 = canonical_json_hash(&serde_json::json!({
-            "schema_version": "DesignAssetVersion@1",
-            "version_id": version_id,
-            "project_id": request.project_id,
-            "parent_version_id": request.base_version_id,
-            "candidate_id": request.candidate_id,
-            "manifest_hash": manifest_hash,
-            "created_at": version_created_at,
-        }));
-        transaction.execute(
-            "INSERT INTO design_asset_versions (version_id, project_id, parent_version_id, candidate_id, manifest_hash, canonical_sha256, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![
-                version_id,
-                request.project_id,
-                request.base_version_id,
-                request.candidate_id,
-                manifest_hash,
-                version_canonical_sha256,
-                version_created_at,
-            ],
-        )?;
-
-        let snapshot_id = format!("snapshot-{}", Uuid::new_v4().simple());
-        let snapshot_revision = project.0 + 1;
-        let snapshot_canonical_sha256 = canonical_json_hash(&serde_json::json!({
-            "schema_version": "ActiveDesignSnapshot@1",
-            "snapshot_id": snapshot_id,
-            "project_id": request.project_id,
-            "parent_snapshot_id": project.1,
-            "candidate_id": request.candidate_id,
-            "revision": snapshot_revision,
-            "status": "confirmed",
-            "manifest_hash": manifest_hash,
-            "created_at": now,
-        }));
-        transaction.execute(
-            "INSERT INTO snapshots (snapshot_id, project_id, parent_snapshot_id, candidate_id, revision, status, manifest_hash, canonical_sha256, created_at) VALUES (?1, ?2, ?3, ?4, ?5, 'confirmed', ?6, ?7, ?8)",
-            params![
-                snapshot_id,
-                request.project_id,
-                project.1,
-                request.candidate_id,
-                snapshot_revision,
-                manifest_hash,
-                snapshot_canonical_sha256,
-                now,
-            ],
-        )?;
-        let updated_project = transaction.execute(
-            "UPDATE projects SET active_snapshot_revision = ?1, head_snapshot_id = ?2, updated_at = ?3 WHERE project_id = ?4 AND active_snapshot_revision = ?5",
-            params![snapshot_revision, snapshot_id, now, request.project_id, project.0],
-        )?;
-        if updated_project != 1 {
-            return Err(StoreError::Contract {
-                code: "STALE_BASE_VERSION".to_owned(),
-                message: "project head changed during confirm".to_owned(),
-            });
-        }
-        transaction.execute(
-            "UPDATE candidates SET state = 'confirmed', error_code = NULL, updated_at = ?1 WHERE candidate_id = ?2 AND state = 'reviewable'",
-            params![now, request.candidate_id],
-        )?;
-        let audit = AuditEventRecord {
-            schema_version: "AuditEvent@1".to_owned(),
-            audit_id: format!("audit-{}", Uuid::new_v4().simple()),
-            project_id: Some(request.project_id.clone()),
-            kind: match approval_tool {
-                "restore_confirm" => "restore_confirmed",
-                "repair_apply_confirm" => "repair_apply_confirmed",
-                "cross_view_promotion_confirm" => "cross_view_candidate_confirmed",
-                _ => "candidate_confirmed",
-            }
-            .to_owned(),
-            object_id: Some(request.candidate_id.clone()),
-            request_sha256: Some(request_sha256.clone()),
-            payload: serde_json::json!({
-                "candidate_id": request.candidate_id,
-                "version_id": version_id,
-                "snapshot_id": snapshot_id,
-                "approval_receipt_id": approval_receipt_id,
-                "prepared_object_sha256": request.prepared_object_sha256,
-                "quality_report_id": request.quality_report_id,
-                "source_version_id": candidate.source_version_id,
-            }),
-            created_at: now.to_owned(),
-        };
-        insert_audit(&transaction, &audit)?;
-        let result = CandidateConfirmResult {
-            schema_version: "CandidateConfirmResult@1".to_owned(),
-            candidate_id: request.candidate_id.clone(),
-            project_id: request.project_id.clone(),
-            version_id,
-            snapshot_id,
-            approval_receipt_id,
-            request_sha256: request_sha256.clone(),
-            replayed: false,
-        };
-        insert_idempotency(
-            &transaction,
-            &request.idempotency_key,
-            &request.project_id,
-            approval_tool,
-            &request_sha256,
-            &result,
-            now,
-        )?;
-        transaction.commit()?;
-        Ok(result)
-    }
-
-    pub fn prepare_export(
-        &self,
-        request: &ExportPrepareRequest,
-        now: &str,
-    ) -> Result<ExportPrepareResult, StoreError> {
-        validate_export_prepare_request(request)?;
-        let version =
-            self.get_version(&request.version_id)?
-                .ok_or_else(|| StoreError::Contract {
-                    code: "NOT_FOUND".to_owned(),
-                    message: "export version not found".to_owned(),
-                })?;
-        if version.project_id != request.project_id {
-            return Err(StoreError::Contract {
-                code: "PROJECT_SCOPE_DENIED".to_owned(),
-                message: "export version is outside the requested project".to_owned(),
-            });
-        }
-        let source_candidate =
-            self.get_candidate(&version.candidate_id)?
-                .ok_or_else(|| StoreError::Contract {
-                    code: "NOT_FOUND".to_owned(),
-                    message: "export source candidate not found".to_owned(),
-                })?;
-        if source_candidate.state != "confirmed" || !source_candidate.quality_hard_gate_passed {
-            return Err(StoreError::Contract {
-                code: "EXPORT_SOURCE_UNCONFIRMED".to_owned(),
-                message: "export requires a confirmed quality-passing version".to_owned(),
-            });
-        }
-        let source_object = self.get_object(&version.manifest_hash)?;
-        if source_object.is_none() {
-            return Err(StoreError::Contract {
-                code: "REFERENCE_TRANSFER_UNAVAILABLE".to_owned(),
-                message: "export source manifest object is unavailable".to_owned(),
-            });
-        }
-        if request.format == "glb"
-            && source_object
-                .as_ref()
-                .map(|object| object.mime != "model/gltf-binary")
-                .unwrap_or(true)
-        {
-            return Err(StoreError::Contract {
-                code: "EXPORT_FORMAT_UNAVAILABLE".to_owned(),
-                message: "mvp-glb export requires a Runtime GLB artifact".to_owned(),
-            });
-        }
-        let export_id = format!("export-{}", Uuid::new_v4().simple());
-        let artifact_hashes = vec![version.manifest_hash.clone()];
-        let output_kind = if request.format == "glb" {
-            "mvp-glb"
-        } else {
-            "diagnostic-manifest"
-        };
-        let manifest_payload = serde_json::json!({
-            "schema_version": "ExportPayload@1",
-            "export_id": export_id,
-            "project_id": request.project_id,
-            "version_id": request.version_id,
-            "format": request.format,
-            "profile": request.profile,
-            "artifact_hashes": artifact_hashes,
-            "license_provenance": {
-                "status": if request.format == "glb" { "procedural-mvp" } else { "diagnostic_fixture_unavailable" },
-                "absolute_paths": false,
-                "source": "runtime-contract-core"
-            },
-            "toolchain": output_kind
-        });
-        let manifest_bytes = serde_json::to_vec(&manifest_payload)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-        let manifest_object = self.put_object(
-            &manifest_bytes,
-            None,
-            "application/json",
-            "export-manifest",
-            now,
-        )?;
-        let request_sha256 = canonical_json_hash(
-            &serde_json::to_value(request)
-                .map_err(|error| StoreError::InvalidData(error.to_string()))?,
-        );
-        let manifest = ExportManifestRecord {
-            schema_version: "ExportManifest@1".to_owned(),
-            export_id: export_id.clone(),
-            project_id: request.project_id.clone(),
-            version_id: request.version_id.clone(),
-            format: request.format.clone(),
-            profile: request.profile.clone(),
-            manifest_sha256: manifest_object.record.sha256.clone(),
-            artifact_hashes: vec![version.manifest_hash.clone()],
-            state: "prepared".to_owned(),
-            approval_receipt_id: None,
-            created_at: now.to_owned(),
-            updated_at: now.to_owned(),
-        };
-        validate_export_manifest(&manifest)?;
-        let job = JobRecord {
-            schema_version: "RuntimeJob@1".to_owned(),
-            job_id: format!("job-{}", Uuid::new_v4().simple()),
-            project_id: request.project_id.clone(),
-            kind: "export_prepare".to_owned(),
-            status: "succeeded".to_owned(),
-            progress: 100,
-            request_sha256: request_sha256.clone(),
-            checkpoint_sha256: None,
-            error_code: None,
-            created_at: now.to_owned(),
-            updated_at: now.to_owned(),
-        };
-        let event = JobEventRecord {
-            schema_version: "RuntimeJobEvent@1".to_owned(),
-            job_id: job.job_id.clone(),
-            sequence: 1,
-            kind: "export_prepared".to_owned(),
-            payload: serde_json::json!({
-                "export_id": export_id,
-                "version_id": request.version_id,
-                "manifest_sha256": manifest.manifest_sha256,
-            }),
-            created_at: now.to_owned(),
-        };
-        let audit = AuditEventRecord {
-            schema_version: "AuditEvent@1".to_owned(),
-            audit_id: format!("audit-{}", Uuid::new_v4().simple()),
-            project_id: Some(request.project_id.clone()),
-            kind: "export_prepared".to_owned(),
-            object_id: Some(manifest.export_id.clone()),
-            request_sha256: Some(request_sha256),
-            payload: serde_json::json!({
-                "export_id": manifest.export_id,
-                "version_id": manifest.version_id,
-                "manifest_sha256": manifest.manifest_sha256,
-            }),
-            created_at: now.to_owned(),
-        };
-        validate_job(&job)?;
-        validate_job_event(&event)?;
-        validate_audit(&audit)?;
-        let artifact_hashes_json = serde_json::to_string(&manifest.artifact_hashes)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-        let event_payload = serde_json::to_string(&event.payload)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        transaction.execute(
-            "INSERT INTO export_manifests (export_id, project_id, version_id, format, profile, manifest_sha256, artifact_hashes_json, state, approval_receipt_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            params![manifest.export_id, manifest.project_id, manifest.version_id, manifest.format, manifest.profile, manifest.manifest_sha256, artifact_hashes_json, manifest.state, manifest.approval_receipt_id, manifest.created_at, manifest.updated_at],
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_jobs (job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![job.job_id, job.project_id, job.kind, job.status, i64::from(job.progress), job.request_sha256, job.checkpoint_sha256, job.error_code, job.created_at, job.updated_at],
-        )?;
-        transaction.execute(
-            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![event.job_id, event.sequence, event.kind, event_payload, event.created_at],
-        )?;
-        insert_audit(&transaction, &audit)?;
-        transaction.commit()?;
-        drop(connection);
-        let job_summary = self
-            .get_job(&job.job_id)?
-            .ok_or_else(|| StoreError::InvalidData("export job disappeared".to_owned()))?;
-        Ok(ExportPrepareResult {
-            schema_version: "ExportPrepareResult@1".to_owned(),
-            manifest,
-            job: job_summary,
-        })
-    }
-
-    pub fn confirm_export(
-        &self,
-        request: &ExportConfirmRequest,
-        now: &str,
-    ) -> Result<ExportConfirmResult, StoreError> {
-        validate_export_confirm_request(request)?;
-        let request_sha256 = canonical_json_hash(
-            &serde_json::to_value(request)
-                .map_err(|error| StoreError::InvalidData(error.to_string()))?,
-        );
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        if let Some((project_id, tool, stored_hash, response_json)) = transaction
-            .query_row(
-                "SELECT project_id, tool, request_sha256, response_json FROM write_idempotency WHERE idempotency_key = ?1",
-                params![request.idempotency_key],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, String>(3)?)),
-            )
-            .optional()?
-        {
-            if project_id != request.project_id
-                || tool != "export_confirm"
-                || stored_hash != request_sha256
-            {
-                return Err(StoreError::Contract {
-                    code: "IDEMPOTENCY_KEY_REUSED".to_owned(),
-                    message: "idempotency key is bound to a different request".to_owned(),
-                });
-            }
-            let mut result: ExportConfirmResult = serde_json::from_str(&response_json)
-                .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-            result.replayed = true;
-            return Ok(result);
-        }
-        let manifest =
-            read_export_for_transaction(&transaction, &request.export_id)?.ok_or_else(|| {
-                StoreError::Contract {
-                    code: "NOT_FOUND".to_owned(),
-                    message: "export manifest not found".to_owned(),
-                }
-            })?;
-        if manifest.project_id != request.project_id
-            || manifest.version_id != request.version_id
-            || manifest.format != request.format
-            || manifest.profile != request.profile
-        {
-            return Err(StoreError::Contract {
-                code: "EXPORT_HASH_MISMATCH".to_owned(),
-                message: "export request does not match prepared manifest".to_owned(),
-            });
-        }
-        if manifest.state != "prepared" {
-            return Err(StoreError::Contract {
-                code: "EXPORT_STATE_INVALID".to_owned(),
-                message: "export manifest is not awaiting confirmation".to_owned(),
-            });
-        }
-        let object_exists: Option<i64> = transaction
-            .query_row(
-                "SELECT 1 FROM objects WHERE sha256 = ?1",
-                params![manifest.manifest_sha256],
-                |row| row.get(0),
-            )
-            .optional()?;
-        if object_exists.is_none() {
-            return Err(StoreError::Contract {
-                code: "REFERENCE_TRANSFER_UNAVAILABLE".to_owned(),
-                message: "prepared export manifest object is unavailable".to_owned(),
-            });
-        }
-        let approval_receipt_id = generated_approval_receipt_id();
-        if is_expired(now, &request.approval_expires_at)? {
-            let approval = approval_record(
-                request.project_id.as_str(),
-                "export_confirm",
-                approval_receipt_id.as_str(),
-                Some(request.version_id.as_str()),
-                request.export_id.as_str(),
-                manifest.manifest_sha256.as_str(),
-                None,
-                request.approval_summary.as_str(),
-                "expired",
-                request.approval_expires_at.as_str(),
-                request.approval_session_id.as_str(),
-                now,
-            )?;
-            insert_approval(&transaction, &approval)?;
-            transaction.commit()?;
-            return Err(StoreError::Contract {
-                code: "APPROVAL_EXPIRED".to_owned(),
-                message: "approval receipt expired before export confirm".to_owned(),
-            });
-        }
-        let approval = approval_record(
-            request.project_id.as_str(),
-            "export_confirm",
-            approval_receipt_id.as_str(),
-            Some(request.version_id.as_str()),
-            request.export_id.as_str(),
-            manifest.manifest_sha256.as_str(),
-            None,
-            request.approval_summary.as_str(),
-            "approved",
-            request.approval_expires_at.as_str(),
-            request.approval_session_id.as_str(),
-            now,
-        )?;
-        insert_approval(&transaction, &approval)?;
-        for artifact_hash in &manifest.artifact_hashes {
-            let marked_reachable = transaction.execute(
-                "UPDATE objects SET reachability = 'reachable' WHERE sha256 = ?1",
-                params![artifact_hash],
-            )?;
-            if marked_reachable != 1 {
-                return Err(StoreError::Contract {
-                    code: "REFERENCE_TRANSFER_UNAVAILABLE".to_owned(),
-                    message: "export artifact disappeared before confirm".to_owned(),
-                });
-            }
-        }
-        let marked_manifest_reachable = transaction.execute(
-            "UPDATE objects SET reachability = 'reachable' WHERE sha256 = ?1",
-            params![manifest.manifest_sha256],
-        )?;
-        if marked_manifest_reachable != 1 {
-            return Err(StoreError::Contract {
-                code: "REFERENCE_TRANSFER_UNAVAILABLE".to_owned(),
-                message: "prepared export manifest disappeared before confirm".to_owned(),
-            });
-        }
-        transaction.execute(
-            "UPDATE export_manifests SET state = 'confirmed', approval_receipt_id = ?1, updated_at = ?2 WHERE export_id = ?3 AND state = 'prepared'",
-            params![approval_receipt_id, now, request.export_id],
-        )?;
-        let output_sha256 = if manifest.format == "glb" {
-            manifest
-                .artifact_hashes
-                .first()
-                .cloned()
-                .unwrap_or_else(|| manifest.manifest_sha256.clone())
-        } else {
-            manifest.manifest_sha256.clone()
-        };
-        let audit = AuditEventRecord {
-            schema_version: "AuditEvent@1".to_owned(),
-            audit_id: format!("audit-{}", Uuid::new_v4().simple()),
-            project_id: Some(request.project_id.clone()),
-            kind: "export_confirmed".to_owned(),
-            object_id: Some(request.export_id.clone()),
-            request_sha256: Some(request_sha256.clone()),
-            payload: serde_json::json!({
-                "export_id": request.export_id,
-                "version_id": request.version_id,
-                "manifest_sha256": manifest.manifest_sha256,
-                "output_sha256": output_sha256.clone(),
-                "approval_receipt_id": approval_receipt_id,
-            }),
-            created_at: now.to_owned(),
-        };
-        insert_audit(&transaction, &audit)?;
-        let result = ExportConfirmResult {
-            schema_version: "ExportConfirmResult@1".to_owned(),
-            export_id: request.export_id.clone(),
-            project_id: request.project_id.clone(),
-            version_id: request.version_id.clone(),
-            manifest_sha256: manifest.manifest_sha256.clone(),
-            output_sha256,
-            approval_receipt_id,
-            request_sha256: request_sha256.clone(),
-            replayed: false,
-        };
-        insert_idempotency(
-            &transaction,
-            &request.idempotency_key,
-            &request.project_id,
-            "export_confirm",
-            &request_sha256,
-            &result,
-            now,
-        )?;
-        transaction.commit()?;
-        Ok(result)
-    }
-
-    pub fn reject_candidate(
-        &self,
-        request: &CandidateRejectRequest,
-        now: &str,
-    ) -> Result<CandidateRejectResult, StoreError> {
-        validate_reject_request(request)?;
-        let request_value = serde_json::to_value(request)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-        let request_sha256 = canonical_json_hash(&request_value);
-        let mut connection = self.lock_connection()?;
-        let transaction = connection.transaction()?;
-        if let Some((project_id, tool, stored_hash, response_json)) = transaction
-            .query_row(
-                "SELECT project_id, tool, request_sha256, response_json FROM write_idempotency WHERE idempotency_key = ?1",
-                params![request.idempotency_key],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, String>(3)?,
-                    ))
-                },
-            )
-            .optional()?
-        {
-            if project_id != request.project_id
-                || tool != "candidate_reject"
-                || stored_hash != request_sha256
-            {
-                return Err(StoreError::Contract {
-                    code: "IDEMPOTENCY_KEY_REUSED".to_owned(),
-                    message: "idempotency key is bound to a different request".to_owned(),
-                });
-            }
-            let mut result: CandidateRejectResult = serde_json::from_str(&response_json)
-                .map_err(|error| StoreError::InvalidData(error.to_string()))?;
-            result.replayed = true;
-            return Ok(result);
-        }
-        let candidate = read_candidate_for_transaction(&transaction, &request.candidate_id)?
-            .ok_or_else(|| StoreError::Contract {
-                code: "NOT_FOUND".to_owned(),
-                message: "candidate not found".to_owned(),
-            })?;
-        if candidate.project_id != request.project_id {
-            return Err(StoreError::Contract {
-                code: "PROJECT_SCOPE_DENIED".to_owned(),
-                message: "candidate is outside the requested project".to_owned(),
-            });
-        }
-        if candidate.state == "confirmed" {
-            return Err(StoreError::Contract {
-                code: "CANDIDATE_ALREADY_CONFIRMED".to_owned(),
-                message: "confirmed candidate cannot be rejected".to_owned(),
-            });
-        }
-        let prepared_object_id =
-            candidate
-                .prepared_object_id
-                .clone()
-                .ok_or_else(|| StoreError::Contract {
-                    code: "CANDIDATE_HASH_MISMATCH".to_owned(),
-                    message: "candidate has no prepared object".to_owned(),
-                })?;
-        let prepared_object_sha256 =
-            candidate
-                .prepared_object_sha256
-                .clone()
-                .ok_or_else(|| StoreError::Contract {
-                    code: "CANDIDATE_HASH_MISMATCH".to_owned(),
-                    message: "candidate has no prepared object hash".to_owned(),
-                })?;
-        let approval_receipt_id = generated_approval_receipt_id();
-        let approval = approval_record(
-            request.project_id.as_str(),
-            "candidate_reject",
-            approval_receipt_id.as_str(),
-            candidate.base_version_id.as_deref(),
-            prepared_object_id.as_str(),
-            prepared_object_sha256.as_str(),
-            candidate.quality_report_id.as_deref(),
-            request.approval_summary.as_str(),
-            "rejected",
-            request.approval_expires_at.as_str(),
-            request.approval_session_id.as_str(),
-            now,
-        )?;
-        insert_approval(&transaction, &approval)?;
-        transaction.execute(
-            "UPDATE candidates SET state = 'rejected', error_code = NULL, updated_at = ?1 WHERE candidate_id = ?2",
-            params![now, request.candidate_id],
-        )?;
-        let audit = AuditEventRecord {
-            schema_version: "AuditEvent@1".to_owned(),
-            audit_id: format!("audit-{}", Uuid::new_v4().simple()),
-            project_id: Some(request.project_id.clone()),
-            kind: "candidate_rejected".to_owned(),
-            object_id: Some(request.candidate_id.clone()),
-            request_sha256: Some(request_sha256.clone()),
-            payload: serde_json::json!({
-                "candidate_id": request.candidate_id,
-                "approval_receipt_id": approval_receipt_id,
-            }),
-            created_at: now.to_owned(),
-        };
-        insert_audit(&transaction, &audit)?;
-        let result = CandidateRejectResult {
-            schema_version: "CandidateRejectResult@1".to_owned(),
-            candidate_id: request.candidate_id.clone(),
-            project_id: request.project_id.clone(),
-            state: "rejected".to_owned(),
-            approval_receipt_id,
-            request_sha256: request_sha256.clone(),
-            replayed: false,
-        };
-        insert_idempotency(
-            &transaction,
-            &request.idempotency_key,
-            &request.project_id,
-            "candidate_reject",
-            &request_sha256,
-            &result,
-            now,
-        )?;
-        transaction.commit()?;
-        Ok(result)
-    }
-
-    /// Persist the additive, source-only Low retopology/Cage bundle.  This
-    /// private-Value API is intentional until the shared contracts lane
-    /// freezes `ProductionWeaponRetopologyCageSourceBundle@1`; Runtime can
-    /// pass its typed record through `serde_json::to_value` without changing
-    /// this Store table or weakening the current formal Bake gate.
     pub fn record_production_weapon_retopology_cage_source_bundle(
         &self,
         bundle: &Value,
@@ -17185,6 +15212,40 @@ impl Store {
         bundle_key_sha256: &str,
     ) -> Result<Option<Value>, StoreError> {
         self.get_production_weapon_retopology_cage_source_bundle(bundle_key_sha256)
+    }
+
+    /// Resolve the one durable source bundle that owns an exact candidate-bound
+    /// Low artifact.  The returned payload still passes through the canonical
+    /// bundle/CAS validator above; this is only a typed lookup bridge for
+    /// downstream Hero UV and bake producers.
+    pub fn get_production_weapon_retopology_cage_source_bundle_by_candidate_low_artifact(
+        &self,
+        project_id: &str,
+        candidate_id: &str,
+        low_artifact_sha256: &str,
+    ) -> Result<Option<Value>, StoreError> {
+        if project_id.is_empty() || candidate_id.is_empty() || !is_sha256(low_artifact_sha256) {
+            return Err(production_weapon_retopology_cage_source_bundle_error(
+                "PRODUCTION_WEAPON_RETOPOLOGY_CAGE_SOURCE_BUNDLE_LOOKUP_INVALID",
+                "project/candidate/Low artifact lookup is invalid",
+            ));
+        }
+        let bundle_key = {
+            let connection = self.lock_connection()?;
+            connection
+                .query_row(
+                    "SELECT bundle_key_sha256 FROM production_weapon_retopology_cage_source_bundle_links WHERE project_id = ?1 AND source_candidate_id = ?2 AND low_artifact_sha256 = ?3",
+                    params![project_id, candidate_id, low_artifact_sha256],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+        };
+        match bundle_key {
+            Some(bundle_key) => {
+                self.get_production_weapon_retopology_cage_source_bundle(&bundle_key)
+            }
+            None => Ok(None),
+        }
     }
 
     pub fn backup_to(&self, destination: impl AsRef<Path>) -> Result<(), StoreError> {
@@ -17567,6 +15628,7 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
              ON authoring_mesh_v2_durable_records(project_id, mesh_id, revision_index);",
     )?;
     ensure_authoring_mesh_v2_operation_schema(&transaction)?;
+    authoring_mesh_v2_transaction::ensure_schema(&transaction)?;
     transaction.execute_batch(
         "CREATE TABLE IF NOT EXISTS subdivision_artifact_lineage_links (
              project_id TEXT NOT NULL REFERENCES projects(project_id),
@@ -17587,31 +15649,7 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
          CREATE INDEX IF NOT EXISTS subdivision_artifact_lineage_links_project_idx
              ON subdivision_artifact_lineage_links(project_id, candidate_id, subdivision_node_id);",
     )?;
-    transaction.execute_batch(
-        "CREATE TABLE IF NOT EXISTS mechanical_animation_clip_links (
-             project_id TEXT NOT NULL REFERENCES projects(project_id),
-             candidate_id TEXT NOT NULL REFERENCES candidates(candidate_id),
-             artifact_id TEXT NOT NULL REFERENCES objects(sha256),
-             artifact_readback_sha256 TEXT NOT NULL,
-             geometry_candidate_evidence_sha256 TEXT NOT NULL,
-             program_sha256 TEXT NOT NULL,
-             operator_catalog_sha256 TEXT NOT NULL,
-             readback_config_sha256 TEXT NOT NULL,
-             clip_id TEXT NOT NULL,
-             request_sha256 TEXT NOT NULL,
-             clip_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
-             clip_sha256 TEXT NOT NULL,
-             rest_frame_sha256 TEXT NOT NULL,
-             pose_action_sha256 TEXT NOT NULL,
-             source_replay_worker_cohort_sha256 TEXT NOT NULL,
-             materialization_status TEXT NOT NULL CHECK (materialization_status = 'runtime-owned-immutable-cas-clip'),
-             canonical_sha256 TEXT NOT NULL,
-             created_at TEXT NOT NULL,
-             PRIMARY KEY (candidate_id, clip_id)
-         );
-         CREATE INDEX IF NOT EXISTS mechanical_animation_clip_links_project_idx
-             ON mechanical_animation_clip_links(project_id, candidate_id, clip_id);",
-    )?;
+    presentation_repository::PresentationRepository::ensure_schema(&transaction)?;
     transaction.execute_batch(
         "CREATE TABLE IF NOT EXISTS mechanical_animation_clip_v2_links (
              project_id TEXT NOT NULL REFERENCES projects(project_id),
@@ -21005,6 +19043,8 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
     weapon_foundation_import::ensure_table(&transaction)?;
     foundation_authoring_mesh_v2_materialization::ensure_table(&transaction)?;
     fps_presentation_package_v2::ensure_table(&transaction)?;
+    weaponry_curve_modifier_graph::ensure_table(&transaction)?;
+    weaponry_curve_evaluated_mesh::ensure_table(&transaction)?;
     let version: String = transaction.query_row(
         "SELECT value FROM schema_meta WHERE key = 'runtime_schema_version'",
         [],
@@ -33407,30 +31447,36 @@ fn ensure_production_weapon_form_quality_v2_bindings(
                     "fresh proposal evidence does not contain six views",
                 )
             })?;
-        let part_id_hash = canonical_json_hash(&serde_json::json!(proposal_views
-            .iter()
-            .map(|view| serde_json::json!({
-                "view_kind": view.get("view_kind"),
-                "part_id_pass_object_sha256": view.get("part_id_pass_object_sha256"),
-                "part_id_status": view.get("part_id_status"),
-            }))
-            .collect::<Vec<_>>()));
-        let negative_space_hash = canonical_json_hash(&serde_json::json!(proposal_views
-            .iter()
-            .map(|view| serde_json::json!({
-                "view_kind": view.get("view_kind"),
-                "negative_space_status": view.get("negative_space_status"),
-                "negative_space_observations": view.get("negative_space_observations"),
-            }))
-            .collect::<Vec<_>>()));
-        let line_flow_hash = canonical_json_hash(&serde_json::json!(proposal_views
-            .iter()
-            .map(|view| serde_json::json!({
-                "view_kind": view.get("view_kind"),
-                "line_flow_status": view.get("line_flow_status"),
-                "line_flow_observations": view.get("line_flow_observations"),
-            }))
-            .collect::<Vec<_>>()));
+        let part_id_hash = canonical_json_hash(&serde_json::json!(
+            proposal_views
+                .iter()
+                .map(|view| serde_json::json!({
+                    "view_kind": view.get("view_kind"),
+                    "part_id_pass_object_sha256": view.get("part_id_pass_object_sha256"),
+                    "part_id_status": view.get("part_id_status"),
+                }))
+                .collect::<Vec<_>>()
+        ));
+        let negative_space_hash = canonical_json_hash(&serde_json::json!(
+            proposal_views
+                .iter()
+                .map(|view| serde_json::json!({
+                    "view_kind": view.get("view_kind"),
+                    "negative_space_status": view.get("negative_space_status"),
+                    "negative_space_observations": view.get("negative_space_observations"),
+                }))
+                .collect::<Vec<_>>()
+        ));
+        let line_flow_hash = canonical_json_hash(&serde_json::json!(
+            proposal_views
+                .iter()
+                .map(|view| serde_json::json!({
+                    "view_kind": view.get("view_kind"),
+                    "line_flow_status": view.get("line_flow_status"),
+                    "line_flow_observations": view.get("line_flow_observations"),
+                }))
+                .collect::<Vec<_>>()
+        ));
         if proposal_canonical
             != quality
                 .proposal_form_art_evidence_canonical_sha256
@@ -35105,8 +33151,20 @@ fn validate_production_weapon_retopology_cage_source_bundle_json(
         let mut normalized = payload.clone();
         normalized["canonical_sha256"] = Value::String(String::new());
         if canonical_json_hash(&normalized) != canonical {
+            let code = match field {
+                "low_mesh_object_sha256" => {
+                    "PRODUCTION_WEAPON_RETOPOLOGY_CAGE_SOURCE_BUNDLE_LOW_MESH_JSON_CANONICAL_MISMATCH"
+                }
+                "correspondence_object_sha256" => {
+                    "PRODUCTION_WEAPON_RETOPOLOGY_CAGE_SOURCE_BUNDLE_CORRESPONDENCE_JSON_CANONICAL_MISMATCH"
+                }
+                "cage_offset_field_object_sha256" => {
+                    "PRODUCTION_WEAPON_RETOPOLOGY_CAGE_SOURCE_BUNDLE_OFFSET_JSON_CANONICAL_MISMATCH"
+                }
+                _ => "PRODUCTION_WEAPON_RETOPOLOGY_CAGE_SOURCE_BUNDLE_JSON_CANONICAL_MISMATCH",
+            };
             return Err(production_weapon_retopology_cage_source_bundle_error(
-                "PRODUCTION_WEAPON_RETOPOLOGY_CAGE_SOURCE_BUNDLE_JSON_CANONICAL_MISMATCH",
+                code,
                 format!("{field} canonical hash differs"),
             ));
         }
@@ -36051,7 +34109,7 @@ fn high_low_validate_record_contracts(
             return Err(production_weapon_high_low_error(
                 "PRODUCTION_WEAPON_HIGH_LOW_GATE_SCOPE_INVALID",
                 "unknown bake gate scope",
-            ))
+            ));
         }
     };
     high_low_require_string(&values[6], "source_stage", edge.0)?;
@@ -46887,91 +44945,6 @@ fn validate_mechanical_animation_clip_v2_bindings_in_transaction(
     Ok(())
 }
 
-fn validate_game_asset_delivery_link(link: &GameAssetDeliveryLinkRecord) -> Result<(), StoreError> {
-    let mut canonical = link.clone();
-    canonical.canonical_sha256.clear();
-    let expected_canonical = canonical_json_hash(
-        &serde_json::to_value(&canonical)
-            .map_err(|error| StoreError::InvalidData(error.to_string()))?,
-    );
-    if link.schema_version != "GameAssetDeliveryLink@1"
-        || !is_opaque_id(&link.project_id)
-        || link.lod_candidate_ids.len() != 3
-        || link
-            .lod_candidate_ids
-            .iter()
-            .any(|value| !is_opaque_id(value))
-        || link.lod_candidate_ids.iter().collect::<HashSet<_>>().len() != 3
-        || link.lod_artifact_sha256s.len() != 3
-        || link
-            .lod_artifact_sha256s
-            .iter()
-            .any(|value| !is_sha256(value))
-        || link
-            .lod_artifact_sha256s
-            .iter()
-            .collect::<HashSet<_>>()
-            .len()
-            != 3
-        || !is_sha256(&link.request_sha256)
-        || !is_sha256(&link.lod_receipt_object_sha256)
-        || !is_sha256(&link.collision_proxy_object_sha256)
-        || !is_sha256(&link.readiness_object_sha256)
-        || !is_sha256(&link.delivery_manifest_object_sha256)
-        || link
-            .animation_artifact_sha256
-            .as_deref()
-            .is_some_and(|value| !is_sha256(value))
-        || link.materialization_status != "runtime-owned-durable-game-delivery-link"
-        || link.canonical_sha256 != expected_canonical
-        || link.created_at.is_empty()
-        || link.created_at.len() > 128
-    {
-        return Err(StoreError::InvalidData(
-            "game asset delivery link is malformed".to_owned(),
-        ));
-    }
-    Ok(())
-}
-
-fn game_asset_delivery_link_from_row(
-    row: &rusqlite::Row<'_>,
-) -> rusqlite::Result<GameAssetDeliveryLinkRecord> {
-    Ok(GameAssetDeliveryLinkRecord {
-        schema_version: "GameAssetDeliveryLink@1".to_owned(),
-        project_id: row.get(0)?,
-        lod_candidate_ids: vec![row.get(1)?, row.get(2)?, row.get(3)?],
-        lod_artifact_sha256s: vec![row.get(4)?, row.get(5)?, row.get(6)?],
-        request_sha256: row.get(7)?,
-        lod_receipt_object_sha256: row.get(8)?,
-        collision_proxy_object_sha256: row.get(9)?,
-        readiness_object_sha256: row.get(10)?,
-        delivery_manifest_object_sha256: row.get(11)?,
-        animation_artifact_sha256: row.get(12)?,
-        materialization_status: row.get(13)?,
-        canonical_sha256: row.get(14)?,
-        created_at: row.get(15)?,
-    })
-}
-
-fn same_game_asset_delivery_link(
-    left: &GameAssetDeliveryLinkRecord,
-    right: &GameAssetDeliveryLinkRecord,
-) -> bool {
-    left.schema_version == right.schema_version
-        && left.project_id == right.project_id
-        && left.lod_candidate_ids == right.lod_candidate_ids
-        && left.lod_artifact_sha256s == right.lod_artifact_sha256s
-        && left.request_sha256 == right.request_sha256
-        && left.lod_receipt_object_sha256 == right.lod_receipt_object_sha256
-        && left.collision_proxy_object_sha256 == right.collision_proxy_object_sha256
-        && left.readiness_object_sha256 == right.readiness_object_sha256
-        && left.delivery_manifest_object_sha256 == right.delivery_manifest_object_sha256
-        && left.animation_artifact_sha256 == right.animation_artifact_sha256
-        && left.materialization_status == right.materialization_status
-        && left.canonical_sha256 == right.canonical_sha256
-}
-
 fn validate_game_weapon_anchor_link(link: &GameWeaponAnchorLinkRecord) -> Result<(), StoreError> {
     let mut canonical = link.clone();
     canonical.canonical_sha256.clear();
@@ -49064,11 +47037,7 @@ fn validate_game_weapon_animated_glb_socket_transform_projection_v2_request_hash
 }
 
 fn projection_v2_canonical_f32(value: f32) -> f32 {
-    if value == 0.0 {
-        0.0
-    } else {
-        value
-    }
+    if value == 0.0 { 0.0 } else { value }
 }
 
 fn projection_v2_f32_json_number(value: f32) -> f64 {
@@ -56881,122 +54850,6 @@ fn validate_appearance_source_lineage_bindings_in_transaction(
     Ok(())
 }
 
-fn game_asset_delivery_json_hashes(link: &GameAssetDeliveryLinkRecord) -> [&str; 4] {
-    [
-        &link.lod_receipt_object_sha256,
-        &link.collision_proxy_object_sha256,
-        &link.readiness_object_sha256,
-        &link.delivery_manifest_object_sha256,
-    ]
-}
-
-fn game_asset_delivery_reachable_hashes(link: &GameAssetDeliveryLinkRecord) -> Vec<String> {
-    let mut hashes = link.lod_artifact_sha256s.clone();
-    hashes.extend(
-        game_asset_delivery_json_hashes(link)
-            .into_iter()
-            .map(str::to_owned),
-    );
-    if let Some(animation_sha256) = link.animation_artifact_sha256.clone() {
-        hashes.push(animation_sha256);
-    }
-    hashes
-}
-
-fn validate_game_asset_delivery_bindings_in_transaction(
-    connection: &Connection,
-    link: &GameAssetDeliveryLinkRecord,
-) -> Result<(), StoreError> {
-    for index in 0..3 {
-        let candidate: Option<(String, Option<String>)> = connection
-            .query_row(
-                "SELECT project_id, prepared_object_sha256 FROM candidates WHERE candidate_id = ?1",
-                params![link.lod_candidate_ids[index]],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .optional()?;
-        if candidate.as_ref().map(|value| value.0.as_str()) != Some(link.project_id.as_str())
-            || candidate.as_ref().and_then(|value| value.1.as_deref())
-                != Some(link.lod_artifact_sha256s[index].as_str())
-        {
-            return Err(StoreError::Contract {
-                code: "GAME_ASSET_DELIVERY_CANDIDATE_BINDING_MISMATCH".to_owned(),
-                message: "game delivery candidate/project/artifact binding differs".to_owned(),
-            });
-        }
-        let artifact: Option<(String, i64)> = connection
-            .query_row(
-                "SELECT mime, size_bytes FROM objects WHERE sha256 = ?1",
-                params![link.lod_artifact_sha256s[index]],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .optional()?;
-        if artifact.as_ref().map(|value| value.0.as_str()) != Some("model/gltf-binary")
-            || artifact
-                .as_ref()
-                .is_none_or(|value| value.1 <= 0 || value.1 > 64 * 1024 * 1024)
-        {
-            return Err(StoreError::Contract {
-                code: "GAME_ASSET_DELIVERY_ARTIFACT_INVALID".to_owned(),
-                message: "game delivery LOD artifact metadata is invalid".to_owned(),
-            });
-        }
-    }
-    let expected_json = [
-        (&link.lod_receipt_object_sha256, "game-lod-set-receipt"),
-        (&link.collision_proxy_object_sha256, "collision-proxy-set"),
-        (
-            &link.readiness_object_sha256,
-            "game-engine-import-readiness",
-        ),
-        (
-            &link.delivery_manifest_object_sha256,
-            "game-asset-delivery-manifest",
-        ),
-    ];
-    for (sha256, expected_kind) in expected_json {
-        let metadata: Option<(String, String, i64)> = connection
-            .query_row(
-                "SELECT mime, kind, size_bytes FROM objects WHERE sha256 = ?1",
-                params![sha256],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()?;
-        if metadata.as_ref().map(|value| value.0.as_str()) != Some(GAME_ASSET_DELIVERY_JSON_MIME)
-            || metadata.as_ref().map(|value| value.1.as_str()) != Some(expected_kind)
-            || metadata.as_ref().is_none_or(|value| {
-                value.2 <= 0 || value.2 as u64 > MAX_GAME_ASSET_DELIVERY_JSON_BYTES
-            })
-        {
-            return Err(StoreError::Contract {
-                code: "GAME_ASSET_DELIVERY_OBJECT_INVALID".to_owned(),
-                message: "game delivery sidecar metadata is invalid".to_owned(),
-            });
-        }
-    }
-    if let Some(animation_sha256) = link.animation_artifact_sha256.as_deref() {
-        let metadata: Option<(String, String, i64)> = connection
-            .query_row(
-                "SELECT mime, kind, size_bytes FROM objects WHERE sha256 = ?1",
-                params![animation_sha256],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()?;
-        if metadata.as_ref().map(|value| value.0.as_str()) != Some("model/gltf-binary")
-            || metadata.as_ref().map(|value| value.1.as_str()) != Some("mechanical-animation-glb")
-            || metadata
-                .as_ref()
-                .is_none_or(|value| value.2 <= 0 || value.2 > 64 * 1024 * 1024)
-        {
-            return Err(StoreError::Contract {
-                code: "GAME_ASSET_DELIVERY_ANIMATION_INVALID".to_owned(),
-                message: "game delivery animation artifact metadata is invalid".to_owned(),
-            });
-        }
-    }
-    Ok(())
-}
-
 fn ensure_column(
     transaction: &rusqlite::Transaction<'_>,
     table: &str,
@@ -64443,8 +62296,11 @@ fn authoring_mesh_edit_object_is_linked(
     production_weapon_form_art_composite_proposal::ensure_table(transaction)?;
     production_weapon_form_art_composite_evidence::ensure_table(transaction)?;
     weapon_foundation_import::ensure_table(transaction)?;
+    authoring_mesh_v2_transaction::ensure_schema(transaction)?;
     foundation_authoring_mesh_v2_materialization::ensure_table(transaction)?;
     fps_presentation_package_v2::ensure_table(transaction)?;
+    weaponry_curve_modifier_graph::ensure_table(transaction)?;
+    weaponry_curve_evaluated_mesh::ensure_table(transaction)?;
     let linked: i64 = transaction.query_row(
         "SELECT CASE WHEN
             EXISTS (SELECT 1 FROM candidates WHERE prepared_object_sha256 = ?1 OR manifest_hash = ?1)
@@ -64455,6 +62311,8 @@ fn authoring_mesh_edit_object_is_linked(
             OR EXISTS (SELECT 1 FROM runtime_job_events WHERE instr(payload_json, ?1) > 0)
             OR EXISTS (SELECT 1 FROM geometry_candidate_evidence WHERE geometry_program_object_sha256 = ?1 OR artifact_object_sha256 = ?1 OR artifact_readback_object_sha256 = ?1 OR quality_report_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM authoring_mesh_projection_indexes WHERE artifact_id = ?1 OR artifact_sha256 = ?1 OR mesh_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM weaponry_curve_modifier_graph_records WHERE curve_set_object_sha256 = ?1 OR sample_set_object_sha256 = ?1 OR modifier_graph_object_sha256 = ?1 OR dependency_graph_object_sha256 = ?1 OR recompute_plan_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM weaponry_curve_evaluated_mesh_records WHERE evaluation_plan_object_sha256 = ?1 OR evaluated_mesh_object_sha256 = ?1 OR evaluated_mesh_identity_object_sha256 = ?1 OR evaluated_mesh_link_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM reference_evidence WHERE object_sha256 = ?1 OR derived_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM artifact_manifests WHERE object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM approval_receipts WHERE prepared_object_sha256 = ?1 OR summary_sha256 = ?1)
@@ -64547,6 +62405,7 @@ fn authoring_mesh_edit_object_is_linked(
             OR EXISTS (SELECT 1 FROM foundation_authoring_mesh_v2_materializations WHERE descriptor_object_sha256 = ?1 OR foundation_result_object_sha256 = ?1 OR foundation_topology_object_sha256 = ?1 OR foundation_socket_map_object_sha256 = ?1 OR foundation_rig_map_object_sha256 = ?1 OR foundation_fps_presentation_package_object_sha256 = ?1 OR instr(part_revision_object_sha256s_json, ?1) > 0)
             OR EXISTS (SELECT 1 FROM fps_presentation_packages_v2 WHERE package_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM fps_presentation_package_v2_candidates WHERE binding_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM authoring_mesh_v2_transactions WHERE transaction_object_sha256 = ?1 OR final_revision_object_sha256 = ?1 OR instr(revision_object_sha256s_json, ?1) > 0)
             THEN 1 ELSE 0 END",
         params![sha256],
         |row| row.get(0),
@@ -64580,75 +62439,6 @@ fn read_candidate_for_transaction(
                     error_code: row.get(12)?,
                     created_at: row.get(13)?,
                     updated_at: row.get(14)?,
-                })
-            },
-        )
-        .optional()?)
-}
-
-fn read_job_summary(
-    transaction: &rusqlite::Transaction<'_>,
-    job_id: &str,
-) -> Result<JobSummary, StoreError> {
-    let (job_id, project_id, kind, status, progress, error_code, created_at, updated_at) =
-        transaction.query_row(
-            "SELECT job_id, project_id, kind, status, progress, error_code, created_at, updated_at FROM runtime_jobs WHERE job_id = ?1",
-            params![job_id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, i64>(4)?,
-                    row.get::<_, Option<String>>(5)?,
-                    row.get::<_, String>(6)?,
-                    row.get::<_, String>(7)?,
-                ))
-            },
-        )?;
-    Ok(JobSummary {
-        job_id,
-        project_id,
-        kind,
-        status,
-        progress: u8::try_from(progress)
-            .map_err(|_| StoreError::InvalidData("job progress outside u8".to_owned()))?,
-        error_code,
-        created_at,
-        updated_at,
-    })
-}
-
-fn read_job_record_from_transaction(
-    transaction: &rusqlite::Transaction<'_>,
-    job_id: &str,
-) -> Result<Option<JobRecord>, StoreError> {
-    Ok(transaction
-        .query_row(
-            "SELECT job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at FROM runtime_jobs WHERE job_id = ?1",
-            params![job_id],
-            |row| {
-                let progress: i64 = row.get(4)?;
-                let progress = u8::try_from(progress).map_err(|_| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        4,
-                        rusqlite::types::Type::Integer,
-                        "job progress outside u8".into(),
-                    )
-                })?;
-                Ok(JobRecord {
-                    schema_version: "RuntimeJob@1".to_owned(),
-                    job_id: row.get(0)?,
-                    project_id: row.get(1)?,
-                    kind: row.get(2)?,
-                    status: row.get(3)?,
-                    progress,
-                    request_sha256: row.get(5)?,
-                    checkpoint_sha256: row.get(6)?,
-                    error_code: row.get(7)?,
-                    created_at: row.get(8)?,
-                    updated_at: row.get(9)?,
                 })
             },
         )
@@ -68030,10 +65820,12 @@ mod tests {
             table_count(&store, "authoring_mesh_identity_lineage_durable_records"),
             rows_before_negative
         );
-        assert!(store
-            .get_authoring_mesh_identity_lineage_by_lineage(project_id, lineage_id, 2)
-            .expect("missing revision lookup")
-            .is_none());
+        assert!(
+            store
+                .get_authoring_mesh_identity_lineage_by_lineage(project_id, lineage_id, 2)
+                .expect("missing revision lookup")
+                .is_none()
+        );
 
         let (reused_identity, reused_identity_object) =
             authoring_mesh_identity_lineage_revision_fixture(
@@ -68909,8 +66701,8 @@ mod tests {
         attachment
     }
 
-    fn fictional_energy_vfx_animated_socket_attachment_v3_test_fixture(
-    ) -> (FictionalEnergyVfxAnimatedSocketAttachmentV3Record, Vec<u8>) {
+    fn fictional_energy_vfx_animated_socket_attachment_v3_test_fixture()
+    -> (FictionalEnergyVfxAnimatedSocketAttachmentV3Record, Vec<u8>) {
         let hash = |seed: u64| format!("{seed:064x}");
         let attachment_key = hash(30_000);
         let particle_key = hash(30_100);
@@ -69094,8 +66886,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v3_receipt_projection_is_canonical_and_reachable(
-    ) {
+    fn fictional_energy_vfx_animated_socket_attachment_v3_receipt_projection_is_canonical_and_reachable()
+     {
         let (attachment, receipt_bytes) =
             fictional_energy_vfx_animated_socket_attachment_v3_test_fixture();
         validate_fictional_energy_vfx_animated_socket_attachment_v3(&attachment)
@@ -69132,10 +66924,12 @@ mod tests {
             receipt.record.sha256,
             attachment.attachment_receipt_object_sha256
         );
-        assert!(store
-            .get_object(&attachment.attachment_key_sha256)
-            .expect("Attachment@3 parent key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&attachment.attachment_key_sha256)
+                .expect("Attachment@3 parent key lookup")
+                .is_none()
+        );
         let mut connection = store.lock_connection().expect("connection");
         let transaction = connection.transaction().expect("transaction");
         mark_reachable_in_transaction(&transaction, &[receipt.record.sha256.clone()])
@@ -69153,8 +66947,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v3_requires_exact_fifteen_preroll_frames_and_retarget_fails_closed(
-    ) {
+    fn fictional_energy_vfx_animated_socket_attachment_v3_requires_exact_fifteen_preroll_frames_and_retarget_fails_closed()
+     {
         let (attachment, receipt_bytes) =
             fictional_energy_vfx_animated_socket_attachment_v3_test_fixture();
         let store = Store::memory().expect("store");
@@ -69181,12 +66975,14 @@ mod tests {
             canonical.canonical_sha256.clear();
             canonical_json_hash(&serde_json::to_value(canonical).expect("parent canonical"))
         };
-        assert!(store
-            .record_fictional_energy_vfx_animated_socket_attachment_v3_link(
-                &bad_preroll,
-                &receipt.record,
-            )
-            .is_err());
+        assert!(
+            store
+                .record_fictional_energy_vfx_animated_socket_attachment_v3_link(
+                    &bad_preroll,
+                    &receipt.record,
+                )
+                .is_err()
+        );
         assert_eq!(
             table_count(
                 &store,
@@ -69207,12 +67003,14 @@ mod tests {
             canonical.canonical_sha256.clear();
             canonical_json_hash(&serde_json::to_value(canonical).expect("retarget canonical"))
         };
-        assert!(store
-            .record_fictional_energy_vfx_animated_socket_attachment_v3_link(
-                &retarget,
-                &receipt.record,
-            )
-            .is_err());
+        assert!(
+            store
+                .record_fictional_energy_vfx_animated_socket_attachment_v3_link(
+                    &retarget,
+                    &receipt.record,
+                )
+                .is_err()
+        );
         assert_eq!(
             table_count(
                 &store,
@@ -69223,8 +67021,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v3_idempotence_conflict_and_closed_allowlist(
-    ) {
+    fn fictional_energy_vfx_animated_socket_attachment_v3_idempotence_conflict_and_closed_allowlist()
+     {
         let (original, _) = fictional_energy_vfx_animated_socket_attachment_v3_test_fixture();
         let mut replay = original.clone();
         replay.created_at = "attachment-v3-replayed".to_owned();
@@ -69275,24 +67073,28 @@ mod tests {
             .expect("Attachment@3 frame schema");
         assert_eq!(parent_columns, 70);
         assert_eq!(frame_columns, 31);
-        assert!(attachment_v3_parent_texts(
-            &connection,
-            "game_weapon_animated_glb_socket_transform_projection_v2_links",
-            "projection_key_sha256",
-            &original.projection_key_sha256,
-            &["projection_key_sha256"],
-        )
-        .expect("Projection@2 parent lookup column")
-        .is_none());
-        assert!(attachment_v3_parent_texts(
-            &connection,
-            "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_links",
-            "sequence_key_sha256",
-            &original.particle_sequence_key_sha256,
-            &["sequence_key_sha256"],
-        )
-        .expect("Particles@2 parent lookup column")
-        .is_none());
+        assert!(
+            attachment_v3_parent_texts(
+                &connection,
+                "game_weapon_animated_glb_socket_transform_projection_v2_links",
+                "projection_key_sha256",
+                &original.projection_key_sha256,
+                &["projection_key_sha256"],
+            )
+            .expect("Projection@2 parent lookup column")
+            .is_none()
+        );
+        assert!(
+            attachment_v3_parent_texts(
+                &connection,
+                "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_links",
+                "sequence_key_sha256",
+                &original.particle_sequence_key_sha256,
+                &["sequence_key_sha256"],
+            )
+            .expect("Particles@2 parent lookup column")
+            .is_none()
+        );
     }
 
     fn fictional_energy_vfx_animated_socket_attachment_test_record(
@@ -70020,10 +67822,12 @@ mod tests {
             );
         }
         drop(connection);
-        assert!(store
-            .get_object(&projection.projection_key_sha256)
-            .expect("projection key is not a CAS object")
-            .is_none());
+        assert!(
+            store
+                .get_object(&projection.projection_key_sha256)
+                .expect("projection key is not a CAS object")
+                .is_none()
+        );
     }
 
     #[test]
@@ -70186,10 +67990,12 @@ mod tests {
             );
         }
         drop(connection);
-        assert!(store
-            .get_object(&link.socket_materialization_key_sha256)
-            .expect("parent key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&link.socket_materialization_key_sha256)
+                .expect("parent key lookup")
+                .is_none()
+        );
     }
 
     #[test]
@@ -70367,10 +68173,12 @@ mod tests {
             );
         }
         drop(connection);
-        assert!(store
-            .get_object(&link.animated_socket_materialization_key_sha256)
-            .expect("parent key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&link.animated_socket_materialization_key_sha256)
+                .expect("parent key lookup")
+                .is_none()
+        );
     }
 
     #[test]
@@ -71029,10 +68837,12 @@ mod tests {
             table_count(&store, "write_idempotency"),
         );
         let missing = "f".repeat(64);
-        assert!(store
-            .get_object(&missing)
-            .expect("missing object lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&missing)
+                .expect("missing object lookup")
+                .is_none()
+        );
         let mut missing_candidate = candidate.clone();
         missing_candidate.prepared_object_sha256 = Some(missing.clone());
         missing_candidate.manifest_hash = Some(missing.clone());
@@ -71294,14 +69104,18 @@ mod tests {
             ),
             counts_before
         );
-        assert!(store
-            .get_candidate(&candidate.candidate_id)
-            .expect("rolled-back candidate lookup")
-            .is_none());
-        assert!(store
-            .get_geometry_candidate_evidence(&candidate.candidate_id)
-            .expect("rolled-back evidence lookup")
-            .is_none());
+        assert!(
+            store
+                .get_candidate(&candidate.candidate_id)
+                .expect("rolled-back candidate lookup")
+                .is_none()
+        );
+        assert!(
+            store
+                .get_geometry_candidate_evidence(&candidate.candidate_id)
+                .expect("rolled-back evidence lookup")
+                .is_none()
+        );
     }
 
     #[test]
@@ -71317,13 +69131,17 @@ mod tests {
             )
             .expect("new rollback object");
         assert!(created.created_new);
-        assert!(store
-            .discard_new_temporary_geometry_prepare_object(&created)
-            .expect("new temporary object rollback"));
-        assert!(store
-            .get_object(&created.record.sha256)
-            .expect("removed metadata lookup")
-            .is_none());
+        assert!(
+            store
+                .discard_new_temporary_geometry_prepare_object(&created)
+                .expect("new temporary object rollback")
+        );
+        assert!(
+            store
+                .get_object(&created.record.sha256)
+                .expect("removed metadata lookup")
+                .is_none()
+        );
         assert!(!created.path.exists());
 
         let first = store
@@ -71350,10 +69168,12 @@ mod tests {
             store.discard_new_temporary_geometry_prepare_object(&existing),
             Err(StoreError::Contract { code, .. }) if code == "GEOMETRY_PREPARE_ROLLBACK_DENIED"
         ));
-        assert!(store
-            .get_object(&first.record.sha256)
-            .expect("existing metadata")
-            .is_some());
+        assert!(
+            store
+                .get_object(&first.record.sha256)
+                .expect("existing metadata")
+                .is_some()
+        );
         assert!(first.path.exists());
     }
 
@@ -71413,15 +69233,17 @@ mod tests {
                 "{\"schema_version\":\"GeometryPrepareResult@2\"}".to_owned(),
             )
         );
-        assert!(store
-            .begin_geometry_prepare_single_flight(
-                "project-single-flight",
-                "geometry_prepare",
-                "idempotency-single-flight",
-                &request_sha256,
-            )
-            .expect("released key can retry")
-            .is_owner());
+        assert!(
+            store
+                .begin_geometry_prepare_single_flight(
+                    "project-single-flight",
+                    "geometry_prepare",
+                    "idempotency-single-flight",
+                    &request_sha256,
+                )
+                .expect("released key can retry")
+                .is_owner()
+        );
     }
 
     #[test]
@@ -71488,20 +69310,28 @@ mod tests {
         assert!(first.created_new);
         assert!(!second.created_new);
 
-        assert!(!store
-            .release_cas_reservation_object(&first_reservation, &first, true)
-            .expect("first release"));
-        assert!(store
-            .get_object(&first.record.sha256)
-            .expect("shared object metadata")
-            .is_some());
-        assert!(store
-            .release_cas_reservation_object(&second_reservation, &second, true)
-            .expect("last release"));
-        assert!(store
-            .get_object(&first.record.sha256)
-            .expect("removed shared object metadata")
-            .is_none());
+        assert!(
+            !store
+                .release_cas_reservation_object(&first_reservation, &first, true)
+                .expect("first release")
+        );
+        assert!(
+            store
+                .get_object(&first.record.sha256)
+                .expect("shared object metadata")
+                .is_some()
+        );
+        assert!(
+            store
+                .release_cas_reservation_object(&second_reservation, &second, true)
+                .expect("last release")
+        );
+        assert!(
+            store
+                .get_object(&first.record.sha256)
+                .expect("removed shared object metadata")
+                .is_none()
+        );
         assert!(!first.path.exists());
     }
 
@@ -71520,13 +69350,17 @@ mod tests {
             )
             .expect("formal High receipt");
 
-        assert!(store
-            .release_cas_reservation_object(&reservation, &object, true)
-            .expect("formal High cleanup"));
-        assert!(store
-            .get_object(&object.record.sha256)
-            .expect("formal High metadata")
-            .is_none());
+        assert!(
+            store
+                .release_cas_reservation_object(&reservation, &object, true)
+                .expect("formal High cleanup")
+        );
+        assert!(
+            store
+                .get_object(&object.record.sha256)
+                .expect("formal High metadata")
+                .is_none()
+        );
         assert!(!object.path.exists());
     }
 
@@ -71740,9 +69574,11 @@ mod tests {
         );
         assert_eq!(table_count(&store, "write_idempotency"), 1);
 
-        assert!(store
-            .discard_new_temporary_authoring_mesh_edit_object(&artifact)
-            .is_err());
+        assert!(
+            store
+                .discard_new_temporary_authoring_mesh_edit_object(&artifact)
+                .is_err()
+        );
     }
 
     #[test]
@@ -71909,16 +69745,22 @@ mod tests {
             )
             .expect("existing object");
         assert!(!existing.created_new);
-        assert!(store
-            .discard_new_temporary_authoring_mesh_edit_object(&existing)
-            .is_err());
-        assert!(store
-            .discard_new_temporary_authoring_mesh_edit_object(&first)
-            .expect("unlinked rollback"));
-        assert!(store
-            .get_object(&first.record.sha256)
-            .expect("metadata")
-            .is_none());
+        assert!(
+            store
+                .discard_new_temporary_authoring_mesh_edit_object(&existing)
+                .is_err()
+        );
+        assert!(
+            store
+                .discard_new_temporary_authoring_mesh_edit_object(&first)
+                .expect("unlinked rollback")
+        );
+        assert!(
+            store
+                .get_object(&first.record.sha256)
+                .expect("metadata")
+                .is_none()
+        );
         assert!(!first.path.exists());
 
         let linked = store
@@ -71943,9 +69785,11 @@ mod tests {
         store
             .insert_candidate(&candidate)
             .expect("linked candidate");
-        assert!(store
-            .discard_new_temporary_authoring_mesh_edit_object(&linked)
-            .is_err());
+        assert!(
+            store
+                .discard_new_temporary_authoring_mesh_edit_object(&linked)
+                .is_err()
+        );
         assert_eq!(
             store
                 .get_object(&linked.record.sha256)
@@ -72101,9 +69945,11 @@ mod tests {
                 .reachability,
             "reachable"
         );
-        assert!(store
-            .discard_new_temporary_subdivision_sidecar(&sidecar)
-            .is_err());
+        assert!(
+            store
+                .discard_new_temporary_subdivision_sidecar(&sidecar)
+                .is_err()
+        );
         let stored = store
             .get_subdivision_artifact_lineage_link(candidate_id, node_id)
             .expect("get link")
@@ -72151,9 +69997,11 @@ mod tests {
             sidecar_object_sha256: "7".repeat(64),
             ..link
         };
-        assert!(store
-            .record_subdivision_artifact_lineage_link(&missing_sidecar)
-            .is_err());
+        assert!(
+            store
+                .record_subdivision_artifact_lineage_link(&missing_sidecar)
+                .is_err()
+        );
 
         let rollback_sidecar = store
             .put_object(
@@ -72165,13 +70013,17 @@ mod tests {
             )
             .expect("rollback sidecar");
         assert!(rollback_sidecar.created_new);
-        assert!(store
-            .discard_new_temporary_subdivision_sidecar(&rollback_sidecar)
-            .expect("rollback temporary sidecar"));
-        assert!(store
-            .get_object(&rollback_sidecar.record.sha256)
-            .expect("rolled back metadata")
-            .is_none());
+        assert!(
+            store
+                .discard_new_temporary_subdivision_sidecar(&rollback_sidecar)
+                .expect("rollback temporary sidecar")
+        );
+        assert!(
+            store
+                .get_object(&rollback_sidecar.record.sha256)
+                .expect("rolled back metadata")
+                .is_none()
+        );
         assert!(!rollback_sidecar.path.exists());
     }
 
@@ -72199,10 +70051,12 @@ mod tests {
         assert_eq!(cancelled.status, "cancelled");
         assert_eq!(cancelled.error_code.as_deref(), Some("JOB_CANCELLED"));
         assert_eq!(store.list_job_events("job-cancel", 0).unwrap().len(), 1);
-        assert!(store
-            .list_versions(Some("project-job-cancel"))
-            .unwrap()
-            .is_empty());
+        assert!(
+            store
+                .list_versions(Some("project-job-cancel"))
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -72267,10 +70121,12 @@ mod tests {
         let restored_db = root.join("restored.sqlite");
         let restored_cas = root.join("restored.cas");
         let restored = Store::restore_from(&backup, &restored_db, &restored_cas).expect("restore");
-        assert!(restored
-            .get_project("project-backup")
-            .expect("read")
-            .is_some());
+        assert!(
+            restored
+                .get_project("project-backup")
+                .expect("read")
+                .is_some()
+        );
         assert_eq!(
             restored
                 .cas()
@@ -72774,8 +70630,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_frame_rejects_trail_bloom_retarget_without_rows(
-    ) {
+    fn fictional_energy_vfx_animated_socket_attachment_frame_rejects_trail_bloom_retarget_without_rows()
+     {
         let (store, trail_bloom, _) = trails_bloom_store_fixture();
         let alternate_trail_key = trails_bloom_fixture_sha(40);
         {
@@ -72920,8 +70776,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v2_validates_one_to_fifteen_preroll_mapped_frames(
-    ) {
+    fn fictional_energy_vfx_animated_socket_attachment_v2_validates_one_to_fifteen_preroll_mapped_frames()
+     {
         let one = fictional_energy_vfx_animated_socket_attachment_v2_test_record(1);
         validate_fictional_energy_vfx_animated_socket_attachment_v2(&one)
             .expect("one V2 trail output frame");
@@ -72945,8 +70801,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v2_migration_has_independent_parent_frames_and_exact_fks(
-    ) {
+    fn fictional_energy_vfx_animated_socket_attachment_v2_migration_has_independent_parent_frames_and_exact_fks()
+     {
         let store = Store::memory().expect("store");
         let connection = store.lock_connection().expect("connection");
         let parent_columns: i64 = connection
@@ -73021,8 +70877,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v2_frame_binding_uses_explicit_current_indices_and_retarget_writes_zero_rows(
-    ) {
+    fn fictional_energy_vfx_animated_socket_attachment_v2_frame_binding_uses_explicit_current_indices_and_retarget_writes_zero_rows()
+     {
         let attachment = fictional_energy_vfx_animated_socket_attachment_v2_test_record(1);
         let frame = &attachment.frames[0];
         let connection = Connection::open_in_memory().expect("binding connection");
@@ -73193,8 +71049,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v2_owned_receipt_is_gc_linked_and_parent_key_is_not_cas(
-    ) {
+    fn fictional_energy_vfx_animated_socket_attachment_v2_owned_receipt_is_gc_linked_and_parent_key_is_not_cas()
+     {
         let store = Store::memory().expect("store");
         let attachment = fictional_energy_vfx_animated_socket_attachment_v2_test_record(1);
         let receipt = store
@@ -73272,10 +71128,12 @@ mod tests {
                 .reachability,
             "reachable"
         );
-        assert!(store
-            .get_object(&attachment.attachment_key_sha256)
-            .expect("parent key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&attachment.attachment_key_sha256)
+                .expect("parent key lookup")
+                .is_none()
+        );
     }
 
     fn production_stage_store_fixture(
@@ -73807,10 +71665,12 @@ mod tests {
                 "reachable"
             );
         }
-        assert!(store
-            .get_object(&quality.topology_quality_id)
-            .expect("parent key")
-            .is_none());
+        assert!(
+            store
+                .get_object(&quality.topology_quality_id)
+                .expect("parent key")
+                .is_none()
+        );
     }
 
     #[test]
@@ -73869,9 +71729,11 @@ mod tests {
             )
             .expect("tamper payload");
         drop(connection);
-        assert!(store
-            .get_candidate_topology_quality(&quality.topology_quality_id)
-            .is_err());
+        assert!(
+            store
+                .get_candidate_topology_quality(&quality.topology_quality_id)
+                .is_err()
+        );
     }
 
     #[test]
@@ -73977,8 +71839,8 @@ mod tests {
         )
     }
 
-    fn candidate_material_surface_quality_store_fixture(
-    ) -> (Store, CandidateMaterialSurfaceQualityRecord, CasObject) {
+    fn candidate_material_surface_quality_store_fixture()
+    -> (Store, CandidateMaterialSurfaceQualityRecord, CasObject) {
         let (store, topology, topology_report, _) = candidate_topology_quality_store_fixture();
         let project_id = topology.project_id.clone();
         let source_candidate_id = topology.candidate_id.clone();
@@ -74321,8 +72183,8 @@ mod tests {
         (store, quality, report)
     }
 
-    fn mechanical_animation_clip_v2_store_fixture(
-    ) -> (Store, MechanicalAnimationClipV2LinkRecord, CasObject) {
+    fn mechanical_animation_clip_v2_store_fixture()
+    -> (Store, MechanicalAnimationClipV2LinkRecord, CasObject) {
         let (store, quality, material_report) = candidate_material_surface_quality_store_fixture();
         store
             .record_candidate_material_surface_quality(&quality, &material_report.record)
@@ -75092,14 +72954,18 @@ mod tests {
                 "V2 ancestor {hash} must remain reachable",
             );
         }
-        assert!(store
-            .get_object(&link.animated_socket_materialization_key_sha256)
-            .expect("V2 child key lookup")
-            .is_none());
-        assert!(store
-            .get_object(&link.animation_glb_key_sha256)
-            .expect("V2 parent key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&link.animated_socket_materialization_key_sha256)
+                .expect("V2 child key lookup")
+                .is_none()
+        );
+        assert!(
+            store
+                .get_object(&link.animation_glb_key_sha256)
+                .expect("V2 parent key lookup")
+                .is_none()
+        );
     }
 
     #[test]
@@ -75216,10 +73082,12 @@ mod tests {
         assert!(!columns.contains(&"candidate_id".to_owned()));
         assert!(!columns.contains(&"mechanical_animation_glb_key_sha256".to_owned()));
         drop(connection);
-        assert!(store
-            .get_object(&link.animated_socket_materialization_key_sha256)
-            .expect("V2 child key")
-            .is_none());
+        assert!(
+            store
+                .get_object(&link.animated_socket_materialization_key_sha256)
+                .expect("V2 child key")
+                .is_none()
+        );
     }
 
     #[test]
@@ -75626,10 +73494,12 @@ mod tests {
                 .expect("get V2 projection object"),
             Some(object.record.sha256.clone())
         );
-        assert!(store
-            .get_object(&projection.projection_key_sha256)
-            .expect("V2 projection key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&projection.projection_key_sha256)
+                .expect("V2 projection key lookup")
+                .is_none()
+        );
         for hash in game_weapon_animated_glb_socket_transform_projection_v2_reachable_hashes(
             &projection,
             &object.record.sha256,
@@ -75735,8 +73605,8 @@ mod tests {
     }
 
     #[test]
-    fn game_weapon_animated_glb_socket_transform_projection_v2_rejects_input_schedule_and_roles_tamper(
-    ) {
+    fn game_weapon_animated_glb_socket_transform_projection_v2_rejects_input_schedule_and_roles_tamper()
+     {
         let (store, mut input_tamper, _) = transform_projection_v2_fixture();
         input_tamper.input_sha256 = "f".repeat(64);
         input_tamper.canonical_sha256.clear();
@@ -75801,8 +73671,8 @@ mod tests {
     }
 
     #[test]
-    fn game_weapon_animated_glb_socket_transform_projection_v2_rejects_socket_identity_and_matrix_tamper(
-    ) {
+    fn game_weapon_animated_glb_socket_transform_projection_v2_rejects_socket_identity_and_matrix_tamper()
+     {
         let (store, mut identity_tamper, _) = transform_projection_v2_fixture();
         identity_tamper.frames[0].socket_transforms[1].node_name =
             "forgecad-anchor-retargeted".to_owned();
@@ -75840,8 +73710,8 @@ mod tests {
     }
 
     #[test]
-    fn game_weapon_animated_glb_socket_transform_projection_v2_preserves_non_unit_translation_composition(
-    ) {
+    fn game_weapon_animated_glb_socket_transform_projection_v2_preserves_non_unit_translation_composition()
+     {
         let parent = forgecad_contracts::GameWeaponAnimatedGlbSocketTransformProjectionV2Pose {
             translation_m: vec![0.0, 0.0, 0.0],
             rotation_quat_xyzw: vec![0.0, 0.0, 0.0, 1.0],
@@ -75963,10 +73833,12 @@ mod tests {
                 "ancestor {hash} must remain reachable",
             );
         }
-        assert!(store
-            .get_object(&link.animation_glb_key_sha256)
-            .expect("non-CAS key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&link.animation_glb_key_sha256)
+                .expect("non-CAS key lookup")
+                .is_none()
+        );
         assert_eq!(clip_object.record.kind, MECHANICAL_ANIMATION_CLIP_V2_KIND);
         assert_eq!(
             receipt_object.record.kind,
@@ -76064,10 +73936,12 @@ mod tests {
             1,
         ));
         let (store, link, _, _) = mechanical_animation_glb_v2_store_fixture();
-        assert!(store
-            .get_object(&link.animation_glb_key_sha256)
-            .expect("parent key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&link.animation_glb_key_sha256)
+                .expect("parent key lookup")
+                .is_none()
+        );
     }
 
     #[test]
@@ -76096,10 +73970,12 @@ mod tests {
                 .reachability,
             "reachable"
         );
-        assert!(store
-            .get_object("mechanical-animation-clip-v2-fixture")
-            .expect("clip identity is not CAS")
-            .is_none());
+        assert!(
+            store
+                .get_object("mechanical-animation-clip-v2-fixture")
+                .expect("clip identity is not CAS")
+                .is_none()
+        );
     }
 
     #[test]
@@ -76626,8 +74502,8 @@ mod tests {
         production_stage_v3_store_fixture_with_store(Store::memory().expect("V3 store"))
     }
 
-    fn production_camera_lock_store_fixture(
-    ) -> (Store, ProductionCameraLockRecord, CasObject, CasObject) {
+    fn production_camera_lock_store_fixture()
+    -> (Store, ProductionCameraLockRecord, CasObject, CasObject) {
         let (store, transition, transition_receipt) = production_stage_v3_store_fixture();
         let (_, head, _) = store
             .record_production_stage_transition_v3_with_replay(
@@ -76779,10 +74655,12 @@ mod tests {
                 .reachability,
             "reachable"
         );
-        assert!(store
-            .get_object(&record.source_transition_sha256)
-            .expect("parent key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&record.source_transition_sha256)
+                .expect("parent key lookup")
+                .is_none()
+        );
     }
 
     #[test]
@@ -76867,10 +74745,12 @@ mod tests {
             stored.source_transition_sha256,
             record.source_transition_sha256
         );
-        assert!(store
-            .get_object(&stored.source_transition_sha256)
-            .expect("parent key lookup")
-            .is_none());
+        assert!(
+            store
+                .get_object(&stored.source_transition_sha256)
+                .expect("parent key lookup")
+                .is_none()
+        );
     }
 
     #[test]
@@ -77693,10 +75573,12 @@ mod tests {
                 "camera edge object {hash} must be reachable"
             );
         }
-        assert!(store
-            .get_object(&first.transition_id)
-            .expect("transition id is not CAS")
-            .is_none());
+        assert!(
+            store
+                .get_object(&first.transition_id)
+                .expect("transition id is not CAS")
+                .is_none()
+        );
 
         let (_replayed_record, replayed_head, replayed) = store
             .record_production_stage_transition_v3_with_replay(&first, &first_receipt)
@@ -77968,10 +75850,12 @@ mod tests {
             "agentic-production-stage-transition-v2-unknown",
             1,
         ));
-        assert!(store
-            .get_object(&transition.root_candidate_id)
-            .expect("V2 head key is not CAS")
-            .is_none());
+        assert!(
+            store
+                .get_object(&transition.root_candidate_id)
+                .expect("V2 head key is not CAS")
+                .is_none()
+        );
     }
 
     #[test]
@@ -77995,9 +75879,11 @@ mod tests {
                 "1",
             )
             .expect("invalid parent receipt");
-        assert!(store
-            .record_production_stage_transition_v2(&invalid_parent, &invalid_receipt.record)
-            .is_err());
+        assert!(
+            store
+                .record_production_stage_transition_v2(&invalid_parent, &invalid_receipt.record)
+                .is_err()
+        );
         assert_eq!(
             table_count(&store, "agentic_production_stage_transitions_v2"),
             0
@@ -78096,10 +75982,12 @@ mod tests {
                 "reachable"
             );
         }
-        assert!(store
-            .get_object(&quality.material_surface_quality_id)
-            .expect("parent key is not CAS")
-            .is_none());
+        assert!(
+            store
+                .get_object(&quality.material_surface_quality_id)
+                .expect("parent key is not CAS")
+                .is_none()
+        );
     }
 
     #[test]
@@ -78131,9 +76019,11 @@ mod tests {
         let mut retarget = quality.clone();
         retarget.output_candidate_id = "candidate-material-surface-missing".to_owned();
         retarget.canonical_sha256 = candidate_material_surface_quality_canonical(&retarget);
-        assert!(store
-            .record_candidate_material_surface_quality(&retarget, &report.record)
-            .is_err());
+        assert!(
+            store
+                .record_candidate_material_surface_quality(&retarget, &report.record)
+                .is_err()
+        );
         assert_eq!(
             table_count(&store, "candidate_material_surface_quality_links"),
             1
@@ -78154,9 +76044,11 @@ mod tests {
             )
             .expect("tamper row");
         drop(connection);
-        assert!(store
-            .get_candidate_material_surface_quality(&quality.material_surface_quality_id)
-            .is_err());
+        assert!(
+            store
+                .get_candidate_material_surface_quality(&quality.material_surface_quality_id)
+                .is_err()
+        );
     }
 
     #[test]
@@ -78799,8 +76691,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_replay_normalizes_metadata_but_not_bindings(
-    ) {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_replay_normalizes_metadata_but_not_bindings()
+     {
         let original = animated_socket_particles_sequence_test_record(2);
         let mut replay = original.clone();
         replay.created_at = "2026-08-22T00:00:00Z".to_owned();
@@ -78816,8 +76708,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_migration_has_parent_child_and_no_key_cas(
-    ) {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_migration_has_parent_child_and_no_key_cas()
+     {
         let root = test_root("animated-particles-sequence-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -78858,8 +76750,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_migration_has_dual_parent_child_and_no_key_cas(
-    ) {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_migration_has_dual_parent_child_and_no_key_cas()
+     {
         let root = test_root("animated-particles-sequence-v2-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -78967,8 +76859,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_api_rejects_v1_parent_key_without_rows(
-    ) {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_api_rejects_v1_parent_key_without_rows()
+     {
         let root = test_root("animated-particles-sequence-v2-v1-key-isolation");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -79044,8 +76936,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_validator_requires_dual_candidates_and_frozen_policy(
-    ) {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_validator_requires_dual_candidates_and_frozen_policy()
+     {
         let hash = |value: usize| format!("{value:064x}");
         let mut frame = serde_json::Map::new();
         frame.insert(
@@ -79444,8 +77336,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_trails_sequence_replay_normalizes_metadata_but_not_bindings(
-    ) {
+    fn fictional_energy_vfx_animated_socket_trails_sequence_replay_normalizes_metadata_but_not_bindings()
+     {
         let original = animated_socket_trails_sequence_test_record(2);
         let mut replay = original.clone();
         replay.created_at = "2026-08-23T00:00:00Z".to_owned();
@@ -79465,8 +77357,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_trails_sequence_migration_has_parent_frame_history_and_no_key_cas(
-    ) {
+    fn fictional_energy_vfx_animated_socket_trails_sequence_migration_has_parent_frame_history_and_no_key_cas()
+     {
         let root = test_root("animated-trails-sequence-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -79613,8 +77505,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_trails_v2_migration_has_parent_frame_history_and_no_key_cas(
-    ) {
+    fn fictional_energy_vfx_animated_socket_trails_v2_migration_has_parent_frame_history_and_no_key_cas()
+     {
         let root = test_root("animated-trails-v2-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -79708,8 +77600,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_trails_bloom_v2_migration_has_parent_frame_and_no_key_cas(
-    ) {
+    fn fictional_energy_vfx_animated_socket_trails_bloom_v2_migration_has_parent_frame_and_no_key_cas()
+     {
         let root = test_root("animated-trails-bloom-v2-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -80197,14 +78089,16 @@ mod tests {
             value["bundle_key_sha256"].as_str().expect("key"),
         );
         assert!(result.is_ok());
-        assert!(store
-            .record_production_weapon_retopology_cage_source_bundle(&retarget, &receipt.record)
-            .is_err());
+        assert!(
+            store
+                .record_production_weapon_retopology_cage_source_bundle(&retarget, &receipt.record)
+                .is_err()
+        );
     }
 
     #[test]
-    fn production_weapon_retopology_cage_source_bundle_get_rejects_scalar_tamper_and_allowlist_is_closed(
-    ) {
+    fn production_weapon_retopology_cage_source_bundle_get_rejects_scalar_tamper_and_allowlist_is_closed()
+     {
         let (store, value, receipt) = production_weapon_retopology_cage_source_fixture();
         store
             .record_production_weapon_retopology_cage_source_bundle(&value, &receipt.record)
@@ -80347,9 +78241,11 @@ mod tests {
         report["metric_gate_results"][0]["direction"] = Value::String("minimum".to_owned());
         let error = ensure_form_quality_quality_structure(&report, "quality_report")
             .expect_err("non-schema direction spelling must fail closed");
-        assert!(error
-            .to_string()
-            .contains("PRODUCTION_WEAPON_FORM_QUALITY_QUALITY_METRICS_INVALID"));
+        assert!(
+            error
+                .to_string()
+                .contains("PRODUCTION_WEAPON_FORM_QUALITY_QUALITY_METRICS_INVALID")
+        );
     }
 
     #[test]

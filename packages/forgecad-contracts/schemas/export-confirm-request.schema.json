@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/export-confirm-request.schema.json",
+  "title": "ExportConfirmRequest@1",
+  "description": "Closed MCP request envelope for explicit approval of one prepared path-free export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "export_id",
+    "version_id",
+    "format",
+    "profile",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_session_id",
+    "approval_expires_at",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "export_id": {"$ref": "#/$defs/identifier"},
+    "version_id": {"$ref": "#/$defs/identifier"},
+    "format": {"enum": ["manifest-json", "glb"]},
+    "profile": {"enum": ["diagnostic", "mvp-glb"]},
+    "approval_receipt_id": {"$ref": "#/$defs/identifier"},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "approval_session_id": {"$ref": "#/$defs/identifier"},
+    "approval_expires_at": {"type": "string", "minLength": 1, "maxLength": 64},
+    "idempotency_key": {"$ref": "#/$defs/identifier"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
+  }
+}

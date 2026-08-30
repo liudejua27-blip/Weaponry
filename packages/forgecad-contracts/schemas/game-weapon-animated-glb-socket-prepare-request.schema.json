@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-animated-glb-socket-prepare-request.schema.json",
+  "title": "GameWeaponAnimatedGlbSocketPrepareRequest",
+  "additionalProperties": false,
+  "properties": {
+    "anchor_set_object_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "canonical_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "delivery_manifest_object_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "materialization_policy": {
+      "const": "gltf-animated-anchor-node-materialization-preserve-animations-renderable-content@1"
+    },
+    "project_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "GameWeaponAnimatedGlbSocketMaterializationPrepareRequest@1"
+    },
+    "source_animated_artifact_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_animation_receipt_object_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_candidate_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "source_candidate_state_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project_id",
+    "delivery_manifest_object_sha256",
+    "anchor_set_object_sha256",
+    "source_candidate_id",
+    "source_candidate_state_sha256",
+    "source_animated_artifact_sha256",
+    "source_animation_receipt_object_sha256",
+    "materialization_policy",
+    "canonical_sha256"
+  ],
+  "type": "object"
+}

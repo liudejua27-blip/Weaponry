@@ -1,5 +1,7 @@
 # ForgeCAD 废弃文档、代码与模块隔离计划
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-25 商业质量路线只增加 ForgeCAD-owned typed contracts/executors 的目标，不恢复 archived Provider、旧 workbench、BlenderMCP、任意 Python/JavaScript/shell 或 superseded Skill。研究缓存、教程笔记和候选第三方库均不得进入 active capability count；只有 accepted adoption receipt 才能改变产品依赖。
 
 版本：2026-08-13

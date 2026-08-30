@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-candidate-compare-request.schema.json",
+  "title": "SilhouetteCandidateCompareRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "target_sha256", "candidate_ids"],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/id"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "candidate_ids": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/id"}
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

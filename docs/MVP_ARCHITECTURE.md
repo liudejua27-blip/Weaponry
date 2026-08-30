@@ -1,5 +1,17 @@
 # ForgeCAD 单用户 MVP 架构
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+## Weaponry V1 successor architecture
+
+旧 MVP 的 Project/Candidate/Version/Job/Store/CAS 基座继续保留；新的生产核心固定为：
+
+`Authorization/Reference → AuthoringDocument → AtomicCommandJournal → ModifierGraph → EvaluatedMesh → GameReadyDerivatives → Review/EngineReceipt`
+
+AuthoringDocument 是唯一可编辑几何真值；EvaluatedMesh、High、Low、UV、Bake 和 GLB 都是
+可重建派生物。任何 subject-specific 武器能力必须实现为宏、preset、Skill 或 Benchmark，
+不能创建第二套网格内核。Viewer 只读，MCP 薄适配，Worker 无状态且不写 Store/CAS。
+
 > 2026-08-26 商业扩展边界：MVP 不改成 DCC，也不引入 Blender/Substance 作为运行时；在现有单写者基座上增加 ForgeCAD-owned authoring kernel 与隔离 typed workers。Manifold/OpenSubdiv/QuadriFlow/xatlas/Embree/MaterialX/meshoptimizer/glTF Transform 等只能按固定职责、版本、许可证、SBOM 和 receipt 采用，绝不成为第二真值。
 
 > 2026-08-26 解释边界：MVP 单用户 host、锁、CAS、事务和回退架构是商业资产生产的基础设施，不是商业美术质量本身。Authoring/High/Low/UV/Cage-Bake 已有若干 bounded source/durable slices；完整商业执行器、artist review 与质量门仍未闭合。后续 Surface/FPS/LOD/Engine 继续作为 Runtime 管理的 fixed typed Worker/validator 接入，不能引入第二写者、任意脚本或网络服务。详见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。

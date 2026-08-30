@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/knife-curve-modifier-graph-prepare-request.schema.json",
+  "title": "KnifeCurveModifierGraphPrepareRequest@1",
+  "description": "Closed façade-native knife request for the Rust typed curve and ModifierGraph slice. It binds an original AuthoringMesh revision and dependency seeds; it does not contain a mesh buffer, resource locator, script or secret.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "source_candidate_id",
+    "source_candidate_state_sha256", "source_authoring_mesh_id",
+    "source_authoring_mesh_lineage_id", "source_authoring_mesh_revision_id",
+    "source_authoring_mesh_revision_index", "source_authoring_mesh_revision_sha256",
+    "source_authoring_mesh_identity_sha256", "curves", "modifier_graph",
+    "dirty_seeds", "recompute_policy", "evaluation_policy", "idempotency_key",
+    "max_response_bytes", "runtime_write_performed", "writer_policy",
+    "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "KnifeCurveModifierGraphPrepareRequest@1"},
+    "operation": {"const": "knife_curve_modifier_graph_prepare"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "source_authoring_mesh_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_mesh_lineage_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_mesh_revision_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_mesh_revision_index": {"$ref": "#/$defs/revision_index"},
+    "source_authoring_mesh_revision_sha256": {"$ref": "#/$defs/sha256"},
+    "source_authoring_mesh_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "curves": {
+      "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/curve"}
+    },
+    "modifier_graph": {"$ref": "#/$defs/modifier_graph"},
+    "dirty_seeds": {
+      "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "recompute_policy": {"const": "dirty-seed-dependency-closure-recompute@1"},
+    "evaluation_policy": {"const": "original-authoring-mesh-modifier-graph-deterministic@1"},
+    "idempotency_key": {"$ref": "#/$defs/idempotency_key"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "revision_index": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "coordinate": {"type": "number", "minimum": -10.0, "maximum": 10.0},
+    "weight": {"type": "number", "minimum": 0.001, "maximum": 1000.0},
+    "knot": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    "point": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {"$ref": "#/$defs/coordinate"}
+    },
+    "curve_common": {
+      "type": "object", "additionalProperties": false,
+      "required": ["curve_id", "role", "basis", "degree", "control_points_m", "weights", "knots", "closed", "canonical_sha256"],
+      "properties": {
+        "curve_id": {"$ref": "#/$defs/identifier"},
+        "role": {"enum": ["blade_spine", "blade_edge", "profile"]},
+        "basis": {"enum": ["bezier", "nurbs_like"]},
+        "degree": {"type": "integer", "minimum": 1, "maximum": 5},
+        "control_points_m": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/point"}},
+        "weights": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/weight"}},
+        "knots": {"type": "array", "maxItems": 256, "items": {"$ref": "#/$defs/knot"}},
+        "closed": {"type": "boolean"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "bezier_curve": {
+      "allOf": [
+        {"$ref": "#/$defs/curve_common"},
+        {"type": "object", "properties": {"basis": {"const": "bezier"}, "weights": {"maxItems": 0}, "knots": {"maxItems": 0}}}
+      ]
+    },
+    "nurbs_curve": {
+      "allOf": [
+        {"$ref": "#/$defs/curve_common"},
+        {"type": "object", "properties": {"basis": {"const": "nurbs_like"}, "weights": {"minItems": 1}, "knots": {"minItems": 1}}}
+      ]
+    },
+    "curve": {"oneOf": [{"$ref": "#/$defs/bezier_curve"}, {"$ref": "#/$defs/nurbs_curve"}]},
+    "modifier_graph": {
+      "type": "object", "additionalProperties": false,
+      "required": ["graph_id", "source_revision_id", "source_revision_sha256", "nodes", "output_node_ids", "canonical_sha256"],
+      "properties": {
+        "graph_id": {"$ref": "#/$defs/identifier"},
+        "source_revision_id": {"$ref": "#/$defs/identifier"},
+        "source_revision_sha256": {"$ref": "#/$defs/sha256"},
+        "nodes": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/modifier_node"}},
+        "output_node_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "modifier_node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["node_id", "operator", "input_node_ids", "selection_query_sha256", "enabled"],
+      "properties": {
+        "node_id": {"$ref": "#/$defs/identifier"},
+        "operator": {"$ref": "#/$defs/modifier_kind"},
+        "input_node_ids": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "selection_query_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "vector3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/coordinate"}},
+    "scale3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 10.0}},
+    "modifier_kind": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["operator", "translation_m", "rotation_rad", "scale"], "properties": {"operator": {"const": "transform"}, "translation_m": {"$ref": "#/$defs/vector3"}, "rotation_rad": {"$ref": "#/$defs/vector3"}, "scale": {"$ref": "#/$defs/scale3"}}},
+        {"type": "object", "additionalProperties": false, "required": ["operator", "axis", "offset_m"], "properties": {"operator": {"const": "mirror"}, "axis": {"enum": ["x", "y", "z"]}, "offset_m": {"$ref": "#/$defs/coordinate"}}},
+        {"type": "object", "additionalProperties": false, "required": ["operator", "count", "offset_m"], "properties": {"operator": {"const": "array"}, "count": {"type": "integer", "minimum": 1, "maximum": 32}, "offset_m": {"$ref": "#/$defs/vector3"}}},
+        {"type": "object", "additionalProperties": false, "required": ["operator", "width_m", "segments", "profile", "clamp_overlap"], "properties": {"operator": {"const": "bevel"}, "width_m": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 5.0}, "segments": {"type": "integer", "minimum": 1, "maximum": 4}, "profile": {"type": "number", "minimum": 0.25, "maximum": 0.75}, "clamp_overlap": {"type": "boolean"}}},
+        {"type": "object", "additionalProperties": false, "required": ["operator", "crease_angle_rad"], "properties": {"operator": {"const": "normal_policy"}, "crease_angle_rad": {"type": "number", "minimum": 0.0, "maximum": 3.141592653589793}}},
+        {"type": "object", "additionalProperties": false, "required": ["operator", "curve_id", "curve_sha256"], "properties": {"operator": {"const": "curve_profile"}, "curve_id": {"$ref": "#/$defs/identifier"}, "curve_sha256": {"$ref": "#/$defs/sha256"}}}
+      ]
+    }
+  }
+}

@@ -1,5 +1,7 @@
 # ADR-0027：ForgeCAD 原生 FPS 武器美术生产执行器
 
+> **Status: partially superseded by ADR-0029 (2026-08-29).** 本 ADR 的 Runtime 唯一写者、typed Worker、证据和批准边界继续有效；产品范围、Action Space 和一个月交付优先级以 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 与 ADR-0029 为准。
+
 > 2026-08-26 `FPS-AUTHORING-MESH-V2-03` 决议：真实 D1 已用 ForgeCAD-owned stable-ID `MoveVertices` 打通 authoring revision → one-node GeometryProgram → strict GLB → six-view replay；当前面为 **527 schemas / 115 read + 87 write = 202 tools**。同时冻结两条边界：旧 CrossView strict-Pareto 不改语义；新 Pareto review 必须将负 delta 明确记为 regression，只能形成可审阅权衡，不是 non-regression。任何变更后的 candidate 必须重新生成 owner/void/Part-ID FormArt；没有该派生证据时 fail closed，不得推进 secondary Stage。
 
 > 2026-08-26 `FPS-AUTHORING-MESH-V2-02` 决议落地：真实 D1 `rear-stock` 已进入 ForgeCAD-owned `AuthoringMeshRevision@2`，source binding 随 revision CAS 持久化并通过 Runtime restart；稳定 mesh/lineage identity 与易变 candidate/artifact hashes 解耦。`production_weapon_authoring_mesh_v2_source_prepare` 是第 86 个 opt-in write tool，当前总面 **114 read + 86 write = 200**。Native High V2 bridge 和 `FaceExtrude` 为 source-only；下一架构切片必须实现 `MoveVertices` 与 revision→GeometryProgram 单节点替换，不能再次退回参数灰模。Stage/visual/commercial 真值不变。

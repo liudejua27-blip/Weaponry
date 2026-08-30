@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/appearance-prepare-request.schema.json",
+  "title": "AppearancePrepareRequest",
+  "additionalProperties": false,
+  "properties": {
+    "base_version_id": {
+      "maxLength": 128,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "appearance_program": {
+          "type": "object"
+        },
+        "geometry_program": {
+          "type": "object"
+        },
+        "reference_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "typed": {
+          "const": "appearance"
+        }
+      },
+      "required": [
+        "typed",
+        "geometry_program",
+        "appearance_program"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "project_id",
+    "request"
+  ],
+  "type": "object"
+}

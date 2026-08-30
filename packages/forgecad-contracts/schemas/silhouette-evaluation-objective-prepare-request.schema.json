@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-evaluation-objective-prepare-request.schema.json",
+  "title": "SilhouetteEvaluationObjectivePrepareRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "baseline_candidate_id", "global_target_sha256", "part_target_sha256", "part_id", "source_part_error_sha256", "camera"],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/id"},
+    "baseline_candidate_id": {"$ref": "#/$defs/id"},
+    "global_target_sha256": {"$ref": "#/$defs/sha256"},
+    "part_target_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/id"},
+    "source_part_error_sha256": {"$ref": "#/$defs/sha256"},
+    "camera": {
+      "oneOf": [
+        {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration-v2.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration-ref.schema.json"}
+      ]
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

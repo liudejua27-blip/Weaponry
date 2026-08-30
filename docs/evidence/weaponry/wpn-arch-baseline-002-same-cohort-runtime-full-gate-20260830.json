@@ -1,0 +1,101 @@
+{
+  "schema_version": "WeaponryArchitectureBaselineSameCohortGate@1",
+  "task_id": "WPN-ARCH-BASELINE-002",
+  "recorded_date": "2026-08-30",
+  "status": "PASS_SAME_COHORT_RUNTIME_FULL_BASELINE_NON_PROMOTING",
+  "historical_receipts_mutated": false,
+  "starting_observation": {
+    "runtime_full_passed": 536,
+    "runtime_full_failed": 18,
+    "runtime_full_ignored": 37,
+    "status": "FAIL_BASELINE_NOT_TRUSTWORTHY"
+  },
+  "harness": {
+    "path": "script/test_runtime_workers.sh",
+    "sha256": "d261c4ae112cb22031794ab26e513fdd84317da98d7224245c894b9a33778aa1",
+    "source_cohort_script": "scripts/compute_build_cohort.py",
+    "source_cohort_script_sha256": "e14e3a72e941df03ab4458d680e4cbacc06fb8a996d2c4e2cf5634342f61b3c6",
+    "fresh_target_required": true,
+    "components": [
+      "forgecad-runtime",
+      "forgecad-geometry-worker",
+      "forgecad-high-worker",
+      "forgecad-render-worker"
+    ],
+    "build_identity_required_for_every_component": true,
+    "source_cohort_checked_before_and_after_test": true,
+    "fallback_enabled": false
+  },
+  "diagnostic_full_run": {
+    "build_cohort_sha256": "905afa3169b7d9d4351ae4ef71a9f8c3f3d1a6796ab14467095168e0e7e5d7ad",
+    "passed": 547,
+    "failed": 7,
+    "ignored": 37,
+    "wall_seconds": 10363.55,
+    "finding": "A unified Geometry and Render cohort removed the mixed old baseline, then exposed three missing High Worker paths and four real Authoring topology or identity debts."
+  },
+  "repairs": {
+    "non_worker_baseline": [
+      "The timeout assertion now matches the existing 180 second Runtime IPC budget needed by fixed 120 second Worker paths.",
+      "The art-decision fixture no longer duplicates PartOutputs and now reflects the current registered stock sink.",
+      "Composite delta validation binds complete PartOutputs and permits only the registered receiver-upper U-topology root change."
+    ],
+    "worker_and_authoring": [
+      "The harness builds and authenticates forgecad-high-worker and the cohort hash includes its manifest, lockfile and source.",
+      "AuthoringMesh topology proof schema identity is AuthoringMeshTopologyOperationProof@1 across Contract, Runtime and Store.",
+      "Split fixtures use a winding that does not create a degenerate fixed-fan triangle around the inserted midpoint.",
+      "Collapse face-loop replacement validates the deterministic post-collapse child edge set."
+    ],
+    "validation_policy_relaxed": false,
+    "tests_skipped_to_obtain_pass": false
+  },
+  "focused_same_cohort": {
+    "authoring_mesh_identity": "PASS_4_OF_4",
+    "authoring_topology": "PASS_1_OF_1",
+    "native_high": "PASS_3_OF_3",
+    "hero_uv": "PASS_6_OF_6",
+    "low_quad": "PASS_3_OF_3"
+  },
+  "final_runtime_full": {
+    "build_cohort_sha256": "a6f28cdef0528decbab7cee341f2b3ae4c06cd1adb522a86c9de63d416ef9ff9",
+    "source_file_count": 1306,
+    "total": 591,
+    "passed": 554,
+    "failed": 0,
+    "ignored": 37,
+    "libtest_wall_seconds": 10022.89,
+    "harness_wall_seconds": 10147.37,
+    "runtime_test_log_sha256": "fe303ab8b84f203273861f2712e00a324864eb2af841cda40c47811b416997e4",
+    "source_drift": false,
+    "component_build_identities_equal": true
+  },
+  "current_source_truth": {
+    "schema_count": 589,
+    "schema_content_set_sha256": "5035860aba3610f67b3eaa8e53d607e7c1d0912f953ce5e22b854d282231b7c0",
+    "runtime_source_sha256": "9af4d7a73f06be7f63625bde0123887f3874e50c19521551b8af030ecd110c4a",
+    "source_tool_summary_receipt_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca",
+    "source_read_tools": 131,
+    "source_write_tools": 95,
+    "source_total_tools": 226,
+    "truth_canonical_sha256": "6e7f186be290b7ffe66fa756c9fac6002954ac37da124864a4bd772f691315db",
+    "stage0_checker": "PASS_WITH_RETAINED_VISUAL_FAILURE_AND_MISSING_ASSERTIONS"
+  },
+  "remaining_architecture_gaps": {
+    "codex_outer_tool_timeout_seconds": 60,
+    "runtime_ipc_timeout_seconds": 180,
+    "fast_architecture_regression_separated_from_asset_qualification": false,
+    "runtime_root_lines": 52927,
+    "store_root_lines": 81050,
+    "mcp_root_lines": 20508,
+    "evaluation_surface_presentation_delivery_direct_services": false,
+    "legacy_handlers_excluded_from_default_compile": false,
+    "next_task": "WPN-ARCH-BASELINE-FAST-003"
+  },
+  "quality_boundary": {
+    "high_to_low_to_uv_to_bake_advanced": false,
+    "visual_quality_advanced": false,
+    "engine_validation_advanced": false,
+    "human_review_advanced": false,
+    "commercial_status": "NOT_PROVEN"
+  }
+}

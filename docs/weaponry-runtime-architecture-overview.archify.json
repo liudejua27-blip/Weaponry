@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Weaponry 刀类 DCC 运行时架构概览",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": "docs/weaponry-runtime-architecture-overview.html",
+    "viewBox": [1140, 470],
+    "views": [
+      {
+        "id": "active_path",
+        "label": "默认刀类主链",
+        "focus": ["codex", "mcp", "contracts", "router", "runtime", "store", "state"],
+        "note": "11 个 façade 先通过闭合 Schema 与中央映射，再进入 Runtime 唯一写入链。"
+      },
+      {
+        "id": "worker_path",
+        "label": "受限执行",
+        "focus": ["runtime", "workers"],
+        "note": "Worker 只执行 fixed typed 请求，不拥有产品真值。"
+      },
+      {
+        "id": "compat_path",
+        "label": "历史兼容",
+        "focus": ["compat", "runtime"],
+        "note": "226-tool replay 位于显式兼容二进制，默认构建不编译。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "codex",
+      "type": "external",
+      "label": "Codex",
+      "sublabel": "规划与编排",
+      "pos": [20, 182],
+      "size": [112, 62]
+    },
+    {
+      "id": "mcp",
+      "type": "frontend",
+      "label": "MCP 默认入口",
+      "sublabel": "11 个刀类 façade",
+      "tag": "默认仅 7 个源文件",
+      "pos": [178, 180],
+      "size": [154, 66]
+    },
+    {
+      "id": "contracts",
+      "type": "security",
+      "label": "Contracts",
+      "sublabel": "601 schemas · 中央映射",
+      "tag": "可执行请求 68 / 125",
+      "pos": [382, 40],
+      "size": [178, 70]
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "五域 Router",
+      "sublabel": "A / E / S / P / D",
+      "tag": "映射已集中",
+      "pos": [390, 178],
+      "size": [162, 70]
+    },
+    {
+      "id": "runtime",
+      "type": "backend",
+      "label": "Rust Runtime",
+      "sublabel": "五域服务；唯一写者",
+      "tag": "根文件 52,542 行",
+      "pos": [580, 176],
+      "size": [170, 74]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Store Repository",
+      "sublabel": "事务 / CAS / migration",
+      "tag": "根文件 79,841 行",
+      "pos": [795, 176],
+      "size": [172, 74]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "SQLite + CAS",
+      "sublabel": "lineage / receipt / object",
+      "tag": "产品真值",
+      "pos": [996, 180],
+      "size": [124, 66]
+    },
+    {
+      "id": "workers",
+      "type": "messagebus",
+      "label": "Geometry / Render",
+      "sublabel": "same-cohort Worker",
+      "tag": "typed / offline",
+      "pos": [580, 340],
+      "size": [170, 66]
+    },
+    {
+      "id": "viewer",
+      "type": "frontend",
+      "label": "Viewer",
+      "sublabel": "只读 projection",
+      "tag": "不得写状态",
+      "pos": [795, 340],
+      "size": [172, 66]
+    },
+    {
+      "id": "compat",
+      "type": "external",
+      "label": "Compatibility",
+      "sublabel": "历史 226-tool replay",
+      "tag": "显式二进制",
+      "pos": [382, 340],
+      "size": [178, 66]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "默认刀类 Action Space",
+      "wraps": ["mcp", "contracts", "router"],
+      "pad": 14
+    },
+    {
+      "kind": "region",
+      "label": "Runtime-owned durable state",
+      "wraps": ["runtime", "store", "state"],
+      "pad": 14
+    },
+    {
+      "kind": "region",
+      "label": "显式兼容边界",
+      "wraps": ["compat"],
+      "pad": 12
+    }
+  ],
+  "connections": [
+    {
+      "from": "codex",
+      "to": "mcp",
+      "label": "MCP stdio",
+      "variant": "emphasis",
+      "labelAt": [155, 258]
+    },
+    {
+      "from": "mcp",
+      "to": "router",
+      "label": "façade operation",
+      "variant": "emphasis",
+      "labelAt": [361, 262]
+    },
+    {
+      "from": "contracts",
+      "to": "router",
+      "label": "中央映射",
+      "variant": "security",
+      "labelAt": [471, 124]
+    },
+    {
+      "from": "router",
+      "to": "runtime",
+      "label": "typed domain call",
+      "variant": "emphasis",
+      "labelAt": [665, 150]
+    },
+    {
+      "from": "runtime",
+      "to": "store",
+      "label": "repository call",
+      "variant": "security",
+      "labelAt": [772, 264]
+    },
+    {
+      "from": "store",
+      "to": "state",
+      "label": "transaction + CAS",
+      "variant": "security",
+      "labelAt": [976, 264]
+    },
+    {
+      "from": "runtime",
+      "to": "workers",
+      "label": "typed request / hash",
+      "variant": "dashed",
+      "labelAt": [665, 286]
+    },
+    {
+      "from": "viewer",
+      "to": "store",
+      "label": "read-only",
+      "variant": "dashed"
+    },
+    {
+      "from": "compat",
+      "to": "runtime",
+      "label": "explicit replay",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "已完成",
+      "items": [
+        "默认 MCP compile graph 仅含 7 个 active 源文件",
+        "五域路由集中到 Contracts 并直接进入 typed service"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "未完成",
+      "items": [
+        "57 个 active operation 因缺少闭合 Contract Schema 而在 MCP 前置阻断",
+        "MCP 22,800 行 handler 与剩余 Store aggregates 待拆分"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "不可误报",
+      "items": [
+        "架构 Gate 不证明 High→Low→UV→Bake",
+        "视觉、人审、FPS、引擎和商业质量仍需证据"
+      ]
+    }
+  ]
+}

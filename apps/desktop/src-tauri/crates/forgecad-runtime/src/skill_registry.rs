@@ -16,7 +16,10 @@ const ARCHIVE_MAGIC: &[u8; 8] = b"FCBNDL01";
 // Keep the runtime trust parser aligned with build.rs. The archive contains
 // both active first-party Bundle files and the closed contract schema set.
 // Must match the build-time archive ceiling in `build.rs`.
-const MAX_ARCHIVE_FILES: usize = 896;
+// Must match the build-time hard bound. The archive now contains the complete
+// package-owned Knife Contract set in addition to active declarative Skills;
+// the independent byte/envelope limits remain unchanged.
+const MAX_ARCHIVE_FILES: usize = 1_024;
 // Match build.rs: 3 MiB is the declarative content budget. The archive
 // envelope has a separate bound for magic/count plus per-file path framing.
 const MAX_ARCHIVE_BYTES: usize = 3 * 1024 * 1024;

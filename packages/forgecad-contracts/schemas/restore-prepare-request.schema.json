@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/restore-prepare-request.schema.json",
+  "title": "RestorePrepareRequest",
+  "description": "Prepare a restore from a project-local confirmed historical version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "source_version_id",
+    "request"
+  ],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "base_version_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 128
+    },
+    "source_version_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "request": {
+      "type": "object"
+    }
+  }
+}

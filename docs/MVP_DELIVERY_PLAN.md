@@ -1,6 +1,29 @@
 # ForgeCAD 单用户 MVP 交付计划
 
-> 2026-08-28 `FPS-FORM-04BE-F` 交付的是一个真实 D1、可跨 Runtime restart、逻辑零写的失败根因诊断能力：Codex 不再凭汇总分数猜测下一 Mesh 方向，ForgeCAD 可从 exact parent/proposal geometry 与六视图证据区分 geometry response、owner attribution、side trigger visibility 和 line-flow。当前交付面 **579 schemas / 128 read + 94 opt-in write = 222 tools**。它没有交付已修复 Form、FormQualityV2、secondary、High/Low/UV/Bake、真人或引擎验收；商业资产状态保持未证明。
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+## V1 delivery cohort
+
+本月交付不是通用 MVP，而是两个同 cohort 样本：一个逐资产授权的穿越火线武器和一个
+原创 control weapon。二者必须用同一 generic kernel、Modifier、High/Low/UV/Bake、PBR、
+FPS camera、engine profile 和质量门。若授权样本只能靠专用 Rust 分支通过，而 control
+无法重放，则 V1 失败。
+
+开发构建、安装包生成、合作方体验、正式验收和发布继续分开记录。
+
+> 2026-08-29 `FPS-FORM-04BE-U` 交付口径：0.01 偏移已实际进入 Runtime 评审 policy，wide 已成为下一修形基线。这一交付是“有界放宽后的候选选择”，不是 Hero Asset：FormArt 内容门、Formal High 正向回执、artist Hero UV、zero-fallback High→Low Bake、分层 PBR 视觉门和引擎/真人验收均未交付。
+
+> 2026-08-29 交付口径：ForgeCAD 已证明可在同一 Runtime lineage 中生成 strict-GLB、六视图/九 AOV 的 layered aperture 候选并打开指定负空间；该能力仍是 `QUALITY_TARGET_NOT_MET`，不是商业 Hero Weapon。外观、正式拓扑、UV/Bake、FPS/引擎和真人美术验收继续由现有 Gate 阻断。
+
+> 2026-08-28 `FPS-FORM-04BE-L` 已交付用户授权范围内的 `receiver-upper` typed 局部修改和确定性拒绝闭环：4 个候选结构有效，但没有一个通过目标孔与六视图门。这不是视觉资产晋级；父候选不变，下一切片只做遮挡诊断，正式 FormQualityV2、High/Low/UV/Bake、真人与引擎验收仍未开始。
+
+> 2026-08-28 `FPS-FORM-04BE-J/K` 交付了可编译、可复现、可回读的 `side-panel-a` 真孔拓扑族和相机映射变体族，但没有交付视觉通过的武器：8 个真实候选均被六视图与目标孔门拒绝，父候选不变。下一交付切片只做遮挡归因，避免在不知道 depth winner 的情况下继续返工网格；正式 FormQualityV2、High/Low/UV/Bake、真人与引擎验收仍未开始。
+
+> 2026-08-28 `FPS-FORM-04BE-I` 交付了可复现的“物化→六视图→拒绝→保留母版”试验闭环：4 个 `side-panel-a` 变体全部完成 strict GLB、54 AOV 和重启回读，也全部被真实质量门拒绝。这不是高质量武器交付：本阶段仅证明错误形变不会被误推广；FormQualityV2、secondary、High/Low/UV/Bake、真人与引擎验收仍未开始。
+
+> 2026-08-28 `FPS-FORM-04BE-H` 交付了可重启验证的 typed repair planning seam：ForgeCAD 现在能把两个不同 aperture owner 拆成严格顺序、单 Part、有预算的灵敏度试验。它没有交付修复后网格，也没有启动 FormQualityV2、High/Low/UV/Bake、真人或引擎验收。当前交付面 **583 schemas / 130 read + 94 opt-in write = 224 tools**，商业质量仍未证明。
+
+> 2026-08-28 `FPS-FORM-04BE-G` 交付真实 D1、可跨 Runtime restart、逻辑零写的 pixel-level visibility calibration：ForgeCAD 已确定左右 trigger aperture 的首要可见遮挡源不同，并证明旧 rear-stock repair 在两个目标孔内零响应。当前交付面 **581 schemas / 129 read + 94 opt-in write = 223 tools**。它只把下一步缩窄为双视图/多 Part typed repair plan，没有交付已修复 Form、FormQualityV2、secondary、High/Low/UV/Bake、真人或引擎验收；商业资产状态保持未证明。
 
 > 2026-08-28 `FPS-FORM-04BE-E` 交付了一个真实可重启的 registered repair candidate 与完整六视图证据闭环，但证据明确拒绝晋级：54 AOV/Part-ID/readback 完整，negative-space、line-flow、strict owner-void 和 proposal FormArt-ready 未通过，fresh FormQualityV2 因前置门失败未创建。该增量证明 ForgeCAD 能执行、观察并拒绝一次错误修复；它没有交付 secondary Form、Formal High、Low/Cage、Hero UV、Bake、真人或引擎验收。公共面仍 **577 schemas / 127 read + 94 opt-in write = 221 tools**。
 
@@ -117,7 +140,7 @@ Native High 的交付口径保持 **source-only structural/durable slice**：Wor
 
 Stage 0 当前交付口径：515 Schema、28 operator entries、111 read + 83 opt-in write = 194 tools，唯一 `in_progress` 为 `FGC-MCP010F`；机器证据入口为 `docs/evidence/mcp010f/commercial-weapon-hero-uv-durable-restart-source-gate-20260826.json`。Agentic observe/plan/critic/evidence projection 与 durable session/checkpoint/RepairIntent 仍按各自证据记录；Hero UV public get/prepare、candidate-bound Low provenance 与 prepare replay/drop-reopen/get **1/1 PASS** 仅为 structural/source，不替代 artist UV review、packaged same-cohort、visual/human/engine/commercial Gate。当前 Stage=`camera-calibrated`、`secondary-form-approved=NOT_CREATED`、`FPS-HIGH-05=NOT_PASSED`、`QUALITY_TARGET_NOT_MET`、`HQ360=BLOCKED_REFERENCE_COVERAGE`、proposal=`registered=false`，无 confirm/version/export。
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 当前高质量 authoring/readback 路径使用 `GeometryProgram@2` 与 `ArtifactReadback@2`；下文 `GeometryProgram@1` 只保留为 `[transition-v1]` 的 MCP007 历史 MVP 证据，不能作为 MCP010F 当前执行入口。
@@ -428,3 +451,5 @@ ForgeCAD MVP completed for the first hard-surface reference benchmark on <commit
 ```text
 ForgeCAD MVP host path complete; visual benchmark remains open: <PASS/FAIL/BLOCKED/NOT_RUN evidence>; next safe task is <FGC-MCPxxx>.
 ```
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-retopology-cage-source-get-request.schema.json",
+  "title": "ProductionWeaponRetopologyCageSourceGetRequest",
+  "additionalProperties": false,
+  "properties": {
+    "bundle_key_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ProductionWeaponRetopologyCageSourceBundleGetRequest@1"
+    },
+    "source_candidate_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "bundle_key_sha256",
+    "project_id",
+    "source_candidate_id"
+  ],
+  "type": "object"
+}

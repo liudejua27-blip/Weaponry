@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/checkpoint-get-request.schema.json",
+  "title": "CheckpointGetRequest",
+  "description": "Read one Runtime-owned checkpoint bound to its session, project, and candidate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "checkpoint_id",
+    "session_id",
+    "project_id",
+    "candidate_id"
+  ],
+  "properties": {
+    "checkpoint_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  }
+}

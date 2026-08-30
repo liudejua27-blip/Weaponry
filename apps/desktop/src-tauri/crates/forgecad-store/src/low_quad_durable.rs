@@ -7,13 +7,12 @@
 //! additive table in the same SQLite connection used by the Runtime.
 
 use forgecad_contracts::{
-    is_opaque_id, is_sha256, CasObjectRecord, LowQuadDraftDurableRecord,
-    LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND, LOW_QUAD_DRAFT_DURABLE_OBJECT_KIND,
+    CasObjectRecord, LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND, LOW_QUAD_DRAFT_DURABLE_OBJECT_KIND,
     LOW_QUAD_DRAFT_DURABLE_READBACK_KIND, LOW_QUAD_DRAFT_DURABLE_RECORD_SCHEMA_VERSION,
-    LOW_QUAD_DRAFT_DURABLE_WORKER_RESULT_KIND,
+    LOW_QUAD_DRAFT_DURABLE_WORKER_RESULT_KIND, LowQuadDraftDurableRecord, is_opaque_id, is_sha256,
 };
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use serde_json::Value;
 
 use super::{Store, StoreError};
@@ -314,7 +313,9 @@ impl Store {
         let transaction = connection.transaction()?;
         let existing = transaction
             .query_row(
-                &format!("SELECT record_json FROM {TABLE} WHERE project_id = ?1 AND idempotency_key = ?2"),
+                &format!(
+                    "SELECT record_json FROM {TABLE} WHERE project_id = ?1 AND idempotency_key = ?2"
+                ),
                 params![record.project_id, record.idempotency_key],
                 read_record,
             )
@@ -411,7 +412,9 @@ impl Store {
         ensure_table(&connection)?;
         let Some(record) = connection
             .query_row(
-                &format!("SELECT record_json FROM {TABLE} WHERE project_id = ?1 AND idempotency_key = ?2"),
+                &format!(
+                    "SELECT record_json FROM {TABLE} WHERE project_id = ?1 AND idempotency_key = ?2"
+                ),
                 params![project_id, idempotency_key],
                 read_record,
             )

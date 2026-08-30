@@ -1,7 +1,0 @@
-interface:
-  display_name: "ForgeCAD Sci-Fi FPS Weapon Production"
-  short_description: "Stage-gated fictional weapon asset orchestration"
-  default_prompt: "Use $forgecad-sci-fi-fps-weapon-production to orchestrate an original, nonfunctional sci-fi game asset through ForgeCAD's typed stage gates."
-
-policy:
-  allow_implicit_invocation: false

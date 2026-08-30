@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Weaponry 刀类 DCC 高层运行时架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": "docs/weaponry-runtime-architecture.html",
+    "views": [
+      {
+        "id": "active_path",
+        "label": "默认刀类主链",
+        "focus": ["codex", "mcp", "contracts", "router", "runtime", "store", "state"],
+        "note": "11 个 bounded façade 经中央领域映射进入五域 Runtime，只有 Runtime 可写持久状态。"
+      },
+      {
+        "id": "worker_path",
+        "label": "受限 Worker",
+        "focus": ["runtime", "workers"],
+        "note": "Geometry 与 Render Worker 只接收固定 typed 协议，不拥有产品真值。"
+      },
+      {
+        "id": "compat_path",
+        "label": "兼容隔离",
+        "focus": ["compat", "runtime", "store"],
+        "note": "历史 226-tool replay 只允许显式兼容构建，不进入默认 Codex Action Space。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "codex",
+      "type": "external",
+      "label": "Codex",
+      "sublabel": "规划、视觉推理、编排",
+      "pos": [379, 20],
+      "size": [132, 66]
+    },
+    {
+      "id": "mcp",
+      "type": "frontend",
+      "label": "MCP 默认入口",
+      "sublabel": "11 个刀类 façade",
+      "tag": "薄适配器",
+      "pos": [370, 150],
+      "size": [150, 66]
+    },
+    {
+      "id": "contracts",
+      "type": "security",
+      "label": "Contracts",
+      "sublabel": "Schema + 中央领域映射",
+      "tag": "闭合边界",
+      "pos": [20, 303],
+      "size": [172, 72]
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "五域 Router",
+      "sublabel": "Authoring / Evaluation / Surface / Presentation / Delivery",
+      "tag": "operation → domain",
+      "pos": [330, 300],
+      "size": [230, 78]
+    },
+    {
+      "id": "runtime",
+      "type": "backend",
+      "label": "Rust Runtime 五域服务",
+      "sublabel": "唯一状态写者；prepare / replay / recovery",
+      "tag": "迁移中",
+      "pos": [340, 460],
+      "size": [210, 76]
+    },
+    {
+      "id": "workers",
+      "type": "messagebus",
+      "label": "Geometry / Render Workers",
+      "sublabel": "same-cohort typed execution",
+      "tag": "无网络 / 无任意脚本",
+      "pos": [650, 463],
+      "size": [210, 70]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Store 领域 Repository",
+      "sublabel": "事务、CAS 引用、迁移 ownership",
+      "tag": "拆分未完成",
+      "pos": [347, 620],
+      "size": [196, 74]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "SQLite + CAS",
+      "sublabel": "不可变 lineage / receipt / 大对象",
+      "tag": "产品真值",
+      "pos": [358, 780],
+      "size": [174, 70]
+    },
+    {
+      "id": "viewer",
+      "type": "frontend",
+      "label": "Viewer",
+      "sublabel": "只读模型 + 临时视图状态",
+      "tag": "不得写产品状态",
+      "pos": [650, 780],
+      "size": [196, 68]
+    },
+    {
+      "id": "compat",
+      "type": "external",
+      "label": "Compatibility 二进制",
+      "sublabel": "历史 226-tool replay",
+      "tag": "显式 feature；默认不编译",
+      "pos": [20, 620],
+      "size": [210, 70]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "默认 WPN-KNIFE-PROFILE-001 Action Space",
+      "wraps": ["mcp", "contracts", "router"],
+      "pad": 18
+    },
+    {
+      "kind": "region",
+      "label": "Runtime-owned durable product state",
+      "wraps": ["runtime", "store", "state"],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "显式 historical compatibility 边界",
+      "wraps": ["compat"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "from": "codex",
+      "to": "mcp",
+      "label": "MCP stdio",
+      "variant": "emphasis",
+      "labelAt": [445, 112]
+    },
+    {
+      "from": "mcp",
+      "to": "router",
+      "label": "闭合操作",
+      "variant": "emphasis",
+      "labelAt": [445, 258]
+    },
+    {
+      "from": "contracts",
+      "to": "router",
+      "label": "唯一 operation→domain 映射",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "router",
+      "to": "runtime",
+      "label": "typed 调用",
+      "variant": "emphasis",
+      "labelAt": [445, 420]
+    },
+    {
+      "from": "runtime",
+      "to": "workers",
+      "label": "typed 请求 / hash",
+      "variant": "dashed"
+    },
+    {
+      "from": "runtime",
+      "to": "store",
+      "label": "Repository 调用",
+      "variant": "security",
+      "labelAt": [445, 580]
+    },
+    {
+      "from": "store",
+      "to": "state",
+      "label": "事务 + CAS",
+      "variant": "security",
+      "labelAt": [445, 740]
+    },
+    {
+      "from": "viewer",
+      "to": "store",
+      "label": "只读 projection",
+      "variant": "dashed"
+    },
+    {
+      "from": "compat",
+      "to": "runtime",
+      "label": "显式兼容 replay",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "已经清晰的边界",
+      "items": [
+        "Codex 默认只看 11 个刀类 façade",
+        "Contracts 中央映射决定五域路由",
+        "Runtime 是 SQLite/CAS 唯一写者"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "当前结构债务",
+      "items": [
+        "Runtime 与 Store 根文件仍过度集中",
+        "四个非 Authoring 域仍大量转发旧 dispatch",
+        "Compatibility 必须以实际编译依赖证明隔离"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "质量事实",
+      "items": [
+        "架构绿色不等于 High→Low→UV→Bake 闭环",
+        "视觉、人审、FPS、引擎与商业质量仍需独立证据"
+      ]
+    }
+  ]
+}

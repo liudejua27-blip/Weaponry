@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-mask-refine-prepare-request.schema.json",
+  "title": "ReferenceMaskRefinePrepareRequest",
+  "additionalProperties": false,
+  "properties": {
+    "base_target_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "contour_points": {
+      "items": {
+        "items": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "maxItems": 2,
+        "minItems": 2,
+        "type": "array"
+      },
+      "maxItems": 512,
+      "minItems": 3,
+      "type": "array"
+    },
+    "landmarks": {
+      "items": {
+        "type": "object"
+      },
+      "maxItems": 128,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "parts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "end_index": {
+            "maximum": 511,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "part_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "region": {
+            "additionalProperties": false,
+            "properties": {
+              "height": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "region_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "width": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "x": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "y": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "region_id",
+              "x",
+              "y",
+              "width",
+              "height"
+            ],
+            "type": "object"
+          },
+          "start_index": {
+            "maximum": 511,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "visibility": {
+            "enum": [
+              "observed",
+              "inferred",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "part_id",
+          "start_index",
+          "end_index",
+          "visibility"
+        ],
+        "type": "object"
+      },
+      "maxItems": 64,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "user_confirmed": {
+      "description": "Explicit user confirmation that the refined contour and observed annotations are ready for a partial-view benchmark.",
+      "type": "boolean"
+    },
+    "visual_structure": {
+      "additionalProperties": false,
+      "properties": {
+        "line_flows": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "continuity_group_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "ridge",
+                  "valley",
+                  "seam",
+                  "light-channel",
+                  "occlusion-edge"
+                ]
+              },
+              "line_flow_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "points": {
+                "items": {
+                  "items": {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "maxItems": 256,
+                "minItems": 2,
+                "type": "array"
+              },
+              "visibility": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "line_flow_id",
+              "continuity_group_id",
+              "kind",
+              "visibility",
+              "points"
+            ],
+            "type": "object"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "regions": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "boundary_relationship": {
+                "enum": [
+                  "shared",
+                  "overlap",
+                  "independent",
+                  "enclosed"
+                ]
+              },
+              "continuity_group_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "contour_points": {
+                "items": {
+                  "items": {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "maxItems": 256,
+                "minItems": 3,
+                "type": "array"
+              },
+              "depth_policy": {
+                "enum": [
+                  "from-multiview",
+                  "bounded-inference",
+                  "unknown"
+                ]
+              },
+              "layer_index": {
+                "maximum": 16,
+                "minimum": -16,
+                "type": "integer"
+              },
+              "mask_operation": {
+                "enum": [
+                  "none",
+                  "subtract"
+                ]
+              },
+              "profile_policy": {
+                "enum": [
+                  "preserve-continuity",
+                  "closed-profile",
+                  "revolved-profile",
+                  "material-only"
+                ]
+              },
+              "structure_id": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "visibility": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              },
+              "visual_role": {
+                "enum": [
+                  "outer-flowing-shell",
+                  "open-frame",
+                  "primary-volume",
+                  "floating-shell",
+                  "layered-body",
+                  "terminal-assembly",
+                  "luminous-core",
+                  "internal-channel",
+                  "material-transition",
+                  "unknown-visual-region"
+                ]
+              }
+            },
+            "required": [
+              "structure_id",
+              "visual_role",
+              "continuity_group_id",
+              "layer_index",
+              "boundary_relationship",
+              "visibility",
+              "depth_policy",
+              "profile_policy",
+              "contour_points"
+            ],
+            "type": "object"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "regions",
+        "line_flows"
+      ],
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "project_id",
+    "base_target_sha256",
+    "contour_points"
+  ],
+  "type": "object"
+}

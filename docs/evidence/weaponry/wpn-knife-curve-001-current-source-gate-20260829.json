@@ -1,0 +1,121 @@
+{
+  "schema_version": "WeaponryKnifeCurveCurrentSourceGate@1",
+  "task_id": "WPN-KNIFE-CURVE-001",
+  "recorded_date": "2026-08-29",
+  "status": "PASS_SOURCE_STRUCTURAL_DURABLE_EVALUATED_MESH_NON_PROMOTING",
+  "maturity": "FOCUSED_SOURCE_STRUCTURAL_DURABLE_NON_PROMOTING",
+  "historical_receipts_mutated": false,
+  "baseline": {
+    "historical_mcp_baseline": "218/218",
+    "historical_mcp_tool_count": 218,
+    "default_knife_profile_tool_count": 11,
+    "compatibility_profile": {
+      "profile_id": "weaponry-legacy-compatibility@1",
+      "explicit_selection_required": true,
+      "read_tool_count": 131,
+      "write_tool_count": 95,
+      "total_tool_count": 226,
+      "legacy_curve_modifier_graph": "KnifeCurveModifierGraph@1"
+    },
+    "contracts_before_curve_slice": 586,
+    "contracts_current_manifest": 589
+  },
+  "curve_modifier_graph": {
+    "roles": ["blade_spine", "blade_edge", "profile"],
+    "bases": ["bezier", "nurbs_like"],
+    "modifier_kinds": [
+      "transform",
+      "mirror",
+      "array",
+      "bevel",
+      "normal_policy",
+      "curve_profile"
+    ],
+    "compatibility_replay": "KnifeCurveModifierGraph@1",
+    "evaluation_status": "curve-sampled-modifier-recompute-planned-no-mesh@1",
+    "status": "PASS_SOURCE_STRUCTURAL_NO_MESH",
+    "contract_checker": "PASS",
+    "runtime_store_mcp_final_tally": "RUNTIME_KNIFE_CURVE_6_OF_6_PASS (evaluated public 4/4); STORE_FULL_169_OF_169_PASS; MCP_FULL_SAME_COHORT_221_OF_221_PASS (evaluated 3/3)"
+  },
+  "evaluated_mesh_lookup_binding": {
+    "caller_supplied_curve_graph_lookup_key": false,
+    "runtime_derived": true,
+    "derivation": "source revision plus ModifierGraph and five semantic hashes",
+    "result_reports_derived_lookup": true,
+    "legacy_modifier_graph_contract_unchanged": true,
+    "position_quantization": "evaluated/sample positions fixed to 1nm before canonical JSON/CAS roundtrip"
+  },
+  "evaluated_mesh": {
+    "core_status": "PASS_CORE_STRUCTURAL_EVALUATED_MESH",
+    "core_test": {
+      "command": "cargo test -p forgecad-core weaponry_dcc -- --nocapture",
+      "status": "PASS",
+      "passed": 17,
+      "failed": 0,
+      "exit_code": 0,
+      "scope": "pure Core topology, closure, lineage, replay and negative validation only"
+    },
+    "store_status": "PASS_STORE_FULL_DURABLE_EVALUATED_MESH_STRUCTURAL",
+    "store_test_observation": {
+      "command": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-store --offline --no-fail-fast",
+      "status": "PASS",
+      "passed": 169,
+      "failed": 0,
+      "exit_code": 0,
+      "scope": "full forgecad-store suite, including evaluated-mesh durable commit/replay/drop-reopen/GC/content-addressing"
+    },
+    "runtime_graph_status": "PASS_RUNTIME_SOURCE_STRUCTURAL_NO_MESH_2_OF_2",
+    "runtime_evaluated_mesh_status": "PASS_RUNTIME_DURABLE_EVALUATED_MESH_STRUCTURAL_4_OF_4",
+    "runtime_evaluated_mesh_test_observation": {
+      "command": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime knife_curve_ --lib --offline --no-fail-fast -- --nocapture",
+      "status": "PASS",
+      "passed": 6,
+      "failed": 0,
+      "exit_code": 0,
+      "scope": "Curve ModifierGraph and evaluated-mesh plan/public prepare/get/replay/reopen tests"
+    },
+    "mcp_status": "PASS_MCP_EVALUATED_MESH_FACADE_SCHEMA_DISPATCH_3_OF_3",
+    "mcp_test_observation": {
+      "command": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp knife_curve_evaluated_mesh --offline --no-fail-fast -- --nocapture",
+      "status": "PASS",
+      "passed": 3,
+      "failed": 0,
+      "exit_code": 0,
+      "scope": "evaluated-mesh closed façade/schema/summary/write-gate/dispatch tests"
+    },
+    "mcp_full_same_cohort_test_observation": {
+      "command": "FORGECAD_BUILD_COHORT_SHA256=$(python3 scripts/compute_build_cohort.py) CARGO_TARGET_DIR=<fresh-cohort-target> script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp --offline -- --nocapture",
+      "build_cohort_sha256": "cf7ef1f47592be55fe89e0ca46098d4fb642405dd870edafa1caea39256a32ac",
+      "status": "PASS",
+      "passed": 221,
+      "failed": 0,
+      "exit_code": 0,
+      "scope": "full forgecad-mcp suite from a fresh same-cohort target; this is the curve task's current-source regression observation"
+    },
+    "candidate_or_version_created": false
+  },
+  "gates": {
+    "knife_curve_modifier_graph_contract_checker": "PASS",
+    "knife_curve_evaluated_mesh_contract_checker": "PASS",
+    "knife_profile_checker": "PASS",
+    "knife_profile_compatibility_replay_checker": "PASS",
+    "contracts_checker": "PASS_589",
+    "mcp010f_stage0_truth": "PASS_CURRENT_SOURCE_TRUTH_589_SCHEMA_SET_HASH_BOUND",
+    "documentation_scope": "PASS",
+    "full_documentation_suite": "PASS_DOCUMENTATION_SCOPE_DOCS_WALKTHROUGH_REPOSITORY_INTEGRITY_SAFETY_SECRETS_LICENSE_SBOM",
+    "broad_mcp": "PASS_221_OF_221_SAME_COHORT_CURRENT_SOURCE",
+    "fresh_same_cohort_mcp_and_truth": "PASS_MCP_FULL_SAME_COHORT_221_OF_221_AND_STAGE0_TRUTH"
+  },
+  "limitations": {
+    "glb": "NOT_RUN",
+    "high": "NOT_RUN",
+    "low": "NOT_RUN",
+    "uv": "NOT_RUN",
+    "bake": "NOT_RUN",
+    "visual": "NOT_RUN",
+    "human": "NOT_RUN",
+    "engine": "NOT_RUN",
+    "commercial": "NOT_PROVEN"
+  },
+  "truth_boundary": "Core, Store and Runtime evaluated-mesh structural evidence is PASS for this bounded source slice, but no candidate/version promotion or GLB/High/Low/UV/Bake/visual/human/engine/commercial acceptance follows. Runtime derives the parent lookup and reports it in Result; no historical MCP010F receipt is rewritten."
+}

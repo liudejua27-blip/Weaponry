@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/repair-intent-run-prepare-request.schema.json",
+  "title": "RepairIntentRunPrepareRequest",
+  "description": "Approval-gated execution of one immutable CAS-bound RepairIntent through the bounded Runtime prepare path.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "session_id",
+    "candidate_id",
+    "run_id",
+    "intent_sha256",
+    "intent_object_sha256",
+    "observation_sha256",
+    "action",
+    "proposal",
+    "requested_stage",
+    "input_sha256",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "approval_session_id",
+    "idempotency_key",
+    "source_evidence_sha256",
+    "reference_sha256"
+  ],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "intent_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "intent_object_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "observation_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_kind",
+        "scope_kind",
+        "target_id",
+        "operator_id",
+        "parameter_changes",
+        "bounded",
+        "description"
+      ],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        },
+        "action_kind": {
+          "enum": [
+            "reference-import",
+            "coverage-annotation",
+            "mark-unknown",
+            "primary-blockout",
+            "primary-form-adjustment",
+            "secondary-structure",
+            "tertiary-detail",
+            "material-zone",
+            "final-review",
+            "request-reference",
+            "bounded-repair",
+            "checkpoint",
+            "rollback",
+            "human-review",
+            "next-stage",
+            "uv-pbr"
+          ]
+        },
+        "scope_kind": {
+          "enum": [
+            "session",
+            "part",
+            "material-zone",
+            "reference"
+          ]
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        },
+        "operator_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            null,
+            "forgecad.geometry.primitive@2",
+            "forgecad.geometry.profile-extrude@1",
+            "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.profile-loft@2",
+            "forgecad.geometry.multi-loop-profile-loft@1",
+            "forgecad.geometry.longitudinal-section-loft@1",
+            "forgecad.geometry.subd-cage@1",
+            "forgecad.geometry.subd-cage@2",
+            "forgecad.geometry.authoring-mesh@1",
+            "forgecad.geometry.surface-patch@1",
+            "forgecad.geometry.surface-shell@1",
+            "forgecad.geometry.revolve@1",
+            "forgecad.geometry.tube-sweep@1",
+            "forgecad.geometry.transform@2",
+            "forgecad.geometry.mirror@1",
+            "forgecad.geometry.array@1",
+            "forgecad.geometry.bevel@1",
+            "forgecad.geometry.normal-policy@1",
+            "forgecad.geometry.panel@1",
+            "forgecad.geometry.panel@2",
+            "forgecad.geometry.vent-array@1",
+            "forgecad.geometry.vent-array@2",
+            "forgecad.geometry.recessed-channel@1",
+            "forgecad.geometry.energy-core@1",
+            "forgecad.geometry.joint-stack@1",
+            "forgecad.geometry.boolean@1",
+            "forgecad.geometry.part-output@1"
+          ]
+        },
+        "parameter_changes": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "parameter_id",
+              "before",
+              "after",
+              "minimum",
+              "maximum",
+              "unit"
+            ],
+            "properties": {
+              "parameter_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+              },
+              "before": {
+                "type": "number",
+                "minimum": -1000,
+                "maximum": 1000
+              },
+              "after": {
+                "type": "number",
+                "minimum": -1000,
+                "maximum": 1000
+              },
+              "minimum": {
+                "type": "number",
+                "minimum": -1000,
+                "maximum": 1000
+              },
+              "maximum": {
+                "type": "number",
+                "minimum": -1000,
+                "maximum": 1000
+              },
+              "unit": {
+                "enum": [
+                  "meter",
+                  "radian",
+                  "ratio",
+                  "count"
+                ]
+              }
+            }
+          }
+        },
+        "bounded": {
+          "const": true
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope_kind": {
+                "const": "session"
+              }
+            },
+            "required": [
+              "scope_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "target_id": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope_kind": {
+                "enum": [
+                  "part",
+                  "material-zone",
+                  "reference"
+                ]
+              }
+            },
+            "required": [
+              "scope_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "target_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_kind": {
+                "const": "request-reference"
+              }
+            },
+            "required": [
+              "action_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scope_kind": {
+                "const": "reference"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "geometry_program",
+        "view_spec",
+        "camera"
+      ],
+      "properties": {
+        "geometry_program": {
+          "type": "object"
+        },
+        "view_spec": {
+          "type": "object"
+        },
+        "camera": {
+          "type": "object"
+        },
+        "view_evaluations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "view_id",
+              "reference_id",
+              "reference_sha256",
+              "view_spec",
+              "camera"
+            ],
+            "properties": {
+              "view_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+              },
+              "reference_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+              },
+              "reference_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "view_spec": {
+                "type": "object"
+              },
+              "camera": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "requested_stage": {
+      "enum": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ]
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "approved": {
+      "const": true
+    },
+    "approval_receipt_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "approval_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "approval_expires_at": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "approval_session_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "source_evidence_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reference_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

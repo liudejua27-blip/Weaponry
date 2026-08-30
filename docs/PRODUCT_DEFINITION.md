@@ -1,4 +1,22 @@
-# ForgeCAD 产品定义
+# Weaponry 穿越火线武器 DCC 产品定义
+
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+## 当前产品合同
+
+P0 用户是穿越火线武器美术生产团队，操作入口是 Codex Desktop/CLI。用户提供已授权
+Brief、参考和验收反馈；Codex 负责设计推理和工具编排；Weaponry Rust Runtime 负责
+唯一写入、几何求值、游戏资产生产、证据、版本和交付。
+
+一个月 V1 的三个不可替代交付对象是：
+
+1. `WeaponAuthoringSource@1`：可编辑 AuthoringMesh、稳定语义 ID、事务 journal 和 ModifierGraph；
+2. `CrossFireFpsPresentation@1`：第一人称、inspect、ADS、socket/animation/VFX review evidence；
+3. `CrossFireEngineDelivery@1`：Low/LOD/collision、Hero UV、Cage/Bake、PBR、导出和目标引擎回读。
+
+三者必须绑定同一 approved candidate lineage。只交付 beauty render、单个 GLB、结构回执或
+Codex 自评均不算产品完成。商业合作授权按逐资产 manifest 执行，不能从合作声明推导所有
+Logo、贴图、源模型和命名都可使用。
 
 > 2026-08-26 商业化定义补充：ForgeCAD 的成功不是工具数或可打开 GLB，而是 Codex 通过 ForgeCAD 产生同 lineage/hash 的 `HeroSourceAsset@1 + FpsPresentationPackage@1 + EngineDeliveryPackage@1`，并经独立 Hero Art Review。当前 real D1 的枪托网格编辑只达到局部有回退的 `REVIEWABLE_TRADEOFF`，且缺 fresh proposal-side FormArt owner evidence，证明产品开始触达真实美术形变，也证明它仍未达到商业创作水平。
 

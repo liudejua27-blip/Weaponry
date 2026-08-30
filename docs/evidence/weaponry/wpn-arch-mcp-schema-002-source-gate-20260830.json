@@ -1,0 +1,93 @@
+{
+  "schema_version": "WeaponryArchitectureMcpSchemaSourceGate@1",
+  "task_id": "WPN-ARCH-MCP-SCHEMA-002",
+  "status": "PARTIAL_SCHEMA_CLOSURE",
+  "recorded_on": "2026-08-30",
+  "scope": "default knife MCP request validation and architecture evidence",
+  "source": {
+    "build_cohort_sha256": "f36bc443dcc2c96b01bdc95e3429c0241bcdbec931091691563f7e72006e1fb0",
+    "schema_count": 601,
+    "schema_content_set_sha256": "b42617c6cefb0f863d947081686226a02d507eed62aa9de1af164f5a44690a72",
+    "contract_manifest_sha256": "e2c6d2232820d58ffbb08a32bc7e96ff603c8cb95301b1b66b8b42bd4a3c4c77",
+    "runtime_source_sha256": "085714f60445ed831809564d5324424aed9a734f7dec3c782a90876fa1c5d708",
+    "current_truth_canonical_sha256": "505d068ed20653f03bc646da38f6ab1e9f2f3d01f5184d4523825bea3e99ab13"
+  },
+  "active_profile": {
+    "profile_id": "weaponry-knife-p0@1",
+    "facade_count": 11,
+    "active_operation_count": 125,
+    "package_direct_request_schema_count": 65,
+    "explicit_alias_request_schema_count": 3,
+    "mcp_consumed_closed_request_schema_count": 68,
+    "schema_blocked_operation_count": 57,
+    "runtime_validation_fallback_count": 0,
+    "closure_status": "PARTIAL",
+    "facade_closure": {
+      "weapon_preflight": "5/6",
+      "reference_intake": "1/5",
+      "observe": "4/10",
+      "authoring_transaction": "7/15",
+      "surface_pipeline": "12/15",
+      "fps_presentation": "17/21",
+      "quality_review": "9/23",
+      "delivery": "6/6",
+      "approval": "5/5",
+      "recovery": "2/11",
+      "job": "0/8"
+    },
+    "fail_closed_policy": "operations without a consumed closed package request schema are rejected before Runtime dispatch"
+  },
+  "compatibility_profile": {
+    "binary": "forgecad-mcp-compat",
+    "read_count": 131,
+    "write_count": 95,
+    "total_count": 226,
+    "source_only_build_cohort_sha256": null,
+    "summary_receipt_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca",
+    "historical_receipts_mutated": false
+  },
+  "architecture_fast_gate": {
+    "status": "PASS",
+    "passed": 86,
+    "failed": 0,
+    "ignored": 0,
+    "step_count": 13,
+    "duration_seconds": 172,
+    "duration_budget_seconds": 900,
+    "source_drift_detected": false,
+    "local_receipt_sha256": "9dca7ffe479c9ef779e677b4fdb4f237d01ab3e2e7b02e967b381299dfd5490a"
+  },
+  "compile_isolation": {
+    "default_mcp_crate_source_file_count": 7,
+    "compatibility_mcp_crate_source_file_count": 40,
+    "default_raw_compatibility_handler_count": 0,
+    "status": "PASS"
+  },
+  "archify": {
+    "spec_path": "docs/weaponry-runtime-architecture-overview.archify.json",
+    "spec_sha256": "1ce9570ddf2e3c274fad3de9fddb33170857738eed80ec6179609c6f9fa015c0",
+    "artifact_path": "docs/weaponry-runtime-architecture-overview.html",
+    "artifact_sha256": "7aaad308886d13c3e3efbe34bd42f122cbd336f6dd71db134dea2bc7ffcd2457",
+    "showcase_checks": "9/9 PASS",
+    "composition_errors": 0,
+    "composition_warnings": 0,
+    "viewport_containment": "PASS_1440_1600_1920_2048_LIGHT_DARK",
+    "manual_visual_inspection": "PASS"
+  },
+  "root_snapshot": {
+    "runtime_lib_rs_lines": 52542,
+    "runtime_root_rs_file_count": 94,
+    "runtime_root_module_declaration_count": 92,
+    "store_lib_rs_lines": 79841,
+    "mcp_main_rs_lines": 1081,
+    "mcp_agentic_write_tools_rs_lines": 22800
+  },
+  "qualification": {
+    "full_runtime_suite_current_atom": "NOT_RUN",
+    "retained_previous_full_runtime_baseline": "554 passed / 0 failed / 37 ignored",
+    "ignored_tests_executed_by_fast": 0,
+    "ignored_tests_execution_claim": "NOT_PROVEN"
+  },
+  "quality_claim": "architecture and request-boundary progress only; no High-Low-UV-Bake, material, FPS, engine, human-review, visual-quality, or commercial-quality promotion",
+  "next_action": "continue WPN-ARCH-MCP-SCHEMA-002 until the remaining 57 operations have closed consumed request schemas; do not start physical split or retirement first"
+}

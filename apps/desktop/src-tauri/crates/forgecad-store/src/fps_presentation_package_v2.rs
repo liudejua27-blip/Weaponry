@@ -1,11 +1,11 @@
 //! Durable index for one Runtime-owned editable composite FPS package.
 
 use forgecad_contracts::{
-    is_opaque_id, is_sha256, CasObjectRecord, FpsPresentationPackageV2,
-    FpsPresentationPackageV2CandidateBinding,
+    CasObjectRecord, FpsPresentationPackageV2, FpsPresentationPackageV2CandidateBinding,
+    is_opaque_id, is_sha256,
 };
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

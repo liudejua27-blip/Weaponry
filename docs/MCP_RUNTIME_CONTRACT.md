@@ -1,6 +1,26 @@
 # ForgeCAD MCP Runtime 合同
 
-> 2026-08-28 当前 source manifest 为 **128 read + 94 opt-in write = 222 tools / 579 schemas**。`production_weapon_form_art_failure_diagnostic_get` 是严格只读、hash-bound Runtime derivation；MCP 只转发 durable IDs/hashes，Runtime 独占证据回读、六点 delta、owner attribution、side-aperture 与 line-flow 诊断。真实 D1 restart exact equality 和 SQLite/CAS zero-write 已 PASS，但返回固定禁止新 geometry repair、confirm、Stage advance、version 与 export。
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+> 2026-08-30 current public boundary：默认 Codex 只看到 11 个 Knife façade；其 125 个 active operation 全部在 MCP 层消费 package-owned closed request Schema，blocked=0，Runtime fallback=0。历史兼容面仅由显式 `forgecad-mcp-compat` 暴露，保持 131 read + 95 write = 226 raw tools。
+
+## Weaponry Authoring transaction contract
+
+`authoring_mesh_transaction_get` 默认只读，`authoring_mesh_transaction_prepare` 只在显式 write opt-in 和 Ponytail preflight 后可见。MCP 仅验证 11/9 个精确 envelope 字段、1 MiB 响应上限和 closed journal，然后薄转发 Runtime；不生成 child ID、不拆分事务、不访问 SQLite/CAS。
+
+Runtime 唯一派生 `transaction_sha256` 语义 journal hash、`transaction_object_sha256` CAS bytes hash、child revision IDs/hashes 与 result。首次 prepare 为 `prepared/committed`；exact replay 为 `replayed` 且 store/CAS/runtime write 全部 `not-touched/false`；get 为 `found`。`restart_hash_verified` 在普通返回中必须为 false，重启事实只由独立 drop/reopen 测试证明。移除 Blender task/capability 占位链后，当前 source surface 为 **131 read + 95 opt-in write = 226 tools**。
+
+> 2026-08-29：默认只读 `production_weapon_form_art_target_occlusion_attribution_get` 已进入公共面；Runtime 对四候选 closed family、父候选、FormArt、固定相机、目标 mask 与 raster source table 逐项重验。04BE-M/O/Q/S 均证明 restart exact 与 SQLite/CAS 零写。公共面为 **131 read + 94 opt-in write = 225 tools**。
+
+> 2026-08-28 当前 source manifest 仍为 **130 read + 94 opt-in write = 224 tools / 583 schemas**。`ProductionWeaponFormArtCompositeProposalPlan@1` 新增 4 个 `receiver-upper` closed profile；Runtime 强制 exact `primitive@2` box 参数、空 inputs、唯一 PartOutput 与非目标节点不变。用户授权只允许生成 reviewable candidates，不等于 confirm/Stage 权限；真实 L 四候选全部视觉拒绝。
+
+> 2026-08-28 当前 source manifest 仍为 **130 read + 94 opt-in write = 224 tools / 583 schemas**。`ProductionWeaponFormArtCompositeProposalPlan@1` 的 registered profile 闭包现含 4 个真孔 `@1` 与 4 个相机映射真孔 `@2`。Runtime 除 exact Part/node/operator 外还校验完整 canonical parent parameters 与 `inputs=[]`，重新序列化规范化 profile 数值后重算 program hash；历史父候选跨 cohort 时校验其持久 CAS/readback lineage，不把当前 cohort recompile hash 冒充历史 GLB hash。J/K 视觉门失败，不授权任何晋级。
+
+> 2026-08-28 当前 source manifest 仍为 **130 read + 94 opt-in write = 224 tools / 583 schemas**。`ProductionWeaponFormArtCompositeProposalPlan@1` 的 `registered_profile_id` 闭包新增 4 个 `side-panel-a` aperture trial 值；MCP 只转发封闭值，Runtime 校验 exact Part/node/operator/parent parameters、重算 program hash，并继续作为 candidate/Store/CAS 唯一写者。真实 04BE-I 的 4 个候选均被 CrossView/FormArt 门拒绝；它们不授权 FormQualityV2、Stage、confirm、version 或 export。
+
+> 2026-08-28 当前 source manifest 为 **130 read + 94 opt-in write = 224 tools / 583 schemas**。`production_weapon_form_art_aperture_repair_plan_get` 是严格只读 Runtime derivation：MCP 只转发 closed IDs/hashes，Runtime 重放 visibility calibration/failure diagnostic，以 CAS 对象字节 hash 绑定 `GeometryProgram@2`，然后返回顺序双 Part 试验计划。工具本身不执行 repair、不写数据、不创建 FormQualityV2 或推进 Stage。
+
+> 2026-08-28 当前 source manifest 为 **129 read + 94 opt-in write = 223 tools / 581 schemas**。`production_weapon_form_art_visibility_calibration_get` 是严格只读、hash-bound Runtime derivation；MCP 只转发 durable IDs/hashes，Runtime 独占 before/after GLB、CameraRig、ReferenceCanvas/AOV 回读与 Render Worker raster attribution。真实 D1 restart exact equality 和 SQLite/CAS zero-write 已 PASS；返回只授权后续 repair plan，固定禁止 geometry repair、confirm、Stage advance、version 与 export。
 
 > 2026-08-28 当前 source manifest 为 **127 read + 94 opt-in write = 221 tools / 577 schemas**。`production_weapon_form_art_repair_plan_get` 是严格只读 Runtime derivation：MCP 只转发 closed IDs/hashes；Runtime 校验 composite evidence Store sidecar、CrossView 完整六视图/canonical/program lineage、proposal FormArt canonical 和 current GeometryProgram profile，再返回 registered next repair。它无 Store writer、无 Worker、无 candidate/Stage/confirm/version/export 副作用。
 
@@ -133,7 +153,7 @@ P0 使用 MCP `stdio`。Streamable HTTP、远程多租户、OAuth 和通用 MCP 
 
 Stage 0 运行合同快照：当前共有 515 Schema、111 read + 83 opt-in write = 194 tools，唯一 `in_progress` 是 `FGC-MCP010F`，统一机器入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。Mechanical pose 与 Agentic observe/plan/critic/evidence 都是只读 projection；Hero UV `hero_uv_durable_get/prepare` 的 Store→Runtime→MCP 与真实 prepare/replay/drop/reopen/get **1/1 PASS** 仅证明四个 Hero CAS roots 的 linked/GC structural lineage，不证明 artist unwrap、visual、人评、engine、commercial 或 packaged acceptance。durable session/checkpoint/RepairIntent prepare/readback 与 CAS-bound RepairIntentRun 的隔离证据见各自 receipt，它只证明受限持久化和 staged transport，不证明 orchestrator 或 Repair 应用。attempt35 仅是 provisional retained observation，它的结果为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`：camera-fit hash `354caf27…f95788` 与 reference-compare camera hash `8cd20605…a535` 为 `MISMATCH`；packaged Viewer binding 为 `PASS_CURRENT_COHORT_BOUND_READ_MODEL`，但不等于 attempt35 same-observation UI E2E。因此 source/raw/transport/build/AX smoke 只能证明对应合同或链路，不能声明视觉、人评或 packaged E2E PASS。
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 ## 2. 进程和信任边界
@@ -439,3 +459,5 @@ MCP `2026-07-28` 是另一种协议时代：它移除了 `initialize`/`notificat
 - [MCP Tasks extension](https://modelcontextprotocol.io/extensions/tasks/overview)和 Skills-over-MCP 仍需按客户端能力协商，P0 不依赖它们。
 
 MCP 规范与 Codex 已发布行为可能不同步。`FGC-MCP003` 已 pin 协议版本和配置基线，protocol adapter、认证 CLI 只读/负面回合和真实 Desktop handshake/read-only 回合已有证据；IDE、其他 MCP Client 与官方 transport conformance 仍按未来/非阻塞范围记录。不得把本地适配器或无模型回合 app-server 诊断扩大成未执行的宿主能力，也不得依赖已废弃 Roots/Sampling/Logging。
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

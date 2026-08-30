@@ -1,6 +1,92 @@
-# ForgeCAD 当前交接
+# Weaponry 当前交接
 
-> 2026-08-28 `FPS-FORM-04BE-F` 当前交接：新 read-only `production_weapon_form_art_failure_diagnostic_get` 已真实绑定 04BE-E parent/proposal GeometryProgram、CrossView 与 before/after FormArt，隔离 restart canonical=`68e838ce…6fa3`，SQLite/CAS 零变化。结论不是选择反号或继续加倍：6 个 `-Y` 顶点在 left owner mask 上无可测效果、right 只增加 9px/6‰ intrusion；rear3q void IoU 940‰ 与 rear-stock owner=0/vertical-flip 同时存在，说明 geometry negative-space 与 owner attribution 必须分开；左右 trigger contour 已被实际 gate 判为 sealed，rear3q trigger 则 observed；line-flow 另行失败。证据：`docs/evidence/mcp010f/production-weapon-form-art-failure-diagnostic-real-d1-04be-f-20260828.json`。下一原子只做 hash-bound camera/crop/Part-ID/depth/silhouette changed-pixel calibration，再决定唯一 Part/Operator 修复；当前不进 FormQualityV2/secondary/High→Low→UV→Bake。
+> 2026-08-30 `WPN-ARCH-RUNTIME-STORE-SPLIT-001` handoff：第一批真实物理纵切已完成，但整体仍 pending。Runtime Evaluation reference-comparison/visual-evidence family 已迁出 9 个实现，`lib.rs=51,603`（净减 939）；Store Delivery ApprovalLifecycle candidate/version/export family 已迁出，`lib.rs=78,865`（净减 976）；compatibility session/checkpoint/recovery family 已迁出，`agentic_write_tools.rs=16,532`（净减 142）。MCP default/compat root=`996/19,332`，Runtime root modules 仍为 92。
+> current-source truth：schemas=658，Runtime SHA-256=`893be325dbd1f057791e3cfed815b7fd2c17517379b09c9ad6df795a9ab6483c`，compat MCP SHA-256=`5a5dcd163643eb378736568178e3dca65098a552f2a52fbf0be3907a6bfe0cfd`，truth canonical=`8c77ccb9d3829553444fdd04904076cd26ad3037bc929cc464a20c015fcb0172`；Stage0 PASS，但旧 visual ledger 的 FAIL/MISSING 与 `QUALITY_TARGET_NOT_MET` 保留。
+> fresh architecture-fast cohort=`81a58a3d5c07bafbea82b80f3b9ab74f387e06b63380d5c8845199f56d217ee5`，90/0/0、188s、四 build identity 一致、无 source drift；Store full=192/192，MCP default/compat=41/41、237/237，dep-info=10/44，compat replay=131/95/226。当前原子未重跑 full Runtime；前序 554/0/37 不冒充当前 cohort，ignored current execution=0/37。
+> 仍需迁移 Evaluation 其余 37 operation、Store ReadModel/QualityEvidence、socket/anchor、recovery 与其他领域族，并继续缩小 16,532 行 compatibility 聚合。下一原子=`WPN-ARCH-RUNTIME-STORE-SPLIT-002`；`WPN-ARCH-RETIRE-001` 仍未获授权。Archify 图：`docs/architecture/weaponry-runtime-current.html`；证据：`docs/evidence/weaponry/wpn-arch-runtime-store-split-001-source-gate-20260830.json`。无 High/Low/UV/Bake/视觉/引擎/人审/商业质量晋级，未 commit/push。
+
+> 历史前序 handoff（2026-08-30）`WPN-ARCH-MCP-SPLIT-001`：active session、active manifest、共享 result adapter、compatibility Runtime handler 和 `agentic_write_tools` 测试职责已从 MCP 聚合根物理抽出。默认/compat root=`996 / 19,332` 行，`agentic_write_tools.rs=16,674`；fresh dep-info=default 10 / compat 43，默认图不含 raw compatibility registry/handler；默认与显式 compatibility 完整测试=`41/41`、`237/237` PASS，历史 manifest 仍为 131/95/226。
+> 当前源码元数据：`schema_count=658`、`schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1`、`runtime_source_sha256=085714f60445ed831809564d5324424aed9a734f7dec3c782a90876fa1c5d708`、`compat_mcp_source_sha256=5a5dcd163643eb378736568178e3dca65098a552f2a52fbf0be3907a6bfe0cfd`、`truth_canonical_sha256=2d9ac5a194f820ea176605cdb17c5c360d361a12b418451fc4ab8d88b4cc6b03`；source-only compatibility summary `cohort=null`、`131/95/226`、SHA-256=`1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca`。
+> 默认 11 façade 的 active request Schema 已 **125/125** 闭合，blocked=0，Runtime fallback=0。中央 capability maturity 仍有 `Partial`；Runtime/Store 根仍为 `52,542 / 79,841` 行、Runtime root modules=`92`，所以整体架构拆分没有完成。Store 的 `ApprovalLifecycle`、socket/anchor、ReadModel/QualityEvidence 与其余 Presentation repository 仍是 gap。
+> final architecture-fast same-cohort=`bb681a794bc9aa775c939e5c94a3308d30c3d792487e8a1eb98d32daa349bc64`，`88 passed / 0 failed / 0 ignored`、185s、`source_drift=false`；source receipt SHA-256=`1960059a21179cd7e1bcba3f19ff20343ac4a0edf744feabd563eccccd4077a9`。默认 MCP 41/41、显式 compatibility MCP 237/237 PASS；本轮未重跑 full Runtime qualification，前一完整 `554 passed / 0 failed / 37 ignored` 基线保留，37 ignored 的本 cohort execution 仍为 0。
+> 本轮无用户数据变更、无视觉或商业 promotion；没有提升 High→Low→UV→Bake、材质、FPS、引擎、人审或商业质量。下一原子严格为 `WPN-ARCH-RUNTIME-STORE-SPLIT-001 → WPN-ARCH-RETIRE-001`；不可变历史 receipts 未改写，未达到退役删除门。
+
+> 2026-08-30 `WPN-ARCH-COMPAT-001`：默认 MCP 与历史兼容实现已物理分开。fresh dep-info
+> default=6 MCP sources、compat=39；`main.rs` 20,508→1,081 行，显式 compatibility manifest
+> 仍为 131/95/226，默认/compat 测试为 22/22、230/230。当前不能宣称默认参数面完全闭合：
+> 125 active operation 只有 12 个 closed request Schema，113 个仍由 Runtime parser 校验。
+> current next=`WPN-ARCH-EVALUATION-001`；`WPN-ARCH-MCP-SCHEMA-002` 保留为 12/125 横切债务；Runtime/Store 52,854/80,878 行、Evaluation/Presentation/Delivery 旧 dispatch 与商业质量
+> 均未改变。
+
+> 2026-08-30 `WPN-ARCH-BASELINE-FAST-003`：fresh Runtime/Geometry/High/Render 四身份快速门
+> `53/0/0`、194s≤900s、cohort=`21911f161f4433ac0f40e3da5d47d0018b14fb8329eafe2792eec650fc29692f`、无 source drift；CLI/Desktop/IDE 与 Runtime timeout
+> 统一为 180s。37 ignored 已完成 inventory 分类，但 current-cohort execution=`0/37`、`NOT_PROVEN`；
+> 完整 `554/0/37` 枚举和昂贵路径保留，未被快速门替代；local receipt SHA-256=`595a42990c22efe716e390e8bbf58b168c13f18fbe7ad6004b0c85507f5e1e2c`。该快速基线随后支撑了上方
+> `WPN-ARCH-COMPAT-001` 的物理隔离；当前下一原子以最新交接为准。
+
+> 2026-08-30 `WPN-ARCH-MCP-ROUTER-001`：默认 Knife MCP 已通过中央 Contract mapping 和 typed
+> 五域 envelope 路由；compatibility path 保持独立。`runtime_status` 是中央声明的唯一 MCP-local
+> execution target，Runtime 对直接 typed 调用 fail closed。Authoring Runtime 只完成第一切片；Surface 15 个 active
+> operation 已走 direct typed `surface_service`，其 formal high-low-cage-bake 仍为中央 `Partial` mapping +
+> borrowed `SurfaceRepository` 首个 aggregate；Store `AuthoringRepository` 只承接 transaction、CurveGraph、EvaluatedMesh；其余三域和其余 record family
+> 仍待抽取。验证：Contract 4/4、Router 5/5、Store 179/179、MCP default 22/22、compat 230/230 PASS。
+> Router 收口时 Runtime full 历史快照为 536 pass / 18 fail / 37 ignored；该快照已由
+> `WPN-ARCH-BASELINE-002` 的 554/0/37 same-cohort full 结果取代；快速基线后续已由上方
+> `WPN-ARCH-BASELINE-FAST-003` 收口。本轮没有 commit、merge 或 push；
+> 保留共享脏 worktree 与所有历史 receipt。
+
+> 2026-08-29 `WPN-ARCH-BOUNDARY-001`：默认 Knife MCP 已从“构造 226 raw tools 后裁剪”改为直接构造 11 façade；当前 profile 的 124 个 backing operation 已各有唯一 façade owner。Runtime 与 Store 已建立 Authoring/Evaluation/Surface/Presentation/Delivery 五域 ownership seam，并登记真实一一映射缺口。必须明确：Runtime 52,913 行、Store 81,048 行和 MCP 20,360 行的巨型入口尚未物理拆空；历史 FPS/general 实现仍在 active 编译图。当前架构事实、后续原子与不可伪造的持久化例外见 `WEAPONRY_RUNTIME_FIVE_DOMAIN_REFACTOR_20260829.md`；Archify 目标图只表示边界方向，不替代源码迁移或商业质量证据。
+
+> 2026-08-29 `WPN-KNIFE-CURVE-001` 交接状态为
+> `done_source_durable_evaluated_mesh_structural_no_downstream_quality`：当前 manifest 为 589 个
+> schema（由 Profile 投影的 586 演进而来）；历史 MCP 基线 `218/218`、默认刀类 11 façade、显式
+> compatibility `131 read + 95 opt-in write = 226` 及旧 `KnifeCurveModifierGraph@1` replay 均保留。
+> Core evaluated-mesh 结构测试为 `17/17 PASS`，Store full 为 `169/169 PASS`，Runtime `knife_curve_`
+> 为 `6/6 PASS`（evaluated public `4/4`），MCP focused evaluated-mesh 为 `3/3 PASS`，full same-cohort
+> 为 `221/221 PASS`（cohort=`cf7ef1f47592be55fe89e0ca46098d4fb642405dd870edafa1caea39256a32ac`）。
+> 这些只证明 source/structural/durable evaluated-mesh；没有创建或晋级 durable candidate/version。
+> GLB、High、Low、UV、Bake、视觉、人审、引擎均 `NOT_RUN`，商业状态 `NOT_PROVEN`。不得改写旧
+> MCP010F receipt，也不得把 pure Core mesh 或 Store structural readback 当作商业质量。
+> EvaluatedMesh prepare 不再接受 caller-facing `curve_graph_lookup_key`；Runtime 以 source revision
+> 加 ModifierGraph/5 个 semantic hashes 唯一定位 parent，Result 报告派生 lookup；旧
+> `KnifeCurveModifierGraph@1` contract 兼容保留。sample/evaluated positions 使用固定 1nm 量化以稳定
+> canonical JSON/CAS roundtrip。
+
+> 2026-08-29 `WPN-KNIFE-PROFILE-001` 交接：默认 Codex 刀类工具面已是精确
+> 11 个 bounded façade；226 个旧路由仅在显式 compatibility profile 中重放。
+> `authoring_transaction` 新增两个 façade-only native operation，把刀脊/刃口/型面 Curve、
+> CurveProfile Modifier、DependencyGraph 和 dirty recompute plan 接通到 Runtime 唯一写者、
+> Store/CAS 和 MCP readback。它当前是 `no-mesh` 结构纵切，不能写成已完成
+> sweep/loft、High/Low/UV/Bake 或刀类商业质量。下一候选原子是
+> `WPN-KNIFE-CURVE-001`：将已取样 Curve 真正评估为有 stable lineage 的 blade profile/sweep/loft 网格。
+> 基线欠债必须单独处理：完整 MCP suite 当前 201 passed / 16 failed；本原子 focused tests
+> 全过，但不能把它写成全仓绿色。
+
+> 2026-08-29 `WPN-AUTH-001` 基座交接：`AuthoringMeshTransaction@1` 的 closed Contract、Runtime `prepare/get`、Store/CAS aggregate receipt + child revisions、幂等重放/冲突、GC reachability 和 MCP 显式 write opt-in 仍是当前基座。其 583-schema 投影已被本轮 586-schema current source 取代；旧回执未重签。Curve/ModifierGraph 的 Dependency/Recompute 已经公共持久，但真正 Modifier 几何评估和 EvaluatedMesh 仍是下一缺口。
+
+> 2026-08-29 Weaponry 交接：新权威方向见 ADR-0029、`WEAPONRY_ONE_MONTH_DELIVERY_PLAN.md` 与 `WEAPONRY_ARCHITECTURE_TOOL_SKILL_AUDIT_20260829.md`。本轮没有继续增加 subject-specific MCP tool；而是在既有 `AuthoringMesh@2` 内完成 pure in-memory 多操作事务原型，能在同一 journal 中引用前序生成元素、返回所有 immutable revisions、后序失败零部分结果并确定性重放。下一原子不是再加武器参数工具，而是把该 transaction 提升为 closed contract，接入 Runtime 单事务 Store/CAS prepare 与现有 `authoring_mesh_edit_preview/prepare`，随后建立 ordered Modifier/Evaluation Graph。当前不具备公共 Codex 调用面，质量与商业状态不变。
+
+> 2026-08-29 `FPS-PRODUCTION-04BI-HERO-UV-DURABLE` 交接：Low=`28bba154…596e` 已经由 Runtime 唯一写入 4096 Hero UV，layout=`d1778e47…f0a6` / canonical=`9db1352e…bff8` / link=`dd57a9c9…4d32`；1818 islands、0 overlap、0 OOB、32px padding、Mikk replay 和隔离重启 readback 均 PASS。该产物仅为 structural Hero UV，未通过 artist unwrap review；下一唯一生产原子是严格 zero-fallback High→Low Cage geometric bake，不能复用 AP3 self-surface bake 充当正式 Bake。
+
+> 2026-08-29 `FPS-PRODUCTION-04BH-APPEARANCE-V3` 交接：Runtime 已物化 AP3 reviewable candidate=`candidate-79ec4472262847eb9be8c70cdbd2dfbe` / artifact=`68897ddd…d91e`，23 Parts / 1868 tris / 4 MaterialZones；decal/wear/clearcoat layer stack、2K TextureBuild、批准 rear3q 九 AOV 和 Beauty=`7adfe096…0c7` 已真实回读。它不替换 Stage head；surface bake 是 self-surface only，不能冒充 High→Low Cage Bake。`QUALITY_TARGET_NOT_MET`、human=`AWAITING_USER_DECISION`、engine=`NOT_RUN`、confirm/version/export=false、commercial=`NOT_PROVEN` 保持。下一生产原子仍是 candidate-bound 4K Hero UV durable，之后才是 zero-fallback High→Low Cage geometric bake。
+
+> 2026-08-29 `FPS-PRODUCTION-04BG-ART-RENDER` 交接：首个整枪 PBR 美术候选已物化：candidate=`candidate-c83f67…04a4`、artifact=`aed91a0c…361d`、AppearanceProgram=`594a7b07…633a`、approved rear3q render set=`bc8212fe…fa28`、Beauty=`99ce1bb3…17f2`。Runtime/MCP/Geometry/Render Worker cohort 均为 `d8d61e51…f5e79`，23 Parts、4 MaterialZones、九 AOV 与 image-block readback 已闭合。下一原子应以该图做真人美术审稿，同时继续正式 whole-assembly Hero UV durable + zero-fallback geometric Bake + AppearanceProgram@3 layer stack；不得把当前 High-source appearance 预览冒充 Low 上的正式 Bake/PBR 或商业质量 PASS。
+
+> 2026-08-29 `FPS-PRODUCTION-04BF` 交接：用户已接受 `candidate-50b698…1b00` 当前 Form 作为生产迭代 High，不要求继续 04BE-V 细修。Runtime-owned source bundle=`c73271da…cd58` 已固定 High `3caa4a87…d7596` → Low `28bba154…596e`（1868→1818 tris）→ Cage `338cabf1…a1c3`，对应关系、offset field、CAS receipt、幂等 replay 和真正 Runtime restart readback 均通过。Hero UV 4096 预检结构门通过但 224 tris stretch 超限，下一原子只做 whole-assembly Hero UV durable bridge + stretch repair，随后接 2K/4K geometric Bake 与 layered PBR；不得把 structural-only 写成商业美术 PASS。
+
+> 2026-08-29 `FPS-FORM-04BE-U` 交接：用户授权的 `0.01` 偏移已落为 successor secondary review policy，不改写旧 exact 证据。同 cohort 重跑后 4/4 layered candidates 均在 bounded core-raster tradeoff 内，wide 以 score=`3.099463299661` 和 right trigger IoU=`0.637` 选为下一 Form repair 基线：candidate=`candidate-50b6981546f74bca9c2ca774ac5c1b00`，state=`b70f01f6…55c`，artifact=`3caa4a87…d7596`。这不是确认或 Stage 晋级；FormArt 的 all-view negative-space、line-flow 和 strict owner-void 仍 fail closed。下一原子应围绕该 wide candidate 关闭这三类内容门，其后才能创建 fresh FormQualityV2 并进入 Formal High。正式 Bake producer 和 artist Hero UV 仍是后续工程缺口。
+
+> 2026-08-29 `FPS-FORM-04BE-M–T` 交接：只读 target attribution 已把 `right.trigger-void` 的遮挡链从 `receiver-upper` 追到 `side-panel-a`。相机目标映射 receiver U topology 将 receiver 占用 186px→0；两 Part 组合的四个候选全部打开目标孔，IoU=`498/571/379/637‰`，其中 wide 的 aggregate score `3.087599→3.099463`，但 exact left/right silhouette no-regression 仍失败，因此只保留为未确认审稿候选历史，权威父候选不变。下一原子应围绕 wide/calibrated 的 side-view 局部轮廓收敛或真人审稿，不得解锁 appearance/UV/PBR。当前 **585 schemas / 131 read + 94 write = 225 tools**，质量仍 `QUALITY_TARGET_NOT_MET`。
+
+> 2026-08-28 `FPS-FORM-04BE-L` 交接：用户对 `receiver-upper` 的 Part 范围授权已记录在新回执，不改写 H/J/K 历史。4 个 exact box 单边 X 回撤候选均完成 strict GLB、54 AOV 与 restart exact；右侧目标孔仍全部 sealed，CrossView 全部回退，因此父候选保留。下一 `FPS-FORM-04BE-M` 只读比较 L 四个候选与父候选在 `right.trigger-void` 内的 depth winner/Part-ID/遮挡排名，不继续扩大回撤，也不改 `receiver-main/core-housing`。
+
+> 2026-08-28 `FPS-FORM-04BE-J/K` 交接：J/K 两份真实回执分别固定 4 个真孔与 4 个相机映射真孔候选；每个候选均已物化、strict readback、生成 54 AOV 并完成重启精确回读。结构孔在网格中真实存在，但 approved left target 仍 8/8 sealed，K 四个位置变体无目标响应，因此全部拒绝并保留 `candidate-6f6ddeff…cf8a`。下一原子 `FPS-FORM-04BE-L` 只增加 Runtime-owned read-only target-region depth winner/occluder attribution，禁止继续盲扫孔参数；在明确剩余遮挡者且满足顺序门之前，`receiver-upper` 仍 blocked。
+
+> 2026-08-28 `FPS-FORM-04BE-I` 交接：证据 `docs/evidence/mcp010f/production-weapon-form-art-aperture-trials-real-d1-04be-i-20260828.json` 已固定 4 个 registered `side-panel-a` 子候选的 strict GLB、六视图/54 AOV 与 Runtime restart exact readback。四者均因 `SIX_VIEW_REGRESSION + LEFT_TRIGGER_VOID_STILL_SEALED` 被拒绝，有效候选数=0，母候选 `candidate-6f6ddeff…cf8a` 保留。下一原子 `FPS-FORM-04BE-J` 不得执行 `receiver-upper`；应先将 `side-panel-a` 从整体 X 回撤升级为真实 aperture/边界拓扑响应的有界 registered 形变族，再重跑同一选择门。
+
+> 2026-08-28 `FPS-FORM-04BE-H` 交接：证据 `docs/evidence/mcp010f/production-weapon-form-art-aperture-repair-plan-real-d1-04be-h-20260828.json` 已 PASS。计划 canonical=`fe7c8ecf…680b61`，第 1 步只允许 `side-panel-a` 的 4 个 X 边界回撤变体；第 2 步 `receiver-upper` 必须等第 1 步获得 `RETAINED_SIX_VIEW_NON_REGRESSING_APERTURE_RESPONSE` 才可开始。下一原子 `FPS-FORM-04BE-I` 不得同时试两个 Part，不得修改 `receiver-main/core-housing`，不得跳过 54 AOV/六视图不回退选择门。
+
+> 2026-08-28 `FPS-FORM-04BE-G` 当前交接：read-only `production_weapon_form_art_visibility_calibration_get` 已用 04BE-E exact before/after GLB、批准 left/right/rear3q camera 与同一 reviewed masks 重放 triangle winner、depth、Part-ID、silhouette。隔离 restart canonical=`3d3cd762…e7196`，SQLite/CAS 零变化。left trigger void 238px 全被占用，主源=`side-panel-a` 175px；right 257px 全被占用，主源=`receiver-upper` 186px；两孔内旧 rear-stock repair 的四类 delta 全为 0。证据：`docs/evidence/mcp010f/production-weapon-form-art-visibility-calibration-real-d1-04be-g-20260828.json`。下一原子 `FPS-FORM-04BE-H` 只做同时绑定两个视图/两个源的 typed repair plan，禁止继续改 rear-stock，也不进入 FormQualityV2/secondary/High→Low→UV→Bake。
 
 > 2026-08-28 `FPS-FORM-04BE-E` 当前交接：registered profile=`registered-boundary-bridge-half-y-flat-z-owner-void@1` 已通过 composite Runtime seam 只改变 rear-stock 五站中 6 个非端点 inner-boundary vertices，保留 trigger aperture、rear-stock endpoints、lower beam、rear cap 和其余 Parts；候选、54 AOV、CrossView/FormArt 与 restart hash 已真实落库。该尝试没有改善关键门：left overlap 538‰ 不变、right 579‰、rear3q owner pixels/adjacency=0，left/right trigger void 仍 sealed，line-flow 仍未全 observed。证据：`docs/evidence/mcp010f/production-weapon-form-art-repair-execution-real-d1-04be-e-20260828.json`。下一步不能继续把负 Y 幅度加倍；需先用 exact AOV 证明 source-local axis 与 reviewed void 边界的正确关系，并隔离 rear3q attribution/side trigger visibility 问题。FormQualityV2、secondary 和正式生产链继续关闭。
 
@@ -546,7 +632,7 @@ Reference Visual Structure source receipt：`docs/evidence/mcp010f/reference-vis
 
 Agentic 交接：`scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 仍为 Runtime-owned read-only projection；`session_create_or_resume`、`checkpoint_prepare`、`checkpoint_restore_prepare` 是受批准的 durable prepare，`session_get`、`checkpoint_get` 是只读 readback。`scripts/probe_agentic_runtime.py` 先读取 `ponytail-preflight@0.1.0`，再验证空 reference fail closed、blocked actions、project binding、SQLite/CAS 重启读回和无用户持久数据触碰；`scripts/check_agentic_runtime_receipt.py` 校验 durable 公开合同；`scripts/check_agentic_projection_receipt.py` 校验真实 Runtime 的 scene/stage 嵌套只读 projection producer/consumer conformance。当前 `AgenticSceneObserveResult@1` 仍是 source transport envelope，durable/reference/DesignSpec 完整 producer、单动作 orchestrator 和 Repair 应用仍未完成。证据：`docs/evidence/mcp010f/agentic-runtime-observe-plan-20260813.json`、`docs/evidence/mcp010f/agentic-runtime-projection-conformance-20260813.json` 与 `docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json`。
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 本轮轮廓优先修正已完成 source/真实 Codex transport 验证：Runtime 自动 mask→contour 改为有向栅格边界追踪，最大外环重建回归 IoU > 0.94；有 15 个 intake landmarks 的同 cohort receipt `docs/evidence/mcp010f/real-codex-cli-landmark-aware-20260813.json` 已完成 target/camera/Rig/fit/compare/九 AOV/review/quality，但最终 IoU 0.685417、boundary F1 0.272115、landmark coverage 0.666667、NME 0.134407，与 attempt35 provisional observation 对照更低，仍 `QUALITY_TARGET_NOT_MET`。它证明地标已经进入 Runtime 的有界排序输入，不解锁材质、confirm/export、人评或 360。
 
@@ -742,3 +828,82 @@ npm run release:license-sbom
 > 2026-08-27 `FPS-FORM-04AN`：不改变商业生产路线，已把 fresh FormArt baseline 的写入安全补到可编译同 cohort Gate。当前源码 cohort=`04e977f19fae250c4659ab629ba63b8835a99e0fdc811367be069672160f44eb`（1187 inputs），隔离构建的 MCP/Runtime/Geometry Worker/Render Worker 四者自报哈希完全一致；Runtime 在渲染前、六视图后及 Store commit transaction 内三次钉住 candidate/project/state/artifact/base-version，并验证 RenderSet/Comparison/Quality 的 parent candidate/artifact；同一 lineage/candidate/artifact 只允许一个 baseline。prepare 工具现在明确 `approvalRequired/requiresConfirmation=true`，preflight Schema 同时覆盖 ready=true 与 blocked 分支。启动恢复只保守 quarantine 超过一小时且未 reservation、未 durable link 的 FormArt parent/view receipt metadata，不删除 CAS bytes；generic derived temporary objects 尚无 owner tag，保持明确限制。真实 D1 仍未写：必须先获得精确方向批准；Stage=`camera-calibrated`、secondary=`NOT_CREATED`、quality=`QUALITY_TARGET_NOT_MET`、confirm/version/export 均未发生。证据：`docs/evidence/mcp010f/production-weapon-form-art-baseline-write-safety-cohort-gate-04an-20260827.json`。
 
 2026-08-27 foundation importer handoff：`weapon_foundation_asset_prepare/get` 已接入 Runtime/Store/MCP。仅三个固定内嵌 GLB 可执行，其他 foundation pack 条目仍为 reference-only；MCP 不接受路径、URL、bytes 或脚本。真实 source readback 结果为 Pichuliru west `8045 vertices / 4352 sanitized triangles / 1 dropped / 6 sockets / 19 bones`，WRAD arms `872 / 1196 / 0 / 2 / 50`，Lightning `2332 / 3042 / 4 / 0 / 7 / 2 clips`。Runtime 首次 prepare、同请求 replay、get hash revalidation 已通过。下一原子不是直接批量生成 Hero 武器，而是按语义 Part 把 compact topology 分块物化为 AuthoringMeshV2 genesis，并对 WRAD/Lightning 坐标方向做人工确认；在此之前必须保持 `AUTHORING_MESH_MATERIALIZATION_PENDING / DRAFT_UNREVIEWED / structural_only / NOT_PROVEN`。
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+# 2026-08-30 — WPN-ARCH-COMPAT-001 handoff
+
+- 默认 `forgecad-mcp` 与显式 `forgecad-mcp-compat` 已成为两个 Cargo binary；后者由
+  `legacy-compatibility-registry` feature 启用，默认二进制不再声明或编译旧 handlers/raw registry。
+- fresh dep-info 结构 Gate：default=6 MCP sources，compat=39；默认 `main.rs` 20,508→1,081 行；
+  `compat_main.rs`=20,513、`agentic_write_tools.rs`=22,800，后两者仍是 compatibility 内部债务。
+- 默认 MCP 22/22、显式 compat 230/230、兼容 manifest 131 read / 95 write / 226 total 均 PASS；
+  doctor/runtime_status、本地 supervisor 状态投影和 1 MiB/8 MiB response budget 已保留。
+- 第一性原理缺口：11 façade 下有 125 个 active operation，但仅 12 个 MCP request Schema closed，
+  113 个仍靠 Runtime parser；该横切债务仍需闭合，但 Surface 切片已完成，当前 successor next=`WPN-ARCH-EVALUATION-001`。
+- Runtime/Store 根当前为 52,854/80,878 行，Surface 已 direct typed、其余三域仍 legacy dispatch；商业质量状态不变；没有 commit/push，
+  没有改写历史 receipt，也没有在共享脏 worktree 中批量删除。
+
+# 2026-08-30 — WPN-ARCH-MCP-ROUTER-001 handoff
+
+- 默认 Knife MCP 已通过中央 Contract mapping 和 typed 五域 envelope 路由；compatibility path 保持独立。
+- `runtime_status` 是中央声明的唯一 MCP-local execution target；Runtime 对直接 typed 调用 fail closed。
+- Authoring Runtime 仅完成第一切片，Store `AuthoringRepository` 仅承接 transaction、CurveGraph、
+  EvaluatedMesh；其余四域和其余 record family 仍待抽取。
+- 验证：Contract 4/4、Router 5/5、Store 179/179、MCP default 22/22、compat 230/230 PASS。
+- Router 收口时 Runtime full 历史快照为 536 pass / 18 fail / 37 ignored；该快照已由下方
+  `WPN-ARCH-BASELINE-002` 的 554/0/37 same-cohort full 结果取代。
+- 本轮没有 commit、merge 或 push；保留共享脏 worktree 与所有历史 receipt。
+
+# 2026-08-30 — WPN-ARCH-BASELINE-002 handoff
+
+- fresh-target harness 现在同时构建并校验 Runtime、Geometry Worker、High Worker、Render Worker，运行前后都核对 source cohort；不再允许旧 target 混入。
+- timeout、art-decision、composite-delta 三项基线债务已清；后续暴露的 High Worker 可达性和 Authoring topology/identity 合同问题已修复，没有跳过测试或放宽 Worker 硬门。
+- 最终 cohort=`a6f28cdef0528decbab7cee341f2b3ae4c06cd1adb522a86c9de63d416ef9ff9`；Runtime full=`554 passed / 0 failed / 37 ignored`（591 total）；libtest=`10022.89s`，harness 总耗时=`10147.37s`；source drift=无。
+- 当前 receipt：`docs/evidence/weaponry/wpn-arch-baseline-002-same-cohort-runtime-full-gate-20260830.json`。
+- current next=`WPN-ARCH-EVALUATION-001`：抽取 ReadModel/QualityEvidence/Job service/repository；active request Schema 12/125 继续作为 `WPN-ARCH-MCP-SCHEMA-002` 横切债务，不得丢失或伪报闭合。
+- 必须继续直言：Runtime/Store/MCP 根当前为 52,854 / 80,878 / 1,081 行（compat `main.rs`=20,513）；Surface 已 direct typed，
+  Evaluation/Presentation/Delivery 仍走旧 dispatch；旧 handlers 仍在显式 compatibility 编译图。
+- 本轮没有提升 High→Low→UV→Bake、视觉、引擎、人审或商业质量；没有 commit、merge 或 push，历史 receipt 未改写。
+
+# 2026-08-30 — WPN-ARCH-SURFACE-001 handoff
+
+- `surface_pipeline` current active profile 固定为 15 个 operation（8 read / 7 write），由 Runtime
+  `surface_service` direct typed dispatch；`production_weapon_retopology_cage_source_bundle_prepare/get`
+  是 compatibility-only alias，不计入 active profile。
+- Contract capability `formal_high_low_cage_bake` 为 `Partial`；首个物理 Store seam 是借用 `&Store` 的
+  `SurfaceRepository`，只包 formal High/Low/Cage/Bake aggregate，未复制 SQLite、migration owner 或 CAS root。
+- 新 bake materialization producer unavailable；formal `prepare` 只能 exact replay/readback。Evaluation、Presentation、
+  Delivery 仍 legacy `dispatch_ipc`，Surface repository extraction 只完成首个 aggregate，不能写成五域迁移完成。
+- 当前 root budget：Runtime `lib.rs`=52,854、Store `lib.rs`=80,878、MCP `main.rs`=1,081、Runtime root
+  modules=92；active schema=12/125（Runtime-validated=113）。MCP default=22/22、compatibility=230/230。
+- 同 cohort architecture-fast target=`/tmp/weaponry-arch-surface-001-final`、
+  `21911f161f4433ac0f40e3da5d47d0018b14fb8329eafe2792eec650fc29692f`，`53/0/0`、194s；local receipt
+  SHA-256=`595a42990c22efe716e390e8bbf58b168c13f18fbe7ad6004b0c85507f5e1e2c`。
+  未触碰用户数据，无视觉或商业 promotion，历史 receipts 不改写。
+- 下一原子固定为 `WPN-ARCH-EVALUATION-001`；随后依次 Presentation、Delivery。Schema 12/125 仍须在 compatibility 退役前闭合。
+
+# 2026-08-30 — WPN-ARCH-EVALUATION-001 handoff
+
+- Evaluation active profile 为 **41 个 operation = 30 read / 11 write**：`observe=10`、`quality_review=23`、`job=8`；全部经 `evaluation_service` direct typed service。Runtime Router 与 compatibility bridge 分别为 `RuntimeOperationRouter → evaluation_service::invoke` 与 `Runtime::dispatch_ipc → evaluation_service::invoke`，`legacy_active_match_arms_remaining=0`，无 service→`dispatch_ipc` re-entry。
+- command/query correction：`authoring_mesh_transaction_prepare`、`authoring_mesh_v2_durable_prepare` 归 `authoring_transaction/Authoring`；对应 `get` 归 `observe/Evaluation projection`。MCP 同时检查 capability façade 与 domain，结果为 `PASS_NO_RUNTIME_DOMAIN_MISMATCH`。
+- Job 使用借用的 `EvaluationRepository<'store>/JobRepository<'store>`，不拥有 connection、migration sequence 或独立 CAS root；Job SQL 不回到 Store root，single migration owner 保持。剩余 Evaluation aggregates 为 `ReadModel`、`QualityEvidence`。
+- 当前根预算为 Runtime `52,638`、Store `80,329`、MCP `main.rs=1,081` 行；active request Schema=`12/125`（Runtime-validated=113），Evaluation closed request Schema=`1/41`。Schema closure 继续作为 `WPN-ARCH-MCP-SCHEMA-002` 横切债务。
+- same-cohort architecture-fast receipt：cohort=`81eca9cbfd5cb5d2428fa46f8491c423076f881aba258e6be8b4d4d652c711ff`，`65 passed / 0 failed / 0 ignored`，耗时 `166s≤900s`，receipt SHA-256=`11b8022bc1965745997c923b34792f794d885ca9da19177a567f5453fb8dfedc`，source drift=false；MCP default/feature focused 各 `23/23` PASS。
+- 本轮没有用户数据变更、visual/commercial promotion 或下游质量晋级。历史 receipts（尤其 Surface 前序 receipt）不改写、不重签；下一原子为 `WPN-ARCH-PRESENTATION-001`，随后为 `WPN-ARCH-DELIVERY-001`。
+
+# 2026-08-30 — WPN-ARCH-MCP-SCHEMA-002 partial handoff
+
+- 默认 Knife MCP 已在 façade unwrap 后、preflight/router 前执行 package-owned closed request Schema 校验；支持 transitive `$ref` 与 3 个显式 alias，不复制 Runtime parser。
+- 当前 active profile 为 125 operations：65 direct package schemas + 3 aliases = **68 executable**；其余 **57** 在进入 Runtime 前 fail-closed，Runtime fallback=0。Delivery=6/6、Approval=5/5；Job=0/8，是下一批最高优先级。
+- contracts manifest 为 601 schemas；compatibility source-only 仍为 131 read / 95 write / 226 total，历史 receipts 未改写。default/compat fresh dep-info 为 7/40 个 MCP crate source files。
+- same-cohort architecture-fast=`f36bc443dcc2c96b01bdc95e3429c0241bcdbec931091691563f7e72006e1fb0`，13 steps、`86/0/0`、172s、source drift=false，local receipt SHA-256=`9dca7ffe479c9ef779e677b4fdb4f237d01ab3e2e7b02e967b381299dfd5490a`。
+- Archify 当前图为 `docs/weaponry-runtime-architecture-overview.html`，9/9 showcase、0 error/warning、四档明暗视口 containment 与人工截图检查 PASS。
+- 本原子状态仍是 `PARTIAL_SCHEMA_CLOSURE`；先闭合剩余 57 项，再开始 MCP physical split。Runtime/Store 根仍为 52,542 / 79,841 行，本轮没有视觉或商业质量晋级。
+
+# 2026-08-30 — final combined architecture handoff（WPN-ARCH-MCP-SCHEMA-002 前序快照）
+
+- Authoring、Evaluation、Surface、Presentation、Delivery 五域均已完成 direct typed Router/service 接线；这只表示当前路由边界闭合，物理抽取仍是 partial。Runtime/Store/MCP root final snapshot 为 `52,542 / 79,841 / 1,081` 行，MCP `agentic_write_tools.rs=22,800`，Runtime root modules=`92`。
+- Delivery active profile 精确为 **11 operations = 4 read / 7 write**；中央 9 个 capability mapping 均为 `Partial`，只有 `version_diff` request schema closed（Delivery closure=`1/11`）。Store 新增 `GameAssetDeliveryLinkRecord` borrowed repository；`ApprovalLifecycle`、game weapon `socket/anchor`、`ReadModel/QualityEvidence` 和其余 Presentation repository 仍未抽取。
+- 226 legacy registry 已 feature 隔离，但大量 compatibility handler 仍编译；active request Schema 仍为 **12/125**（Runtime-validated=113）。
+- 最终 architecture-fast same-cohort=`641a87b74c6ac1f28c5db25efadb52125f04624ee36ce1600f08ffdb43ccfbad`，`82 passed / 0 failed / 0 ignored`、190s、`source_drift=false`，local receipt SHA-256=`193bc2b523e2c6b225a775bb786875e52ea7b865fe928062103e0b250c576cb1`。本轮未重跑 full Runtime qualification，前一完整 `554 passed / 0 failed / 37 ignored` 基线保留。
+- 本轮没有用户数据变更或架构之外的质量晋级；High→Low→UV→Bake、视觉、引擎、人审和商业质量均未提升。下一原子严格为 `WPN-ARCH-MCP-SCHEMA-002 → WPN-ARCH-MCP-SPLIT-001 → WPN-ARCH-RETIRE-001`；不改写 Stage0 truth/hash 或历史 receipts。

@@ -1,5 +1,7 @@
 # Codex Ponytail 前置设计流程
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-26 商业 preflight 补充：每次设计必须先声明 `goal_object`、当前 `ProductionStage`、目标 typed artifact、固定 candidate/reference/camera hash、promotion policy 和所需 human/engine gate。用户要求“跳过当前阶段”只允许 `preview_only=true`，不得把后序预览写成前序批准或自动 promotion。
 
 > 2026-08-25 当前 Native High 前置判定：public MCP source/focused 与同 cohort Runtime restart **1/1 PASS**，但 packaged/candidate quality Gate 未通过，所以 preflight 仍必须返回“不可用于商业 High 阶段推进”，不得跳过 FormQuality 或激活 proposal。

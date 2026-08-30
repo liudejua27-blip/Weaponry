@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/version-list-request.schema.json",
+  "title": "VersionListRequest",
+  "type": "object",
+  "properties": {
+    "project_id": {"type": "string"}
+  },
+  "additionalProperties": false
+}

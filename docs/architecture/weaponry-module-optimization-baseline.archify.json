@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Weaponry 刀类模块优化基线",
+    "locale": "zh-CN",
+    "output": "weaponry-module-optimization-baseline.html",
+    "quality_profile": "showcase",
+    "viewBox": [1390, 820],
+    "views": [
+      {
+        "id": "active-path",
+        "label": "默认刀类主路径",
+        "focus": ["codex", "mcp", "contracts", "router", "domains", "store"],
+        "note": "默认 Action Space 已收敛为 11 façade，写入仍只经过 Runtime 与 Store/CAS。"
+      },
+      {
+        "id": "compute-path",
+        "label": "受限计算路径",
+        "focus": ["router", "domains", "workers", "store"],
+        "note": "Worker 只执行 typed one-shot 协议，结果回到 Runtime 校验后再决定是否持久化。"
+      },
+      {
+        "id": "regression-gates",
+        "label": "分层回归门",
+        "focus": ["fast_gate", "full_gate", "contracts", "router", "domains", "workers"],
+        "note": "171 秒快速门负责架构回归，约 2 小时 49 分的完整门继续负责高成本 qualification。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "codex",
+      "type": "external",
+      "label": "Codex",
+      "sublabel": "规划 · 视觉 · 编排",
+      "pos": [20, 300],
+      "size": [160, 76]
+    },
+    {
+      "id": "mcp",
+      "type": "frontend",
+      "label": "forgecad-mcp",
+      "sublabel": "默认 11 façade · 兼容面默认关闭",
+      "tag": "20,508 行 main.rs",
+      "pos": [240, 300],
+      "size": [190, 76]
+    },
+    {
+      "id": "contracts",
+      "type": "security",
+      "label": "Contracts 中央映射",
+      "sublabel": "façade → domain → execution target",
+      "tag": "589 schemas",
+      "pos": [520, 110],
+      "size": [210, 82]
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "Runtime typed Router",
+      "sublabel": "未知与跨域调用先于写入 fail closed",
+      "pos": [520, 300],
+      "size": [210, 82]
+    },
+    {
+      "id": "domains",
+      "type": "backend",
+      "label": "五个领域服务边界",
+      "sublabel": "建模 · 评估 · 表面 · FPS · 交付",
+      "tag": "仅 Authoring 第一切片直连",
+      "pos": [800, 300],
+      "size": [250, 88]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Store + CAS",
+      "sublabel": "SQLite · CAS · reachability",
+      "tag": "81,050 行 lib.rs",
+      "pos": [1120, 150],
+      "size": [220, 84]
+    },
+    {
+      "id": "workers",
+      "type": "messagebus",
+      "label": "受限 Workers",
+      "sublabel": "typed one-shot · G / H / R",
+      "tag": "same-cohort identities",
+      "pos": [1120, 300],
+      "size": [220, 80]
+    },
+    {
+      "id": "viewer",
+      "type": "frontend",
+      "label": "Viewer / Delivery projection",
+      "sublabel": "只读模型与临时视图状态",
+      "pos": [1120, 520],
+      "size": [220, 76]
+    },
+    {
+      "id": "fast_gate",
+      "type": "security",
+      "label": "Architecture Fast Gate",
+      "sublabel": "47 passed · 0 failed · 171s",
+      "tag": "≤ 1200s",
+      "pos": [240, 620],
+      "size": [230, 80]
+    },
+    {
+      "id": "full_gate",
+      "type": "security",
+      "label": "Full Qualification Gate",
+      "sublabel": "554 passed · 0 failed · 37 classified ignored",
+      "tag": "约 10147s",
+      "pos": [900, 620],
+      "size": [270, 80]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Runtime 唯一写者边界",
+      "wraps": ["router", "domains", "store", "workers"]
+    },
+    {
+      "kind": "security-group",
+      "label": "回归与 qualification 证据边界",
+      "wraps": ["fast_gate", "full_gate"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "codex-to-mcp",
+      "from": "codex",
+      "to": "mcp",
+      "label": "MCP stdio",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mcp-to-contracts",
+      "from": "mcp",
+      "to": "contracts",
+      "label": "闭合 profile 校验",
+      "variant": "security"
+    },
+    {
+      "id": "contracts-to-router",
+      "from": "contracts",
+      "to": "router",
+      "variant": "security"
+    },
+    {
+      "id": "mcp-to-router",
+      "from": "mcp",
+      "to": "router",
+      "label": "typed envelope",
+      "labelDy": 50,
+      "variant": "emphasis"
+    },
+    {
+      "id": "router-to-domains",
+      "from": "router",
+      "to": "domains",
+      "label": "domain invoke",
+      "variant": "emphasis"
+    },
+    {
+      "id": "domains-to-store",
+      "from": "domains",
+      "to": "store",
+      "label": "repository / projection"
+    },
+    {
+      "id": "domains-to-workers",
+      "from": "domains",
+      "to": "workers",
+      "variant": "dashed"
+    },
+    {
+      "id": "domains-to-viewer",
+      "from": "domains",
+      "to": "viewer",
+      "label": "read model",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "本轮已升级",
+      "items": [
+        "CLI / Desktop / IDE 与 Runtime 统一为 180 秒 timeout",
+        "fresh-target 四身份快速门 47/0，171 秒",
+        "37 个 ignored 按 owner 与执行 lane 机器可检查"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "仍未物理完成",
+      "items": [
+        "Runtime 52,927 行；Store 81,050 行；MCP 20,508 行",
+        "Evaluation / Surface / Presentation / Delivery 仍回落旧 dispatch",
+        "旧 handler 仍参与默认编译，兼容面尚未迁出独立 crate"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "后续依赖顺序",
+      "items": [
+        "Surface aggregate：High / Low / UV / Cage / Bake",
+        "Evaluation：ReadModel / QualityEvidence / Job",
+        "Presentation → Delivery → MCP split → compatibility retirement"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "不可越权结论",
+      "items": [
+        "结构 Gate 不证明刀类 High→Low→UV→Bake 成熟",
+        "未新增视觉、人审、引擎或商业质量 PASS",
+        "删除必须先满足 replacement、replay、consumer-zero 与 recovery"
+      ]
+    }
+  ]
+}

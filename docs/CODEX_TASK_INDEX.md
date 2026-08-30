@@ -1,6 +1,74 @@
 # ForgeCAD 当前原子任务索引
 
-> 2026-08-28 当前原子：`FPS-FORM-04BE-F` 已完成 exact rejected-repair 的 Runtime-owned read-only failure diagnostic，真实 D1 两次隔离启动返回同一 canonical=`68e838ce…6fa3`，SQLite 业务行与 CAS inventory 前后完全相同。诊断精确绑定 04BE-E 的 6 个 source-local `-Y` 顶点、CrossView=`64eb80b5…43ea`、before FormArt=`e1240c5f…47e` 与 after FormArt=`0af3ded0…5bff`：left owner bbox/overlap 零变化且 boundary F1 回退 `-0.009613698071`，right owner region `+9px`/overlap `+6‰`，rear3q void IoU=`940‰` 但 owner region=`0`、ranked transform=`vertical-flip`；left/right trigger void 均 sealed，而 rear3q trigger void observed；line-flow 是独立未闭合门。公共面现为 **579 schemas / 128 read + 94 opt-in write = 222 tools**。该结果不授权新 geometry profile；下一原子 `FPS-FORM-04BE-G` 只做 hash-bound owner-attribution + side-aperture visibility calibration，禁止 secondary、High→Low→UV→Bake、confirm、version 或 export。
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+> **ADR-0030 knife-first override:** 当前十天交付只针对刀类；下表替代一般武器 successor
+> queue。历史 FGC/FPS 状态保持原义，不再抢占刀类队列。
+
+> 2026-08-30 final architecture source metadata：`schema_count=658`、`schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1`、`runtime_source_sha256=893be325dbd1f057791e3cfed815b7fd2c17517379b09c9ad6df795a9ab6483c`、`compat_mcp_source_sha256=5a5dcd163643eb378736568178e3dca65098a552f2a52fbf0be3907a6bfe0cfd`、`truth_canonical_sha256=8c77ccb9d3829553444fdd04904076cd26ad3037bc929cc464a20c015fcb0172`；source-only compatibility summary `cohort=null`、`131/95/226`、SHA-256=`1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca`。
+
+## 当前 successor queue
+
+| Task | Status | Scope |
+| --- | --- | --- |
+| `WPN-DOC-001` | `done` | 原 Weaponry 文档覆盖与 current-source truth 重建；历史 evidence 保持不变 |
+| `WPN-AUTH-001` | `done_source_structural` | 多操作 Authoring transaction closed contract + Runtime/Store/CAS/MCP；视觉质量未推导 |
+| `WPN-KNIFE-DOC-000` | `done` | ADR-0030、十天刀类 DoD、混合原型与 Tool profile 边界；126/126 docs Gate PASS |
+| `WPN-KNIFE-PROFILE-001` | `done_focused_source_structural_broad_mcp_red` | 默认 11 façade + 显式 226-tool compatibility replay；Curve/ModifierGraph durable no-mesh；full MCP 201/16 |
+| `WPN-KNIFE-CURVE-001` | `done_source_durable_evaluated_mesh_structural_no_downstream_quality` | Core evaluated-mesh `17/17 PASS`；Store full `169/169 PASS`；Runtime `knife_curve_` `6/6 PASS`（evaluated public `4/4`）；MCP full same-cohort `221/221 PASS`（evaluated `3/3`）。只证明 source/structural/durable evaluated-mesh；GLB/High/Low/UV/Bake/visual/human/engine `NOT_RUN`，commercial `NOT_PROVEN`；不创建或晋级 durable candidate/version |
+| `WPN-ARCH-MCP-ROUTER-001` | `done_source_router_authoring_first_slice` | 中央五域 map、typed Runtime/IPC Router、MCP default route、MCP-local target、Authoring service seam、三类 Store repository；后续五域 direct typed service 已接线；Runtime full 仍保留历史基线 |
+| `WPN-ARCH-BASELINE-002` | `done_same_cohort_runtime_full_pass` | fresh Runtime/Geometry/High/Render 四身份；cohort=`a6f28c…ff9`；Runtime full `554/0/37`，591 total，10147.37s，测试前后无 source drift |
+| `WPN-ARCH-BASELINE-FAST-003` | `done_same_cohort_architecture_fast_pass` | 四身份 fresh cohort=`21911f161f4433ac0f40e3da5d47d0018b14fb8329eafe2792eec650fc29692f`；Contract/Store/Runtime/MCP 53/0/0、194s≤900s；37 ignored inventory 闭合但 execution 0/37、NOT_PROVEN；完整 554/0/37 昂贵路径保留 |
+| `WPN-ARCH-COMPAT-001` | `done_source_physical_binary_isolation` | 默认 MCP fresh dep-info=7 源、显式 compat=40 源；`main.rs` 20,508→1,081 行；compat replay 131/95/226 保持 |
+| `WPN-ARCH-EVALUATION-001` | `done_source_direct_typed_borrowed_job_partial` | Evaluation 41 active（30R/11W）direct typed；Job/Event/Checkpoint borrowed repository；保持 Runtime 单写者、单 migration/CAS owner 与 compatibility replay；ReadModel/QualityEvidence 仍未抽取；Evaluation closed request schema=1/41 |
+| `WPN-ARCH-PRESENTATION-001` | `done_source_direct_typed_service_partial` | Presentation `fps_presentation` direct typed service/router；FPS package/clip/anchor/socket record family 仍仅部分物理抽取，视觉/引擎/人审不晋级 |
+| `WPN-ARCH-DELIVERY-001` | `done_source_direct_typed_service_game_asset_delivery_partial` | Delivery 6 + Approval 5 active；两 façade request Schema 现已 11/11 闭合，但 capability maturity 仍为 `Partial`；Store 新增 `GameAssetDeliveryLinkRecord` borrowed repository；ApprovalLifecycle、socket/anchor 等仍未抽取 |
+| `WPN-ARCH-SURFACE-001` | `done_source_surface_service_repository_partial` | Surface active 15（8R/7W）direct typed service；formal high-low-cage-bake central `Partial` mapping + borrowed `SurfaceRepository` 首个 aggregate；新 bake materialization producer unavailable；五域物理抽取仍 partial，Surface request closure 12/15，未作视觉/商业 promotion |
+| `WPN-ARCH-MCP-SCHEMA-002` | `done_closed_125_of_125` | package-owned closed request schema=125/125；blocked=0；Runtime fallback=0；`minProperties/maxProperties` validator 语义已补齐 |
+| `WPN-ARCH-MCP-SPLIT-001` | `done_source_physical_split_replay_pass` | Session/manifest/result adapter 已拆出并接线；compat Runtime handler 969 行已独立；`agentic_write_tools.rs` 22,800→16,674（测试 6,102 行独立）；default/compat=41/41、237/237 PASS |
+| `WPN-ARCH-RUNTIME-STORE-SPLIT-001` | `done_source_physical_batch_001_overall_pending` | Runtime Evaluation family 真实迁出，根净减 939；Store ApprovalLifecycle family 真实迁出，根净减 976；compat session/recovery family 净减 142；migration/CAS/replay 保持 |
+| `WPN-ARCH-RUNTIME-STORE-SPLIT-002` | `queued_next` | 继续迁出 Evaluation 其余 37 operation 与 Store ReadModel/QualityEvidence、socket/anchor、recovery 等领域族；每批必须根净降并保持单 migration/CAS owner |
+| `WPN-ARCH-RETIRE-001` | `queued_after_runtime_store_split_002_and_retirement_gates` | 仅在 replacement、compatibility replay、consumer-zero、migration/CAS/recovery 与脏 worktree deletion gate 全部通过后退役历史模块 |
+| `WPN-MOD-001` | `pending_general_modifier_evaluation` | CurveProfile 的 bounded blade sweep/loft 已产生 EvaluatedMesh；通用 Modifier stack 几何评估仍未实现 |
+| `WPN-KNIFE-HIGH-001` | `pending` | 刀类 High 与 bounded sculpt-like detail；可用隔离 Blender prototype |
+| `WPN-KNIFE-LOW-001` | `pending` | artist-editable Low/retopo correspondence |
+| `WPN-KNIFE-UVBAKE-001` | `pending` | Hero UV、Cage、normal/AO/curvature/thickness/ID bake diagnostics |
+| `WPN-KNIFE-MAT-001` | `pending` | 刀刃/护手/握柄 Material Layer Graph 与 wear |
+| `WPN-KNIFE-FPS-001` | `pending` | first-person idle/inspect/slash/stab、socket 与九 AOV |
+| `WPN-KNIFE-ENGINE-001` | `pending` | LOD/collision/export/目标引擎真实验证 |
+| `WPN-KNIFE-ACCEPT-001` | `pending` | 授权刀类 + original control 的同 cohort 独立美术验收 |
+
+当前 cohort 已从最终编译源重建，`WPN-KNIFE-PROFILE-001` 以无网格结构纵切收口。
+`WPN-KNIFE-CURVE-001` 已完成 `done_source_durable_evaluated_mesh_structural_no_downstream_quality`：
+Core evaluated-mesh `17/17 PASS`，Store full `169/169 PASS`，Runtime `knife_curve_` `6/6 PASS`
+（evaluated public `4/4`），MCP full same-cohort `221/221 PASS`（evaluated `3/3`）。这只证明
+source/structural/durable evaluated-mesh，不创建或晋级 durable candidate/version；GLB/High/Low/UV/Bake/
+visual/human/engine=`NOT_RUN`，commercial=`NOT_PROVEN`。旧 `KnifeCurveModifierGraph@1` compatibility replay、
+218/218 历史 MCP 基线、默认 11 façade、显式 226 compatibility 与 586→589 contract 演进均保留。
+本文件以下的 FGC-MCP/FPS-FORM/FPS-PRODUCTION
+任务继续作为历史完成状态和回归依赖，不能再被解释为当前产品主线。
+
+> `FPS-PRODUCTION-04BI-HERO-UV-DURABLE`：`done_source_structural_restart_verified_non_promoting`。Runtime 已将 whole-assembly Low 物化为 4096 Hero UV durable，layout/link/replay/restart 和 UV/Mikk 结构门通过；artist unwrap review=`NOT_RUN`。下一唯一 `in_progress` 为 strict zero-fallback High→Low Cage geometric bake，AP3 self-surface bake 不得替代它。
+
+> `FPS-PRODUCTION-04BH-APPEARANCE-V3`：`done_reviewable_high_source_ap3_non_promoting`。Runtime 已生成 `AppearanceProgram@3` + decal/wear/clearcoat + 2K TextureBuild + approved-camera 九 AOV 的 reviewable derived candidate；self-surface bake 不等于 High→Low Cage Bake，human/engine/confirm/version/export 未运行，`QUALITY_TARGET_NOT_MET / commercial=NOT_PROVEN` 保持。生产下一原子为 candidate-bound 4K Hero UV durable。
+
+> 2026-08-29 当前美术渲染原子 `FPS-PRODUCTION-04BG-ART-RENDER` 已完成 `done_reviewable_high_source_pbr_nine_aov_non_promoting`：PBR candidate=`candidate-c83f67…04a4`，approved rear3q Beauty=`99ce1bb3…17f2`，九 AOV/strict readback/image-block 回读 PASS。它没有替代 `FPS-PRODUCTION-04BF-UV`：正式 Low 上 Hero UV durable、zero-fallback High→Low Bake 和 AppearanceProgram@3 layer stack 仍为下一生产原子；human/engine/confirm/version/export 继续未运行。
+
+> 2026-08-29 当前原子切换为 `FPS-PRODUCTION-04BF`：用户已停止 04BE-V Form 细修并授权从 wide candidate 进入 High→Low→UV→Bake/PBR。High→Low/Cage 整枪 durable source bundle 已完成并 restart exact；当前唯一 `in_progress` 为 `FPS-PRODUCTION-04BF-UV`，将 `28bba154…596e` 接入 Runtime-owned whole-assembly Hero UV durable producer并修复 224 个 stretch 超限面。Bake/PBR 等待同一 Low/Cage/HeroUV hash 链，不再返回 Form 细节优化。
+
+> 2026-08-29 当前原子：`FPS-FORM-04BE-U` 已完成，状态 `done_user_authorized_0_01_core_raster_tradeoff_selected_next_form_repair_non_promoting`。新 review policy 仅允许 core raster metric 绝对偏移≤0.01，语义/拓扑/hash/UV/Bake/人评不放松。wide `candidate-50b6981546f74bca9c2ca774ac5c1b00` 已选为下一 Form repair 基线，但未 confirm；FormArt-ready=false。下一唯一 `in_progress` 原子为 `FPS-FORM-04BE-V`：关闭 wide 的 all-view negative-space / owner attribution / line-flow，只有完成后才运行 fresh FormQualityV2 与 `secondary-form-approved`。High/Low/Hero UV/Bake/PBR 继续锁定。
+
+> 2026-08-29 当前原子：`FPS-FORM-04BE-M–T` 已完成 source/real-D1 诊断与组合候选执行。M/O/Q/S read-only attribution 均 restart exact 且 SQLite/CAS 零变化；R 首次将 `receiver-upper` target occupancy 186px→0；T 的 4 个 layered candidates 全部 `right.trigger-void.sealed=false`，最佳 wide IoU=`637‰`，但 exact six-view non-regression 仍 0/4，所以 candidate confirm/version/export=0，父候选继续保留。下一唯一 `in_progress` 为 `FPS-FORM-04BE-U`：对 wide/calibrated 的 left/right silhouette 微回退做单局部收敛或提交真人审稿；appearance/UV/PBR 不得越级。公共面 **585 schemas / 131 read + 94 opt-in write = 225 tools**。
+
+> 2026-08-28 当前原子：`FPS-FORM-04BE-L` 已完成，状态 `done_four_user_authorized_receiver_upper_trials_rejected_parent_retained_non_promoting`。4 个候选 strict GLB + 54 AOV + restart exact PASS，但 `non_regressing=false` 且 `right.trigger-void.sealed=true`，有效候选=0。下一唯一 `in_progress` 原子为 `FPS-FORM-04BE-M`：read-only target-region occlusion attribution；公共面仍 **583 schemas / 130 read + 94 opt-in write = 224 tools**，父候选与 `QUALITY_TARGET_NOT_MET` 不变。
+
+> 2026-08-28 当前原子：`FPS-FORM-04BE-J` 与 `FPS-FORM-04BE-K` 已完成，状态 `done_eight_true_aperture_trials_rejected_parent_retained_non_promoting`。J/K 共 8 个真孔候选均 strict GLB + 54 AOV + restart exact PASS，但 `non_regressing=false` 且 `left.trigger-void.sealed=true`，有效候选=0，保留 `candidate-6f6ddeff…cf8a`。下一唯一 `in_progress` 原子为 `FPS-FORM-04BE-L`：Runtime-owned read-only target-region depth-winner/occlusion attribution；`receiver-upper` step 2 继续 blocked。公共面仍 **583 schemas / 130 read + 94 opt-in write = 224 tools**，`QUALITY_TARGET_NOT_MET`。
+
+> 2026-08-28 当前原子：`FPS-FORM-04BE-I` 已完成，状态 `done_four_registered_side_panel_trials_rejected_parent_retained_non_promoting`。4 个 step-1 候选均 strict GLB + 54 AOV + restart exact PASS，但 `non_regressing=false` 且 `left.trigger-void.sealed=true`，因此有效候选=0，保留 `candidate-6f6ddeff…cf8a`。下一唯一 `in_progress` 原子为 `FPS-FORM-04BE-J`：重设计 `side-panel-a` aperture mutation family；`receiver-upper` step 2 继续 blocked。公共面仍 **583 schemas / 130 read + 94 opt-in write = 224 tools**，`QUALITY_TARGET_NOT_MET`。
+
+> 2026-08-28 当前原子：`FPS-FORM-04BE-H` 已完成，状态 `done_read_only_hash_bound_sequential_two_part_plan_non_promoting`。真实 D1/restart/zero-write PASS，plan canonical=`fe7c8ecf…680b61`，当前公共面 **583 schemas / 130 read + 94 opt-in write = 224 tools**。下一唯一 `in_progress` 原子为 `FPS-FORM-04BE-I`：只执行 `side-panel-a` step 1 的 4 个 bounded 试验并完成六视图/54 AOV 选择；本 H 阶段未生成新 candidate，`QUALITY_TARGET_NOT_MET`、FormQualityV2/secondary/High→Low→UV→Bake 均不变。
+
+> 2026-08-28 当前原子：`FPS-FORM-04BE-G` 已完成 exact rejected-repair 的 Runtime-owned read-only raster visibility calibration，真实 D1 两次隔离启动返回 canonical=`3d3cd762…e7196`，SQLite 业务行与 CAS inventory 前后完全相同。left trigger void 238px 全被 `side-panel-a` 175px + `receiver-upper` 63px 覆盖；right 257px 由 `receiver-upper` 186px、`receiver-main` 42px、`side-panel-a` 18px、`core-housing` 11px 覆盖。两孔内 before/after winner/depth/Part-ID/silhouette delta 全为 0，排除 rear-stock 作为 aperture repair owner。公共面现为 **581 schemas / 129 read + 94 opt-in write = 223 tools**。下一原子 `FPS-FORM-04BE-H` 只产出绑定 left/right 两个主源的 typed repair plan，禁止 geometry、secondary、High→Low→UV→Bake、confirm、version 或 export。
 
 > 2026-08-28 当前原子：`FPS-FORM-04BE-E` 已完成 registered half-Y/flat-Z repair 的真实 D1 物化、strict GLB readback、同源同批准六相机 6×9 AOV、CrossView/FormArt durable sidecar 与隔离重启 exact readback；结果是 **done_repair_executed_rejected_non_promoting**，不是视觉 PASS。新候选=`candidate-6f6ddeff…cf8a`，CrossView=`64eb80b5…43ea`，FormArt=`0af3ded0…5bff`；Part-ID 六视图齐全，但 negative-space、line-flow、strict owner-void 均失败，left overlap 仍 538‰、right 从 573‰ 变为 579‰、rear3q owner attribution 仍为 0。FormQualityV2 按 fail-closed 未创建，公共面仍 **577 schemas / 127 read + 94 opt-in write = 221 tools**。下一原子 `FPS-FORM-04BE-F` 先纠正 repair-axis/owner-attribution 根因，不盲目继续同方向加深，不进入 secondary、High→Low→UV→Bake、confirm、version 或 export。
 
@@ -535,7 +603,7 @@ Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.jso
 
 2026-08-18 F 增量 — Blender clean-room bounded Subdivision evaluation v2：三路 Luna Max 审计确认现有 `subd-cage@1` 是真实 deterministic regular-grid Worker，但不是通用 OpenSubdiv。新增 2 个 closed contracts，并将第五个只读 `geometry_program_hash` 分支限定为 open 2..16 × 2..16 quad cage、levels 0..2、固定 boundary、无 crease/adaptive/limit surface；Runtime 返回精确 topology/budget/attribute-policy hashes 和可编译 GeometryProgram，不写 candidate/version/CAS。该 slice 当时机器真值为 151 schemas / 19 active operators / 75 tools；focused source Gate PASS，package/live/render/visual/human NOT_RUN。后继 Parametric Group v2 也仅是 historical slice；现行 191-schema 真值见本文件顶部。F 继续唯一 `in_progress`。receipt：`docs/evidence/mcp010f/blender-subdivision-evaluation-v2-source-gate-20260818.json`。
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 2026-08-14 Primary Form convergence follow-up：Runtime 修复了 `max_evaluations=24` 实际只消费 16 次的预算截断，并让有界坐标 schedule 在反向试探前覆盖当前 12 个 Rig 参数；CLI receipt 新增 canonical observation 的 target/observation/fit 分阶段 projection。`script/test_mcp010f.sh` 当前 source Gate PASS，Stage 0 仍保留 `QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，没有新增视觉 benchmark。
@@ -749,3 +817,44 @@ MCP010A–F 的详细要求见 `MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`。它�
 `FPS-FORM-04L-REAL-D1-REGISTERED-CLEARANCE-TRIAL`：**done diagnostic / quality BLOCKED**。真实 fixture 1/1（477.56s）；只扫描 typed `stock-open-frame-clearance=0.30/0.35/0.42`，三组 left/right/rear3q intrusion 均非零，无任何候选可接受。`MCP010F` 仍是唯一 `in_progress`；FormQuality/secondary/confirm/version/export 不变。
 
 `FPS-FOUNDATION-IMPORT-01`：**source/runtime structural done；promotion blocked**。三个固定 hash 的母版源已由 typed GLB importer 规范化为 compact ForgeCAD topology、socket map、rig map、PBR/animation inventory 和 `FpsPresentationPackage@1` 草案；Store/CAS 首次 prepare、幂等 replay、get hash revalidation 与 MCP tool manifest 已通过。该原子任务不创建 candidate/version/export，不改变 MCP010F 唯一 `in_progress`。下一原子为 Part-bounded AuthoringMeshV2 genesis/materialization；在完成之前不得进入“批量商业 Hero 武器”宣称。
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+# 2026-08-30 successor architecture atom
+
+| 任务 | 状态 | 已闭合 | 未闭合 / 下一步 |
+|---|---|---|---|
+| `WPN-ARCH-MCP-ROUTER-001` | `done_source_router_authoring_first_slice` | 中央五域 map、typed Runtime/IPC Router、MCP default route、MCP-local target、Authoring service seam、三类 Store repository | 四个 domain 仍旧 dispatch；旧 handlers 未迁出 |
+| `WPN-ARCH-BASELINE-002` | `done_same_cohort_runtime_full_pass` | fresh 四身份与 554/0/37 Runtime 枚举 | 37 ignored 执行仍未证明 |
+| `WPN-ARCH-BASELINE-FAST-003` | `done_same_cohort_architecture_fast_pass` | 194s≤900s；53/0/0；cohort=`21911f161f4433ac0f40e3da5d47d0018b14fb8329eafe2792eec650fc29692f`；timeout 180s；ignored inventory closed | ignored execution 0/37、NOT_PROVEN；receipt SHA-256=`595a42990c22efe716e390e8bbf58b168c13f18fbe7ad6004b0c85507f5e1e2c` |
+| `WPN-ARCH-COMPAT-001` | `done_source_physical_binary_isolation` | default dep-info 7 / compat 40；main 1,081 行；226 replay PASS | `agentic_write_tools.rs` 22,800 行仍待兼容内部拆分 |
+| `WPN-ARCH-EVALUATION-001` | `done_source_direct_typed_borrowed_job_partial` | Evaluation 41 active（30R/11W）direct typed；Job/Event/Checkpoint borrowed `EvaluationRepository<'store>/JobRepository<'store>`；历史 65/0/0 focused gate | ReadModel/QualityEvidence 仍未抽取；当前请求 Schema 已 125/125，但物理抽取仍 partial |
+| `WPN-ARCH-PRESENTATION-001` | `done_source_direct_typed_service_partial` | `fps_presentation` direct typed service/router；Presentation record family 仍 partial | socket/anchor、package/candidate 与其余 Presentation repository 尚未完成 |
+| `WPN-ARCH-DELIVERY-001` | `done_source_direct_typed_service_game_asset_delivery_partial` | Delivery/approval 11 active（4R/7W）；request schema 11/11；9 个 capability mapping 仍为 `Partial`；`GameAssetDeliveryLinkRecord` repository 已接线 | ApprovalLifecycle、socket/anchor、其余 Delivery records 未抽取 |
+| `WPN-ARCH-MCP-SCHEMA-002` | `done_closed_125_of_125` | active 125 / closed 125 / Runtime fallback 0；blocked 0 | validator 复杂关键字与预算负向覆盖持续扩充；不得冒充领域物理迁移 |
+| `WPN-ARCH-MCP-SPLIT-001` | `done_source_physical_split_replay_pass` | default `main.rs`=996；compat `main.rs`=19,332；本批 fresh dep-info=10/44；shared result adapter + isolated handler | session/checkpoint/recovery 已再迁出，但 `agentic_write_tools.rs` 生产部分仍 16,532 行 |
+| `WPN-ARCH-RUNTIME-STORE-SPLIT-001` | `done_source_physical_batch_001_overall_pending` | Runtime Evaluation family / Store ApprovalLifecycle family / compat session-recovery family 真实迁出 | Runtime 51,603 / Store 78,865 / compat aggregate 16,532 行，92 个 Runtime 根模块不变；整体仍 pending |
+| `WPN-ARCH-RUNTIME-STORE-SPLIT-002` | `queued_next` | 继续迁出 Evaluation 37 operation 与 Store ReadModel/QualityEvidence、socket/anchor、recovery 等 | 每批必须根净降并保持唯一 migration/CAS owner 与 replay |
+| `WPN-ARCH-RETIRE-001` | `queued_after_split_002_and_retirement_gates` | 在 replacement/replay/consumer-zero/migration/CAS/recovery 完整后退役 | 不得在脏 worktree 中直接删除 |
+| `WPN-ARCH-SURFACE-001` | `done_source_surface_service_repository_partial` | 15 active（8R/7W）direct typed；request schema 15/15；formal `high_low_cage_bake` central `Partial` mapping；borrowed `SurfaceRepository` 首个 aggregate | 新 bake materialization producer unavailable；repository extraction 仅首个 aggregate；五域物理抽取仍 partial；无视觉/商业 promotion，历史 receipts 不改写 |
+
+## 2026-08-30 WPN-ARCH-EVALUATION-001 current-source receipt
+
+Evaluation active profile 精确为 **41 个 operation = 30 read / 11 write**，分属 `observe=10`、`quality_review=23`、`job=8`，全部走 `evaluation_service` direct typed service。Runtime 路由为 `RuntimeOperationRouter → evaluation_service::invoke`，compatibility bridge 为 `Runtime::dispatch_ipc → evaluation_service::invoke`；旧 active match arms 为 0，service 不回入 `dispatch_ipc`。
+
+command/query ownership 已拆开：`authoring_mesh_transaction_prepare` 与 `authoring_mesh_v2_durable_prepare` 归 `authoring_transaction/Authoring`，对应 `get` 归 `observe/Evaluation projection`；MCP 对每个映射同时检查 capability façade 与 domain，`PASS_NO_RUNTIME_DOMAIN_MISMATCH`。
+
+Job 使用借用的 `EvaluationRepository<'store>/JobRepository<'store>`，不拥有 SQLite connection、migration sequence 或独立 CAS root；单一 migration owner 保持。剩余 aggregates 为 `ReadModel`、`QualityEvidence`。当前 Presentation、Delivery 仍为 legacy dispatch。
+
+当前根文件为 Runtime `52,638`、Store `80,329`、MCP `main.rs=1,081` 行。active request Schema=`12/125`（Runtime-validated=113），Evaluation closed request Schema=`1/41`；字段闭合继续由 `WPN-ARCH-MCP-SCHEMA-002` 作为横切债务处理。
+
+冻结 same-cohort architecture-fast gate：cohort=`81eca9cbfd5cb5d2428fa46f8491c423076f881aba258e6be8b4d4d652c711ff`，`65 passed / 0 failed / 0 ignored`，耗时 `166s≤900s`，receipt SHA-256=`11b8022bc1965745997c923b34792f794d885ca9da19177a567f5453fb8dfedc`，source drift=false；MCP default/feature focused 各 `23/23` PASS。
+
+本轮无用户数据变更、无 visual/commercial promotion，历史 receipts（含 Surface 前序 receipt）保持不变。下一原子为 `WPN-ARCH-PRESENTATION-001`，随后为 `WPN-ARCH-DELIVERY-001`；Surface receipt 仍按前序 atom 保留，不能重写。
+
+## 2026-08-30 final combined architecture queue
+
+五域 direct typed Router/service 已全部接线：Authoring、Evaluation、Surface、Presentation、Delivery。`WPN-ARCH-RUNTIME-STORE-SPLIT-001` 又完成第一批真实物理迁移；default/compat root=`996/19,332`，`agentic_write_tools.rs=16,532`，fresh dep-info=`10/44`，default/compat full=`41/41`、`237/237 PASS`。该状态仍不等于 Runtime/Store 物理抽取完成；Runtime root=`51,603`、Store root=`78,865`、Runtime root modules=`92`。
+
+Delivery 与 Approval 合计 11 active operations（4 read / 7 write），request schema 已 11/11；9 个 central capability mapping 均仍为 `Partial`。Store 已迁出 `ApprovalLifecycle`，但 game weapon `socket/anchor`、`ReadModel/QualityEvidence` 与其余 Presentation/recovery repository 仍未抽取。active request schema 为 125/125，Runtime fallback=0。
+
+本轮 architecture-fast same-cohort=`81a58a3d5c07bafbea82b80f3b9ab74f387e06b63380d5c8845199f56d217ee5`，90/0/0，188s，`source_drift=false`；本轮未重跑 full Runtime qualification，前一完整 554/0/37 基线保持，37 ignored 的本 cohort execution 仍为 0。下一原子严格为 `WPN-ARCH-RUNTIME-STORE-SPLIT-002`；`WPN-ARCH-RETIRE-001` 继续 blocked。本轮不提升 High→Low→UV→Bake、视觉、引擎、人审或商业质量。

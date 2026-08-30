@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/checkpoint-prepare-request.schema.json",
+  "title": "CheckpointPrepareRequest",
+  "description": "Prepare one immutable Runtime-owned checkpoint after approval and visual evidence binding.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "visual_state",
+    "evidence_sha256",
+    "idempotency_key",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary"
+  ],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "visual_state": {
+      "enum": [
+        "pass",
+        "fail",
+        "unknown"
+      ]
+    },
+    "evidence_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "stage": {
+      "enum": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ]
+    },
+    "checkpoint_type": {
+      "enum": [
+        "stage-entry",
+        "stage-pass",
+        "stage-fail",
+        "manual-save",
+        "rollback-source",
+        "rollback-result"
+      ]
+    },
+    "candidate_state_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifact_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reference_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "reference_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "camera_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "approved": {
+      "const": true
+    },
+    "approval_receipt_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "approval_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "approval_expires_at": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    }
+  }
+}

@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-transaction.schema.json",
+  "title": "AuthoringMeshTransaction@1",
+  "description": "Closed, Runtime-owned command journal for one bounded AuthoringMesh@2 transaction. The journal only names the three operations implemented by the current pure kernel; it contains no raw topology, mesh buffers, scripts, paths, URLs or client-side identity assignment.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transaction_id",
+    "mesh_id",
+    "lineage_id",
+    "base_revision_id",
+    "base_revision_index",
+    "base_revision_sha256",
+    "commands",
+    "budgets",
+    "execution_policy",
+    "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringMeshTransaction@1"},
+    "transaction_id": {"$ref": "#/$defs/identifier"},
+    "mesh_id": {"$ref": "#/$defs/identifier"},
+    "lineage_id": {"$ref": "#/$defs/identifier"},
+    "base_revision_id": {"$ref": "#/$defs/identifier"},
+    "base_revision_index": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "base_revision_sha256": {"$ref": "#/$defs/sha256"},
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/command"}
+    },
+    "budgets": {"$ref": "#/$defs/budgets"},
+    "execution_policy": {"$ref": "#/$defs/execution_policy"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "element_kind": {
+      "enum": ["vertex", "edge", "half_edge", "corner", "face", "loop", "ring"]
+    },
+    "stable_element_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"$ref": "#/$defs/element_kind"},
+        "id": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "generated_element_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "command_index", "output_index"],
+      "properties": {
+        "kind": {"$ref": "#/$defs/element_kind"},
+        "command_index": {"type": "integer", "minimum": 0, "maximum": 31},
+        "output_index": {"type": "integer", "minimum": 0, "maximum": 131071}
+      }
+    },
+    "element_ref": {
+      "oneOf": [
+        {"$ref": "#/$defs/stable_element_ref"},
+        {"$ref": "#/$defs/generated_element_ref"}
+      ]
+    },
+    "operation_lineage": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "split_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_index",
+        "operation",
+        "operation_id",
+        "edge",
+        "split_ratio_milli",
+        "operation_lineage_sha256"
+      ],
+      "properties": {
+        "command_index": {"type": "integer", "minimum": 0, "maximum": 31},
+        "operation": {"const": "split_edge"},
+        "operation_id": {"$ref": "#/$defs/identifier"},
+        "edge": {"$ref": "#/$defs/element_ref"},
+        "split_ratio_milli": {"type": "integer", "minimum": 1, "maximum": 999},
+        "operation_lineage_sha256": {"$ref": "#/$defs/operation_lineage"}
+      }
+    },
+    "move_vertices": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_index",
+        "operation",
+        "operation_id",
+        "vertices",
+        "delta_m",
+        "operation_lineage_sha256"
+      ],
+      "properties": {
+        "command_index": {"type": "integer", "minimum": 0, "maximum": 31},
+        "operation": {"const": "move_vertices"},
+        "operation_id": {"$ref": "#/$defs/identifier"},
+        "vertices": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/element_ref"}
+        },
+        "delta_m": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {"type": "number", "minimum": -1, "maximum": 1}
+          }
+        },
+        "operation_lineage_sha256": {"$ref": "#/$defs/operation_lineage"}
+      }
+    },
+    "face_extrude": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_index",
+        "operation",
+        "operation_id",
+        "face",
+        "distance_m",
+        "operation_lineage_sha256"
+      ],
+      "properties": {
+        "command_index": {"type": "integer", "minimum": 0, "maximum": 31},
+        "operation": {"const": "face_extrude"},
+        "operation_id": {"$ref": "#/$defs/identifier"},
+        "face": {"$ref": "#/$defs/element_ref"},
+        "distance_m": {
+          "anyOf": [
+            {"type": "number", "minimum": -10, "maximum": -0.0000001},
+            {"type": "number", "minimum": 0.0000001, "maximum": 10}
+          ]
+        },
+        "operation_lineage_sha256": {"$ref": "#/$defs/operation_lineage"}
+      }
+    },
+    "command": {
+      "oneOf": [
+        {"$ref": "#/$defs/split_edge"},
+        {"$ref": "#/$defs/move_vertices"},
+        {"$ref": "#/$defs/face_extrude"}
+      ]
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_commands",
+        "max_move_vertices_per_command",
+        "max_face_degree",
+        "max_vertex_delta_m",
+        "max_face_extrude_distance_m",
+        "overflow_policy"
+      ],
+      "properties": {
+        "max_commands": {"const": 32},
+        "max_move_vertices_per_command": {"const": 32},
+        "max_face_degree": {"const": 32},
+        "max_vertex_delta_m": {"const": 1},
+        "max_face_extrude_distance_m": {"const": 10},
+        "overflow_policy": {"const": "reject-entire-transaction@1"}
+      }
+    },
+    "execution_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "writer_policy",
+        "source_of_truth",
+        "reference_policy",
+        "atomicity_policy",
+        "replay_policy",
+        "evaluation_policy",
+        "identity_policy"
+      ],
+      "properties": {
+        "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+        "source_of_truth": {"const": "original-authoring-mesh@2"},
+        "reference_policy": {"const": "stable-or-earlier-generated-element-by-kind@1"},
+        "atomicity_policy": {"const": "clone-before-first-command-no-partial-result@1"},
+        "replay_policy": {"const": "same-input-same-base-deterministic-revision-chain@1"},
+        "evaluation_policy": {"const": "authored-edit-invalidates-evaluated-sidecar@2"},
+        "identity_policy": {"const": "runtime-derived-lineage-operation-parent-stable-no-reuse@2"}
+      }
+    }
+  }
+}

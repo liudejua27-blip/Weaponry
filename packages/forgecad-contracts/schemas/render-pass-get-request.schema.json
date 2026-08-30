@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/render-pass-get-request.schema.json",
+  "title": "RenderPassGetRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["render_set_hash", "pass"],
+  "properties": {
+    "render_set_hash": {"$ref": "#/$defs/sha256"},
+    "pass": {"enum": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"]}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

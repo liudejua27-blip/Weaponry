@@ -79,35 +79,6 @@ HIGH_LOW_SCHEMA_VERSIONS = {
     "production-weapon-high-low-bake-get-result.schema.json": "ProductionWeaponHighLowBakeGetResult@1",
 }
 
-BLENDER_WORKER_CAPABILITY_SCHEMA_VERSIONS = {
-    "blender-worker-capability.schema.json": "BlenderWorkerCapability@1",
-    "blender-worker-capability-get-request.schema.json": "BlenderWorkerCapabilityGetRequest@1",
-    "blender-worker-capability-get-result.schema.json": "BlenderWorkerCapabilityGetResult@1",
-}
-BLENDER_WORKER_CAPABILITY_ID = "blender-headless-worker-evaluation"
-BLENDER_WORKER_CAPABILITY_SOURCE_REVISION = "72ccdd6e96ca119a1ffa3372559cc5654343b477"
-BLENDER_WORKER_CAPABILITY_GATE_STATUSES = ["not-run", "pending", "passed", "failed", "blocked"]
-BLENDER_WORKER_CAPABILITY_GATE_FIELDS = [
-    "binary_status",
-    "recipe_status",
-    "python_bundle_status",
-    "license_status",
-    "sandbox_status",
-    "determinism_status",
-    "package_gate_status",
-]
-BLENDER_WORKER_CAPABILITY_HASH_FIELDS = [
-    "binary_sha256",
-    "recipe_sha256",
-    "python_bundle_sha256",
-    "license_file_sha256",
-    "license_full_text_sha256",
-    "sandbox_sha256",
-    "determinism_sha256",
-    "package_sha256",
-]
-
-
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise SystemExit(f"ForgeCAD contract violation: {message}")
@@ -561,310 +532,6 @@ def check_production_weapon_high_low_bake_preflight_contracts() -> None:
         and properties["restart_hash_verified"].get("const") is True,
         "HighLowBake preflight must remain structural-only, read-only and non-promoting",
     )
-
-
-def check_blender_worker_capability_contracts() -> None:
-    """Keep ADR-0028 capability discovery closed, unavailable until gated, and non-promoting."""
-    expected_files = set(BLENDER_WORKER_CAPABILITY_SCHEMA_VERSIONS)
-    actual_files = {path.name for path in SCHEMA_ROOT.glob("*.json")}
-    require(
-        expected_files <= actual_files,
-        "BlenderWorkerCapability@1 schema files are missing",
-    )
-
-    schemas = {name: load_schema(name) for name in expected_files}
-    for name, schema_version in BLENDER_WORKER_CAPABILITY_SCHEMA_VERSIONS.items():
-        schema = schemas[name]
-        properties = schema.get("properties", {})
-        require(
-            schema.get("title") == schema_version
-            and properties.get("schema_version", {}).get("const") == schema_version
-            and schema.get("type") == "object"
-            and schema.get("additionalProperties") is False
-            and set(schema.get("required", [])) == set(properties),
-            f"{schema_version} must be a closed exact-field schema",
-        )
-
-    capability = schemas["blender-worker-capability.schema.json"]
-    request = schemas["blender-worker-capability-get-request.schema.json"]
-    result = schemas["blender-worker-capability-get-result.schema.json"]
-    capability_fields = {
-        "schema_version", "capability_id", "worker_id", "worker_kind", "source_identity",
-        "source_revision", "adoption_status", "capability_status", "binary_status",
-        "binary_sha256", "recipe_id", "recipe_version", "recipe_status", "recipe_sha256",
-        "python_bundle_status", "python_bundle_sha256", "license_name", "license_spdx",
-        "license_status", "license_file_sha256", "license_full_text_sha256", "sandbox_status",
-        "sandbox_sha256", "determinism_status", "determinism_sha256", "package_gate_status",
-        "package_sha256", "read_only", "runtime_write_performed", "worker_invoked",
-        "candidate_generated", "production_stage_advanced", "candidate_confirmed",
-        "version_created", "export_performed", "limitations", "canonical_sha256",
-    }
-    request_fields = {"schema_version", "capability_id"}
-    result_fields = {
-        "schema_version", "capability", "read_only", "runtime_write_performed", "worker_invoked",
-        "candidate_generated", "production_stage_advanced", "candidate_confirmed", "version_created",
-        "export_performed",
-    }
-    require(
-        set(capability.get("properties", {})) == capability_fields
-        and set(request.get("properties", {})) == request_fields
-        and set(result.get("properties", {})) == result_fields,
-        "BlenderWorkerCapability request/result field sets drifted",
-    )
-    require(
-        capability["properties"]["capability_id"].get("const") == BLENDER_WORKER_CAPABILITY_ID
-        and capability["properties"]["worker_id"].get("const") == "blender"
-        and capability["properties"]["worker_kind"].get("const") == "tool/worker"
-        and capability["properties"]["source_identity"].get("const")
-        == "official-reference-only-research"
-        and capability["properties"]["source_revision"].get("const")
-        == BLENDER_WORKER_CAPABILITY_SOURCE_REVISION
-        and capability["properties"]["adoption_status"].get("const")
-        == "approved-for-evaluation"
-        and capability["properties"]["license_name"].get("const")
-        == "GNU General Public License version 2 or later"
-        and capability["properties"]["license_spdx"].get("const") == "GPL-2.0-or-later"
-        and request["properties"]["capability_id"].get("const") == BLENDER_WORKER_CAPABILITY_ID
-        and result["properties"]["capability"].get("$ref")
-        == "https://forgecad.local/contracts/blender-worker-capability.schema.json",
-        "BlenderWorkerCapability identity, adoption and license bindings drifted",
-    )
-
-    capability_properties = capability["properties"]
-    require(
-        capability["$defs"]["gate_status"].get("enum") == BLENDER_WORKER_CAPABILITY_GATE_STATUSES
-        and capability["$defs"]["sha256"].get("pattern") == "^[0-9a-f]{64}$"
-        and capability["$defs"]["nullable_sha256"].get("anyOf")
-        and all(
-            capability_properties[field].get("$ref") == "#/$defs/nullable_sha256"
-            for field in BLENDER_WORKER_CAPABILITY_HASH_FIELDS
-        )
-        and capability_properties["canonical_sha256"].get("$ref") == "#/$defs/sha256"
-        and capability_properties["capability_status"].get("enum") == ["unavailable", "available"],
-        "BlenderWorkerCapability status/hash definitions drifted",
-    )
-    require(
-        capability_properties["read_only"].get("const") is True
-        and all(
-            capability_properties[field].get("const") is False
-            for field in (
-                "runtime_write_performed", "worker_invoked", "candidate_generated",
-                "production_stage_advanced", "candidate_confirmed", "version_created",
-                "export_performed",
-            )
-        )
-        and result["properties"]["read_only"].get("const") is True
-        and all(
-            result["properties"][field].get("const") is False
-            for field in (
-                "runtime_write_performed", "worker_invoked", "candidate_generated",
-                "production_stage_advanced", "candidate_confirmed", "version_created",
-                "export_performed",
-            )
-        ),
-        "BlenderWorkerCapability must remain read-only and non-promoting",
-    )
-
-    all_of = capability.get("allOf", [])
-    available_branch = next(
-        (
-            branch for branch in all_of
-            if branch.get("if", {}).get("properties", {})
-            .get("capability_status", {}).get("const") == "available"
-        ),
-        None,
-    )
-    unavailable_branch = next(
-        (
-            branch for branch in all_of
-            if branch.get("then", {}).get("properties", {})
-            .get("capability_status", {}).get("const") == "unavailable"
-        ),
-        None,
-    )
-    all_pass_branch = next(
-        (
-            branch for branch in all_of
-            if isinstance(branch.get("if", {}).get("allOf"), list)
-            and branch.get("then", {}).get("properties", {})
-            .get("capability_status", {}).get("const") == "available"
-        ),
-        None,
-    )
-    require(
-        available_branch is not None
-        and unavailable_branch is not None
-        and all_pass_branch is not None,
-        "BlenderWorkerCapability must encode both availability directions",
-    )
-    available_properties = available_branch["then"].get("properties", {})
-    require(
-        set(available_properties) >= set(BLENDER_WORKER_CAPABILITY_GATE_FIELDS + BLENDER_WORKER_CAPABILITY_HASH_FIELDS)
-        and all(
-            available_properties[field].get("const") == "passed"
-            for field in BLENDER_WORKER_CAPABILITY_GATE_FIELDS
-        )
-        and all(
-            available_properties[field].get("$ref") == "#/$defs/sha256"
-            for field in BLENDER_WORKER_CAPABILITY_HASH_FIELDS
-        ),
-        "available must require every passed gate and every non-null SHA-256",
-    )
-
-    all_pass_conditions = all_pass_branch["if"].get("allOf", [])
-    for field in BLENDER_WORKER_CAPABILITY_GATE_FIELDS:
-        require(
-            any(
-                condition.get("properties", {}).get(field, {}).get("const") == "passed"
-                for condition in all_pass_conditions
-            ),
-            f"all-passed availability guard must include {field}",
-        )
-    for field in BLENDER_WORKER_CAPABILITY_HASH_FIELDS:
-        require(
-            any(
-                condition.get("properties", {}).get(field, {}).get("$ref") == "#/$defs/sha256"
-                for condition in all_pass_conditions
-            ),
-            f"all-passed availability guard must include {field}",
-        )
-
-    unavailable_conditions = unavailable_branch["if"].get("anyOf", [])
-    not_passed = {"not-run", "pending", "failed", "blocked"}
-    for field in BLENDER_WORKER_CAPABILITY_GATE_FIELDS:
-        require(
-            any(
-                set(condition.get("properties", {}).get(field, {}).get("enum", [])) == not_passed
-                for condition in unavailable_conditions
-            ),
-            f"unavailable guard must cover a non-passed {field}",
-        )
-    for field in BLENDER_WORKER_CAPABILITY_HASH_FIELDS:
-        require(
-            any(
-                condition.get("properties", {}).get(field, {}).get("type") == "null"
-                for condition in unavailable_conditions
-            ),
-            f"unavailable guard must cover a missing {field}",
-        )
-
-    forbidden_property_names = {
-        "path", "file_path", "absolute_path", "url", "uri", "script", "script_path",
-        "python", "javascript", "raw", "raw_bytes", "bytes", "environment", "env",
-        "secret", "network",
-    }
-
-    def property_names(node: object) -> set[str]:
-        names: set[str] = set()
-        if isinstance(node, dict):
-            properties = node.get("properties")
-            if isinstance(properties, dict):
-                names.update(properties)
-            for value in node.values():
-                names.update(property_names(value))
-        elif isinstance(node, list):
-            for value in node:
-                names.update(property_names(value))
-        return names
-
-    for schema, filename in [
-        (capability, "blender-worker-capability.schema.json"),
-        (request, "blender-worker-capability-get-request.schema.json"),
-        (result, "blender-worker-capability-get-result.schema.json"),
-    ]:
-        require(
-            forbidden_property_names.isdisjoint(property_names(schema)),
-            f"{filename} must reject paths, URLs, scripts, raw bytes and environment inputs",
-        )
-
-
-def check_blender_task_contracts() -> None:
-    """Keep the not-yet-enabled Blender Worker transport closed and bounded."""
-    request = load_schema("blender-task-request.schema.json")
-    result = load_schema("blender-task-result.schema.json")
-    error = load_schema("blender-task-error.schema.json")
-    for schema, title in (
-        (request, "BlenderTaskRequest@1"),
-        (result, "BlenderTaskResult@1"),
-        (error, "BlenderTaskError@1"),
-    ):
-        require(
-            schema.get("title") == title
-            and schema.get("type") == "object"
-            and schema.get("additionalProperties") is False
-            and schema.get("x-operation") == "blender.render_fixed@1",
-            f"{title} must remain a closed fixed-operation contract",
-        )
-    request_properties = request["properties"]
-    require(
-        set(request["required"]) == set(request_properties)
-        and request_properties["schema_version"].get("const") == "BlenderTaskRequest@1"
-        and request_properties["recipe_id"].get("const") == "forgecad-blender-render-fixed@1"
-        and request_properties["recipe_version"].get("const") == "1.0.0"
-        and request_properties["network_policy"].get("const") == "disabled"
-        and request_properties["filesystem_policy"].get("const") == "runtime_scratch_only"
-        and request_properties["script_policy"].get("const") == "frozen_bundle_only"
-        and request_properties["output_policy"].get("const") == "runtime_cas_after_readback"
-        and "operation" not in request_properties,
-        "BlenderTaskRequest identity/policies drifted",
-    )
-    budgets = request["$defs"]["budgets"]
-    require(
-        budgets.get("additionalProperties") is False
-        and budgets["properties"]["max_runtime_ms"].get("maximum") == 120000
-        and budgets["properties"]["max_cpu_seconds"].get("maximum") == 120
-        and budgets["properties"]["max_memory_bytes"].get("maximum") == 536870912
-        and budgets["properties"]["max_gpu_bytes"].get("const") == 0
-        and budgets["properties"]["max_stderr_bytes"].get("maximum") == 65536,
-        "BlenderTaskRequest budget ceilings drifted",
-    )
-    input_object = request["$defs"]["input_object"]
-    output = result["$defs"]["output"]
-    checks = result["$defs"]["checks"]
-    require(
-        input_object.get("additionalProperties") is False
-        and output.get("additionalProperties") is False
-        and checks.get("additionalProperties") is False
-        and output["properties"]["cas_owner"].get("const") == "runtime"
-        and output["properties"]["durability"].get("const") == "pending_runtime_adoption",
-        "BlenderTask nested transport objects drifted",
-    )
-    result_properties = result["properties"]
-    require(
-        set(result["required"]) == set(result_properties)
-        and result_properties["runtime_write"].get("const") is False
-        and result_properties["stage_advanced"].get("const") is False
-        and result_properties["candidate_confirmed"].get("const") is False
-        and result_properties["version_created"].get("const") is False
-        and result_properties["export_performed"].get("const") is False,
-        "BlenderTaskResult must remain non-writing and non-promoting",
-    )
-    require(
-        set(error["required"]) == {"code", "message"}
-        and error["properties"]["message"].get("maxLength") == 512
-        and "CAPABILITY_UNAVAILABLE" in error["$defs"]["code"].get("enum", [])
-        and "WORKER_SANDBOX_VIOLATION" in error["$defs"]["code"].get("enum", []),
-        "BlenderTaskError bounds/error family drifted",
-    )
-    forbidden = {
-        "path", "url", "env", "secret", "token", "script", "addon", "blend",
-        "argv", "command", "executable", "module", "import", "subprocess", "host",
-        "socket", "cas", "sqlite",
-    }
-    def property_names(node: object) -> set[str]:
-        names: set[str] = set()
-        if isinstance(node, dict):
-            properties = node.get("properties")
-            if isinstance(properties, dict):
-                names.update(properties)
-            for value in node.values():
-                names.update(property_names(value))
-        elif isinstance(node, list):
-            for value in node:
-                names.update(property_names(value))
-        return names
-    for schema in (request, result, error):
-        require(forbidden.isdisjoint(property_names(schema)), "BlenderTask exposes an escape hatch")
 
 
 def check_mcp010b_contracts() -> None:
@@ -3087,7 +2754,7 @@ def check_authoring_topology_contracts() -> None:
     require(
         proof.get("additionalProperties") is False
         and proof.get("properties", {}).get("schema_version", {}).get("const")
-        == "TopologyOperationProof@1"
+        == "AuthoringMeshTopologyOperationProof@1"
         and proof.get("properties", {}).get("identity_namespace_status", {}).get("const")
         == "source-element-only-not-materialized-to-identity-lineage@1"
         and correspondence.get("additionalProperties") is False
@@ -14010,8 +13677,6 @@ def main() -> int:
     check_production_weapon_assembly_parameter_sink_contracts()
     check_production_weapon_high_low_cage_contracts()
     check_production_weapon_high_low_bake_preflight_contracts()
-    check_blender_worker_capability_contracts()
-    check_blender_task_contracts()
     check_native_high_source_contracts()
     check_candidate_topology_quality_contracts()
     check_candidate_material_surface_quality_contracts()
@@ -14024,6 +13689,11 @@ def main() -> int:
     check_fictional_energy_vfx_animated_socket_trails_sequence_contracts()
     check_fictional_energy_vfx_animated_socket_trails_sequence_v2_contracts()
     check_fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_contracts()
+    from check_weaponry_knife_profile import run_checks as check_weaponry_knife_profile
+    from check_knife_curve_modifier_graph_contract import run_checks as check_knife_curve_modifier_graph_contract
+
+    check_weaponry_knife_profile()
+    check_knife_curve_modifier_graph_contract()
     print(f"ForgeCAD contracts OK: {len(actual_schemas)} schemas")
     return 0
 

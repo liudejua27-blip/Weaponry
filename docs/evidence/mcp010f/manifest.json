@@ -65,7 +65,15 @@
     "typed foundation importer outputs materialized by the Runtime as Part-bounded AuthoringMesh@2 genesis revisions with atomic SQLite/CAS aggregate commit, idempotent replay and restart-verified readback for Pichuliru weapon west, WRAD arms and Lightning PBR benchmark",
     "Runtime-owned editable FpsPresentationPackage@2 composite binding over weapon, first-person arms, Socket/Rig maps and source animation clips, with durable CAS/SQLite identity, idempotent replay, restart-verified readback and fail-closed production preflight entrypoints",
     "Runtime-owned package-to-reviewable-candidate bridge that compiles the exact weapon AuthoringMesh revision into a bounded strict-GLB structural candidate while keeping arms, Socket, Rig and clips bound to the same editable package",
-    "Runtime-owned original/current/final FormArt composite proposal prepare/get seam with registered disjoint replacements, exact Store/CAS lineage, strict GLB readback and restart-verified non-promoting reviewable candidate"
+    "Runtime-owned original/current/final FormArt composite proposal prepare/get seam with registered disjoint replacements, exact Store/CAS lineage, strict GLB readback and restart-verified non-promoting reviewable candidate",
+    "Runtime-owned hash-bound sequential two-Part aperture sensitivity plan with single-Part step ordering and explicit six-view revalidation gates",
+    "four registered side-panel-a aperture boundary trials with strict GLB readback, six-view 54-AOV evidence, restart-exact proposal/evidence lookup and deterministic parent retention when every trial regresses",
+    "eight product-owned side-panel-a true-aperture and camera-mapped-aperture trials with real multi-loop hole topology, strict GLB readback, six-view 54-AOV evidence, restart-exact lookup and deterministic parent retention after visual rejection",
+    "four explicitly user-authorized receiver-upper one-sided boundary retraction trials with exact parent-node validation, strict GLB readback, six-view 54-AOV evidence, restart-exact lookup and deterministic parent retention after visual rejection",
+    "read-only exact right.trigger-void raster ownership attribution across the closed receiver-upper trial families with restart equality and zero SQLite/CAS mutation",
+    "typed receiver-upper three-solid U topology and exact camera-target-mapped variants with strict GLB, six-view 54-AOV, restart-exact evidence and deterministic non-promotion",
+    "layered receiver-upper plus side-panel-a aperture composition that opens right.trigger-void in all four real D1 candidates while preserving explicit six-view and human-review gates",
+    "user-authorized successor secondary Form policy that permits at most 0.01 absolute tradeoff for normalized 512px core raster metrics while retaining exact semantic, topology, hash, UV, Bake and human gates"
   ],
   "gates": {
     "fps_foundation_typed_importer": "PASS_SOURCE_RUNTIME_STRUCTURAL_WITH_AUTHORING_MESH_MATERIALIZATION_COMPLETE",
@@ -182,11 +190,15 @@
     "production_weapon_form_art_composite_evidence_durable_runtime": "PASS_RUNTIME_DURABLE_SIX_VIEW_EVIDENCE_RESTART_GET_WITH_QUALITY_TARGET_NOT_MET",
     "production_weapon_form_art_repair_plan_real_d1": "PASS_READ_ONLY_EVIDENCE_BOUND_REPAIR_PLAN_WITH_QUALITY_TARGET_NOT_MET",
     "production_weapon_form_art_failure_diagnostic_real_d1": "PASS_READ_ONLY_EXACT_REJECTED_REPAIR_ROOT_CAUSE_SEPARATION_ZERO_WRITE",
+    "production_weapon_form_art_visibility_calibration_real_d1": "PASS_READ_ONLY_EXACT_RASTER_VISIBILITY_CALIBRATION",
     "production_weapon_form_quality_v2_quality": "NOT_PROVEN",
     "production_weapon_retopology_cage_source_durable": "PASS_SOURCE_RUNTIME_DURABLE_NON_PROMOTING",
     "production_weapon_assembly_parameter_sink_source": "PASS_SOURCE_PURE_TYPED_PROJECTION_AND_REAL_D1_READ_ONLY_RESTART",
     "export_restart_hash": "NOT_RUN",
-    "full_360_reference": "BLOCKED_REFERENCE_COVERAGE"
+    "full_360_reference": "BLOCKED_REFERENCE_COVERAGE",
+    "production_weapon_form_art_aperture_repair_plan_real_d1": "PASS_READ_ONLY_HASH_BOUND_SEQUENTIAL_TWO_PART_APERTURE_PLAN",
+    "production_weapon_form_art_aperture_trials_real_d1": "PASS_FOUR_REGISTERED_SIDE_PANEL_A_TRIALS_REJECTED_PARENT_RETAINED",
+    "production_weapon_form_art_layered_aperture_tolerance_real_d1": "PASS_WIDE_SELECTED_FOR_NEXT_FORM_REPAIR_WITH_0_01_CORE_RASTER_TRADEOFF_NON_PROMOTING"
   },
   "evidence": [
     "docs/evidence/mcp010f/production-weapon-owner-reviewed-void-calibration-contract-honesty-gate-04aw-20260827.json",
@@ -208,7 +220,7 @@
     "docs/evidence/mcp010f/native-high-low-authoring-source-slice-20260825.json",
     "docs/evidence/mcp010f/source-tool-manifest-summary.json",
     "scripts/check_mcp010f_stage0_truth.py",
-    "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs::tool_manifest_summary_is_derived_from_the_actual_enabled_manifests",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/compat_main.rs::tool_manifest_summary_is_derived_from_the_actual_enabled_manifests",
     "scripts/check_mcp010f_viewer.py",
     "docs/evidence/mcp010f/viewer-candidate-binding-source-20260813.json",
     "script/test_mcp010f.sh",
@@ -313,8 +325,8 @@
     "docs/evidence/mcp010f/real-codex-cli-silhouette-first-20260813-attempt34-detail.json",
     "docs/evidence/mcp010f/real-codex-cli-silhouette-first-20260813-attempt35-detail-camera-ref.json",
     "docs/evidence/mcp010f/real-codex-cli-camera-ref-20260813-attempt5.json",
-  "docs/evidence/mcp010f/real-codex-cli-rig-fit-20260813.json",
-  "docs/evidence/mcp010f/real-codex-cli-rig-fit-expanded-20260813.json",
+    "docs/evidence/mcp010f/real-codex-cli-rig-fit-20260813.json",
+    "docs/evidence/mcp010f/real-codex-cli-rig-fit-expanded-20260813.json",
     "docs/evidence/mcp010f/real-codex-cli-rig-fit-review-recovery-20260813.json",
     "docs/evidence/mcp010f/real-codex-cli-landmark-aware-20260813.json",
     "docs/evidence/mcp010f/real-codex-cli-semantic-landmark-compare-20260813.json",
@@ -329,8 +341,8 @@
     "docs/evidence/mcp010f/contour-draft-shoulder-left-20260813.json",
     "docs/evidence/mcp010f/part-correction-source-20260813-shoulder-left.json",
     "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs::silhouette_rig_proposal_prefers_part_envelope_over_global_envelope",
-    "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs::silhouette_part_error_get",
-    "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs::silhouette_fit_wire_numbers_are_restored_before_hash_binding",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/compat_main.rs::silhouette_part_error_get",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/compat_main.rs::silhouette_fit_wire_numbers_are_restored_before_hash_binding",
     "docs/evidence/mcp010f/agentic-runtime-observe-plan-20260813.json",
     "docs/evidence/mcp010f/agentic-runtime-observe-plan-20260815-single-observation.json",
     "docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json",
@@ -360,24 +372,24 @@
     "docs/evidence/mcp010f/fictional-energy-weapon-material-pack-source-gate-20260820.json",
     "docs/evidence/mcp010f/fictional-energy-weapon-continuous-uv-source-gate-20260820.json",
     "docs/evidence/mcp010f/fictional-energy-weapon-2k-raw-stdio-20260820.json",
-    "docs/evidence/mcp010f/fictional-energy-weapon-2k-source-gate-20260820.json"
-    ,"docs/evidence/mcp010f/fictional-energy-weapon-surface-bake-raw-stdio-20260820.json"
-    ,"docs/evidence/mcp010f/fictional-energy-weapon-surface-bake-source-gate-20260820.json"
-    ,"docs/evidence/mcp010f/game-asset-delivery-raw-stdio-20260820.json"
-    ,"docs/evidence/mcp010f/threejs-game-asset-consumer-receipt-20260820.json"
-    ,"docs/evidence/mcp010f/game-asset-delivery-source-gate-20260820.json"
-    ,"docs/evidence/mcp010f/game-asset-delivery-durable-source-gate-20260821.json"
-    ,"docs/evidence/mcp010f/game-asset-delivery-durable-raw-stdio-20260821.json"
-    ,"docs/evidence/mcp010f/threejs-game-asset-consumer-v2-receipt-20260821.json"
-    ,"docs/evidence/mcp010f/game-asset-auto-lod-source-gate-20260821.json"
-    ,"docs/evidence/mcp010f/game-asset-auto-lod-raw-stdio-20260821.json"
-    ,"docs/evidence/mcp010f/game-weapon-anchor-source-gate-20260821.json"
-    ,"docs/evidence/mcp010f/game-weapon-anchor-raw-stdio-20260821.json"
-    ,"docs/evidence/mcp010f/threejs-game-weapon-anchor-consumer-20260821.json"
-    ,"docs/evidence/mcp010f/godot-game-weapon-import-source-gate-20260821.json"
-    ,"docs/evidence/mcp010f/godot-game-weapon-import-consumer-20260821.json"
-    ,"docs/evidence/mcp010f/candidate-topology-quality-durable-source-gate-20260821.json"
-    ,"docs/evidence/mcp010f/candidate-material-surface-quality-durable-source-gate-20260821.json",
+    "docs/evidence/mcp010f/fictional-energy-weapon-2k-source-gate-20260820.json",
+    "docs/evidence/mcp010f/fictional-energy-weapon-surface-bake-raw-stdio-20260820.json",
+    "docs/evidence/mcp010f/fictional-energy-weapon-surface-bake-source-gate-20260820.json",
+    "docs/evidence/mcp010f/game-asset-delivery-raw-stdio-20260820.json",
+    "docs/evidence/mcp010f/threejs-game-asset-consumer-receipt-20260820.json",
+    "docs/evidence/mcp010f/game-asset-delivery-source-gate-20260820.json",
+    "docs/evidence/mcp010f/game-asset-delivery-durable-source-gate-20260821.json",
+    "docs/evidence/mcp010f/game-asset-delivery-durable-raw-stdio-20260821.json",
+    "docs/evidence/mcp010f/threejs-game-asset-consumer-v2-receipt-20260821.json",
+    "docs/evidence/mcp010f/game-asset-auto-lod-source-gate-20260821.json",
+    "docs/evidence/mcp010f/game-asset-auto-lod-raw-stdio-20260821.json",
+    "docs/evidence/mcp010f/game-weapon-anchor-source-gate-20260821.json",
+    "docs/evidence/mcp010f/game-weapon-anchor-raw-stdio-20260821.json",
+    "docs/evidence/mcp010f/threejs-game-weapon-anchor-consumer-20260821.json",
+    "docs/evidence/mcp010f/godot-game-weapon-import-source-gate-20260821.json",
+    "docs/evidence/mcp010f/godot-game-weapon-import-consumer-20260821.json",
+    "docs/evidence/mcp010f/candidate-topology-quality-durable-source-gate-20260821.json",
+    "docs/evidence/mcp010f/candidate-material-surface-quality-durable-source-gate-20260821.json",
     "docs/evidence/mcp010f/candidate-material-surface-quality-public-positive-source-gate-20260822.json",
     "docs/evidence/mcp010f/production-stage-transition-v2-durable-source-gate-20260821.json",
     "docs/evidence/mcp010f/candidate-animation-vfx-quality-durable-source-gate-20260821.json",
@@ -424,7 +436,22 @@
     "docs/evidence/mcp010f/production-weapon-form-art-composite-evidence-durable-runtime-gate-04be-c-20260828.json",
     "docs/evidence/mcp010f/production-weapon-form-art-repair-plan-real-d1-04be-d-20260828.json",
     "docs/evidence/mcp010f/production-weapon-form-art-repair-execution-real-d1-04be-e-20260828.json",
-    "docs/evidence/mcp010f/production-weapon-form-art-failure-diagnostic-real-d1-04be-f-20260828.json"
+    "docs/evidence/mcp010f/production-weapon-form-art-failure-diagnostic-real-d1-04be-f-20260828.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-visibility-calibration-real-d1-04be-g-20260828.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-aperture-repair-plan-real-d1-04be-h-20260828.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-aperture-trials-real-d1-04be-i-20260828.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-true-aperture-trials-real-d1-04be-j-20260828.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-camera-mapped-aperture-trials-real-d1-04be-k-20260828.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-receiver-upper-trials-real-d1-04be-l-20260828.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-target-occlusion-attribution-real-d1-04be-m-20260829.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-receiver-upper-target-notch-trials-real-d1-04be-n-20260829.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-target-notch-occlusion-attribution-real-d1-04be-o-20260829.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-receiver-upper-u-topology-trials-real-d1-04be-p-20260829.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-u-topology-occlusion-attribution-real-d1-04be-q-20260829.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-camera-target-u-topology-trials-real-d1-04be-r-20260829.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-camera-target-u-topology-occlusion-attribution-real-d1-04be-s-20260829.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-layered-aperture-trials-real-d1-04be-t-20260829.json",
+    "docs/evidence/mcp010f/production-weapon-form-art-layered-aperture-tolerance-real-d1-04be-u-20260829.json"
   ],
   "limitations": [
     "The manifest recorded_on field remains the 2026-08-14 Stage-0 snapshot date required by the frozen truth ledger; current-source additions are dated separately and do not rewrite that historical observation.",
@@ -541,7 +568,17 @@
     "FPS-FORM-04BE-B revalidates the original 04AZ fresh baseline and exact 04BB current-base candidate, artifact, GeometryProgram and proposal evidence from Runtime Store/CAS, applies only the registered trigger-guard aperture, and creates candidate-f4a7d01ea8174dd4821c21fcd8ff06fa as a durable 23-Part, 1,916-triangle reviewable candidate. Plan, link and receipt persist across an isolated Runtime restart with byte-identical candidate/state/artifact/program/receipt/canonical hashes. The first mismatched Runtime/Worker cohort attempt failed closed before a composite record; the same-current-source cohort rebuild passed. Exact six-view 54-AOV FormArt, FormQualityV2, human and engine gates remain NOT_RUN; Stage, secondary, confirmation, version and export do not advance and quality remains QUALITY_TARGET_NOT_MET.",
     "FPS-FORM-04BE-C renders one fresh same-cohort six-view, 54-AOV baseline and the exact final composite candidate, then durably binds CrossView and proposal FormArt receipts to the immutable parent proposal through ProductionWeaponFormArtCompositeEvidenceRecord@1. Prepare and isolated restart GET preserve identical sidecar, CrossView and FormArt hashes. The evidence is explicitly non-promoting: the left view regresses, left/right owner-void overlap is 538/573 per mille, rear-three-quarter owner pixels and adjacency are zero, proposal FormArt is blocked, FormQualityV2 is not created, and quality remains QUALITY_TARGET_NOT_MET.",
     "FPS-FORM-04BE-E executes the exact registered rear-stock half-Y/flat-Z profile on the 04BE-C composite candidate, preserves all other Parts and produces a new strict-readback candidate plus a same-source, same-approved-six-camera 54-AOV baseline/CrossView/FormArt sidecar. Runtime restart GET preserves the proposal and evidence hashes. The real result is rejected and non-promoting: all-view Part-ID is observed, but negative-space, line-flow and strict owner-void are unresolved; left overlap remains 538 per mille, right overlap changes from 573 to 579 per mille, and rear-three-quarter owner pixels/adjacency remain zero. FormQualityV2 is therefore not created, and Stage, secondary, High/Low/UV/Bake, human, engine, confirmation, version and export remain unchanged.",
-    "FPS-FORM-04BE-F adds one default read-only, Runtime-owned exact failure diagnostic over the immutable 04BE-E parent/proposal GeometryPrograms, CrossView and before/after FormArt receipts. Real D1 and isolated restart return canonical 68e838cebbabccec0fa042d59c5f9d4685b727216dc5a45171282cf957f16fa3 with identical SQLite business rows and CAS inventory. The diagnostic proves the six negative-Y vertex changes leave the left owner mask unchanged while regressing left boundary F1 and increasing right owner intrusion; rear-three-quarter void geometry is observed while owner attribution is zero and vertical-flipped; left/right trigger apertures are sealed while rear-three-quarter trigger is observed; line-flow remains an independent unresolved gate. It authorizes no new geometry profile and creates no FormQualityV2, Stage, secondary, candidate, version or export."
+    "FPS-FORM-04BE-F adds one default read-only, Runtime-owned exact failure diagnostic over the immutable 04BE-E parent/proposal GeometryPrograms, CrossView and before/after FormArt receipts. Real D1 and isolated restart return canonical 68e838cebbabccec0fa042d59c5f9d4685b727216dc5a45171282cf957f16fa3 with identical SQLite business rows and CAS inventory. The diagnostic proves the six negative-Y vertex changes leave the left owner mask unchanged while regressing left boundary F1 and increasing right owner intrusion; rear-three-quarter void geometry is observed while owner attribution is zero and vertical-flipped; left/right trigger apertures are sealed while rear-three-quarter trigger is observed; line-flow remains an independent unresolved gate. It authorizes no new geometry profile and creates no FormQualityV2, Stage, secondary, candidate, version or export.",
+    "FPS-FORM-04BE-G adds a default read-only Runtime raster visibility calibration over the exact 04BE-E before/after GLBs and approved left/right/rear-three-quarter cameras. Two isolated Runtime starts return canonical 3d3cd762570a8901b4301cd0287a76a8ad20382fb18a638b4ec3bb32212e7196 with unchanged SQLite business rows and CAS inventory. The left trigger void is fully occupied by side-panel-a plus receiver-upper, led by side-panel-a at 175 of 238 pixels; the right trigger void is fully occupied by four sources, led by receiver-upper at 186 of 257 pixels. Winner, depth, Part-ID and silhouette deltas inside both trigger voids are zero, proving the rejected rear-stock edit did not affect either aperture. Only a subsequent hash-bound two-view repair plan for the two calibrated sources is authorized; geometry mutation, FormQualityV2, Stage, secondary, confirmation, version and export remain blocked.",
+    "FPS-FORM-04BE-H persists no geometry: it is a read-only, hash-bound two-step sensitivity plan over side-panel-a and receiver-upper. Its exact restart canonical is fe7c8ecff4f425eccec23d0a759f8a0f450aafcbed9dfaae56c3cee3ed680b61; step 2 remains conditional on one step-1 trial producing an aperture response without six-view regression.",
+    "FPS-FORM-04BE-I executes only the four registered side-panel-a step-1 profiles against the same approved six-camera baseline. Every candidate passes strict GLB readback and produces 54 AOV plus restart-exact durable proposal/evidence hashes, but every CrossView is non_regressing=false and the left.trigger-void remains sealed. All four candidates are rejected, the 04BE-E parent candidate-6f6ddeff15b94d5db9eb74d6c639cf8a is retained, receiver-upper step 2 is not authorized, FormQualityV2 is not created, and quality remains QUALITY_TARGET_NOT_MET.",
+    "FPS-FORM-04BE-J replaces the side-panel-a box/panel response with four product-owned multi-loop-profile-loft through-hole profiles and validates the complete canonical parent parameters plus empty inputs before mutation. All four candidates pass strict GLB readback, 54 AOV and restart-exact proposal/evidence lookup, yet all four remain left.trigger-void sealed and regress the six-view gate. They are rejected, the parent is retained, and no quality or production stage advances.",
+    "FPS-FORM-04BE-K registers four versioned camera-mapped true-aperture profiles after validating the Worker local-to-world axis mapping. All four candidates pass strict GLB readback, 54 AOV and restart-exact lookup, but the approved target remains sealed and every CrossView regresses. The zero target response means further blind aperture sweeps are not authorized; a subsequent read-only target-region depth-winner/occlusion attribution must identify the remaining occluder before receiver-upper can be considered. Quality remains QUALITY_TARGET_NOT_MET.",
+    "FPS-FORM-04BE-L records the user's explicit authorization to execute the previously planned receiver-upper step without rewriting the immutable H/J/K evidence. Runtime registers four exact one-sided X retractions over the canonical receiver-upper box and creates four reviewable candidates. Every candidate passes strict GLB readback, 54 AOV and restart-exact lookup, but right.trigger-void remains sealed and all CrossView evaluations regress. All four are rejected, the parent candidate is retained, and FormQualityV2, Stage, secondary, confirmation, version and export remain unchanged.",
+    "FPS-FORM-04BE-M/O/Q/S add read-only exact target-region raster attribution. M proves one-sided retraction never changes the target. O proves concave profile-extrude fan triangulation fills the intended notch. Q proves the first typed U topology is positioned outside the target. S proves camera-target mapping removes all 186 receiver-upper target pixels and exposes side-panel-a as the next unique occluder. Every attribution restarts with the same canonical hash and leaves SQLite/CAS unchanged.",
+    "FPS-FORM-04BE-N/P/R retain failed geometry history rather than overwriting it. N's concave profile is rejected as ineffective; P's three-solid U topology is strict-readback valid but mapped to the wrong X interval; R maps the reviewed right.trigger-void into world X 0.72..1.08 and removes receiver-upper target occupancy from 186 pixels to zero. R remains sealed because side-panel-a is behind it; only its calibrated receiver candidate is six-view non-regressing in isolation.",
+    "FPS-FORM-04BE-T composes the calibrated receiver opening with four existing typed side-panel-a true apertures. All four candidates pass strict GLB, 54 AOV and restart equality and all four change right.trigger-void from sealed to open, with IoU 0.498, 0.571, 0.379 and 0.637. Aggregate proposal scores improve, but the exact no-regression policy rejects small left/right silhouette IoU decreases; the parent remains selected, no candidate is confirmed, FormQualityV2 is not created, and appearance, UV, PBR, High/Low/Bake, human, engine, version and export remain locked.",
+    "FPS-FORM-04BE-U preserves the immutable exact CrossView rejection and adds form-art-secondary-pareto-review@2 for the user's explicit 0.01 absolute tolerance on normalized core raster Form metrics only. Same-cohort Runtime, MCP, Geometry Worker and Render Worker execution selects layered-wide candidate-50b6981546f74bca9c2ca774ac5c1b00 as the next Form repair baseline after strict GLB, 54 AOV and restart-exact evidence. This is non-promoting: proposal FormArt remains not ready because all-view negative-space, line-flow and strict owner-void gates are unresolved; FormQualityV2, secondary Stage, High/Low/Hero UV/Bake/PBR, human, engine, confirmation, version and export remain locked."
   ],
   "persistent_user_data_touched": true
 }

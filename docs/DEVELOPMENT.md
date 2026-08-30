@@ -1,5 +1,7 @@
 # ForgeCAD 开发指南
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-26 现行 source 口径：**527 schemas / 28 operators / 115 read + 87 write = 202 tools**。真实 D1 `MoveVertices` 纵切已编译、物化、回读和六视图 replay；proposal 仍因 fresh owner/void/Part-ID FormArt 缺失而 blocked。后续开发必须沿同一资产完成 AuthoringMesh→High→editable Low→UV→Bake→Material→FPS→Engine，不能用 source compile 代替 `PASS_ASSET`。
 
 > 2026-08-26 商业路线开发规则：先做能编译的最小纵向切片，再立即在同一 Hero candidate 上取真实 receipt；只为高风险合同、hash/lineage、崩溃/资源/确定性和真实关键链写测试。禁止为增加覆盖数量重复堆 fixture，也禁止用 source green 替代资产、引擎或人审。

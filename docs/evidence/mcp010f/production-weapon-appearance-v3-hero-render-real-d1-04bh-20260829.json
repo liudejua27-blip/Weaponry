@@ -1,0 +1,394 @@
+{
+  "schema_version": "ForgeCADWeaponAppearanceV3HeroRenderEvidence@1",
+  "task_id": "FPS-PRODUCTION-04BH-APPEARANCE-V3",
+  "recorded_at": "2026-08-29",
+  "scope": "fictional game and film visual asset only",
+  "source": {
+    "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+    "candidate_id": "candidate-50b6981546f74bca9c2ca774ac5c1b00",
+    "candidate_state_sha256": "b70f01f6f60fffe7ce42c92f33b95d8687a70ee3b97d291ccd3a18b70255055c",
+    "high_artifact_sha256": "3caa4a87ae078635dc50b4512a39732fe919df822985a1c60fe5415757bd7596",
+    "source_geometry_program_sha256": "8e78cc571a9a3ddf05f9f0c96f644bf30bd5a40401c8d889be71a40c62694732",
+    "appearance_geometry_program_sha256": "10c72a55d579ea74253364f902e9805ded8609dbe3df866405afea5c66abc1ad",
+    "geometry_change": "RESOURCE_BUDGET_ONLY_8_MIB_TO_64_MIB",
+    "retopology_cage_bundle_sha256": "c73271da1b43cfa33f7848bcf463613d29871bfb4244c5d8c934d8b07fbdcd58",
+    "low_artifact_sha256": "28bba1541e30a7bb4109f737eb548cfa854fa295c5a5079263c1e8f93736596e",
+    "cage_artifact_sha256": "338cabf1b3753bdcf1eb3c54b6d35909896c8e6eb13e50dfd5c416e1e216a1c3"
+  },
+  "discovery": {
+    "build_cohort_sha256": "d8d61e51ed177c75866b9f84a051b11b15190b4079654b4d812b164d997f5e79",
+    "runtime_state": "Ready",
+    "operator_catalog_sha256": "860f24812e651cbb7cded0d4058a354aabf231fc0ace73e4a4b06f6408a485d6",
+    "uv_pbr_manifest_sha256": "cb75b486423a1796e415c221ca547d4572f561a5950b4b83b061b3925738371b",
+    "material_pack_id": "forgecad-fictional-energy-weapon-2k",
+    "material_pack_manifest_sha256": "88504cca9aa20393a1577fc9ae2bbb65d3ccb0a3ca21d61a4c72efa501214fb6",
+    "material_pack_license_spdx": "CC0-1.0"
+  },
+  "appearance": {
+    "appearance_program": {
+      "schema_version": "AppearanceProgram@3",
+      "project_id": "project-0d236b8acdde4f1187b3a46a7d5e4f0f",
+      "geometry_program_sha256": "10c72a55d579ea74253364f902e9805ded8609dbe3df866405afea5c66abc1ad",
+      "material_pack_id": "forgecad-fictional-energy-weapon-2k",
+      "material_pack_manifest_sha256": "88504cca9aa20393a1577fc9ae2bbb65d3ccb0a3ca21d61a4c72efa501214fb6",
+      "material_zones": [
+        {
+          "zone_id": "zone-amber-emissive",
+          "part_ids": [
+            "energy-core",
+            "muzzle-core",
+            "rear-light",
+            "side-light-left",
+            "side-light-right"
+          ],
+          "material_id": "energy-cyan-emissive",
+          "texture_set_id": null
+        },
+        {
+          "zone_id": "zone-black-mechanical",
+          "part_ids": [
+            "bottom-rail",
+            "core-housing",
+            "grip",
+            "magazine",
+            "receiver-lower",
+            "top-rail",
+            "trigger-guard"
+          ],
+          "material_id": "energy-black-anodized",
+          "texture_set_id": "weapon-metal-surface"
+        },
+        {
+          "zone_id": "zone-gold-accent",
+          "part_ids": [
+            "energy-ring",
+            "muzzle-emitter",
+            "rear-cap",
+            "side-panel-a",
+            "top-fin",
+            "underbrace"
+          ],
+          "material_id": "energy-brushed-gold",
+          "texture_set_id": "weapon-metal-surface"
+        },
+        {
+          "zone_id": "zone-white-shell",
+          "part_ids": [
+            "muzzle-shroud",
+            "rear-stock",
+            "receiver-main",
+            "receiver-upper",
+            "side-panel-b"
+          ],
+          "material_id": "energy-white-clearcoat",
+          "texture_set_id": "weapon-plastic-surface"
+        }
+      ],
+      "material_layer_stack": {
+        "schema_version": "MaterialLayerStack@1",
+        "stack_id": "d1-hero-surface-layer-stack-v1",
+        "material_pack_id": "forgecad-fictional-energy-weapon-2k",
+        "material_pack_manifest_sha256": "88504cca9aa20393a1577fc9ae2bbb65d3ccb0a3ca21d61a4c72efa501214fb6",
+        "uv_source": "TEXCOORD_0",
+        "layers": [
+          {
+            "layer_id": "fictional-safety-markings",
+            "order": 0,
+            "kind": "decal",
+            "recipe_id": "forgecad-first-party-fictional-safety-markings@1",
+            "blend_policy": "precompose-baseColor-no-custom-shader",
+            "targets": {
+              "part_ids": [
+                "energy-ring",
+                "muzzle-emitter",
+                "muzzle-shroud",
+                "rear-cap",
+                "rear-stock",
+                "receiver-main",
+                "receiver-upper",
+                "side-panel-a",
+                "side-panel-b",
+                "top-fin",
+                "underbrace"
+              ],
+              "material_zone_ids": [
+                "zone-white-shell",
+                "zone-gold-accent"
+              ]
+            },
+            "opacity": 0.78
+          },
+          {
+            "layer_id": "bounded-edge-wear",
+            "order": 1,
+            "kind": "wear",
+            "recipe_id": "forgecad-first-party-geometry-edge-ao-wear@1",
+            "blend_policy": "precompose-baseColor-metallicRoughness-no-custom-shader",
+            "targets": {
+              "part_ids": [
+                "bottom-rail",
+                "core-housing",
+                "energy-core",
+                "energy-ring",
+                "grip",
+                "magazine",
+                "muzzle-core",
+                "muzzle-emitter",
+                "muzzle-shroud",
+                "rear-cap",
+                "rear-light",
+                "rear-stock",
+                "receiver-lower",
+                "receiver-main",
+                "receiver-upper",
+                "side-light-left",
+                "side-light-right",
+                "side-panel-a",
+                "side-panel-b",
+                "top-fin",
+                "top-rail",
+                "trigger-guard",
+                "underbrace"
+              ],
+              "material_zone_ids": [
+                "zone-amber-emissive",
+                "zone-black-mechanical",
+                "zone-gold-accent",
+                "zone-white-shell"
+              ]
+            },
+            "edge_width_texels": 10,
+            "strength": 0.42
+          },
+          {
+            "layer_id": "texture-backed-clearcoat",
+            "order": 2,
+            "kind": "clearcoat",
+            "recipe_id": "forgecad-first-party-zone-clearcoat-mask@1",
+            "blend_policy": "KHR_materials_clearcoat",
+            "targets": {
+              "part_ids": [
+                "muzzle-shroud",
+                "rear-stock",
+                "receiver-main",
+                "receiver-upper",
+                "side-panel-b"
+              ],
+              "material_zone_ids": [
+                "zone-white-shell"
+              ]
+            },
+            "factor": 0.86,
+            "roughness": 0.11
+          }
+        ],
+        "budget": {
+          "resolution": 2048,
+          "padding_texels": 8,
+          "max_output_textures": 8,
+          "max_output_bytes": 67108864,
+          "max_runtime_ms": 120000
+        },
+        "canonical_sha256": "6355fcb5f0613cd91eaae56ff1acf03d74c57003b8a220bd9a47cfea518531fd"
+      },
+      "material_layer_stack_sha256": "6355fcb5f0613cd91eaae56ff1acf03d74c57003b8a220bd9a47cfea518531fd",
+      "canonical_sha256": "f30ab7e24fc96f8ac66d9a77d5b3ae4ce53ff11a013d287487a2dcd8e5e5c326"
+    },
+    "appearance_program_sha256": "f30ab7e24fc96f8ac66d9a77d5b3ae4ce53ff11a013d287487a2dcd8e5e5c326",
+    "material_layer_stack_sha256": "6355fcb5f0613cd91eaae56ff1acf03d74c57003b8a220bd9a47cfea518531fd",
+    "texture_build_receipt_sha256": "967d0bbe41ea8f6899b9a6b5d78f9de2ed6cfa98f4281cc6d6bcc3eb71d10eb1",
+    "candidate_surface_bake_receipt_sha256": "638adbddf5705619bb340bd96125cf3e7707314a0d84880f4b1df1c38420f105"
+  },
+  "reviewable_candidate": {
+    "candidate_id": "candidate-79ec4472262847eb9be8c70cdbd2dfbe",
+    "candidate_state_sha256": "71e470bee3ad0f74a29efef7cf7a9840c63b6334046303948e33ad334da93272",
+    "artifact_sha256": "68897ddda03dfc26067133a50ce950a9a7c27e17dfa5ac9c0697afbf04c1d91e",
+    "artifact_readback_canonical_sha256": "9d62c9aa5e29da45481d0969c4e610d1d45e473bae2cb586f608d96775a549b8",
+    "artifact_readback_object_sha256": "68897ddda03dfc26067133a50ce950a9a7c27e17dfa5ac9c0697afbf04c1d91e",
+    "triangle_count": 1868,
+    "part_ids": [
+      "receiver-main",
+      "receiver-upper",
+      "receiver-lower",
+      "rear-stock",
+      "rear-cap",
+      "grip",
+      "trigger-guard",
+      "underbrace",
+      "top-fin",
+      "top-rail",
+      "bottom-rail",
+      "side-light-left",
+      "side-light-right",
+      "muzzle-shroud",
+      "muzzle-emitter",
+      "muzzle-core",
+      "energy-ring",
+      "energy-core",
+      "core-housing",
+      "side-panel-a",
+      "side-panel-b",
+      "magazine",
+      "rear-light"
+    ],
+    "material_zone_ids": [
+      "zone-white-shell",
+      "zone-black-mechanical",
+      "zone-gold-accent",
+      "zone-amber-emissive"
+    ],
+    "candidate_confirmed": false,
+    "version_created": false,
+    "exported": false
+  },
+  "camera_and_reference": {
+    "reference_id": "reference-c0ea57e80e1d4c37b7e65353d08b6e74",
+    "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "view_spec_canonical_sha256": "59d8f7f8866f2777206e62e2027630adcc76dd98f31d4db5a655a9789aacb8f5",
+    "target_sha256": "51e5b636c44a71a460d3e2fa069db217edaddc5578c9a9caa8548b5bb1a46037",
+    "camera_hash": "9d8e590e940967474213180edc714cfc279d88f3b06367d0817e1855205b3abb",
+    "camera_canonical_sha256": "efffde77533a5791d438291f24509b9e5df9bec27ca03ce2a6871648000f1d33",
+    "projection": "perspective",
+    "subject_screen_order": "stock-left-muzzle-right",
+    "upright": true
+  },
+  "render": {
+    "render_set_object_sha256": "2d67481974eb89f4b6cb4353b58abba956c6ffd025b5580bd417d2b8ef84a531",
+    "render_set_canonical_sha256": "8f8818ce7706108c7c2e94377fad2bd5657e80a752911d37b6ad8c484b2e340c",
+    "render_worker_build_cohort_sha256": "d8d61e51ed177c75866b9f84a051b11b15190b4079654b4d812b164d997f5e79",
+    "render_worker_binding_status": "same_cohort_verified",
+    "passes": {
+      "ao": "8087eecbc1f22c69ecf5df3bd8898c671b7f1a885549b85130ffe3758472c14c",
+      "beauty": "7adfe096a3ade2f7c94aed028eaeeb71d4349bdbc0ea72e9a48480ceb01770c7",
+      "depth": "365b2be82b9162297b259f180e73a3764cec7344d25fea23e0ce8793f10621f2",
+      "material-id": "e23ed27447d329cefa37386ad1a8bff54f5d0e30e8a5710872ca054c5c064ce7",
+      "normal": "e1dcbc784cbf3d25faed1554bf5587bcd3224887880cd039c4fcee029383becf",
+      "part-id": "d96c891ecfe2291855279ecc23bab9f6fc1ad4f88b41efb50171336ac4930ae2",
+      "silhouette": "0b145e1e5e65213974b4e617518ebb237c252475a6325e0fb0fa0fff94c95ddc",
+      "uv-stretch": "9937e0d283120ee61390411de27e72e0b1fc5cce48aaa583e3189e404f4ff153",
+      "wireframe": "f3a7a66da0624bd526d63f3dc3abfe1c94f07037dd9a15f8e1d65066ae2218b0"
+    },
+    "verified_passes": {
+      "beauty": "7adfe096a3ade2f7c94aed028eaeeb71d4349bdbc0ea72e9a48480ceb01770c7",
+      "normal": "e1dcbc784cbf3d25faed1554bf5587bcd3224887880cd039c4fcee029383becf",
+      "material-id": "e23ed27447d329cefa37386ad1a8bff54f5d0e30e8a5710872ca054c5c064ce7",
+      "wireframe": "f3a7a66da0624bd526d63f3dc3abfe1c94f07037dd9a15f8e1d65066ae2218b0",
+      "uv-stretch": "9937e0d283120ee61390411de27e72e0b1fc5cce48aaa583e3189e404f4ff153"
+    },
+    "beauty_object_sha256": "7adfe096a3ade2f7c94aed028eaeeb71d4349bdbc0ea72e9a48480ceb01770c7"
+  },
+  "comparison": {
+    "comparison_report_object_sha256": "9f3a78551c43a20cd146aaec4f204de0ac052c438009f9e5d03efb769bc26307",
+    "quality_report_object_sha256": "01dc201ed169ed61ded4074b94c491ddb9ca7ab3b5bb722b1df3ed53bcc7ce72",
+    "status": "QUALITY_TARGET_NOT_MET",
+    "metrics": {
+      "bbox_edge_error": 0.404296875,
+      "boundary_f1_4px": 0.076466087771,
+      "centroid_error": 0.093021180966,
+      "critical_region_min_iou": 1.0,
+      "landmark_coverage": 0.0,
+      "landmark_nme": 1.0,
+      "region_median_iou": 0.0,
+      "silhouette_iou": 0.289466708072
+    },
+    "quality": {
+      "artifact_sha256": "68897ddda03dfc26067133a50ce950a9a7c27e17dfa5ac9c0697afbf04c1d91e",
+      "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+      "candidate_id": "candidate-79ec4472262847eb9be8c70cdbd2dfbe",
+      "canonical_sha256": "ee1050a05d938476267ed5154116e8ccdab64bcc4d096beb62db167f7b370bc4",
+      "comparison_report_hash": "9f3a78551c43a20cd146aaec4f204de0ac052c438009f9e5d03efb769bc26307",
+      "hard_gate_passed": false,
+      "human_receipt_hash": null,
+      "limitations": [
+        "human_visual_review_not_run",
+        "single_reference_view_only",
+        "HQ_360_PASS_BLOCKED_REFERENCE_COVERAGE",
+        "benchmark_eligibility:BLOCKED_USER_CONFIRMATION_REQUIRED",
+        "reference_annotation:REFERENCE_PART_MASKS_REQUIRED",
+        "reference_annotation:REFERENCE_LANDMARKS_REQUIRED",
+        "reference_annotation:REFERENCE_VIEW_LANDMARKS_REQUIRED",
+        "reference_annotation:REFERENCE_VIEW_REGIONS_REQUIRED"
+      ],
+      "metric_gate_results": [
+        {
+          "direction": "min",
+          "metric_name": "silhouette_iou",
+          "observed": 0.289466708072,
+          "status": "failed",
+          "threshold": 0.9
+        },
+        {
+          "direction": "min",
+          "metric_name": "boundary_f1_4px",
+          "observed": 0.076466087771,
+          "status": "failed",
+          "threshold": 0.9
+        },
+        {
+          "direction": "max",
+          "metric_name": "bbox_edge_error",
+          "observed": 0.404296875,
+          "status": "failed",
+          "threshold": 0.02
+        },
+        {
+          "direction": "max",
+          "metric_name": "centroid_error",
+          "observed": 0.093021180966,
+          "status": "failed",
+          "threshold": 0.02
+        },
+        {
+          "direction": "min",
+          "metric_name": "landmark_coverage",
+          "observed": 0.0,
+          "status": "failed",
+          "threshold": 0.8
+        },
+        {
+          "direction": "max",
+          "metric_name": "landmark_nme",
+          "observed": 1.0,
+          "status": "failed",
+          "threshold": 0.03
+        },
+        {
+          "direction": "min",
+          "metric_name": "region_median_iou",
+          "observed": 0.0,
+          "status": "failed",
+          "threshold": 0.85
+        },
+        {
+          "direction": "min",
+          "metric_name": "critical_region_min_iou",
+          "observed": 1.0,
+          "status": "passed",
+          "threshold": 0.85
+        }
+      ],
+      "program_sha256": "10c72a55d579ea74253364f902e9805ded8609dbe3df866405afea5c66abc1ad",
+      "quality_report_id": "quality-c-de21a1a415de47e28041c4e0ad645ff0",
+      "reference_id": "reference-c0ea57e80e1d4c37b7e65353d08b6e74",
+      "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+      "render_set_hash": "2d67481974eb89f4b6cb4353b58abba956c6ffd025b5580bd417d2b8ef84a531",
+      "schema_version": "QualityReport@2",
+      "structural_status": "passed",
+      "threshold_policy_sha256": "c4c8ddae1d225bf0fd28a87b1b091a706783b57dcfa4e80b559d51a82403367c",
+      "threshold_revision": "visible-view-gates@1",
+      "threshold_source": "forgecad-runtime-visible-view-gates",
+      "visual_status": "QUALITY_TARGET_NOT_MET"
+    }
+  },
+  "truth": {
+    "appearance_program_v3_layer_stack": "CREATED_REVIEWABLE",
+    "texture_build_2k": "PASS_RUNTIME_DURABLE",
+    "candidate_surface_bake": "PASS_RUNTIME_DURABLE_SELF_SURFACE_NOT_HIGH_TO_LOW_CAGE",
+    "formal_hero_uv_durable": "PASS_SOURCE_STRUCTURAL_RESTART_VERIFIED:d1778e475716b5dd712431a576f9995ed35532fe6b0da2abf7339ce6901bf0a6",
+    "formal_high_low_geometric_bake": "NOT_RUN",
+    "human_review": "AWAITING_USER_DECISION",
+    "commercial_engine_validation": "NOT_RUN",
+    "commercial_quality": "NOT_PROVEN",
+    "promotion_allowed": false
+  }
+}

@@ -1,5 +1,7 @@
 # Codex 单张参考图操作手册
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-25 商业质量停止条件：单张参考最多支持 `PARTIAL_VISIBLE_VIEW_PASS`；完成当前 FormQuality 后也不能跳到材质收尾，必须依次补 AuthoringMesh、High、Low、Hero UV、Cage/Bake、Material、FPS/LOD/Engine/Human。缺 front/back/left/right/rear-three-quarter 覆盖时，HQ360 继续 `BLOCKED_REFERENCE_COVERAGE`。详见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
 
 版本：2026-08-26

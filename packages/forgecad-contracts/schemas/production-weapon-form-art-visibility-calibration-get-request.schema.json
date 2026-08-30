@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-visibility-calibration-get-request.schema.json",
+  "title": "ProductionWeaponFormArtVisibilityCalibrationGetRequest@1",
+  "description": "Closed read-only request for Runtime replay of one exact rejected FormArt repair. The caller supplies durable identities and hashes only; geometry, masks, AOV bytes, cameras, scripts, paths and URLs are not accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "calibration_id", "failure_diagnostic_id",
+    "failure_diagnostic_canonical_sha256", "failure_diagnostic_input_sha256",
+    "composite_evidence_id", "proposal_id", "session_id", "project_id",
+    "composite_evidence_record_canonical_sha256", "composite_evidence_receipt_object_sha256",
+    "cross_view_evidence_bundle_sha256", "proposal_form_art_evidence_receipt_object_sha256",
+    "max_response_bytes", "runtime_write_performed", "persistent_user_data_touched",
+    "calibration_policy", "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtVisibilityCalibrationGetRequest@1"},
+    "operation": {"const": "forgecad.production.weapon.form-art-visibility-calibration-get@1"},
+    "calibration_id": {"$ref": "#/$defs/id"},
+    "failure_diagnostic_id": {"$ref": "#/$defs/id"},
+    "failure_diagnostic_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "failure_diagnostic_input_sha256": {"$ref": "#/$defs/sha256"},
+    "composite_evidence_id": {"$ref": "#/$defs/id"},
+    "proposal_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "composite_evidence_record_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "composite_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "cross_view_evidence_bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_form_art_evidence_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "calibration_policy": {"const": "exact-before-after-triangle-owner-depth-and-side-aperture-calibration@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

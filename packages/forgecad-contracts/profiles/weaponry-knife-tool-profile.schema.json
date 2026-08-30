@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/profiles/weaponry-knife-tool-profile.schema.json",
+  "title": "WeaponryKnifeToolProfile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "profile_status",
+    "product",
+    "subject",
+    "facades",
+    "default_profile",
+    "compatibility_profile",
+    "legacy_operations",
+    "legacy_operation_allowlist_sha256",
+    "native_operations",
+    "native_operation_allowlist_sha256",
+    "underlying_operation_allowlist_sha256",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponryKnifeToolProfile@1"},
+    "profile_id": {"const": "weaponry-knife-p0@1"},
+    "profile_status": {"const": "development-only"},
+    "product": {"const": "weaponry"},
+    "subject": {"const": "crossfire-knife"},
+    "facades": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "weapon_preflight",
+        "reference_intake",
+        "observe",
+        "authoring_transaction",
+        "surface_pipeline",
+        "fps_presentation",
+        "quality_review",
+        "delivery",
+        "approval",
+        "recovery",
+        "job"
+      ],
+      "properties": {
+        "weapon_preflight": {"$ref": "#/$defs/facade"},
+        "reference_intake": {"$ref": "#/$defs/facade"},
+        "observe": {"$ref": "#/$defs/facade"},
+        "authoring_transaction": {"$ref": "#/$defs/facade"},
+        "surface_pipeline": {"$ref": "#/$defs/facade"},
+        "fps_presentation": {"$ref": "#/$defs/facade"},
+        "quality_review": {"$ref": "#/$defs/facade"},
+        "delivery": {"$ref": "#/$defs/facade"},
+        "approval": {"$ref": "#/$defs/facade"},
+        "recovery": {"$ref": "#/$defs/facade"},
+        "job": {"$ref": "#/$defs/facade"}
+      }
+    },
+    "default_profile": {"$ref": "#/$defs/default_profile"},
+    "compatibility_profile": {"$ref": "#/$defs/compatibility_profile"},
+    "legacy_operations": {"$ref": "#/$defs/legacy_operations"},
+    "legacy_operation_allowlist_sha256": {"$ref": "#/$defs/sha256"},
+    "native_operations": {"$ref": "#/$defs/native_operations"},
+    "native_operation_allowlist_sha256": {"$ref": "#/$defs/sha256"},
+    "underlying_operation_allowlist_sha256": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "tool_name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{2,63}$"
+    },
+    "legacy_tool_name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{2,126}$"
+    },
+    "facade_name": {
+      "enum": [
+        "weapon_preflight",
+        "reference_intake",
+        "observe",
+        "authoring_transaction",
+        "surface_pipeline",
+        "fps_presentation",
+        "quality_review",
+        "delivery",
+        "approval",
+        "recovery",
+        "job"
+      ]
+    },
+    "route_list": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/tool_name"}
+    },
+    "facade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "facade_name",
+        "classification",
+        "default_enabled",
+        "read_tools",
+        "write_tools",
+        "underlying_operations",
+        "underlying_operation_allowlist_sha256"
+      ],
+      "properties": {
+        "facade_name": {"$ref": "#/$defs/facade_name"},
+        "classification": {"enum": ["read-only", "read-write"]},
+        "default_enabled": {"const": true},
+        "read_tools": {"$ref": "#/$defs/route_list"},
+        "write_tools": {"$ref": "#/$defs/route_list"},
+        "underlying_operations": {"$ref": "#/$defs/route_list"},
+        "underlying_operation_allowlist_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "profile_facades": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/facade_name"}
+    },
+    "default_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "mode",
+        "public_surface",
+        "facade_names"
+      ],
+      "properties": {
+        "profile_id": {"const": "weaponry-knife-p0-default@1"},
+        "mode": {"const": "default-knife"},
+        "public_surface": {"const": "knife-facades"},
+        "facade_names": {"$ref": "#/$defs/profile_facades"}
+      }
+    },
+    "legacy_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "read_count",
+        "write_count",
+        "total_count",
+        "read_manifest_sha256",
+        "write_enabled_manifest_sha256",
+        "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "ForgeCADMcpToolManifestSummary@1"},
+        "read_count": {"const": 131},
+        "write_count": {"const": 95},
+        "total_count": {"const": 226},
+        "read_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "write_enabled_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "legacy_operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "read_tools",
+        "write_tools",
+        "read_count",
+        "write_count",
+        "total_count",
+        "read_manifest_sha256",
+        "write_enabled_manifest_sha256",
+        "canonical_sha256",
+        "operation_allowlist_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "ForgeCADMcpToolManifestSummary@1"},
+        "read_tools": {"type": "array", "maxItems": 131, "uniqueItems": true, "items": {"$ref": "#/$defs/legacy_tool_name"}},
+        "write_tools": {"type": "array", "maxItems": 95, "uniqueItems": true, "items": {"$ref": "#/$defs/legacy_tool_name"}},
+        "read_count": {"const": 131},
+        "write_count": {"const": 95},
+        "total_count": {"const": 226},
+        "read_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "write_enabled_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "operation_allowlist_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "native_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_name", "classification", "facade_name", "request_schema", "result_schema", "status"],
+      "properties": {
+        "operation_name": {"$ref": "#/$defs/tool_name"},
+        "classification": {"enum": ["read", "write"]},
+        "facade_name": {"const": "authoring_transaction"},
+        "request_schema": {"enum": ["KnifeCurveModifierGraphPrepareRequest@1", "KnifeCurveModifierGraphGetRequest@1", "KnifeCurveEvaluatedMeshPrepareRequest@1", "KnifeCurveEvaluatedMeshGetRequest@1"]},
+        "result_schema": {"enum": ["KnifeCurveModifierGraphResult@1", "KnifeCurveEvaluatedMeshResult@1"]},
+        "status": {"const": "native-development-only"}
+      }
+    },
+    "native_operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["knife_curve_modifier_graph_prepare", "knife_curve_modifier_graph_get", "knife_curve_evaluated_mesh_prepare", "knife_curve_evaluated_mesh_get"],
+      "properties": {
+        "knife_curve_modifier_graph_prepare": {"$ref": "#/$defs/native_operation"},
+        "knife_curve_modifier_graph_get": {"$ref": "#/$defs/native_operation"},
+        "knife_curve_evaluated_mesh_prepare": {"$ref": "#/$defs/native_operation"},
+        "knife_curve_evaluated_mesh_get": {"$ref": "#/$defs/native_operation"}
+      }
+    },
+    "compatibility_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "mode",
+        "public_surface",
+        "facade_names",
+        "legacy_manifest",
+        "legacy_operation_allowlist_sha256"
+      ],
+      "properties": {
+        "profile_id": {"const": "weaponry-legacy-compatibility@1"},
+        "mode": {"const": "explicit-compatibility-only"},
+        "public_surface": {"const": "legacy-raw-tools"},
+        "facade_names": {
+          "type": "array",
+          "maxItems": 0,
+          "items": {"$ref": "#/$defs/facade_name"}
+        },
+        "legacy_manifest": {"$ref": "#/$defs/legacy_manifest"},
+        "legacy_operation_allowlist_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

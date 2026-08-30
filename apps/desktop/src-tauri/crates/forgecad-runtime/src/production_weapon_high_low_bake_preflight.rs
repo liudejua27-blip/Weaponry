@@ -162,6 +162,7 @@ fn build_result(
 ) -> Result<ProductionWeaponHighLowBakePreflightGetResult, RuntimeError> {
     let sources = runtime
         .store
+        .surface_repository()
         .get_production_weapon_high_low_bake_preflight_sources(
             &request.project_id,
             &request.session_id,

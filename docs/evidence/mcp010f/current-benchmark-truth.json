@@ -55,18 +55,18 @@
       "relation_to_primary": "UNBOUND_SEPARATE_RUN"
     }
   },
-  "canonical_sha256": "583e0e21678f5c56c5c09e08c616fdf89f2426ce15a0eb164affcd7d05642d85",
+  "canonical_sha256": "8c77ccb9d3829553444fdd04904076cd26ad3037bc929cc464a20c015fcb0172",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
-      "manifest_sha256": "7e985b7a1c3ead95ee2e96858501357f028a5afe6f08ced7cd7ea1858a10accf",
+      "manifest_sha256": "4c09a6aca45b72967e073c0c0283eb6e29c2d0ac87b90ed43a5b16b665612274",
       "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
-      "schema_content_set_sha256": "2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1",
-      "schema_count": 579
+      "schema_content_set_sha256": "29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1",
+      "schema_count": 658
     },
     "mcp_tools": {
-      "read_count": 128,
-      "read_manifest_sha256": "ff750815cf5d112830cdd97ca7a91f9332b171360f22d8e612968e89fef0c152",
+      "read_count": 131,
+      "read_manifest_sha256": "e7653110f1111a95e6020d71dc9d45f99c00628c4b08885f01a832aebf0c506d",
       "read_names": [
         "appearance_source_lineage_get",
         "artifact_readback_get",
@@ -74,6 +74,7 @@
         "authoring_mesh_edit_preview",
         "authoring_mesh_get",
         "authoring_mesh_identity_lineage_get",
+        "authoring_mesh_transaction_get",
         "authoring_mesh_v2_durable_get",
         "authoring_topology_get",
         "boolean_operand_lineage_preview",
@@ -137,7 +138,6 @@
         "operator_catalog_get",
         "optimization_job_get",
         "part_contour_fit_prepare",
-        "production_blender_worker_capability_get",
         "production_camera_lock_get",
         "production_camera_lock_registration_lineage_get",
         "production_camera_lock_registration_lineage_preflight_get",
@@ -147,6 +147,7 @@
         "production_stage_transition_v3_get",
         "production_weapon_art_decision_proposal_get",
         "production_weapon_assembly_parameter_sink_get",
+        "production_weapon_form_art_aperture_repair_plan_get",
         "production_weapon_form_art_baseline_get",
         "production_weapon_form_art_baseline_preflight_get",
         "production_weapon_form_art_composite_evidence_get",
@@ -155,6 +156,8 @@
         "production_weapon_form_art_failure_diagnostic_get",
         "production_weapon_form_art_mesh_proposal_get",
         "production_weapon_form_art_repair_plan_get",
+        "production_weapon_form_art_target_occlusion_attribution_get",
+        "production_weapon_form_art_visibility_calibration_get",
         "production_weapon_form_evidence_get",
         "production_weapon_form_quality_get",
         "production_weapon_form_quality_v2_get",
@@ -197,19 +200,20 @@
         "weapon_foundation_asset_get",
         "weapon_foundation_authoring_materialization_get"
       ],
-      "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "a0caec206ce8499d26ed4ef4be0d8a8be852c0f0b777aeef3a410493fdbf6e92",
+      "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/compat_main.rs",
+      "source_sha256": "5a5dcd163643eb378736568178e3dca65098a552f2a52fbf0be3907a6bfe0cfd",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
-      "summary_receipt_sha256": "97a9acf4b2dc2bb92fed39ca78af85110eea7e8a293cca50302f38eed54b63c9",
-      "total_count": 222,
-      "write_count": 94,
-      "write_enabled_manifest_sha256": "4a5c5931e0f72b7fea05f9b6ddc9585446fff4d8ffb682b1513afc89b51aa5cd",
+      "summary_receipt_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca",
+      "total_count": 226,
+      "write_count": 95,
+      "write_enabled_manifest_sha256": "3d5a70ddc68b291ee321419cd40bbb9e3481bb5b43df67eb67d9c213d8985c18",
       "write_names": [
         "appearance_prepare",
         "appearance_source_lineage_prepare",
         "authoring_mesh_durable_prepare",
         "authoring_mesh_edit_prepare",
         "authoring_mesh_identity_lineage_prepare",
+        "authoring_mesh_transaction_prepare",
         "authoring_mesh_v2_durable_prepare",
         "candidate_animation_vfx_quality_prepare",
         "candidate_animation_vfx_quality_v2_prepare",
@@ -310,14 +314,14 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "543491266884f806ae56af633718f8b3f1ad4c9c8a871f4b82de530356fc7f34",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "88aee9a3f91c60b5480fa2e47c6ba4e6e37b5f19821bb1e5014fa3975803ebf8",
+      "runtime_source_sha256": "893be325dbd1f057791e3cfed815b7fd2c17517379b09c9ad6df795a9ab6483c",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
       "viewer_projection_sha256": "e9cfc30c991bba3e1c8e4713c385431d422cc5d0885f60330d6ed21f271cc2f0"
     }
   },
   "evidence_manifest": {
     "path": "docs/evidence/mcp010f/manifest.json",
-    "sha256": "f46aebaf300a41c099c4591dde61c805e7617151f1884b3b08f23780c2b3453b"
+    "sha256": "d29f3e0df29804a4f776379fa8f3435b11b6c8ab6bc715a11203a2cee185041b"
   },
   "evidence_status": "INCOMPLETE_TRUTH_BINDING",
   "latest_attempt": {

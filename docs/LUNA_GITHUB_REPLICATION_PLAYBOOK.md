@@ -1,5 +1,7 @@
 # Luna GitHub 受控复刻操作手册
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 商业武器开源研究新增边界：只 clean-room 吸收算法/数据结构思想或固定 revision 的 typed Worker source；不得把外部 half-edge handle、脚本、DCC 状态、模型输出或引擎项目变成 ForgeCAD 真值。选型见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。
 
 > 2026-08-26 商业采用优先级：Manifold=isolated Boolean；OpenSubdiv=CPU High evaluator 候选；QuadriFlow=license/transitive audit 后仅 draft retopo；xatlas=UV draft；Embree=ray kernel；MaterialX=typed graph semantics；OIIO/OCIO=隔离 image/color；meshoptimizer=approved LOD/package；Basis/KTX2=texture delivery；glTF Transform=固定导出 allowlist；Khronos Validator=format only。任何整仓、动态插件、外部 solver/PATH 或脚本入口均不得进入 Runtime。

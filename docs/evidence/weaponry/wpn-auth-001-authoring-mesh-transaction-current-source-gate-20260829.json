@@ -1,0 +1,59 @@
+{
+  "schema_version": "WeaponryAuthoringMeshTransactionSourceGate@1",
+  "task_id": "WPN-AUTH-001",
+  "recorded_date": "2026-08-29",
+  "status": "PASS_SOURCE_STRUCTURAL_DURABLE_TRANSACTION",
+  "supersedes_current_projection_only": "wpn-auth-001-authoring-mesh-transaction-source-gate-20260829.json",
+  "current_source": {
+    "schema_count": 589,
+    "read_tool_count": 131,
+    "write_tool_count": 95,
+    "total_tool_count": 226,
+    "contract_manifest_sha256": "3e3f6f24a6eadffc09f8c71407b7f5c72ab5fc730a653452899b6ed7af826489",
+    "schema_content_set_sha256": "5035860aba3610f67b3eaa8e53d607e7c1d0912f953ce5e22b854d282231b7c0",
+    "runtime_source_sha256": "9af4d7a73f06be7f63625bde0123887f3874e50c19521551b8af030ecd110c4a",
+    "compiled_summary_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca",
+    "build_cohort_sha256": null
+  },
+  "implementation_source_sha256": {
+    "runtime_authoring_mesh_transaction_rs": "f7d4b340a8ef9ec30a2c2f42b491cdf0f4fa949f62b05b3c38273adea96ce9bc",
+    "store_authoring_mesh_v2_transaction_rs": "40b5f1be49b99596c85d9cb5fc7ef255cf536022978daa505dcacae28ae3f59a",
+    "mcp_authoring_mesh_transaction_tools_rs": "3fdbf69374bea91920cbbc2cdf3d5658dd3a1bd0b3bca3ad41704c04d0dc0833",
+    "journal_schema_json": "942e24c774d94fb4de2d1fb4531bafd346351f37c6e6039c0298a4d86aa64de4",
+    "result_schema_json": "ddcb297096fd1f716c9714ca573b2ee506d63de152b5f9b5d61d62a8272ba6c8"
+  },
+  "contract": {
+    "journal": "AuthoringMeshTransaction@1",
+    "commands": ["SplitEdge", "MoveVertices", "FaceExtrude"],
+    "max_commands": 32,
+    "generated_reference_policy": "earlier-command-only-and-kind-checked",
+    "closed_envelopes": true
+  },
+  "gates": {
+    "contract_checker": "PASS",
+    "runtime_focused_tests": "PASS_3_OF_3",
+    "mcp_focused_test": "PASS_1_OF_1",
+    "store_runtime_mcp_check": "PASS",
+    "compiled_source_manifest_vs_independent_parser": "PASS",
+    "mcp010f_stage0_truth": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "atomicity_truth": {
+    "sqlite_visibility": "all-child-revisions-aggregate-receipt-idempotency-and-reachability-in-one-sqlite-transaction",
+    "cas_protocol": "reservation-stage-validate-then-sqlite-publish-with-failure-cleanup",
+    "cross_media_distributed_acid_claimed": false,
+    "late_failure_visible_aggregate_rows": 0,
+    "late_failure_visible_child_rows": 0
+  },
+  "limitations": {
+    "knife_tool_profile": "SUCCESSOR_SOURCE_STRUCTURAL_11_FACADES_WITH_EXPLICIT_COMPATIBILITY_REPLAY",
+    "modifier_evaluation_graph": "SUCCESSOR_CURVE_EVALUATED_MESH_STRUCTURAL_ONLY_NO_DOWNSTREAM_QUALITY",
+    "blender_internal_prototype": "NOT_RUN",
+    "crossfire_knife_visual_acceptance": "NOT_RUN",
+    "engine_acceptance": "NOT_RUN",
+    "human_art_review": "NOT_RUN",
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "commercial_status": "NOT_PROVEN"
+  },
+  "historical_receipts_mutated": false
+}

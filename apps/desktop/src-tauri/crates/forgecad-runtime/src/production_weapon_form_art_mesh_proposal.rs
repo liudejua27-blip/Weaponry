@@ -82,14 +82,17 @@ const REAR_STOCK_VOID_RAIL_BOW_CANDIDATE_PREPARE_IDEMPOTENCY_PREFIX: &str =
     "form-art-rear-stock-void-rail-bow-candidate";
 const REAR_STOCK_VOID_BOUNDARY_BRIDGE_CANDIDATE_PREPARE_IDEMPOTENCY_PREFIX: &str =
     "form-art-rear-stock-void-boundary-bridge-candidate";
-const SECONDARY_FORM_GATE_POLICY: &str = "form-art-secondary-pareto-review@1";
-const SECONDARY_FORM_METRIC_POLICY: &str = "legacy-eight-metric-equal-weight-average@1";
+const SECONDARY_FORM_GATE_POLICY: &str = "form-art-secondary-pareto-review@2";
+const SECONDARY_FORM_METRIC_POLICY: &str = "core-raster-absolute-tradeoff-0.01-semantic-exact@1";
 const PROPOSAL_FORM_ART_EVIDENCE_SCHEMA_VERSION: &str = "ProductionWeaponFormArtProposalEvidence@1";
 const PROPOSAL_FORM_ART_EVIDENCE_POLICY: &str =
     "proposal-candidate-six-view-form-art-part-owner-negative-line@1";
 const FIXED_RASTER_SIZE_PX: u64 = 512;
 const METRIC_PPM_SCALE: f64 = 1_000_000.0;
-const MAX_CORE_TRADEOFF_PPM: i64 = 1_000;
+// User-authorized review tolerance for 512px raster-sensitive Form metrics.
+// This is deliberately isolated from semantic, topology, hash, UV overlap,
+// bake miss/cross-hit and approval gates, which remain exact/fail closed.
+const MAX_CORE_TRADEOFF_PPM: i64 = 10_000;
 const MIN_CORE_IMPROVEMENT_PPM: i64 = 1_000;
 const MIN_AGGREGATE_IMPROVEMENT_PPM: i64 = 1;
 const COMPOSITE_EVALUATION_SCHEMA_VERSION: &str =

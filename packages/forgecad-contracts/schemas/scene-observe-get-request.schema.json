@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/scene-observe-get-request.schema.json",
+  "title": "SceneObserveGetRequest",
+  "additionalProperties": false,
+  "properties": {
+    "candidate_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id"
+  ],
+  "type": "object"
+}

@@ -1,5 +1,16 @@
 # ForgeCAD Runtime V1 数据库
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+## Weaponry durable additions
+
+数据库 successor 需要持久化授权 manifest、AuthoringDocument head、完整原子 transaction journal、
+每个 immutable child revision、ModifierGraph、evaluation receipt、High/Low/UV/Cage/Bake lineage、
+FPS/engine/human acceptance receipts。事务中任一 command、CAS link 或 validation 失败，所有
+revision/link/job/idempotency 记录必须一起回滚；不得只持久化 final mesh 而丢失编辑历史。
+
+> 2026-08-29 已实现 `AuthoringMesh` transaction durable slice：Store 保存 exact journal CAS object、aggregate transaction record、每个 immutable child revision、final/revision object lookup、scoped idempotency 与 GC roots。base revision 必须同时匹配 revision ID/index/SHA、mesh/lineage 与 CAS topology。所有数据库行与 reachable roots 在一个 SQLite transaction 中变为可见；CAS 文件在此前按 reservation staging，失败时清理。这是可验证的原子可见性，不是宣称 SQLite 与文件系统具有跨介质分布式 ACID。
+
 > 2026-08-27 `FPS-FORM-04AR`：`production_weapon_form_art_baselines` 的 source identity 已升级为 `(registration_lineage_id, candidate_id, artifact_sha256, runtime_build_cohort_sha256)`；启动 migration 保留旧行/CAS，重建 cohort-aware unique index 与 update trigger，允许同一不可变 source 在新 cohort 生成新的 baseline，而不覆盖历史。proposal FormArt Store closure 对 fresh/historical receipt 使用互斥验证。真实 D1 migration、current-cohort baseline、proposal evidence 与 `PRAGMA integrity_check=ok` 已完成。
 
 > 2026-08-26 `04AF` 持久化真值：`AuthoringMesh@2` 已在 Runtime 单写者下保存 immutable genesis 与 split-edge child revision、稳定 V/E/H/F/Corner identity、tombstone 和 CAS object，并通过 Runtime drop/reopen exact readback。该记录是 structural-only 隔离资产，未写入真实 D1 武器 lineage。CameraLock child 因缺 orientation-specific 用户回执没有创建成功 row；不得以诊断性 180° 填补数据库真值。

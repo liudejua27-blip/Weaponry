@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Weaponry 刀类 Agent-native DCC：当前高层运行时架构",
+    "locale": "zh-CN",
+    "output": "docs/architecture/weaponry-runtime-high-level.html",
+    "quality_profile": "showcase",
+    "viewBox": [1280, 610],
+    "views": [
+      {"id": "default-path", "label": "默认刀类路径", "focus": ["codex", "mcp", "contracts", "runtime", "dcc-core", "repositories", "state"], "note": "Codex 只选择 11 个 bounded façade；Runtime 仍是唯一状态写者。"},
+      {"id": "worker-boundary", "label": "隔离 Worker", "focus": ["runtime", "worker-protocol", "workers", "evidence"], "note": "Geometry、High、Render 通过 typed 一次性协议运行，same-cohort 身份已有固定基线。"},
+      {"id": "compatibility-boundary", "label": "兼容边界", "focus": ["compatibility", "mcp", "runtime"], "note": "226-operation registry 默认关闭，但大量 legacy handler 和 Runtime dispatch 仍在默认编译图。"}
+    ]
+  },
+  "layout": {"mode": "grid", "origin": [50, 55], "cols": 4, "gapX": 72, "gapY": 48, "cellW": 220, "cellH": 86},
+  "components": [
+    {"id": "compatibility", "type": "external", "label": "Compatibility / Archive", "sublabel": "226 raw operations；feature opt-in", "tag": "尚未完全物理隔离", "row": 0, "col": 0, "size": [200, 64]},
+    {"id": "contracts", "type": "security", "label": "Contracts / Domain Map", "sublabel": "11 façade · 5 domains", "tag": "中央所有权权威", "row": 0, "col": 1, "size": [200, 64]},
+    {"id": "dcc-core", "type": "backend", "label": "Weaponry DCC Core", "sublabel": "AuthoringMesh · Curve · ModifierGraph", "tag": "确定性几何内核", "row": 0, "col": 3, "size": [200, 64]},
+    {"id": "codex", "type": "external", "label": "Codex", "sublabel": "规划与工具编排", "row": 1, "col": 0},
+    {"id": "mcp", "type": "frontend", "label": "Weaponry MCP", "sublabel": "11 façade · stdio", "tag": "默认 Action Space", "row": 1, "col": 1},
+    {"id": "runtime", "type": "backend", "label": "Rust Runtime", "sublabel": "五域 Router · transaction · lineage", "tag": "唯一写者", "row": 1, "col": 2, "size": [200, 64]},
+    {"id": "repositories", "type": "database", "label": "Repository Boundaries", "sublabel": "Authoring 首切；其余四域仍是逻辑边界", "tag": "物理抽取未完成", "row": 2, "col": 2, "size": [200, 64]},
+    {"id": "worker-protocol", "type": "messagebus", "label": "Typed Worker Protocol", "sublabel": "bounded job · budgets · hash readback", "row": 2, "col": 3, "size": [200, 64]},
+    {"id": "viewer", "type": "frontend", "label": "Desktop Viewer", "sublabel": "只读投影与临时视图状态", "tag": "不写产品真值", "row": 3, "col": 0},
+    {"id": "evidence", "type": "cloud", "label": "Evidence / Quality", "sublabel": "AOV · compare · review · receipts", "tag": "结构 PASS ≠ 商业 PASS", "row": 3, "col": 1, "size": [200, 64]},
+    {"id": "state", "type": "database", "label": "SQLite + CAS", "sublabel": "candidate · revision · artifact", "tag": "持久真值", "row": 3, "col": 2, "size": [200, 64]},
+    {"id": "workers", "type": "backend", "label": "Geometry / High / Render", "sublabel": "固定 sibling workers · 无网络", "tag": "same-cohort gate", "row": 3, "col": 3, "size": [200, 64]}
+  ],
+  "boundaries": [
+    {"kind": "region", "label": "默认 Weaponry 刀类产品路径", "wraps": ["contracts", "mcp", "runtime", "dcc-core", "repositories", "worker-protocol", "viewer", "evidence", "state", "workers"], "pad": 20},
+    {"kind": "security-group", "label": "隔离执行：无任意脚本、无网络、无 DB 写入", "wraps": ["workers"], "pad": 15},
+    {"kind": "security-group", "label": "显式 compatibility build", "wraps": ["compatibility"], "pad": 15}
+  ],
+  "connections": [
+    {"id": "codex-mcp", "from": "codex", "to": "mcp", "variant": "emphasis"},
+    {"id": "contracts-mcp", "from": "contracts", "to": "mcp", "label": "façade + route validation", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "mcp-runtime", "from": "mcp", "to": "runtime", "variant": "security"},
+    {"id": "contracts-runtime", "from": "contracts", "to": "runtime", "variant": "security"},
+    {"id": "runtime-core", "from": "runtime", "to": "dcc-core", "label": "pure evaluation / lineage", "variant": "emphasis"},
+    {"id": "runtime-repositories", "from": "runtime", "to": "repositories", "label": "command / query", "variant": "emphasis", "labelDy": 24},
+    {"id": "repositories-state", "from": "repositories", "to": "state", "label": "single migration + CAS roots", "variant": "security", "labelDy": 24},
+    {"id": "runtime-worker-protocol", "from": "runtime", "to": "worker-protocol", "label": "bounded request", "variant": "security"},
+    {"id": "worker-protocol-workers", "from": "worker-protocol", "to": "workers", "label": "one-shot process", "variant": "emphasis", "labelDy": 24},
+    {"id": "runtime-evidence", "from": "runtime", "to": "evidence", "variant": "emphasis"},
+    {"id": "evidence-viewer", "from": "evidence", "to": "viewer", "label": "read-only review", "variant": "dashed"},
+    {"id": "compatibility-mcp", "from": "compatibility", "to": "mcp", "variant": "dashed"}
+  ],
+  "cards": [
+    {"dot": "emerald", "title": "方向正确", "items": ["Codex 编排、Runtime 单写者、Viewer 只读、Worker 隔离", "11 façade + 中央五域映射已收缩默认 Action Space"]},
+    {"dot": "amber", "title": "仍是迁移接缝", "items": ["Runtime 52,927 行 / 92 mod；Store 81,050 行；MCP main 20,508 行", "四域仍回落 dispatch_ipc；旧 route 只能通过替代、replay、consumer-zero 和 recovery 门后删除"]}
+  ]
+}

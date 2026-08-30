@@ -5032,6 +5032,46 @@ pub(crate) fn recompile_candidate(
     Ok(inspection)
 }
 
+/// Revalidate an immutable candidate artifact without requiring its embedded
+/// historical build-cohort metadata to equal the currently running Worker.
+///
+/// This is the source side of a cohort transition only. The stored GLB must
+/// still be byte/hash bound, pass strict structural readback, and match the
+/// persisted GeometryProgram/catalog/readback lineage. Any newly prepared
+/// child is compiled normally by the current cohort and receives its own
+/// current-cohort artifact and evidence.
+pub(crate) fn inspect_persisted_candidate_for_cohort_transition(
+    runtime: &Runtime,
+    geometry: &GeometryBindings,
+) -> Result<super::integrity::GlbIntegrity, RuntimeError> {
+    let artifact_object = runtime
+        .store
+        .get_object(&geometry.artifact_sha256)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("GEOMETRY_ARTIFACT_OBJECT_UNAVAILABLE".to_owned())
+        })?;
+    let artifact_bytes = runtime.cas_read(&artifact_object.sha256)?;
+    if artifact_object.sha256 != geometry.artifact_sha256
+        || sha256_hex(&artifact_bytes) != geometry.artifact_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "GEOMETRY_ARTIFACT_OBJECT_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let inspection = strict_glb_inspection(&artifact_bytes)?;
+    if inspection.program_sha256 != geometry.evidence.geometry_program_sha256
+        || inspection.operator_catalog_sha256.as_deref()
+            != Some(geometry.evidence.operator_catalog_sha256.as_str())
+        || inspection.readback_config_sha256 != geometry.evidence.readback_config_sha256
+        || !inspection.hard_gate_passed
+    {
+        return Err(RuntimeError::InvalidInput(
+            "GEOMETRY_PERSISTED_COHORT_TRANSITION_LINEAGE_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(inspection)
+}
+
 pub(crate) fn verify_artifact_readback(
     runtime: &Runtime,
     candidate: &CandidateRecord,

@@ -1,0 +1,90 @@
+{
+  "schema_version": "WeaponryArchitectureCompatibilityIsolationReceipt@1",
+  "task_id": "WPN-ARCH-COMPAT-001",
+  "status": "PASS_SOURCE_PHYSICAL_BINARY_ISOLATION",
+  "build_cohort_sha256": "5ae4d4e1c6e486a17537a84b3806e6f9243ee88755022041e65e41c3f589d616",
+  "source_drift_detected": false,
+  "default_binary": {
+    "name": "forgecad-mcp",
+    "mcp_source_count": 6,
+    "mcp_sources": [
+      "domain_router.rs",
+      "knife_curve_evaluated_mesh_tools.rs",
+      "knife_curve_modifier_graph_tools.rs",
+      "knife_tool_profile.rs",
+      "main.rs",
+      "supervisor.rs"
+    ],
+    "compiles_compatibility_entry": false,
+    "compiles_compatibility_registry": false,
+    "dep_info_sha256": "79d4ece9579f109278774a7c5d82b31cdabfc250a146e67eb38a012ada4c05a1",
+    "test_summary": {
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "compatibility_binary": {
+    "name": "forgecad-mcp-compat",
+    "required_feature": "legacy-compatibility-registry",
+    "mcp_source_count": 39,
+    "dep_info_sha256": "c3529af0b41f69b47ad19a343dc0e5e459dcbecd7b6e056d8a2c909f880c76fd",
+    "manifest": {
+      "read_count": 131,
+      "write_count": 95,
+      "total_count": 226,
+      "canonical_sha256": "d7ba7f612fdfa2ace4703818313dfa5e48d6acb391417c4918056e0578f31c90",
+      "receipt_bytes_sha256": "1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca"
+    },
+    "test_summary": {
+      "passed": 230,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "active_profile": {
+    "facade_count": 11,
+    "active_operation_count": 125,
+    "closed_request_schema_count": 12,
+    "runtime_validated_request_schema_count": 113,
+    "request_schema_closure_status": "PARTIAL",
+    "canonical_sha256": "a325d1f2f531ec90d63b8a6a33df51ae59551dcc248577889567f3554190b4d0",
+    "receipt_bytes_sha256": "2fd4c644dd6138e051ad271aa60748f35d7f59c03af2de3dce7ed9ec8c660ba4"
+  },
+  "structure_budget": {
+    "runtime_lib_lines": 52927,
+    "store_lib_lines": 81050,
+    "mcp_main_baseline_lines": 20508,
+    "mcp_main_current_lines": 1081,
+    "mcp_main_delta_lines": -19427,
+    "mcp_main_ceiling_lines": 1081,
+    "mcp_compat_main_lines": 20513,
+    "mcp_agentic_write_tools_lines": 22800,
+    "runtime_root_module_declarations": 92,
+    "status": "PASS_ONE_TARGET_DECREASE_OTHER_TARGETS_NO_GROWTH"
+  },
+  "architecture_fast_gate": {
+    "status": "PASS",
+    "steps": 11,
+    "passed": 47,
+    "failed": 0,
+    "ignored": 0,
+    "duration_seconds": 161,
+    "duration_budget_seconds": 900,
+    "local_generated_receipt_sha256": "a2fea7a772525c360acd357d3d17865b46f60d4ed54afbf830289ec70dd2bfb2"
+  },
+  "archify": {
+    "artifact": "docs/weaponry-runtime-architecture-overview.html",
+    "specification_sha256": "845d7c6ee266eb8ae2dcbb063a86c5a694431d2c8ef11ecf4b076a00dfdc73fe",
+    "artifact_sha256": "3970031895f21a5a5119f5ce49c832968b25a46486ce09df68347a5a500f6bb2",
+    "showcase_checks_passed": 9,
+    "showcase_check_count": 9,
+    "composition_errors": 0,
+    "composition_warnings": 0,
+    "visual_containment_status": "PASS",
+    "human_visual_review_status": "PASS_READABLE_SINGLE_SCREEN"
+  },
+  "historical_receipts_mutated": false,
+  "quality_claim": "architecture-and-compatibility-isolation-only; High-Low-UV-Bake, visual, human, FPS, engine and commercial quality remain not proven",
+  "next_task": "WPN-ARCH-MCP-SCHEMA-002"
+}

@@ -8,9 +8,9 @@
 //! hash-only link to compact CAS children and keeps the materialization state
 //! explicit.
 
-use forgecad_contracts::{is_opaque_id, is_sha256, CasObjectRecord};
+use forgecad_contracts::{CasObjectRecord, is_opaque_id, is_sha256};
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{params, OptionalExtension, Transaction};
+use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -746,8 +746,10 @@ mod tests {
             "glb"
         );
         assert!(allowlisted_asset("arbitrary-path.glb").is_none());
-        assert!(ALLOWLISTED_ASSETS
-            .iter()
-            .all(|asset| is_sha256(asset.asset_sha256)));
+        assert!(
+            ALLOWLISTED_ASSETS
+                .iter()
+                .all(|asset| is_sha256(asset.asset_sha256))
+        );
     }
 }

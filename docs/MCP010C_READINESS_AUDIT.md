@@ -1,5 +1,7 @@
 # FGC-MCP010C 固定渲染与参考比较实施审计
 
+> **Status: reference-only historical document (2026-08-29).** 本文保留研究或审计发生时的事实，不再定义当前产品范围或任务顺序。可复用结论必须经过 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md`、ADR-0029 和当前真实证据重新验证后，才能进入穿越火线武器主线。
+
 > 2026-08-25 商业质量解释：固定 renderer、九 AOV、reference compare 和 typed visual review 是必要观察面，但不是商业 Hero Weapon 的充分条件。它们必须消费同 hash 的 approved Form、AuthoringMesh、High/Low/UV/Cage/Bake/Material，并由 commercial engine 与 independent human Gate 收口。当前状态仍为 `QUALITY_TARGET_NOT_MET`；详见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
 
 版本：2026-08-11

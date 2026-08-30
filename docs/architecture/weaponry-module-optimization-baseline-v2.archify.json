@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Weaponry 刀类模块优化基线",
+    "locale": "zh-CN",
+    "output": "weaponry-module-optimization-baseline.html",
+    "quality_profile": "showcase",
+    "viewBox": [1260, 560],
+    "views": [
+      {
+        "id": "active-path",
+        "label": "默认刀类主路径",
+        "focus": ["codex", "mcp", "contracts", "router", "domains", "store"],
+        "note": "默认 Action Space 为 11 façade；Runtime 仍是唯一产品状态写者。"
+      },
+      {
+        "id": "compute-path",
+        "label": "受限计算路径",
+        "focus": ["router", "domains", "workers", "store"],
+        "note": "Worker 只接受 typed one-shot 协议，Runtime 校验结果后才允许持久化。"
+      },
+      {
+        "id": "regression-gates",
+        "label": "分层回归门",
+        "focus": ["contracts", "router", "domains", "workers"],
+        "note": "171 秒快速门负责架构回归；完整 554/0/37 门继续负责高成本 qualification。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "codex",
+      "type": "external",
+      "label": "Codex",
+      "sublabel": "规划 · 视觉 · 编排",
+      "pos": [20, 230],
+      "size": [150, 72]
+    },
+    {
+      "id": "mcp",
+      "type": "frontend",
+      "label": "forgecad-mcp",
+      "sublabel": "默认 11 façade",
+      "tag": "main.rs 20,508 行",
+      "pos": [220, 230],
+      "size": [170, 72]
+    },
+    {
+      "id": "contracts",
+      "type": "security",
+      "label": "Contracts 中央映射",
+      "sublabel": "façade → domain → target",
+      "tag": "589 schemas",
+      "pos": [480, 80],
+      "size": [190, 78]
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "Runtime typed Router",
+      "sublabel": "未知与跨域调用 fail closed",
+      "pos": [480, 230],
+      "size": [190, 78]
+    },
+    {
+      "id": "domains",
+      "type": "backend",
+      "label": "五个领域边界",
+      "sublabel": "建模 · 评估 · 表面 · FPS · 交付",
+      "tag": "Authoring 第一切片直连",
+      "pos": [750, 230],
+      "size": [220, 82]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Store + CAS",
+      "sublabel": "SQLite · CAS · reachability",
+      "tag": "lib.rs 81,050 行",
+      "pos": [1040, 80],
+      "size": [190, 78]
+    },
+    {
+      "id": "workers",
+      "type": "messagebus",
+      "label": "受限 Workers",
+      "sublabel": "one-shot · Geometry / High / Render",
+      "tag": "same-cohort",
+      "pos": [1040, 230],
+      "size": [190, 78]
+    },
+    {
+      "id": "viewer",
+      "type": "frontend",
+      "label": "Viewer / Delivery",
+      "sublabel": "只读模型与导出投影",
+      "pos": [1040, 380],
+      "size": [190, 72]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Runtime 唯一写者边界",
+      "wraps": ["router", "domains", "store", "workers"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "codex-to-mcp",
+      "from": "codex",
+      "to": "mcp",
+      "label": "MCP stdio",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mcp-to-contracts",
+      "from": "mcp",
+      "to": "contracts",
+      "label": "profile 校验",
+      "variant": "security"
+    },
+    {
+      "id": "contracts-to-router",
+      "from": "contracts",
+      "to": "router",
+      "variant": "security"
+    },
+    {
+      "id": "mcp-to-router",
+      "from": "mcp",
+      "to": "router",
+      "label": "typed envelope",
+      "labelDy": 60,
+      "variant": "emphasis"
+    },
+    {
+      "id": "router-to-domains",
+      "from": "router",
+      "to": "domains",
+      "label": "domain invoke",
+      "variant": "emphasis"
+    },
+    {
+      "id": "domains-to-store",
+      "from": "domains",
+      "to": "store",
+      "label": "repository / projection"
+    },
+    {
+      "id": "domains-to-workers",
+      "from": "domains",
+      "to": "workers",
+      "variant": "dashed"
+    },
+    {
+      "id": "domains-to-viewer",
+      "from": "domains",
+      "to": "viewer",
+      "label": "read model",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "本轮真实升级",
+      "items": [
+        "超时统一为 180 秒；快速门 47/0，171 秒",
+        "37 ignored：21 Worker、10 fixture、2 snapshot、2 slow、2 retire",
+        "完整 qualification 仍保留 554/0/37 与约 10147 秒证据"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "仍需物理拆分",
+      "items": [
+        "Runtime 52,927；Store 81,050；MCP 20,508 行",
+        "四个非 Authoring 域仍回落旧 dispatch；旧 handlers 仍编译",
+        "顺序：Surface → Evaluation → Presentation → Delivery → MCP split"
+      ]
+    }
+  ]
+}

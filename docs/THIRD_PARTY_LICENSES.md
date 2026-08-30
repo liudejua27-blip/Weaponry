@@ -1,5 +1,7 @@
 # ForgeCAD License / SBOM Ledger
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-26 现行 source 面为 **527 schemas / 115 read + 87 write = 202 tools**。Manifold 固定 revision/Apache-2.0 的 vendored slice 可 feature-gated 编译链接；OpenSubdiv、QuadriFlow、xatlas、Embree、OpenImageIO、meshoptimizer、glTF Transform、Basis/KTX2 仍须分别经过 fixed-revision、许可证、SBOM、确定性、资源和 removal Gate，未标记 `accepted` 前不得进入产品真值。下文旧计数仅作历史 cohort。
 
 > 2026-08-26 研究提醒：OpenSubdiv 为 Tomorrow OSL 1.0；QuadriFlow README/license/transitive Eigen 路径需逐项核验并使用 free-license build；OIIO codecs、KTX/Basis components、生成式 3D 模型权重均需独立许可证/SBOM。未固定 revision 和 receipt 前不得进入发布包。详见 `FPS_HERO_WEAPON_PRODUCTION_RESEARCH_20260826.md`。

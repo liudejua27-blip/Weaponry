@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/render-evidence-integrity-get-request.schema.json",
+  "title": "RenderEvidenceIntegrityGetRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "candidate_id",
+    "artifact_sha256",
+    "artifact_readback_object_sha256",
+    "program_sha256",
+    "reference_id",
+    "reference_sha256",
+    "camera_hash",
+    "camera_object_sha256",
+    "render_set_object_sha256",
+    "comparison_report_object_sha256",
+    "quality_report_object_sha256",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "RenderEvidenceIntegrityRequest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "camera_object_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "comparison_report_object_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_object_sha256": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

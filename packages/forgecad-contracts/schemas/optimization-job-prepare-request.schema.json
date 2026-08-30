@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/optimization-job-prepare-request.schema.json",
+  "title": "OptimizationJobPrepareRequest@1",
+  "description": "Closed approval-gated request to queue one Runtime-owned multi-fidelity OptimizationJob.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "candidate_id",
+    "intent",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "approval_session_id",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "intent": {"oneOf": [{"$ref": "#/$defs/intent_v1"}, {"$ref": "#/$defs/intent_v2"}]},
+    "approved": {"const": true},
+    "approval_receipt_id": {"$ref": "#/$defs/identifier"},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "approval_expires_at": {"type": "string", "minLength": 1, "maxLength": 64},
+    "approval_session_id": {"$ref": "#/$defs/identifier"},
+    "idempotency_key": {"$ref": "#/$defs/identifier"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "intent_v1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "intent_id", "job_id", "project_id", "candidate_id", "reference_id",
+        "reference_sha256", "program_sha256", "target_sha256", "camera", "camera_hash", "part_id",
+        "stage", "rig", "fidelity", "budget", "objective", "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "OptimizationIntent@1"},
+        "intent_id": {"$ref": "#/$defs/identifier"},
+        "action_run_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+        "job_id": {"$ref": "#/$defs/identifier"},
+        "project_id": {"$ref": "#/$defs/identifier"},
+        "candidate_id": {"$ref": "#/$defs/identifier"},
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "program_sha256": {"$ref": "#/$defs/sha256"},
+        "target_sha256": {"$ref": "#/$defs/sha256"},
+        "camera": {"type": "object"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "stage": {"enum": ["primary-form", "secondary-structure", "tertiary-detail", "uv-pbr", "final-review"]},
+        "rig": {"type": "object"},
+        "fidelity": {"type": "object"},
+        "budget": {"type": "object"},
+        "objective": {"type": "object"},
+        "residual": {"$ref": "#/$defs/residual"},
+        "evaluation_objective_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "intent_v2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "intent_id", "job_id", "project_id", "candidate_id", "reference_id",
+        "reference_sha256", "program_sha256", "camera_rig_sha256", "camera_rig", "views", "part_id",
+        "target_part_ids", "stage", "rig", "fidelity", "budget", "objective", "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "OptimizationIntent@2"},
+        "intent_id": {"$ref": "#/$defs/identifier"},
+        "action_run_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+        "job_id": {"$ref": "#/$defs/identifier"},
+        "project_id": {"$ref": "#/$defs/identifier"},
+        "candidate_id": {"$ref": "#/$defs/identifier"},
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "program_sha256": {"$ref": "#/$defs/sha256"},
+        "camera_rig_sha256": {"$ref": "#/$defs/sha256"},
+        "camera_rig": {"type": "object"},
+        "views": {"type": "array", "minItems": 6, "maxItems": 8, "items": {"$ref": "#/$defs/view"}},
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "target_part_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "stage": {"enum": ["primary-form", "secondary-structure", "tertiary-detail", "uv-pbr", "final-review"]},
+        "rig": {"type": "object"},
+        "fidelity": {"type": "object"},
+        "budget": {"type": "object"},
+        "objective": {"type": "object"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["view_id", "kind", "target_sha256", "camera", "camera_hash", "weight", "primary"],
+      "properties": {
+        "view_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"enum": ["left", "right", "top", "bottom", "front", "back", "front-three-quarter", "rear-three-quarter"]},
+        "target_sha256": {"$ref": "#/$defs/sha256"},
+        "camera": {"type": "object"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "weight": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 1.0},
+        "primary": {"type": "boolean"}
+      }
+    },
+    "residual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "part_id", "node_id", "operation", "parameters",
+        "source_critic_report_sha256", "source_part_error_sha256", "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "OptimizationResidual@1"},
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "node_id": {"$ref": "#/$defs/identifier"},
+        "operation": {"enum": ["union", "difference", "intersection"]},
+        "parameters": {"$ref": "#/$defs/primitive_parameters"},
+        "source_critic_report_sha256": {"$ref": "#/$defs/sha256"},
+        "source_part_error_sha256": {"$ref": "#/$defs/sha256"},
+        "source_visual_surface_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "primitive_parameters": {
+      "oneOf": [
+        {"$ref": "#/$defs/box_parameters"},
+        {"$ref": "#/$defs/cylinder_parameters"},
+        {"$ref": "#/$defs/ellipsoid_parameters"},
+        {"$ref": "#/$defs/sphere_parameters"}
+      ]
+    },
+    "box_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "size_m", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "box"},
+        "size_m": {"$ref": "#/$defs/vec3_positive_or_zero_10"},
+        "position_m": {"$ref": "#/$defs/vec3_signed_10"},
+        "rotation_rad": {"$ref": "#/$defs/vec3_signed_tau"}
+      }
+    },
+    "cylinder_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "radius_m", "height_m", "radial_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "cylinder"},
+        "radius_m": {"type": "number", "minimum": 0.0000001, "maximum": 5.0},
+        "height_m": {"type": "number", "minimum": 0.0000001, "maximum": 10.0},
+        "radial_segments": {"type": "integer", "minimum": 8, "maximum": 64},
+        "position_m": {"$ref": "#/$defs/vec3_signed_10"},
+        "rotation_rad": {"$ref": "#/$defs/vec3_signed_tau"}
+      }
+    },
+    "ellipsoid_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "radii_m", "longitude_segments", "latitude_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "ellipsoid"},
+        "radii_m": {"$ref": "#/$defs/vec3_positive_or_zero_5"},
+        "longitude_segments": {"type": "integer", "minimum": 8, "maximum": 64},
+        "latitude_segments": {"type": "integer", "minimum": 4, "maximum": 64},
+        "position_m": {"$ref": "#/$defs/vec3_signed_10"},
+        "rotation_rad": {"$ref": "#/$defs/vec3_signed_tau"}
+      }
+    },
+    "sphere_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "radius_m", "longitude_segments", "latitude_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "sphere"},
+        "radius_m": {"type": "number", "minimum": 0.0000001, "maximum": 5.0},
+        "longitude_segments": {"type": "integer", "minimum": 8, "maximum": 64},
+        "latitude_segments": {"type": "integer", "minimum": 4, "maximum": 64},
+        "position_m": {"$ref": "#/$defs/vec3_signed_10"},
+        "rotation_rad": {"$ref": "#/$defs/vec3_signed_tau"}
+      }
+    },
+    "vec3_signed_10": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -10.0, "maximum": 10.0}},
+    "vec3_signed_tau": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -6.283185307179586, "maximum": 6.283185307179586}},
+    "vec3_positive_or_zero_10": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": 0.0, "maximum": 10.0}},
+    "vec3_positive_or_zero_5": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": 0.0, "maximum": 5.0}}
+  }
+}

@@ -116,7 +116,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["schema_version", "operation", "parent_revision", "child_revision", "operation_lineage_sha256", "source_vertex_ids", "source_edge_ids", "source_face_ids", "generated_vertex_ids", "generated_edge_ids", "generated_loop_ids", "generated_face_ids", "retired_vertex_ids", "retired_edge_ids", "retired_loop_ids", "retired_face_ids", "tombstones", "correspondence", "identity_namespace_status", "canonical_sha256"],
       "properties": {
-        "schema_version": {"const": "TopologyOperationProof@1"},
+        "schema_version": {"const": "AuthoringMeshTopologyOperationProof@1"},
         "operation": {"enum": ["split_edge", "collapse_edge", "dissolve_edge"]},
         "parent_revision": {"type": "integer", "minimum": 0, "maximum": 1000000},
         "child_revision": {"type": "integer", "minimum": 1, "maximum": 1000001},

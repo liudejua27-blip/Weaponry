@@ -1,0 +1,2743 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-prepare-request.schema.json",
+  "title": "GeometryPrepareRequest@1",
+  "description": "Closed active Knife geometry prepare request. The legacy non-idempotent branch remains compatibility-only; the active request requires exact base-version and idempotency binding.",
+  "additionalProperties": false,
+  "properties": {
+    "base_version_id": {
+      "maxLength": 128,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "idempotency_key": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "request": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "geometry_program": {
+              "properties": {
+                "schema_version": {
+                  "const": "GeometryProgram@2"
+                }
+              },
+              "required": [
+                "schema_version"
+              ],
+              "type": "object"
+            },
+            "reference_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "typed": {
+              "const": "geometry"
+            }
+          },
+          "required": [
+            "typed",
+            "geometry_program"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "modifier_evaluation_request": {
+              "additionalProperties": false,
+              "properties": {
+                "base_node": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.primitive@2"
+                        },
+                        "parameters": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "position_m": {
+                                  "items": {
+                                    "maximum": 10.0,
+                                    "minimum": -10.0,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                },
+                                "rotation_rad": {
+                                  "items": {
+                                    "maximum": 6.283185307179586,
+                                    "minimum": -6.283185307179586,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                },
+                                "shape": {
+                                  "const": "box"
+                                },
+                                "size_m": {
+                                  "items": {
+                                    "exclusiveMinimum": 0.0,
+                                    "maximum": 10.0,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                }
+                              },
+                              "required": [
+                                "shape",
+                                "size_m",
+                                "position_m",
+                                "rotation_rad"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "height_m": {
+                                  "exclusiveMinimum": 0.0,
+                                  "maximum": 10.0,
+                                  "type": "number"
+                                },
+                                "position_m": {
+                                  "items": {
+                                    "maximum": 10.0,
+                                    "minimum": -10.0,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                },
+                                "radial_segments": {
+                                  "maximum": 64,
+                                  "minimum": 8,
+                                  "type": "integer"
+                                },
+                                "radius_m": {
+                                  "exclusiveMinimum": 0.0,
+                                  "maximum": 5.0,
+                                  "type": "number"
+                                },
+                                "rotation_rad": {
+                                  "items": {
+                                    "maximum": 6.283185307179586,
+                                    "minimum": -6.283185307179586,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                },
+                                "shape": {
+                                  "const": "cylinder"
+                                }
+                              },
+                              "required": [
+                                "shape",
+                                "radius_m",
+                                "height_m",
+                                "radial_segments",
+                                "position_m",
+                                "rotation_rad"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "latitude_segments": {
+                                  "maximum": 64,
+                                  "minimum": 4,
+                                  "type": "integer"
+                                },
+                                "longitude_segments": {
+                                  "maximum": 64,
+                                  "minimum": 8,
+                                  "type": "integer"
+                                },
+                                "position_m": {
+                                  "items": {
+                                    "maximum": 10.0,
+                                    "minimum": -10.0,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                },
+                                "radii_m": {
+                                  "items": {
+                                    "exclusiveMinimum": 0.0,
+                                    "maximum": 5.0,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                },
+                                "rotation_rad": {
+                                  "items": {
+                                    "maximum": 6.283185307179586,
+                                    "minimum": -6.283185307179586,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                },
+                                "shape": {
+                                  "const": "ellipsoid"
+                                }
+                              },
+                              "required": [
+                                "shape",
+                                "radii_m",
+                                "longitude_segments",
+                                "latitude_segments",
+                                "position_m",
+                                "rotation_rad"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "latitude_segments": {
+                                  "maximum": 64,
+                                  "minimum": 4,
+                                  "type": "integer"
+                                },
+                                "longitude_segments": {
+                                  "maximum": 64,
+                                  "minimum": 8,
+                                  "type": "integer"
+                                },
+                                "position_m": {
+                                  "items": {
+                                    "maximum": 10.0,
+                                    "minimum": -10.0,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                },
+                                "radius_m": {
+                                  "exclusiveMinimum": 0.0,
+                                  "maximum": 5.0,
+                                  "type": "number"
+                                },
+                                "rotation_rad": {
+                                  "items": {
+                                    "maximum": 6.283185307179586,
+                                    "minimum": -6.283185307179586,
+                                    "type": "number"
+                                  },
+                                  "maxItems": 3,
+                                  "minItems": 3,
+                                  "type": "array"
+                                },
+                                "shape": {
+                                  "const": "sphere"
+                                }
+                              },
+                              "required": [
+                                "shape",
+                                "radius_m",
+                                "longitude_segments",
+                                "latitude_segments",
+                                "position_m",
+                                "rotation_rad"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.profile-extrude@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "depth_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "profile": {
+                              "items": {
+                                "items": {
+                                  "maximum": 10.0,
+                                  "minimum": -10.0,
+                                  "type": "number"
+                                },
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                              },
+                              "maxItems": 64,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "profile-extrude"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "profile",
+                            "depth_m",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.profile-loft@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "profiles": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "height_m": {
+                                    "maximum": 10.0,
+                                    "minimum": -10.0,
+                                    "type": "number"
+                                  },
+                                  "points": {
+                                    "items": {
+                                      "items": {
+                                        "maximum": 10.0,
+                                        "minimum": -10.0,
+                                        "type": "number"
+                                      },
+                                      "maxItems": 2,
+                                      "minItems": 2,
+                                      "type": "array"
+                                    },
+                                    "maxItems": 64,
+                                    "minItems": 3,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "height_m",
+                                  "points"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 16,
+                              "minItems": 2,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "profile-loft"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "profiles",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.longitudinal-section-loft@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "sections": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "points": {
+                                    "items": {
+                                      "items": {
+                                        "maximum": 10.0,
+                                        "minimum": -10.0,
+                                        "type": "number"
+                                      },
+                                      "maxItems": 2,
+                                      "minItems": 2,
+                                      "type": "array"
+                                    },
+                                    "maxItems": 64,
+                                    "minItems": 3,
+                                    "type": "array"
+                                  },
+                                  "station_m": {
+                                    "maximum": 10.0,
+                                    "minimum": -10.0,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "station_m",
+                                  "points"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 16,
+                              "minItems": 2,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "longitudinal-section-loft"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "sections",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.subd-cage@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "control_points": {
+                              "items": {
+                                "items": {
+                                  "maximum": 10.0,
+                                  "minimum": -10.0,
+                                  "type": "number"
+                                },
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                              },
+                              "maxItems": 256,
+                              "minItems": 4,
+                              "type": "array"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "subd-cage"
+                            },
+                            "subdivision_levels": {
+                              "maximum": 2,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "u_points": {
+                              "maximum": 16,
+                              "minimum": 2,
+                              "type": "integer"
+                            },
+                            "v_points": {
+                              "maximum": 16,
+                              "minimum": 2,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "control_points",
+                            "u_points",
+                            "v_points",
+                            "subdivision_levels",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.authoring-mesh@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "edges": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "element_id": {
+                                    "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "vertex_ids": {
+                                    "items": {
+                                      "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                      "type": "string"
+                                    },
+                                    "maxItems": 2,
+                                    "minItems": 2,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "element_id",
+                                  "vertex_ids"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 1536,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "faces": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "element_id": {
+                                    "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "loop_ids": {
+                                    "items": {
+                                      "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                      "type": "string"
+                                    },
+                                    "maxItems": 4,
+                                    "minItems": 3,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "element_id",
+                                  "loop_ids"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 512,
+                              "minItems": 1,
+                              "type": "array"
+                            },
+                            "loops": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "edge_forward": {
+                                    "type": "boolean"
+                                  },
+                                  "edge_id": {
+                                    "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "element_id": {
+                                    "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "face_id": {
+                                    "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "ordinal": {
+                                    "maximum": 3,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "vertex_id": {
+                                    "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "element_id",
+                                  "face_id",
+                                  "ordinal",
+                                  "vertex_id",
+                                  "edge_id",
+                                  "edge_forward"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 1536,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "authoring-mesh"
+                            },
+                            "topology_policy": {
+                              "const": "triangle-quad-manifold-with-boundary@1"
+                            },
+                            "vertices": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "element_id": {
+                                    "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "position_m": {
+                                    "items": {
+                                      "maximum": 10.0,
+                                      "minimum": -10.0,
+                                      "type": "number"
+                                    },
+                                    "maxItems": 3,
+                                    "minItems": 3,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "element_id",
+                                  "position_m"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 1536,
+                              "minItems": 3,
+                              "type": "array"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "topology_policy",
+                            "vertices",
+                            "edges",
+                            "loops",
+                            "faces",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.surface-patch@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "control_points": {
+                              "items": {
+                                "items": {
+                                  "maximum": 10.0,
+                                  "minimum": -10.0,
+                                  "type": "number"
+                                },
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                              },
+                              "maxItems": 16,
+                              "minItems": 16,
+                              "type": "array"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "surface-patch"
+                            },
+                            "u_segments": {
+                              "maximum": 32,
+                              "minimum": 4,
+                              "type": "integer"
+                            },
+                            "v_segments": {
+                              "maximum": 32,
+                              "minimum": 4,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "control_points",
+                            "u_segments",
+                            "v_segments",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.revolve@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "profile": {
+                              "items": {
+                                "items": {
+                                  "maximum": 10.0,
+                                  "minimum": -10.0,
+                                  "type": "number"
+                                },
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                              },
+                              "maxItems": 64,
+                              "minItems": 2,
+                              "type": "array"
+                            },
+                            "radial_segments": {
+                              "maximum": 64,
+                              "minimum": 8,
+                              "type": "integer"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "revolve"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "profile",
+                            "radial_segments",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.tube-sweep@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "cap_ends": {
+                              "type": "boolean"
+                            },
+                            "path": {
+                              "items": {
+                                "items": {
+                                  "maximum": 10.0,
+                                  "minimum": -10.0,
+                                  "type": "number"
+                                },
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                              },
+                              "maxItems": 128,
+                              "minItems": 2,
+                              "type": "array"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "radial_segments": {
+                              "maximum": 64,
+                              "minimum": 8,
+                              "type": "integer"
+                            },
+                            "radius_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 5.0,
+                              "type": "number"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "tube-sweep"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "path",
+                            "radius_m",
+                            "radial_segments",
+                            "cap_ends",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.panel@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bevel_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "panel"
+                            },
+                            "size_m": {
+                              "items": {
+                                "exclusiveMinimum": 0.0,
+                                "maximum": 10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "thickness_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "size_m",
+                            "thickness_m",
+                            "bevel_m",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.vent-array@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "depth_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "height_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "vent-array"
+                            },
+                            "slot_count": {
+                              "maximum": 32,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "slot_spacing_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "slot_width_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "width_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "width_m",
+                            "height_m",
+                            "depth_m",
+                            "slot_count",
+                            "slot_width_m",
+                            "slot_spacing_m",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.vent-array@2"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backing_depth_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "backing_gap_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "bevel_segments": {
+                              "maximum": 4,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "depth_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "face_thickness_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "height_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "vent-array"
+                            },
+                            "slot_count": {
+                              "maximum": 32,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "slot_edge_bevel_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "slot_margin_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "slot_spacing_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "slot_width_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "width_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "width_m",
+                            "height_m",
+                            "depth_m",
+                            "face_thickness_m",
+                            "backing_depth_m",
+                            "backing_gap_m",
+                            "slot_count",
+                            "slot_width_m",
+                            "slot_spacing_m",
+                            "slot_margin_m",
+                            "slot_edge_bevel_m",
+                            "bevel_segments",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.recessed-channel@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "edge_bevel_m": {
+                              "maximum": 5.0,
+                              "minimum": 0.0,
+                              "type": "number"
+                            },
+                            "end_transition_m": {
+                              "maximum": 5.0,
+                              "minimum": 0.0,
+                              "type": "number"
+                            },
+                            "floor_width_ratio": {
+                              "exclusiveMinimum": 0.1,
+                              "maximum": 0.8,
+                              "type": "number"
+                            },
+                            "path_frame": {
+                              "const": "planar-xy-z-up@1"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "recessed-channel"
+                            },
+                            "start_transition_m": {
+                              "maximum": 5.0,
+                              "minimum": 0.0,
+                              "type": "number"
+                            },
+                            "stations": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "depth_m": {
+                                    "exclusiveMinimum": 0.0,
+                                    "maximum": 10.0,
+                                    "type": "number"
+                                  },
+                                  "point_m": {
+                                    "items": {
+                                      "maximum": 10.0,
+                                      "minimum": -10.0,
+                                      "type": "number"
+                                    },
+                                    "maxItems": 3,
+                                    "minItems": 3,
+                                    "type": "array"
+                                  },
+                                  "width_m": {
+                                    "exclusiveMinimum": 0.0,
+                                    "maximum": 10.0,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "point_m",
+                                  "width_m",
+                                  "depth_m"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 32,
+                              "minItems": 2,
+                              "type": "array"
+                            },
+                            "transition_segments": {
+                              "maximum": 4,
+                              "minimum": 1,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "stations",
+                            "path_frame",
+                            "floor_width_ratio",
+                            "edge_bevel_m",
+                            "start_transition_m",
+                            "end_transition_m",
+                            "transition_segments",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "inputs": {
+                          "maxItems": 0,
+                          "type": "array"
+                        },
+                        "node_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_id": {
+                          "const": "forgecad.geometry.joint-stack@1"
+                        },
+                        "parameters": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "depth_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "position_m": {
+                              "items": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "radial_segments": {
+                              "maximum": 64,
+                              "minimum": 8,
+                              "type": "integer"
+                            },
+                            "radius_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 5.0,
+                              "type": "number"
+                            },
+                            "ring_count": {
+                              "maximum": 16,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "ring_spacing_m": {
+                              "exclusiveMinimum": 0.0,
+                              "maximum": 10.0,
+                              "type": "number"
+                            },
+                            "rotation_rad": {
+                              "items": {
+                                "maximum": 6.283185307179586,
+                                "minimum": -6.283185307179586,
+                                "type": "number"
+                              },
+                              "maxItems": 3,
+                              "minItems": 3,
+                              "type": "array"
+                            },
+                            "shape": {
+                              "const": "joint-stack"
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "radius_m",
+                            "depth_m",
+                            "ring_count",
+                            "ring_spacing_m",
+                            "radial_segments",
+                            "position_m",
+                            "rotation_rad"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "node_id",
+                        "operator_id",
+                        "inputs",
+                        "parameters"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "input_sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "material_zone_id": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "modifiers": {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "modifier_id": {
+                            "maxLength": 128,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "operator_id": {
+                            "const": "forgecad.geometry.transform@2"
+                          },
+                          "parameters": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "rotation_rad": {
+                                "items": {
+                                  "maximum": 6.283185307179586,
+                                  "minimum": -6.283185307179586,
+                                  "type": "number"
+                                },
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                              },
+                              "scale": {
+                                "items": {
+                                  "exclusiveMinimum": 0.0,
+                                  "maximum": 10.0,
+                                  "type": "number"
+                                },
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                              },
+                              "shape": {
+                                "const": "transform"
+                              },
+                              "translation_m": {
+                                "items": {
+                                  "maximum": 10.0,
+                                  "minimum": -10.0,
+                                  "type": "number"
+                                },
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "translation_m",
+                              "rotation_rad",
+                              "scale"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "modifier_id",
+                          "enabled",
+                          "operator_id",
+                          "parameters"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "modifier_id": {
+                            "maxLength": 128,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "operator_id": {
+                            "const": "forgecad.geometry.mirror@1"
+                          },
+                          "parameters": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "axis": {
+                                "enum": [
+                                  "x",
+                                  "y",
+                                  "z"
+                                ]
+                              },
+                              "offset_m": {
+                                "maximum": 10.0,
+                                "minimum": -10.0,
+                                "type": "number"
+                              },
+                              "shape": {
+                                "const": "mirror"
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "axis",
+                              "offset_m"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "modifier_id",
+                          "enabled",
+                          "operator_id",
+                          "parameters"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "modifier_id": {
+                            "maxLength": 128,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "operator_id": {
+                            "const": "forgecad.geometry.array@1"
+                          },
+                          "parameters": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "count": {
+                                "maximum": 32,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "offset_m": {
+                                "items": {
+                                  "maximum": 10.0,
+                                  "minimum": -10.0,
+                                  "type": "number"
+                                },
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                              },
+                              "shape": {
+                                "const": "array"
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "count",
+                              "offset_m"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "modifier_id",
+                          "enabled",
+                          "operator_id",
+                          "parameters"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "modifier_id": {
+                            "maxLength": 128,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "operator_id": {
+                            "const": "forgecad.geometry.bevel@1"
+                          },
+                          "parameters": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "clamp_overlap": {
+                                "type": "boolean"
+                              },
+                              "edge_scope": {
+                                "const": "all-source-box-edges"
+                              },
+                              "profile": {
+                                "maximum": 0.75,
+                                "minimum": 0.25,
+                                "type": "number"
+                              },
+                              "segments": {
+                                "maximum": 4,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "shape": {
+                                "const": "bevel"
+                              },
+                              "width_m": {
+                                "exclusiveMinimum": 0.0,
+                                "maximum": 5.0,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "width_m",
+                              "segments",
+                              "profile",
+                              "edge_scope",
+                              "clamp_overlap"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "modifier_id",
+                          "enabled",
+                          "operator_id",
+                          "parameters"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "modifier_id": {
+                            "maxLength": 128,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "operator_id": {
+                            "const": "forgecad.geometry.bevel@2"
+                          },
+                          "parameters": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "clamp_overlap": {
+                                "type": "boolean"
+                              },
+                              "profile": {
+                                "maximum": 0.75,
+                                "minimum": 0.25,
+                                "type": "number"
+                              },
+                              "segments": {
+                                "maximum": 4,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "shape": {
+                                "const": "bevel"
+                              },
+                              "source_edge_ids": {
+                                "items": {
+                                  "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+                                  "type": "string"
+                                },
+                                "maxItems": 1,
+                                "minItems": 1,
+                                "type": "array",
+                                "uniqueItems": true
+                              },
+                              "width_m": {
+                                "exclusiveMinimum": 1e-05,
+                                "maximum": 5.0,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "source_edge_ids",
+                              "width_m",
+                              "segments",
+                              "profile",
+                              "clamp_overlap"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "modifier_id",
+                          "enabled",
+                          "operator_id",
+                          "parameters"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "modifier_id": {
+                            "maxLength": 128,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "operator_id": {
+                            "const": "forgecad.geometry.normal-policy@1"
+                          },
+                          "parameters": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "crease_angle_rad": {
+                                "maximum": 3.141592653589793,
+                                "minimum": 0.0,
+                                "type": "number"
+                              },
+                              "keep_sharp": {
+                                "const": true
+                              },
+                              "output_domain": {
+                                "const": "corner"
+                              },
+                              "shape": {
+                                "const": "normal-policy"
+                              },
+                              "weighting": {
+                                "const": "face-area-x-corner-angle"
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "weighting",
+                              "crease_angle_rad",
+                              "keep_sharp",
+                              "output_domain"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "modifier_id",
+                          "enabled",
+                          "operator_id",
+                          "parameters"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "maxItems": 8,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "part_id": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "previous_evaluation": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "cache_key_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "canonical_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "catalog_cohort_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "evaluation_policy_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "evaluation_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "material_zone_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "operator_catalog_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "output_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "part_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "project_id": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "representation_plan_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "schema_version": {
+                          "const": "GeometryModifierEvaluationSignature@1"
+                        },
+                        "solid": {
+                          "type": "boolean"
+                        },
+                        "source_input_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "stack_definition_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "stages": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "definition_sha256": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "input_evaluation_sha256": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "modifier_id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "operator_id": {
+                                "enum": [
+                                  "forgecad.geometry.transform@2",
+                                  "forgecad.geometry.mirror@1",
+                                  "forgecad.geometry.array@1",
+                                  "forgecad.geometry.bevel@1",
+                                  "forgecad.geometry.bevel@2",
+                                  "forgecad.geometry.normal-policy@1"
+                                ]
+                              },
+                              "order_index": {
+                                "maximum": 7,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "output_evaluation_sha256": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "parameters_sha256": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "stage_cache_key_sha256": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "order_index",
+                              "modifier_id",
+                              "enabled",
+                              "operator_id",
+                              "parameters_sha256",
+                              "definition_sha256",
+                              "input_evaluation_sha256",
+                              "output_evaluation_sha256",
+                              "stage_cache_key_sha256"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 8,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "schema_version",
+                        "project_id",
+                        "representation_plan_sha256",
+                        "part_id",
+                        "material_zone_id",
+                        "solid",
+                        "source_input_sha256",
+                        "stack_definition_sha256",
+                        "evaluation_sha256",
+                        "output_sha256",
+                        "evaluation_policy_sha256",
+                        "operator_catalog_sha256",
+                        "catalog_cohort_sha256",
+                        "cache_key_sha256",
+                        "stages",
+                        "canonical_sha256"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "project_id": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "representation_plan_sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "schema_version": {
+                  "const": "GeometryModifierEvaluationRequest@2"
+                },
+                "solid": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "schema_version",
+                "project_id",
+                "representation_plan_sha256",
+                "part_id",
+                "material_zone_id",
+                "solid",
+                "base_node",
+                "modifiers",
+                "previous_evaluation",
+                "input_sha256"
+              ],
+              "type": "object"
+            },
+            "modifier_evaluation_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "reference_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "typed": {
+              "const": "geometry"
+            }
+          },
+          "required": [
+            "typed",
+            "modifier_evaluation_request",
+            "modifier_evaluation_sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "modifier_apply_request": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "base_version_id": {
+                      "maxLength": 128,
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "idempotency_key": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "input_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "max_response_bytes": {
+                      "const": 1048576
+                    },
+                    "modifiers": {
+                      "items": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "modifier_id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "operator_id": {
+                                "const": "forgecad.geometry.transform@2"
+                              },
+                              "parameters": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "rotation_rad": {
+                                    "items": {
+                                      "maximum": 6.283185307179586,
+                                      "minimum": -6.283185307179586,
+                                      "type": "number"
+                                    },
+                                    "maxItems": 3,
+                                    "minItems": 3,
+                                    "type": "array"
+                                  },
+                                  "scale": {
+                                    "items": {
+                                      "exclusiveMinimum": 0.0,
+                                      "maximum": 10.0,
+                                      "type": "number"
+                                    },
+                                    "maxItems": 3,
+                                    "minItems": 3,
+                                    "type": "array"
+                                  },
+                                  "shape": {
+                                    "const": "transform"
+                                  },
+                                  "translation_m": {
+                                    "items": {
+                                      "maximum": 10.0,
+                                      "minimum": -10.0,
+                                      "type": "number"
+                                    },
+                                    "maxItems": 3,
+                                    "minItems": 3,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "shape",
+                                  "translation_m",
+                                  "rotation_rad",
+                                  "scale"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "modifier_id",
+                              "enabled",
+                              "operator_id",
+                              "parameters"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "modifier_id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "operator_id": {
+                                "const": "forgecad.geometry.mirror@1"
+                              },
+                              "parameters": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "axis": {
+                                    "enum": [
+                                      "x",
+                                      "y",
+                                      "z"
+                                    ]
+                                  },
+                                  "offset_m": {
+                                    "maximum": 10.0,
+                                    "minimum": -10.0,
+                                    "type": "number"
+                                  },
+                                  "shape": {
+                                    "const": "mirror"
+                                  }
+                                },
+                                "required": [
+                                  "shape",
+                                  "axis",
+                                  "offset_m"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "modifier_id",
+                              "enabled",
+                              "operator_id",
+                              "parameters"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "modifier_id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "operator_id": {
+                                "const": "forgecad.geometry.array@1"
+                              },
+                              "parameters": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "count": {
+                                    "maximum": 32,
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "offset_m": {
+                                    "items": {
+                                      "maximum": 10.0,
+                                      "minimum": -10.0,
+                                      "type": "number"
+                                    },
+                                    "maxItems": 3,
+                                    "minItems": 3,
+                                    "type": "array"
+                                  },
+                                  "shape": {
+                                    "const": "array"
+                                  }
+                                },
+                                "required": [
+                                  "shape",
+                                  "count",
+                                  "offset_m"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "modifier_id",
+                              "enabled",
+                              "operator_id",
+                              "parameters"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "modifier_id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "operator_id": {
+                                "const": "forgecad.geometry.bevel@1"
+                              },
+                              "parameters": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "clamp_overlap": {
+                                    "type": "boolean"
+                                  },
+                                  "edge_scope": {
+                                    "const": "all-source-box-edges"
+                                  },
+                                  "profile": {
+                                    "maximum": 0.75,
+                                    "minimum": 0.25,
+                                    "type": "number"
+                                  },
+                                  "segments": {
+                                    "maximum": 4,
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "shape": {
+                                    "const": "bevel"
+                                  },
+                                  "width_m": {
+                                    "exclusiveMinimum": 0.0,
+                                    "maximum": 5.0,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "shape",
+                                  "width_m",
+                                  "segments",
+                                  "profile",
+                                  "edge_scope",
+                                  "clamp_overlap"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "modifier_id",
+                              "enabled",
+                              "operator_id",
+                              "parameters"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "modifier_id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "operator_id": {
+                                "const": "forgecad.geometry.normal-policy@1"
+                              },
+                              "parameters": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "crease_angle_rad": {
+                                    "maximum": 3.141592653589793,
+                                    "minimum": 0.0,
+                                    "type": "number"
+                                  },
+                                  "keep_sharp": {
+                                    "const": true
+                                  },
+                                  "output_domain": {
+                                    "const": "corner"
+                                  },
+                                  "shape": {
+                                    "const": "normal-policy"
+                                  },
+                                  "weighting": {
+                                    "const": "face-area-x-corner-angle"
+                                  }
+                                },
+                                "required": [
+                                  "shape",
+                                  "weighting",
+                                  "crease_angle_rad",
+                                  "keep_sharp",
+                                  "output_domain"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "modifier_id",
+                              "enabled",
+                              "operator_id",
+                              "parameters"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "maxItems": 8,
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "project_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "schema_version": {
+                      "const": "GeometryModifierApplyRequest@1"
+                    },
+                    "source_artifact_readback_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_artifact_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_candidate_canonical_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_candidate_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "source_geometry_program_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_operator_catalog_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_part_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "source_readback_config_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "schema_version",
+                    "project_id",
+                    "source_candidate_id",
+                    "source_candidate_canonical_sha256",
+                    "source_artifact_sha256",
+                    "source_artifact_readback_sha256",
+                    "source_geometry_program_sha256",
+                    "source_operator_catalog_sha256",
+                    "source_readback_config_sha256",
+                    "source_part_id",
+                    "base_version_id",
+                    "modifiers",
+                    "idempotency_key",
+                    "max_response_bytes",
+                    "input_sha256"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "base_version_id": {
+                      "maxLength": 128,
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "bevel_m": {
+                      "exclusiveMinimum": 0.0,
+                      "maximum": 0.25,
+                      "type": "number"
+                    },
+                    "clamp_overlap": {
+                      "type": "boolean"
+                    },
+                    "idempotency_key": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "input_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "max_response_bytes": {
+                      "const": 1048576
+                    },
+                    "profile": {
+                      "maximum": 0.75,
+                      "minimum": 0.25,
+                      "type": "number"
+                    },
+                    "project_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "schema_version": {
+                      "const": "GeometryModifierApplyRequest@2"
+                    },
+                    "segments": {
+                      "maximum": 4,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "source_artifact_readback_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_artifact_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_authoring_topology_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_candidate_canonical_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_candidate_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "source_edge_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "source_geometry_program_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_operator_catalog_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_part_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "source_readback_config_sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "source_terminal_node_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "schema_version",
+                    "project_id",
+                    "source_candidate_id",
+                    "source_candidate_canonical_sha256",
+                    "source_artifact_sha256",
+                    "source_artifact_readback_sha256",
+                    "source_geometry_program_sha256",
+                    "source_operator_catalog_sha256",
+                    "source_readback_config_sha256",
+                    "source_part_id",
+                    "source_terminal_node_id",
+                    "source_authoring_topology_sha256",
+                    "source_edge_id",
+                    "bevel_m",
+                    "segments",
+                    "profile",
+                    "clamp_overlap",
+                    "base_version_id",
+                    "idempotency_key",
+                    "max_response_bytes",
+                    "input_sha256"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "modifier_apply_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "typed": {
+              "const": "geometry"
+            }
+          },
+          "required": [
+            "typed",
+            "modifier_apply_request",
+            "modifier_apply_sha256"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "required": [
+    "project_id",
+    "base_version_id",
+    "idempotency_key",
+    "request"
+  ],
+  "type": "object"
+}

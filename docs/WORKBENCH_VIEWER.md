@@ -1,6 +1,23 @@
 # ForgeCAD Runtime Viewer
 
-> 2026-08-28 `FPS-FORM-04BE-F` Viewer 真值：只允许展示只读 failure diagnostic 的 exact parent hashes、六点 delta、left/right/rear3q owner delta、side trigger sealed 状态、line-flow 独立失败和 `NO_GEOMETRY_REPAIR_AUTHORIZED`。不得把 owner bbox 不变显示成“几何未变化”，也不得出现新 repair、confirm、secondary 或 High→Low→UV→Bake 控制。
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+## Weapon Art Director read model
+
+Viewer P0 只服务武器美术审阅：Outliner/Part/MaterialZone、original/evaluated 切换、Modifier stack、
+High/Low/UV/Cage/Bake lineage、first-person/inspect/ADS、九 AOV、参考 overlay/flicker/diff、
+LOD/collision/socket 和 engine/human receipt。Viewer 不提供建模写入或自动批准；所有永久操作
+仍由 Codex 调用 Runtime preview/prepare/confirm。
+
+> 2026-08-28 `FPS-FORM-04BE-L` Viewer 真值：4 个用户授权 `receiver-upper` 候选均可只读查看 exact profile、candidate/artifact/program、54 AOV、`right.trigger-void` 和 restart 状态，但全部必须显示 `REJECTED_RETAIN_PARENT`。当前选中仍为父候选，不开放 confirm、secondary 或生产链晋级。
+
+> 2026-08-28 `FPS-FORM-04BE-J/K` Viewer 真值：可只读查看 8 个真孔子候选的 profile/candidate/artifact/program hash、strict readback、54 AOV、CrossView、`left.trigger-void` 与 restart 状态；所有卡片必须显示 `REJECTED_RETAIN_PARENT`，当前选择仍是父候选。下一 L 只增加 depth winner/occluder 诊断的只读呈现，不开放 geometry write、`receiver-upper` 授权或质量晋级操作。
+
+> 2026-08-28 `FPS-FORM-04BE-I` Viewer 真值：可只读展示 4 个 `side-panel-a` 子候选的 profile、candidate/artifact/program hash、strict readback、CrossView 分数、`left.trigger-void` 行、54 AOV 证据与 restart exact 状态。四者必须显示 `REJECTED_RETAIN_PARENT`，当前选中真值仍是母候选；不得展示 `receiver-upper` 已授权，也不得开放 confirm/secondary/High→Low→UV→Bake。
+
+> 2026-08-28 `FPS-FORM-04BE-H` Viewer 真值：可只读显示 plan canonical、GeometryProgram hash、left/right calibrated source、步骤依赖、四变体参数与强制重验门。必须把 step 2 显示为条件性 `NOT_RUN`，不得把参数预案显示成已生成 Mesh，也不得开放 confirm、secondary 或 High→Low→UV→Bake 控件。
+
+> 2026-08-28 `FPS-FORM-04BE-G` Viewer 真值：只允许展示只读 visibility calibration 的 exact parent hashes、批准 camera、reference/ranked mask hash、逐结构可见 source counts 与 winner/depth/Part-ID/silhouette delta。必须分别显示 left `side-panel-a` 与 right `receiver-upper`，不得合并成一个共同遮挡源，也不得把 `repair_plan_authorized` 显示为 geometry 已授权；confirm、secondary、High→Low→UV→Bake 控制继续隐藏。
 
 > 2026-08-28 `FPS-FORM-04BE-D` Viewer 真值：可只读显示 repair plan canonical、exact parent evidence、current→target 五站 profile、四个 failure issues、mandatory revalidation gates 与 restart/zero-logical-write 状态。必须显式显示 `repair_execution_status=NOT_RUN / QUALITY_TARGET_NOT_MET`；不得把 half-Y/flat-Z target profile预览成已物化网格，不得显示 secondary、confirm、High→Low→UV→Bake 或商业通过控制。
 
@@ -124,7 +141,7 @@ Viewer 可按这 11 组展示商业验收缺口，但不能把它们当成第二
 
 Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；现有 packaged Viewer receipt 又来自不同 cohort/artifact，未绑定 attempt35。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
 
-<!-- forgecad-stage0: schemas=579 schema_set_sha256=2f959a94d11392f851b9b276d6b699bc250d900a74fd2e88ff3bb1c19cb764b1 read_tools=128 write_tools=94 total_tools=222 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+
 <!-- forgecad-reference-source: input=ENV_AUTHORIZED_PNG original_sha256=1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109 intake=PASS_SOURCE_SIX_REFERENCE_EVIDENCE_CAS views=6 worker=PASS_SAME_COHORT_SIX_FIXED_VIEWS target=USER_REFINED_USER_CONFIRMED_REVIEWED_STRUCTURE user_confirmed_crop=PASS_USER_CONFIRMED_SEVEN_CROPS contour=PASS_USER_CONFIRMED_SIX_IDENTITY_CONTOURS negative_space=BOUNDING_REGIONS_CONFIRMED_EXACT_SUBTRACT_UNKNOWN line_flow=EXPECTED_ROWS_DURABLE_MATCH_NOT_PROVEN camera_lock_fixture=PASS_REAL_DURABLE_REPLAY_RESTART form_art_fixture=PASS_REAL_DURABLE_NOT_PROVEN form_quality_v2_fixture=BLOCKED_ZERO_WRITE_MISSING_LEGACY_CROSS_VIEW secondary_form_approved=NOT_CREATED fixture=PASS_REAL_1_OF_1_108.07S -->
 
 ## 1. 产品角色
@@ -268,3 +285,5 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 - candidate、quality、selection、version 和 export 的 ID/hash 与 Runtime 一致；
 - 重启恢复不依赖 localStorage；
 - 当前已有 `npm run desktop:typecheck`、focused GLB/read-model、source build、packaged CLI read-model、原生窗口和核心控件 smoke evidence；这些不是 attempt35 的 packaged binding。正式 VoiceOver/screen-reader、独立人评、PBR likeness、export/restart hash 与 360 仍 `NOT_RUN/BLOCKED`；发布级 packaged WebView/GPU/签名安装环境属于 MCP013。
+
+<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

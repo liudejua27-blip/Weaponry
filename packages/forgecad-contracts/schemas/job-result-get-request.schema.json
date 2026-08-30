@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/job-result-get-request.schema.json",
+  "title": "JobResultGetRequest@1",
+  "description": "Closed request to read the CAS-backed result of one durable Runtime Job.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["job_id"],
+  "properties": {
+    "job_id": {"type": "string", "minLength": 1}
+  }
+}

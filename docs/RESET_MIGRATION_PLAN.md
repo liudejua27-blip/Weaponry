@@ -1,5 +1,7 @@
 # ForgeCAD 硬切重置与迁移清单
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-25 商业质量计划不恢复旧 Provider、工作台、Blender Runtime、任意脚本或第二状态写者。未来新增的 High/Low/UV/Bake/Material/FPS executors 必须走 additive 原子任务和独立 Gate；本轮文档同步不授权删除、迁移或清理任何脏工作树文件。
 
 版本：2026-08-13

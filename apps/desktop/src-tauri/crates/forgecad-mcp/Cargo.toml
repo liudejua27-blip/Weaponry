@@ -3,7 +3,24 @@ name = "forgecad-mcp"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Weaponry's knife profile is the default public surface.  The historical
+# 226-operation manifest is intentionally opt-in so release/default builds do
+# not compile or link the compatibility registry.
+default = []
+legacy-compatibility-registry = []
+
+[[bin]]
+name = "forgecad-mcp"
+path = "src/main.rs"
+
+[[bin]]
+name = "forgecad-mcp-compat"
+path = "src/compat_main.rs"
+required-features = ["legacy-compatibility-registry"]
+
 [dependencies]
+forgecad-contracts = { path = "../forgecad-contracts" }
 forgecad-runtime = { path = "../forgecad-runtime" }
 libc = "0.2"
 serde_json = "1"

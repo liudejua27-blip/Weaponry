@@ -1,4 +1,14 @@
-# ForgeCAD Runtime
+# Weaponry — CrossFire Weapon Agent-native DCC
+
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+Weaponry 的目标不是生成“像枪的 GLB”，而是让 Codex 使用 Rust 原生的可编辑拓扑、
+原子建模事务、Modifier/Evaluation Graph、High/Low/UV/Cage/Bake/PBR、FPS 镜头、
+引擎回读和独立武器美术人审，生产可迭代、可验证、可回退的穿越火线游戏武器资产。
+
+当前实现仍未达到这个目标：`QUALITY_TARGET_NOT_MET / commercial=NOT_PROVEN`。
+最新产品权威从[穿越火线产品宪章](docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md)
+开始阅读；历史工具数量和结构回执不能替代真实资产验收。
 
 > 2026-08-28 `FPS-FORM-04BE-C` 当前权威状态：真实 D1 final candidate 已完成同 cohort **6×9=54 AOV**，并将 parent composite proposal、CrossView、proposal FormArt 与 receipt 固化为 Runtime-owned immutable evidence sidecar；same-key replay 与隔离 Runtime 重启 GET hash equality PASS。当前公共面为 **575 schemas / 28 operator entries / 126 read + 94 opt-in write = 220 MCP tools**。质量没有通过：CrossView=`rejected-regression`、FormArt=`BLOCKED_PROPOSAL_FORM_ART_EVIDENCE`、FormQualityV2 未创建，Stage=`camera-calibrated`、secondary=`NOT_CREATED`、confirm/version/export=false、commercial=`NOT_PROVEN`。下一原子 `FPS-FORM-04BE-D` 只生成绑定 exact evidence hashes 的 rear-stock owner-void/left-boundary typed repair plan。
 
@@ -38,6 +48,7 @@ ForgeCAD 是由 Codex 通过 MCP 调用的本地、可验证、可回退 3D Runt
 - 后续高质量重规划已由 [ADR-0026](docs/ADR/0026-agentic-design-runtime.md) 记录：ForgeCAD 目标升级为 Agentic Design Runtime，让 Codex 通过 SemanticSceneGraph、ReferenceCanvas、DesignSpec、stage gates、Visual Evidence 和 Critic/Repair loop “看得见”并逐步设计；当前已落地第一阶段只读 projection，durable orchestrator/checkpoint/repair 仍是目标，不计入完整 Agentic Runtime 能力；
 - 原生 FPS 武器生产执行器由 [ADR-0027](docs/ADR/0027-native-fps-weapon-production-executor.md) 接受；外部 DCC 只作 reference-only 研究，不进入 Runtime allowlist、安装包或产品真值；
 - 架构模块边界见 [ARCHITECTURE_MODULE_BOUNDARY.md](docs/ARCHITECTURE_MODULE_BOUNDARY.md)，废弃文档/代码/模块隔离规则见 [DEPRECATED_ISOLATION_PLAN.md](docs/DEPRECATED_ISOLATION_PLAN.md)；
+- 当前刀类运行时单屏架构图见 [weaponry-runtime-architecture-overview.html](docs/weaponry-runtime-architecture-overview.html)，逐模块债务与升级顺序见 [WEAPONRY_MODULE_EVALUATION_20260830.md](docs/WEAPONRY_MODULE_EVALUATION_20260830.md)；
 - 旧 Provider、聊天工作台、App Server、Python Agent、旧合同和旧脚本已从当前树删除；
 - superseded `reference-to-typed-plan@0.1.0`、`hard-surface-detail@0.1.0`、`uv-pbr@0.1.0` Skill provenance 已移到 `packages/forgecad-skills/archive/superseded/`，不属于 active registry 或 Runtime build archive；
 - 新 first-party `ponytail-preflight@0.1.0` 强制 Codex 在每个 MCP 设计会话先检查必要性、既有受限能力与最小 typed action；它是 MIT workflow reference 的自有重写，不安装上游 Node package、hook 或 MCP server；

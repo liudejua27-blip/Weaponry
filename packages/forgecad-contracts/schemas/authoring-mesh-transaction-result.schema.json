@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-transaction-result.schema.json",
+  "title": "AuthoringMeshTransactionResult@1",
+  "description": "Closed success/readback result shared by AuthoringMeshTransactionPrepareRequest@1 and AuthoringMeshTransactionGetRequest@1. It returns the complete ordered immutable revision chain and strict topology/readback hashes. Kernel or persistence failures are returned as typed RuntimeError values, never as a partial result or a rejected revision chain. This result never confirms a candidate, creates a user version or exports an artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_kind",
+    "status",
+    "project_id",
+    "transaction_id",
+    "transaction_sha256",
+    "transaction_object_sha256",
+    "mesh_id",
+    "lineage_id",
+    "base_revision_id",
+    "base_revision_index",
+    "base_revision_sha256",
+    "final_revision_id",
+    "final_revision_index",
+    "final_revision_sha256",
+    "final_revision_object_sha256",
+    "revision_chain",
+    "steps",
+    "readback",
+    "replayed",
+    "idempotency_key",
+    "atomicity_status",
+    "source_revision_unchanged",
+    "revision_chain_persisted",
+    "partial_result_exposed",
+    "store_commit_status",
+    "cas_commit_status",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "quality_status",
+    "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringMeshTransactionResult@1"},
+    "request_kind": {"enum": ["prepare", "get"]},
+    "status": {"enum": ["prepared", "replayed", "found"]},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "transaction_id": {"$ref": "#/$defs/identifier"},
+    "transaction_sha256": {"$ref": "#/$defs/sha256"},
+    "transaction_object_sha256": {"$ref": "#/$defs/sha256"},
+    "mesh_id": {"$ref": "#/$defs/identifier"},
+    "lineage_id": {"$ref": "#/$defs/identifier"},
+    "base_revision_id": {"$ref": "#/$defs/identifier"},
+    "base_revision_index": {"$ref": "#/$defs/revision_index"},
+    "base_revision_sha256": {"$ref": "#/$defs/sha256"},
+    "final_revision_id": {"$ref": "#/$defs/identifier"},
+    "final_revision_index": {"$ref": "#/$defs/revision_index"},
+    "final_revision_sha256": {"$ref": "#/$defs/sha256"},
+    "final_revision_object_sha256": {"$ref": "#/$defs/sha256"},
+    "revision_chain": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/revision_summary"}
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/step"}
+    },
+    "readback": {"$ref": "#/$defs/readback"},
+    "replayed": {"type": "boolean"},
+    "idempotency_key": {"$ref": "#/$defs/nullable_idempotency_key"},
+    "atomicity_status": {"const": "committed"},
+    "source_revision_unchanged": {"const": true},
+    "revision_chain_persisted": {"const": true},
+    "partial_result_exposed": {"const": false},
+    "store_commit_status": {"enum": ["committed", "not-touched"]},
+    "cas_commit_status": {"enum": ["committed", "not-touched"]},
+    "runtime_write_performed": {"type": "boolean"},
+    "persistent_user_data_touched": {"type": "boolean"},
+    "stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "request_kind": {"const": "prepare"},
+        "status": {"const": "prepared"},
+        "idempotency_key": {"$ref": "#/$defs/idempotency_key"},
+        "replayed": {"const": false},
+        "store_commit_status": {"const": "committed"},
+        "cas_commit_status": {"const": "committed"},
+        "runtime_write_performed": {"const": true},
+        "persistent_user_data_touched": {"const": true}
+      }
+    },
+    {
+      "properties": {
+        "request_kind": {"const": "prepare"},
+        "status": {"const": "replayed"},
+        "idempotency_key": {"$ref": "#/$defs/idempotency_key"},
+        "replayed": {"const": true},
+        "store_commit_status": {"const": "not-touched"},
+        "cas_commit_status": {"const": "not-touched"},
+        "runtime_write_performed": {"const": false},
+        "persistent_user_data_touched": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "request_kind": {"const": "get"},
+        "status": {"const": "found"},
+        "idempotency_key": {"const": null},
+        "replayed": {"const": false},
+        "store_commit_status": {"const": "not-touched"},
+        "cas_commit_status": {"const": "not-touched"},
+        "runtime_write_performed": {"const": false},
+        "persistent_user_data_touched": {"const": false}
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "nullable_idempotency_key": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "revision_index": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "element_kind": {
+      "enum": ["vertex", "edge", "half_edge", "corner", "face", "loop", "ring"]
+    },
+    "element_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"$ref": "#/$defs/element_kind"},
+        "id": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "revision_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_index",
+        "operation_id",
+        "operation",
+        "parent_revision_id",
+        "revision_id",
+        "revision_index",
+        "revision_sha256",
+        "revision_object_sha256",
+        "readback_sha256"
+      ],
+      "properties": {
+        "command_index": {"type": "integer", "minimum": 0, "maximum": 31},
+        "operation_id": {"$ref": "#/$defs/identifier"},
+        "operation": {"enum": ["split_edge", "move_vertices", "face_extrude"]},
+        "parent_revision_id": {"$ref": "#/$defs/identifier"},
+        "revision_id": {"$ref": "#/$defs/identifier"},
+        "revision_index": {"$ref": "#/$defs/revision_index"},
+        "revision_sha256": {"$ref": "#/$defs/sha256"},
+        "revision_object_sha256": {"$ref": "#/$defs/sha256"},
+        "readback_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_index",
+        "operation_id",
+        "operation",
+        "parent_revision_id",
+        "child_revision_id",
+        "child_revision_sha256",
+        "child_revision_object_sha256",
+        "changed_elements",
+        "generated_elements",
+        "retired_elements",
+        "readback_sha256"
+      ],
+      "properties": {
+        "command_index": {"type": "integer", "minimum": 0, "maximum": 31},
+        "operation_id": {"$ref": "#/$defs/identifier"},
+        "operation": {"enum": ["split_edge", "move_vertices", "face_extrude"]},
+        "parent_revision_id": {"$ref": "#/$defs/identifier"},
+        "child_revision_id": {"$ref": "#/$defs/identifier"},
+        "child_revision_sha256": {"$ref": "#/$defs/sha256"},
+        "child_revision_object_sha256": {"$ref": "#/$defs/sha256"},
+        "changed_elements": {
+          "type": "array",
+          "maxItems": 131072,
+          "items": {"$ref": "#/$defs/element_ref"}
+        },
+        "generated_elements": {
+          "type": "array",
+          "maxItems": 131072,
+          "items": {"$ref": "#/$defs/element_ref"}
+        },
+        "retired_elements": {
+          "type": "array",
+          "maxItems": 131072,
+          "items": {"$ref": "#/$defs/element_ref"}
+        },
+        "readback_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "revision_sha256",
+        "revision_object_sha256",
+        "readback_sha256",
+        "topology_validation_status",
+        "deterministic_replay",
+        "byte_exact_revision_replay",
+        "restart_hash_verified",
+        "partial_result_exposed"
+      ],
+      "properties": {
+        "status": {"const": "passed"},
+        "revision_sha256": {"$ref": "#/$defs/sha256"},
+        "revision_object_sha256": {"$ref": "#/$defs/sha256"},
+        "readback_sha256": {"$ref": "#/$defs/sha256"},
+        "topology_validation_status": {"const": "passed"},
+        "deterministic_replay": {"const": true},
+        "byte_exact_revision_replay": {"const": true},
+        "restart_hash_verified": {"type": "boolean"},
+        "partial_result_exposed": {"const": false}
+      }
+    }
+  }
+}

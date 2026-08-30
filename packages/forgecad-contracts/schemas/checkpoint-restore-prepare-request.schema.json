@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/checkpoint-restore-prepare-request.schema.json",
+  "title": "CheckpointRestorePrepareRequest",
+  "description": "Prepare an approval-gated restore intent from one Runtime-owned checkpoint.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "checkpoint_id",
+    "visual_state",
+    "idempotency_key",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary"
+  ],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "checkpoint_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "checkpoint_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "visual_state": {
+      "enum": [
+        "pass",
+        "fail",
+        "unknown"
+      ]
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "approved": {
+      "const": true
+    },
+    "approval_receipt_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "approval_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "approval_expires_at": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    }
+  }
+}

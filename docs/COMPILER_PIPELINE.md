@@ -1,5 +1,14 @@
 # ForgeCAD 3D 编译器与质量管线
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+## Weaponry production compiler
+
+编译器必须从 `AuthoringDocument + CommandJournal + ModifierGraph` 重放 EvaluatedMesh，再派生
+High/Low/UV/Cage/Bake/PBR/LOD。GLB 不允许反向成为 authoring source。每一步输出都绑定
+provider/cohort/input/output hash、changed stable IDs、预算和 strict readback；任何隐藏 nearest
+fallback、非确定求值或跨候选数据拼接都使整条生产链失败。
+
 > 2026-08-26 `04AF`：管线已在真实 D1 上执行一次 `rear-stock` source materialize→GLB readback→六视图 RenderSet→CrossView quality decision，并在三视图回退时保留 baseline。`AuthoringMesh@2` 另有持久化 split-edge/restart 基线，但尚未成为该真实武器的 compiler source。下一个 compiler 目标是 Authoring revision→evaluated High 的 stable correspondence，而不是继续对参数灰模做无限搜索。
 
 > 2026-08-26 现行 source：**525 schemas / 112 read + 84 write = 196 tools**。AuthoringMesh V2→Native High evaluator→strict correspondence/bake validation→MaterialLayerGraph plan 的编译 seam 已存在；尚未接成 Runtime-owned durable production chain。未经 real D1/user orientation Gate，不推进 Form/High。

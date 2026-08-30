@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/skill-get-request.schema.json",
+  "title": "SkillGetRequest",
+  "type": "object",
+  "required": ["skill_id", "version"],
+  "properties": {
+    "skill_id": {"type": "string"},
+    "version": {"type": "string"}
+  },
+  "additionalProperties": false
+}

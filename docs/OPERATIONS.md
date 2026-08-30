@@ -1,5 +1,7 @@
 # ForgeCAD Runtime 运维
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-26 现行 source：**525 schemas / 112 read + 84 write = 196 tools**。CameraLock child 新表与 CAS roots 需经 Runtime prepare/get/restart 验证；MaterialLayerGraph plan 是无状态 Worker 结果。未获用户 rear3q approval 时正常状态是零写阻断。
 
 > 2026-08-26 商业 Job 运维：High/retopo/UV/bake/texture/LOD/engine validation 全部是有界、可取消、可重启核验的 typed Job；每个 Job 记录 input/output hash、worker cohort、resource peak、stage binding 和失败诊断。引擎 runner 只能读取 exact export package 并回传签名 receipt，不能写 Runtime 数据库；目标引擎不可用时保持 `NOT_RUN`。

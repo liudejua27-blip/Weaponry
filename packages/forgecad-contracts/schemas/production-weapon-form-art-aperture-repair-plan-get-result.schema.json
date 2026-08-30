@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-aperture-repair-plan-get-result.schema.json",
+  "title": "ProductionWeaponFormArtApertureRepairPlanGetResult@1",
+  "description": "Runtime-derived sequential two-Part aperture sensitivity plan. It may authorize registration of the first bounded trial, but performs no geometry mutation, candidate creation or production-stage promotion.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "aperture_repair_plan_id", "visibility_calibration_id",
+    "visibility_calibration_canonical_sha256", "failure_diagnostic_id",
+    "failure_diagnostic_canonical_sha256", "composite_evidence_id", "proposal_id",
+    "session_id", "project_id", "proposal_candidate_id", "proposal_candidate_state_sha256",
+    "proposal_artifact_sha256", "proposal_geometry_program_sha256", "camera_rig_object_sha256",
+    "camera_rig_canonical_sha256", "target_structure_ids", "calibrated_source_bindings",
+    "non_primary_visible_sources", "plan_steps", "total_trial_candidate_budget",
+    "execution_policy", "preserved_invariants", "mandatory_revalidation_gates", "plan_status",
+    "next_trial_registration_authorized", "repair_execution_allowed_by_this_tool",
+    "geometry_repair_performed", "quality_status", "form_quality_v2_status",
+    "candidate_confirm_allowed", "secondary_form_approved", "production_stage_advanced",
+    "candidate_confirmed", "version_created", "export_performed", "runtime_write_performed",
+    "persistent_user_data_touched", "worker_started", "derivation_policy",
+    "next_atomic_action", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionWeaponFormArtApertureRepairPlanGetResult@1"},
+    "operation": {"const": "forgecad.production.weapon.form-art-aperture-repair-plan-get@1"},
+    "aperture_repair_plan_id": {"$ref": "#/$defs/id"},
+    "visibility_calibration_id": {"$ref": "#/$defs/id"},
+    "visibility_calibration_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "failure_diagnostic_id": {"$ref": "#/$defs/id"},
+    "failure_diagnostic_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "composite_evidence_id": {"$ref": "#/$defs/id"},
+    "proposal_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "proposal_candidate_id": {"$ref": "#/$defs/id"},
+    "proposal_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "proposal_geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_rig_object_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_rig_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "target_structure_ids": {"const": ["left.trigger-void", "right.trigger-void"]},
+    "calibrated_source_bindings": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "prefixItems": [
+        {"$ref": "#/$defs/source_binding_left"},
+        {"$ref": "#/$defs/source_binding_right"}
+      ],
+      "items": false
+    },
+    "non_primary_visible_sources": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/non_primary_source"}},
+    "plan_steps": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "prefixItems": [
+        {"$ref": "#/$defs/step_left"},
+        {"$ref": "#/$defs/step_right"}
+      ],
+      "items": false
+    },
+    "total_trial_candidate_budget": {"const": 8},
+    "execution_policy": {"const": "strictly-sequential-one-part-four-trial-maximum@1"},
+    "preserved_invariants": {"type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "mandatory_revalidation_gates": {"type": "array", "minItems": 7, "maxItems": 7, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "plan_status": {"const": "READY_HASH_BOUND_SEQUENTIAL_TWO_PART_APERTURE_SENSITIVITY_PLAN"},
+    "next_trial_registration_authorized": {"const": true},
+    "repair_execution_allowed_by_this_tool": {"const": false},
+    "geometry_repair_performed": {"const": false},
+    "quality_status": {"const": "QUALITY_TARGET_NOT_MET"},
+    "form_quality_v2_status": {"const": "NOT_CREATED"},
+    "candidate_confirm_allowed": {"const": false},
+    "secondary_form_approved": {"const": "NOT_CREATED"},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "worker_started": {"const": true},
+    "derivation_policy": {"const": "exact-raster-calibrated-sequential-aperture-sensitivity-plan@1"},
+    "next_atomic_action": {"const": "REGISTER_AND_EXECUTE_STEP_1_SIDE_PANEL_A_BOUNDED_SENSITIVITY_TRIALS_ONLY"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -10, "maximum": 10}},
+    "source_count": {
+      "type": "object", "additionalProperties": false,
+      "required": ["semantic_part_id", "source_node_id", "pixel_count"],
+      "properties": {
+        "semantic_part_id": {"$ref": "#/$defs/id"},
+        "source_node_id": {"$ref": "#/$defs/id"},
+        "pixel_count": {"type": "integer", "minimum": 1, "maximum": 262144}
+      }
+    },
+    "source_binding_base": {
+      "type": "object", "additionalProperties": false,
+      "required": ["view_kind", "structure_id", "semantic_part_id", "source_node_id", "primary_visible_pixel_count", "expected_void_pixel_count", "primary_coverage_milli", "proposal_sources", "winner_changed_pixel_count", "depth_changed_pixel_count", "part_id_changed_pixel_count", "silhouette_changed_pixel_count"],
+      "properties": {
+        "view_kind": {"enum": ["left", "right"]},
+        "structure_id": {"enum": ["left.trigger-void", "right.trigger-void"]},
+        "semantic_part_id": {"enum": ["side-panel-a", "receiver-upper"]},
+        "source_node_id": {"enum": ["side-panel-a", "receiver-upper"]},
+        "primary_visible_pixel_count": {"type": "integer", "minimum": 1, "maximum": 262144},
+        "expected_void_pixel_count": {"type": "integer", "minimum": 1, "maximum": 262144},
+        "primary_coverage_milli": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "proposal_sources": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/source_count"}},
+        "winner_changed_pixel_count": {"const": 0},
+        "depth_changed_pixel_count": {"const": 0},
+        "part_id_changed_pixel_count": {"const": 0},
+        "silhouette_changed_pixel_count": {"const": 0}
+      }
+    },
+    "source_binding_left": {"allOf": [{"$ref": "#/$defs/source_binding_base"}, {"properties": {"view_kind": {"const": "left"}, "structure_id": {"const": "left.trigger-void"}, "semantic_part_id": {"const": "side-panel-a"}, "source_node_id": {"const": "side-panel-a"}}}]},
+    "source_binding_right": {"allOf": [{"$ref": "#/$defs/source_binding_base"}, {"properties": {"view_kind": {"const": "right"}, "structure_id": {"const": "right.trigger-void"}, "semantic_part_id": {"const": "receiver-upper"}, "source_node_id": {"const": "receiver-upper"}}}]},
+    "non_primary_source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["view_kind", "semantic_part_id", "source_node_id", "pixel_count", "covered_by_primary_plan_step", "edit_authorized_by_this_plan"],
+      "properties": {
+        "view_kind": {"enum": ["left", "right"]},
+        "semantic_part_id": {"$ref": "#/$defs/id"},
+        "source_node_id": {"$ref": "#/$defs/id"},
+        "pixel_count": {"type": "integer", "minimum": 1, "maximum": 262144},
+        "covered_by_primary_plan_step": {"type": "boolean"},
+        "edit_authorized_by_this_plan": {"const": false}
+      }
+    },
+    "trial": {
+      "type": "object", "additionalProperties": false,
+      "required": ["variant_id", "retracted_boundary", "preserved_boundary", "retraction_m", "position_m", "size_m"],
+      "properties": {
+        "variant_id": {"enum": ["retract-min-x-20mm", "retract-max-x-20mm", "retract-min-x-40mm", "retract-max-x-40mm"]},
+        "retracted_boundary": {"enum": ["min-x", "max-x"]},
+        "preserved_boundary": {"enum": ["min-x", "max-x"]},
+        "retraction_m": {"enum": [0.02, 0.04]},
+        "position_m": {"$ref": "#/$defs/vec3"},
+        "size_m": {"$ref": "#/$defs/vec3"}
+      }
+    },
+    "dependency": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "additionalProperties": false, "required": ["requires_operation_id", "required_status"], "properties": {"requires_operation_id": {"const": "left-side-panel-a-boundary-sensitivity"}, "required_status": {"const": "RETAINED_SIX_VIEW_NON_REGRESSING_APERTURE_RESPONSE"}}}
+      ]
+    },
+    "step_base": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sequence", "operation_id", "primary_view_kind", "target_structure_id", "semantic_part_id", "source_node_id", "operator_id", "current_node_canonical_sha256", "current_position_m", "current_size_m", "mutation_family", "controlled_parameter_paths", "trial_variants", "maximum_trial_count", "dependency", "selection_metric_order", "execution_status", "candidate_budget", "single_part_only"],
+      "properties": {
+        "sequence": {"enum": [1, 2]},
+        "operation_id": {"enum": ["left-side-panel-a-boundary-sensitivity", "right-receiver-upper-boundary-sensitivity"]},
+        "primary_view_kind": {"enum": ["left", "right"]},
+        "target_structure_id": {"enum": ["left.trigger-void", "right.trigger-void"]},
+        "semantic_part_id": {"enum": ["side-panel-a", "receiver-upper"]},
+        "source_node_id": {"enum": ["side-panel-a", "receiver-upper"]},
+        "operator_id": {"enum": ["forgecad.geometry.panel@2", "forgecad.geometry.primitive@2"]},
+        "current_node_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "current_position_m": {"$ref": "#/$defs/vec3"},
+        "current_size_m": {"$ref": "#/$defs/vec3"},
+        "mutation_family": {"const": "bounded-longitudinal-boundary-retraction-search@1"},
+        "controlled_parameter_paths": {"const": ["parameters.position_m[0]", "parameters.size_m[0]"]},
+        "trial_variants": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"$ref": "#/$defs/trial"}},
+        "maximum_trial_count": {"const": 4},
+        "dependency": {"$ref": "#/$defs/dependency"},
+        "selection_metric_order": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "execution_status": {"const": "NOT_RUN"},
+        "candidate_budget": {"const": 4},
+        "single_part_only": {"const": true}
+      }
+    },
+    "step_left": {"allOf": [{"$ref": "#/$defs/step_base"}, {"properties": {"sequence": {"const": 1}, "operation_id": {"const": "left-side-panel-a-boundary-sensitivity"}, "primary_view_kind": {"const": "left"}, "target_structure_id": {"const": "left.trigger-void"}, "semantic_part_id": {"const": "side-panel-a"}, "source_node_id": {"const": "side-panel-a"}, "operator_id": {"const": "forgecad.geometry.panel@2"}, "dependency": {"type": "null"}}}]},
+    "step_right": {"allOf": [{"$ref": "#/$defs/step_base"}, {"properties": {"sequence": {"const": 2}, "operation_id": {"const": "right-receiver-upper-boundary-sensitivity"}, "primary_view_kind": {"const": "right"}, "target_structure_id": {"const": "right.trigger-void"}, "semantic_part_id": {"const": "receiver-upper"}, "source_node_id": {"const": "receiver-upper"}, "operator_id": {"const": "forgecad.geometry.primitive@2"}}}]}
+  }
+}

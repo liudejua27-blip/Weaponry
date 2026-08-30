@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/knife-curve-modifier-graph-get-request.schema.json",
+  "title": "KnifeCurveModifierGraphGetRequest@1",
+  "description": "Closed read-only lookup for the structural curve sampling and ModifierGraph recompute result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "source_candidate_id",
+    "source_candidate_state_sha256", "source_authoring_mesh_id",
+    "source_authoring_mesh_lineage_id", "source_authoring_mesh_revision_id",
+    "source_authoring_mesh_revision_index", "source_authoring_mesh_revision_sha256",
+    "source_authoring_mesh_identity_sha256", "curve_set_semantic_sha256",
+    "sample_set_semantic_sha256", "modifier_graph_semantic_sha256",
+    "dependency_graph_semantic_sha256", "recompute_plan_semantic_sha256",
+    "lookup_key_sha256", "idempotency_key",
+    "max_response_bytes", "runtime_write_performed", "writer_policy",
+    "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "KnifeCurveModifierGraphGetRequest@1"},
+    "operation": {"const": "knife_curve_modifier_graph_get"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "source_authoring_mesh_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_mesh_lineage_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_mesh_revision_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_mesh_revision_index": {"$ref": "#/$defs/revision_index"},
+    "source_authoring_mesh_revision_sha256": {"$ref": "#/$defs/sha256"},
+    "source_authoring_mesh_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "curve_set_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "sample_set_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "modifier_graph_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "dependency_graph_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "recompute_plan_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "lookup_key_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"$ref": "#/$defs/idempotency_key"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "revision_index": {"type": "integer", "minimum": 0, "maximum": 1000000}
+  }
+}

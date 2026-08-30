@@ -1,0 +1,18 @@
+{
+  "schema_version": "WeaponryActiveOperationRequestSchemaClosureConfig@1",
+  "profile_path": "packages/forgecad-contracts/profiles/weaponry-knife-p0.json",
+  "domain_map_path": "apps/desktop/src-tauri/crates/forgecad-contracts/src/weaponry_domain_map.rs",
+  "contract_manifest_path": "packages/forgecad-contracts/manifest.json",
+  "schema_root": "packages/forgecad-contracts/schemas",
+  "compatibility_summary_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
+  "active_schema_source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/active_schema.rs",
+  "request_schema_aliases": {
+    "game_weapon_glb_socket_get": "game-weapon-glb-socket-materialization-get-request.schema.json",
+    "game_weapon_glb_socket_prepare": "game-weapon-glb-socket-materialization-prepare-request.schema.json",
+    "cross_view_promotion_confirm": "cross-view-promotion-request.schema.json"
+  },
+  "expected_mcp_consumed_closed_count": 125,
+  "request_schema_filename_templates": [
+    "{operation_kebab}-request.schema.json"
+  ]
+}

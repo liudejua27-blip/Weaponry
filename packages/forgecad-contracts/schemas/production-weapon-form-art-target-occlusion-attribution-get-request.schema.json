@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-weapon-form-art-target-occlusion-attribution-get-request.schema.json",
+  "title": "ProductionWeaponFormArtTargetOcclusionAttributionGetRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "attribution_id",
+    "project_id",
+    "session_id",
+    "parent",
+    "trials",
+    "max_response_bytes",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "attribution_policy",
+    "canonicalization_policy",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "ProductionWeaponFormArtTargetOcclusionAttributionGetRequest@1" },
+    "operation": { "const": "forgecad.production.weapon.form-art-target-occlusion-attribution-get@1" },
+    "attribution_id": { "$ref": "#/$defs/id" },
+    "project_id": { "$ref": "#/$defs/id" },
+    "session_id": { "$ref": "#/$defs/id" },
+    "parent": { "$ref": "#/$defs/candidate" },
+    "trials": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/trial" }
+    },
+    "max_response_bytes": { "const": 1048576 },
+    "runtime_write_performed": { "const": false },
+    "persistent_user_data_touched": { "const": false },
+    "attribution_policy": { "const": "exact-parent-closed-receiver-upper-family-right-trigger-void-attribution@1" },
+    "canonicalization_policy": { "const": "canonical-json-sha256-excluding-input-sha256@1" },
+    "input_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "candidate_state_sha256", "artifact_sha256", "form_art_evidence_receipt_object_sha256"],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/id" },
+        "candidate_state_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "form_art_evidence_receipt_object_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "trial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registered_profile_id", "proposal_id", "composite_evidence_id", "candidate_id", "candidate_state_sha256", "artifact_sha256", "form_art_evidence_receipt_object_sha256"],
+      "properties": {
+        "registered_profile_id": { "enum": ["receiver-upper-retract-min-x-20mm@1", "receiver-upper-retract-max-x-20mm@1", "receiver-upper-retract-min-x-40mm@1", "receiver-upper-retract-max-x-40mm@1", "receiver-upper-target-notch-narrow@1", "receiver-upper-target-notch-calibrated@1", "receiver-upper-target-notch-raised@1", "receiver-upper-target-notch-wide@1", "receiver-upper-camera-target-notch-narrow@2", "receiver-upper-camera-target-notch-calibrated@2", "receiver-upper-camera-target-notch-raised@2", "receiver-upper-camera-target-notch-wide@2"] },
+        "proposal_id": { "$ref": "#/$defs/id" },
+        "composite_evidence_id": { "$ref": "#/$defs/id" },
+        "candidate_id": { "$ref": "#/$defs/id" },
+        "candidate_state_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "form_art_evidence_receipt_object_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

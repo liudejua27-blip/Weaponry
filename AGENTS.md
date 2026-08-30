@@ -1,9 +1,21 @@
 # ForgeCAD Codex / Luna 工作规则
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+> **Knife-first successor (2026-08-29):** ADR-0030 与
+> `docs/WEAPONRY_KNIFE_10_DAY_DELIVERY_PLAN.md` 是十天首交付的最高执行权威。当前只针对刀类；
+> 允许固定版本、固定插件、closed typed job 的隔离 Blender 内部原型，但 Runtime 仍是唯一写者，
+> caller-supplied Python/路径/URL/任意 add-on 仍禁止，`.blend` 与插件会话不成为产品真值。
+
 本文件适用于整个仓库。2026-08-07 起，所有旧 Agent、Provider、U004 和工作台指令由 ADR-0025 取代。
 2026-08-13 起，后续高质量路线由 ADR-0026 补充为 Agentic Design Runtime 目标架构；它不恢复产品内模型/Provider/聊天 Agent，也不改变 Runtime 唯一写者和无任意脚本边界。
 
 ## 1. 产品定义
+
+2026-08-29 起，ForgeCAD 产品名和当前交付方向统一为 Weaponry：一个由 Codex 操控、
+Rust Runtime 唯一写入、只主攻高质量穿越火线非功能性游戏武器的 Agent-native DCC。
+本月不再把机器人、通用 3D 或原创科幻 demo 当作产品目标；它们只保留为 fixture/历史证据。
+完整产品合同见 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029。
 
 ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不是内置大模型的独立 Agent 应用。
 
@@ -21,6 +33,17 @@ ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不�
 ADR-0026 的单动作写入 orchestrator、Repair 执行和 durable/reference/DesignSpec 完整 producer conformance 仍是目标设计。当前 `session_create_or_resume`、`session_get`、`checkpoint_prepare`、`checkpoint_get`、`checkpoint_restore_prepare` 已有 source/runtime/MCP/Viewer 和隔离重启 receipt，真实 Runtime 的嵌套只读 projection 另有 conformance receipt；这些能力只能分别写成 `nested projection conformance PASS` 与 `durable prepare/readback PASS`，不等于完整 Agentic Runtime、Repair 已执行或视觉 PASS。废弃文档、代码和模块按 `docs/DEPRECATED_ISOLATION_PLAN.md` 进入 archive/quarantine；不得在脏 worktree 直接删除未知文件。
 
 ## 2. 唯一权威阅读顺序
+
+在下列历史阅读序列之前，必须先完整阅读：
+
+1. `docs/ADR/0030-weaponry-knife-ten-day-hybrid-dcc.md`
+2. `docs/WEAPONRY_KNIFE_10_DAY_DELIVERY_PLAN.md`
+3. `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md`
+4. `docs/ADR/0029-weaponry-agent-native-dcc.md`
+5. `docs/WEAPONRY_ONE_MONTH_DELIVERY_PLAN.md`
+6. `docs/WEAPONRY_DOCUMENTATION_COVERAGE_20260829.md`
+
+若后续旧文档与这四份文件冲突，以这四份为当前产品方向；历史证据数字保持原义。
 
 开始任何任务前完整阅读：
 
@@ -48,6 +71,23 @@ ADR-0026 的单动作写入 orchestrator、Repair 执行和 durable/reference/De
 旧 ADR、U004 总图、Provider、Domain、Mechanical、Module 和 Compatibility 文档已从当前树删除，没有执行权威。不得从 Git 历史恢复旧产品路径来让测试通过。
 
 ## 3. 强制实施顺序
+
+2026-08-29 ADR-0030 knife-first 主线替代“继续扩张 MCP010F subject-specific surface”作为
+十天产品实施队列：
+
+`WPN-KNIFE-DOC-000 → WPN-KNIFE-PROFILE-001 → WPN-KNIFE-CURVE-001 → WPN-MOD-001 → WPN-KNIFE-HIGH-001 → WPN-KNIFE-LOW-001 → WPN-KNIFE-UVBAKE-001 → WPN-KNIFE-MAT-001 → WPN-KNIFE-FPS-001 → WPN-KNIFE-ENGINE-001 → WPN-KNIFE-ACCEPT-001`
+
+`WPN-AUTH-001` 的 multi-operation AuthoringMesh transaction 已完成 closed Contract、
+Store/CAS、Runtime 与 MCP source/focused 接线；它仍只证明结构、回放和持久化，不证明刀类
+视觉或商业质量。纯 Rust Modifier/Dependency/EvaluatedMesh 当前仅 core 单元切片，尚未进入
+Contract/Runtime/Store/CAS/MCP。
+
+既有 MCP010F source drift 已通过真实 current-source 构建链解除，当前 truth 为 583 schemas、
+131 read + 95 write = 226 tools；历史 receipts 未改写。`WPN-KNIFE-DOC-000` 已完成刀类
+十天能力、混合原型边界、Tool profile 和逐日验收，文档/完整性/安全/许可证 Gate 全绿。
+下一候选原子为 `WPN-KNIFE-PROFILE-001`：先实现 11 个 bounded façade 与 explicit
+compatibility profile，再减少 Codex 默认可见工具面，随后继续
+Modifier 公共纵切。旧 MCP010F/04BE/04BI 数据继续作为不可变证据和回归 fixture。
 
 实施顺序固定为 `FGC-MCP000 → MCP001 → ... → MCP009 → MCP010A → ... → MCP010F → MCP011 → MCP012 → MCP013`，详见任务索引。同一时刻只领取一个原子任务。MVP functional core 主线 `MCP005 → MCP006 → MCP007 → MCP008 → MCP009` 已完成；`MCP010A` 已完成真实 Codex Desktop 激活 Gate；MCP010D/E source-focused Goal 已完成；MCP010F 当前为用户继续推进的唯一 `in_progress` 原子任务，范围限定为只读 Viewer source/构建和真实闭环证据整理。MCP010B 的 Darwin OS 总内存硬门仍 `NOT_RUN`，作为 deferred prerequisite 保留账本；MCP010C 的真实视觉门和 MCP010F 的 packaged/human/360 子门仍独立记录。
 
@@ -138,6 +178,7 @@ ForgeCAD 面向合法的非功能性 3D 视觉资产。未来虚构武器只限�
 文档/合同变更至少运行：
 
 ```bash
+python3 scripts/check_weaponry_documentation_scope.py
 npm run release:docs-walkthrough
 npm run repository:integrity
 npm run release:safety-scope

@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Weaponry 刀类 DCC 当前运行时架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1390, 820]
+  },
+  "components": [
+    {
+      "id": "codex",
+      "type": "external",
+      "label": "Codex",
+      "sublabel": "规划、视觉推理、工具编排",
+      "pos": [40, 250],
+      "size": [150, 72]
+    },
+    {
+      "id": "mcp",
+      "type": "backend",
+      "label": "MCP 11 个刀类 façade",
+      "sublabel": "stdio · 11 façade adapter",
+      "pos": [250, 250],
+      "size": [200, 72]
+    },
+    {
+      "id": "contracts",
+      "type": "security",
+      "label": "Closed Contracts",
+      "sublabel": "façade → operation → domain",
+      "pos": [580, 90],
+      "size": [190, 70]
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "Runtime 五域 Router",
+      "sublabel": "五个 Rust 服务域",
+      "pos": [560, 250],
+      "size": [230, 72]
+    },
+    {
+      "id": "workers",
+      "type": "messagebus",
+      "label": "Typed Workers",
+      "sublabel": "Geometry · High · Render",
+      "pos": [875, 90],
+      "size": [190, 70]
+    },
+    {
+      "id": "runtime",
+      "type": "backend",
+      "label": "Rust Runtime",
+      "sublabel": "唯一写者 · prepare/replay/confirm",
+      "pos": [860, 250],
+      "size": [220, 72]
+    },
+    {
+      "id": "repositories",
+      "type": "database",
+      "label": "Store Repositories",
+      "sublabel": "事务 · 幂等 · 可达性",
+      "pos": [1150, 250],
+      "size": [210, 72]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "SQLite + CAS",
+      "sublabel": "对象 · lineage · migration",
+      "pos": [1150, 445],
+      "size": [210, 72]
+    },
+    {
+      "id": "viewer",
+      "type": "frontend",
+      "label": "Weaponry Viewer",
+      "sublabel": "只读模型 + 临时视图状态",
+      "pos": [860, 445],
+      "size": [220, 72]
+    },
+    {
+      "id": "compat",
+      "type": "external",
+      "label": "Legacy Compatibility",
+      "sublabel": "226-tool replay · 默认不加载",
+      "pos": [240, 540],
+      "size": [220, 74]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "当前刀类产品主线",
+      "wraps": ["mcp", "contracts", "router", "workers", "runtime", "repositories", "state", "viewer"],
+      "pad": 24
+    },
+    {
+      "kind": "security-group",
+      "label": "唯一写入与持久化边界",
+      "wraps": ["runtime", "repositories", "state"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "显式 compatibility feature",
+      "wraps": ["compat"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    { "from": "codex", "to": "mcp", "label": "MCP stdio", "variant": "emphasis" },
+    { "from": "mcp", "to": "contracts", "label": "closed validate", "variant": "security" },
+    { "from": "contracts", "to": "router", "label": "中央领域绑定", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelAt": [675, 182] },
+    { "from": "mcp", "to": "router", "label": "typed operation", "variant": "emphasis", "route": "orthogonal-h", "labelAt": [505, 344] },
+    { "from": "router", "to": "runtime", "label": "五域调用", "variant": "emphasis", "route": "orthogonal-h", "labelAt": [825, 344] },
+    { "from": "runtime", "to": "workers", "label": "bounded protocol", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "labelAt": [970, 190] },
+    { "from": "runtime", "to": "repositories", "label": "领域事务", "variant": "security" },
+    { "from": "repositories", "to": "state", "label": "single migration/CAS owner", "variant": "security", "labelAt": [1255, 380] },
+    { "from": "state", "to": "viewer", "label": "read model", "variant": "dashed" },
+    { "from": "compat", "to": "mcp", "label": "显式 replay 构建", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "labelAt": [350, 450] }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "已经清晰的边界",
+      "items": [
+        "Codex 只看到 11 个刀类 façade，中央 Contract 决定领域路由",
+        "Runtime 是唯一写者，Store 保持单一 migration/CAS ownership",
+        "compatibility 需显式 feature，默认产品面不加载 226-tool registry"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "仍未完成的物理拆分",
+      "items": [
+        "Runtime 与 Store 聚合根仍过大，本批只迁出一个 Evaluation 与一个 Approval family",
+        "多数领域服务仍回落到旧 dispatch_ipc 或聚合根实现",
+        "兼容生产聚合仍偏大，不能进入 WPN-ARCH-RETIRE-001"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "质量边界",
+      "items": [
+        "架构拆分不提升 High→Low→UV→Bake、材质、FPS、引擎或真人验收",
+        "历史视觉 FAIL/MISSING 与商业质量阻断继续保留"
+      ]
+    }
+  ]
+}

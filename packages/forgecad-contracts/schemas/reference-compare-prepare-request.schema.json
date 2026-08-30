@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-compare-prepare-request.schema.json",
+  "title": "ReferenceComparePrepareRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "candidate_id", "reference_id", "view_spec"],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "view_spec": {"$ref": "https://forgecad.local/contracts/reference-view-spec.schema.json"},
+    "camera": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration-v2.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration-ref.schema.json"}
+      ]
+    },
+    "target_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

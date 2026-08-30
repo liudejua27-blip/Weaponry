@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/knife-curve-evaluated-mesh-prepare-request.schema.json",
+  "title": "KnifeCurveEvaluatedMeshPrepareRequest@1",
+  "description": "Closed façade-native request for evaluating a bounded knife blade spine/edge sweep-loft. Runtime uniquely resolves the durable curve and ModifierGraph parent from the supplied source and semantic hashes; the caller cannot inject an internal Store lookup key. The request contains no mesh buffers, resource locators or executable code.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "source_candidate_id",
+    "source_candidate_state_sha256", "source_authoring_mesh_id",
+    "source_authoring_mesh_lineage_id", "source_authoring_mesh_revision_id",
+    "source_authoring_mesh_revision_index", "source_authoring_mesh_revision_sha256",
+    "source_authoring_mesh_identity_sha256", "source_modifier_graph_id",
+    "source_modifier_graph_sha256", "curve_set_semantic_sha256",
+    "sample_set_semantic_sha256", "modifier_graph_semantic_sha256",
+    "dependency_graph_semantic_sha256", "recompute_plan_semantic_sha256",
+    "evaluation_plan", "idempotency_key",
+    "max_response_bytes", "runtime_write_performed", "writer_policy",
+    "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "KnifeCurveEvaluatedMeshPrepareRequest@1"},
+    "operation": {"const": "knife_curve_evaluated_mesh_prepare"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "source_authoring_mesh_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_mesh_lineage_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_mesh_revision_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_mesh_revision_index": {"$ref": "#/$defs/revision_index"},
+    "source_authoring_mesh_revision_sha256": {"$ref": "#/$defs/sha256"},
+    "source_authoring_mesh_identity_sha256": {"$ref": "#/$defs/sha256"},
+    "source_modifier_graph_id": {"$ref": "#/$defs/identifier"},
+    "source_modifier_graph_sha256": {"$ref": "#/$defs/sha256"},
+    "curve_set_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "sample_set_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "modifier_graph_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "dependency_graph_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "recompute_plan_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluation_plan": {"$ref": "#/$defs/knife_blade_profile_sweep_loft_plan"},
+    "idempotency_key": {"$ref": "#/$defs/idempotency_key"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "revision_index": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "thickness_m": {"type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.25},
+    "knife_blade_profile_sweep_loft_plan": {
+      "title": "KnifeBladeProfileSweepLoftPlan@1",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "evaluation_id", "spine_curve_id", "spine_curve_sha256",
+        "edge_curve_id", "edge_curve_sha256", "station_count", "thickness_axis",
+        "thickness_m", "root_cap", "tip_cap", "stable_triangulation",
+        "stable_lineage_policy", "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "KnifeBladeProfileSweepLoftPlan@1"},
+        "evaluation_id": {"$ref": "#/$defs/identifier"},
+        "spine_curve_id": {"$ref": "#/$defs/identifier"},
+        "spine_curve_sha256": {"$ref": "#/$defs/sha256"},
+        "edge_curve_id": {"$ref": "#/$defs/identifier"},
+        "edge_curve_sha256": {"$ref": "#/$defs/sha256"},
+        "station_count": {"const": 32},
+        "thickness_axis": {"enum": ["local_normal", "world_x", "world_y", "world_z"]},
+        "thickness_m": {"$ref": "#/$defs/thickness_m"},
+        "root_cap": {"const": true},
+        "tip_cap": {"const": true},
+        "stable_triangulation": {"const": "station-ring-fixed-diagonal@1"},
+        "stable_lineage_policy": {"const": "source-curve-modifier-graph-evaluated-mesh@1"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

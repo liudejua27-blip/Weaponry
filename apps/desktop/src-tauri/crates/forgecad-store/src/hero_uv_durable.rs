@@ -8,11 +8,12 @@
 //! trait directly because Runtime already depends on Store.
 
 use forgecad_contracts::{
-    is_opaque_id, is_sha256, LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND,
-    LOW_QUAD_DRAFT_DURABLE_ARTIFACT_READBACK_SCHEMA_VERSION, LOW_QUAD_DRAFT_DURABLE_READBACK_KIND,
+    LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND, LOW_QUAD_DRAFT_DURABLE_ARTIFACT_READBACK_SCHEMA_VERSION,
+    LOW_QUAD_DRAFT_DURABLE_READBACK_KIND, PRODUCTION_WEAPON_LOW_ARTIFACT_KIND,
+    PRODUCTION_WEAPON_LOW_ARTIFACT_RECEIPT_KIND, is_opaque_id, is_sha256,
 };
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -25,6 +26,9 @@ pub const HERO_UV_LAYOUT_CAS_KIND: &str = "production-weapon-hero-uv-layout";
 pub const HERO_UV_LINK_CAS_KIND: &str = "production-weapon-hero-uv-durable-link";
 pub const LOW_ARTIFACT_CAS_KIND: &str = LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND;
 pub const LOW_READBACK_CAS_KIND: &str = LOW_QUAD_DRAFT_DURABLE_READBACK_KIND;
+pub const RETOPOLOGY_LOW_ARTIFACT_CAS_KIND: &str = PRODUCTION_WEAPON_LOW_ARTIFACT_KIND;
+pub const RETOPOLOGY_LOW_READBACK_CAS_KIND: &str = PRODUCTION_WEAPON_LOW_ARTIFACT_RECEIPT_KIND;
+pub const RETOPOLOGY_LOW_READBACK_SCHEMA: &str = "ProductionWeaponLowArtifactReadback@1";
 pub const HERO_UV_MATERIALIZATION_STATUS: &str = "runtime-owned-durable-hero-uv-source-only@1";
 pub const JSON_MIME: &str = "application/json";
 pub const GLB_MIME: &str = "model/gltf-binary";
@@ -371,29 +375,68 @@ fn validate_candidate_in_transaction(
     Ok(())
 }
 
-fn validate_source_readback(record: &HeroUvDurableRecord, bytes: &[u8]) -> Result<(), StoreError> {
+fn validate_source_readback(
+    record: &HeroUvDurableRecord,
+    bytes: &[u8],
+    retopology_low: bool,
+) -> Result<(), StoreError> {
     let value: Value = serde_json::from_slice(bytes).map_err(|error| {
         contract(
             "HERO_UV_DURABLE_SOURCE_READBACK_INVALID",
             format!("Low source readback JSON is invalid: {error}"),
         )
     })?;
-    if value.get("schema_version").and_then(Value::as_str)
-        != Some(LOW_QUAD_DRAFT_DURABLE_ARTIFACT_READBACK_SCHEMA_VERSION)
-        || value.get("artifact_sha256").and_then(Value::as_str)
-            != Some(record.source_low_artifact_sha256.as_str())
-        || value.get("artifact_object_sha256").and_then(Value::as_str)
-            != Some(record.source_low_artifact_object_sha256.as_str())
-        || value.get("validator_status").and_then(Value::as_str) != Some("passed")
-        || value.get("hard_gate_passed") != Some(&Value::Bool(true))
-        || value.get("quality_status").and_then(Value::as_str) != Some("structural_only")
-        || value.get("edge_flow_status").and_then(Value::as_str) != Some("DRAFT_UNREVIEWED")
-        || value.get("promotion_eligible") != Some(&Value::Bool(false))
-        || value.get("production_stage_advanced") != Some(&Value::Bool(false))
-        || value.get("candidate_confirmed") != Some(&Value::Bool(false))
-        || value.get("version_created") != Some(&Value::Bool(false))
-        || value.get("export_performed") != Some(&Value::Bool(false))
-    {
+    let valid_binding = if retopology_low {
+        value.get("schema_version").and_then(Value::as_str) == Some(RETOPOLOGY_LOW_READBACK_SCHEMA)
+            && value.get("artifact_sha256").and_then(Value::as_str)
+                == Some(record.source_low_artifact_sha256.as_str())
+            && value
+                .get("worker_readback")
+                .and_then(Value::as_object)
+                .is_some_and(|worker| {
+                    worker.get("glb_parse_status").and_then(Value::as_str) == Some("passed")
+                        && worker
+                            .get("failure_codes")
+                            .and_then(Value::as_array)
+                            .is_some_and(Vec::is_empty)
+                        && worker.get("part_coverage").and_then(Value::as_f64) == Some(1.0)
+                        && worker.get("material_zone_coverage").and_then(Value::as_f64) == Some(1.0)
+                        && worker.get("source_coverage").and_then(Value::as_f64) == Some(1.0)
+                        && [
+                            "boundary_edge_count",
+                            "degenerate_triangle_count",
+                            "invalid_index_count",
+                            "metadata_mismatch_count",
+                            "non_finite_count",
+                            "non_manifold_edge_count",
+                            "tangent_handedness_error_count",
+                            "tangent_non_finite_count",
+                            "tangent_orthogonality_error_count",
+                            "uv_non_finite_count",
+                            "winding_error_count",
+                            "zero_area_uv_triangle_count",
+                        ]
+                        .iter()
+                        .all(|field| worker.get(*field).and_then(Value::as_u64) == Some(0))
+                })
+    } else {
+        value.get("schema_version").and_then(Value::as_str)
+            == Some(LOW_QUAD_DRAFT_DURABLE_ARTIFACT_READBACK_SCHEMA_VERSION)
+            && value.get("artifact_sha256").and_then(Value::as_str)
+                == Some(record.source_low_artifact_sha256.as_str())
+            && value.get("artifact_object_sha256").and_then(Value::as_str)
+                == Some(record.source_low_artifact_object_sha256.as_str())
+            && value.get("validator_status").and_then(Value::as_str) == Some("passed")
+            && value.get("hard_gate_passed") == Some(&Value::Bool(true))
+            && value.get("quality_status").and_then(Value::as_str) == Some("structural_only")
+            && value.get("edge_flow_status").and_then(Value::as_str) == Some("DRAFT_UNREVIEWED")
+            && value.get("promotion_eligible") == Some(&Value::Bool(false))
+            && value.get("production_stage_advanced") == Some(&Value::Bool(false))
+            && value.get("candidate_confirmed") == Some(&Value::Bool(false))
+            && value.get("version_created") == Some(&Value::Bool(false))
+            && value.get("export_performed") == Some(&Value::Bool(false))
+    };
+    if !valid_binding {
         return Err(contract(
             "HERO_UV_DURABLE_SOURCE_READBACK_BINDING_MISMATCH",
             "Low source readback artifact binding differs",
@@ -431,11 +474,34 @@ fn validate_source_readback(record: &HeroUvDurableRecord, bytes: &[u8]) -> Resul
 }
 
 fn validate_source_roots(store: &Store, record: &HeroUvDurableRecord) -> Result<(), StoreError> {
+    let source_object = store
+        .get_object(&record.source_low_artifact_object_sha256)?
+        .ok_or_else(|| {
+            contract(
+                "HERO_UV_DURABLE_CAS_MISSING",
+                "Hero UV durable CAS object is missing",
+            )
+        })?;
+    let (artifact_kind, readback_kind, retopology_low) =
+        if source_object.kind == RETOPOLOGY_LOW_ARTIFACT_CAS_KIND {
+            (
+                RETOPOLOGY_LOW_ARTIFACT_CAS_KIND,
+                RETOPOLOGY_LOW_READBACK_CAS_KIND,
+                true,
+            )
+        } else if source_object.kind == LOW_ARTIFACT_CAS_KIND {
+            (LOW_ARTIFACT_CAS_KIND, LOW_READBACK_CAS_KIND, false)
+        } else {
+            return Err(contract(
+                "HERO_UV_DURABLE_CAS_METADATA_MISMATCH",
+                "Hero UV Low artifact kind is not a registered source kind",
+            ));
+        };
     let source = read_object(
         store,
         &record.source_low_artifact_object_sha256,
         GLB_MIME,
-        LOW_ARTIFACT_CAS_KIND,
+        artifact_kind,
         MAX_GLB_BYTES,
     )?;
     if sha256_hex(&source) != record.source_low_artifact_sha256 {
@@ -448,7 +514,7 @@ fn validate_source_roots(store: &Store, record: &HeroUvDurableRecord) -> Result<
         store,
         &record.source_low_artifact_readback_object_sha256,
         JSON_MIME,
-        LOW_READBACK_CAS_KIND,
+        readback_kind,
         MAX_JSON_BYTES,
     )?;
     if sha256_hex(&readback) != record.source_low_artifact_readback_object_sha256 {
@@ -457,7 +523,7 @@ fn validate_source_roots(store: &Store, record: &HeroUvDurableRecord) -> Result<
             "Low source readback bytes differ from their CAS object hash",
         ));
     }
-    validate_source_readback(record, &readback)
+    validate_source_readback(record, &readback, retopology_low)
 }
 
 fn validate_supplied_payload(

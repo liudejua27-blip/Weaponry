@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/export-prepare-request.schema.json",
+  "title": "ExportPrepareRequest@1",
+  "description": "Closed MCP request envelope for a path-free diagnostic manifest or MVP GLB export. Runtime owns the semantics of the nested export request object.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "version_id", "format", "profile", "request"],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "version_id": {"$ref": "#/$defs/identifier"},
+    "format": {"enum": ["manifest-json", "glb"]},
+    "profile": {"enum": ["diagnostic", "mvp-glb"]},
+    "request": {
+      "type": "object",
+      "description": "Runtime-owned export options. This is intentionally an object with no guessed property allowlist; the outer operation envelope is closed."
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
+  }
+}

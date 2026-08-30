@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/version-diff-request.schema.json",
+  "title": "VersionDiffRequest",
+  "type": "object",
+  "required": ["version_id", "compare_to_version_id"],
+  "properties": {
+    "version_id": {"type": "string"},
+    "compare_to_version_id": {"type": "string"}
+  },
+  "additionalProperties": false
+}

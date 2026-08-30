@@ -1,5 +1,7 @@
 # ForgeCAD 单参考轮廓优先工作流
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
 > 2026-08-25 范围说明：轮廓拟合是 Form 的前置质量环，不是完整资产生产。只有 silhouette、negative-space、primary/secondary planes 和 fixed first-person readability 通过后，才允许进入 AuthoringMesh/High/Low/UV/Cage/Bake；材质与灯光不得补偿轮廓失败。完整生产链见 `COMMERCIAL_GAME_WEAPON_QUALITY_PLAN.md`。
 
 版本：2026-08-13 · 任务：FGC-MCP010F contour-first slice

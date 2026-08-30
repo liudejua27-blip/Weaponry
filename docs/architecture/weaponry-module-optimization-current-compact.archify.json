@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Weaponry 刀类 DCC 当前运行时架构",
+    "locale": "zh-CN",
+    "output": "docs/architecture/weaponry-module-optimization-current-compact.html",
+    "quality_profile": "showcase",
+    "viewBox": [1140, 540],
+    "views": [
+      {
+        "id": "active_path",
+        "label": "默认刀类路径",
+        "focus": ["codex", "facades", "contracts", "router", "runtime", "store", "truth"],
+        "note": "11 个 façade 收敛 Action Space；125 个操作全部由 Contracts 闭合。"
+      },
+      {
+        "id": "worker_path",
+        "label": "计算与证据",
+        "focus": ["runtime", "workers", "evidence", "viewer"],
+        "note": "Worker 只执行 typed 协议；结构 Gate 不替代视觉与商业验收。"
+      },
+      {
+        "id": "debt_path",
+        "label": "待物理拆分",
+        "focus": ["compat", "router", "runtime", "store"],
+        "note": "旧 dispatch、巨型根文件与 legacy handlers 仍是主要内部债务。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "compat",
+      "type": "backend",
+      "label": "Compatibility binary",
+      "sublabel": "226 raw tools · 显式 feature",
+      "tag": "legacy handlers 尚未退出默认编译",
+      "pos": [542.5, 40],
+      "size": [240, 62]
+    },
+    {
+      "id": "codex",
+      "type": "external",
+      "label": "Codex",
+      "sublabel": "规划、视觉推理、编排",
+      "pos": [15, 140],
+      "size": [115, 62]
+    },
+    {
+      "id": "facades",
+      "type": "frontend",
+      "label": "11 个刀类 façade",
+      "sublabel": "默认 Action Space",
+      "tag": "清晰",
+      "pos": [165, 140],
+      "size": [145, 62]
+    },
+    {
+      "id": "contracts",
+      "type": "security",
+      "label": "Contracts",
+      "sublabel": "658 schemas · 125/125 closed",
+      "tag": "Runtime fallback = 0",
+      "pos": [355, 140],
+      "size": [175, 62]
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "五域 Router",
+      "sublabel": "Authoring → Delivery",
+      "tag": "中央映射",
+      "pos": [575, 140],
+      "size": [175, 62]
+    },
+    {
+      "id": "runtime",
+      "type": "backend",
+      "label": "Rust Runtime",
+      "sublabel": "唯一写者 · 五域 service",
+      "tag": "根文件仍约 52k 行",
+      "pos": [795, 140],
+      "size": [175, 62]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Store repositories",
+      "sublabel": "五域边界 + migration owner",
+      "tag": "根文件仍约 80k 行",
+      "pos": [787.5, 285],
+      "size": [190, 62]
+    },
+    {
+      "id": "truth",
+      "type": "database",
+      "label": "SQLite + CAS",
+      "sublabel": "lineage / replay / recovery",
+      "pos": [797.5, 430],
+      "size": [170, 62]
+    },
+    {
+      "id": "workers",
+      "type": "messagebus",
+      "label": "隔离 Workers",
+      "sublabel": "Geometry / High / Render",
+      "tag": "same-cohort",
+      "pos": [555, 285],
+      "size": [190, 62]
+    },
+    {
+      "id": "evidence",
+      "type": "security",
+      "label": "Evidence / Quality Gates",
+      "sublabel": "视觉账本仍有 FAIL / MISSING",
+      "tag": "商业质量未证明",
+      "pos": [315, 285],
+      "size": [195, 62]
+    },
+    {
+      "id": "viewer",
+      "type": "frontend",
+      "label": "Viewer",
+      "sublabel": "只读投影 + 临时交互",
+      "pos": [555, 430],
+      "size": [180, 62]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "默认 Knife profile",
+      "wraps": ["facades", "contracts", "router", "runtime", "store", "truth", "workers", "viewer", "evidence"],
+      "pad": 8
+    },
+    {
+      "kind": "region",
+      "label": "显式历史兼容边界",
+      "wraps": ["compat"],
+      "pad": 12
+    }
+  ],
+  "connections": [
+    {"from": "codex", "to": "facades", "label": "tools/call", "variant": "emphasis", "route": "straight", "labelAt": [148, 220]},
+    {"from": "facades", "to": "contracts", "label": "closed request", "variant": "security", "route": "straight", "labelAt": [335, 125]},
+    {"from": "contracts", "to": "router", "label": "domain + operation", "variant": "emphasis", "route": "straight", "labelAt": [555, 125]},
+    {"from": "router", "to": "runtime", "label": "typed invoke", "variant": "emphasis", "route": "straight", "labelAt": [775, 125]},
+    {"from": "runtime", "to": "store", "label": "repository port", "variant": "emphasis", "route": "straight", "fromSide": "bottom", "toSide": "top", "labelAt": [940, 247]},
+    {"from": "store", "to": "truth", "label": "atomic record + CAS", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top", "labelAt": [950, 392]},
+    {"from": "runtime", "to": "workers", "label": "bounded protocol", "variant": "security", "fromSide": "bottom", "toSide": "top", "via": [[882.5, 245], [650, 245]], "labelAt": [760, 232]},
+    {"from": "workers", "to": "evidence", "label": "hash-bound outputs", "variant": "dashed", "route": "straight", "labelAt": [532, 270]},
+    {"from": "truth", "to": "viewer", "label": "read model", "variant": "dashed", "route": "straight", "labelAt": [766, 415]},
+    {"from": "compat", "to": "router", "label": "explicit replay only", "variant": "dashed", "route": "straight", "fromSide": "bottom", "toSide": "top", "labelAt": [700, 112]}
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "当前判断与删除门",
+      "items": [
+        "已清晰：11 façade、125/125 closed Schema、五域中央 Router",
+        "未完成：Runtime/Store 物理拆分、旧 dispatch 与 legacy handler 隔离",
+        "删除前必须具备 replacement + replay + consumer-zero + Store/CAS migration + recovery receipt"
+      ]
+    }
+  ]
+}

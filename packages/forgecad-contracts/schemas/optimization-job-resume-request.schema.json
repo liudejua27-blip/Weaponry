@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/optimization-job-resume-request.schema.json",
+  "title": "OptimizationJobResumeRequest@1",
+  "description": "Closed approval-gated request to resume one Runtime-owned OptimizationJob from its checkpoint.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "candidate_id",
+    "job_id",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "approval_session_id",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "job_id": {"$ref": "#/$defs/identifier"},
+    "approved": {"const": true},
+    "approval_receipt_id": {"$ref": "#/$defs/identifier"},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "approval_expires_at": {"type": "string", "minLength": 1, "maxLength": 64},
+    "approval_session_id": {"$ref": "#/$defs/identifier"},
+    "idempotency_key": {"$ref": "#/$defs/identifier"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
+  }
+}

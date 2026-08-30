@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-target-get-request.schema.json",
+  "title": "SilhouetteTargetGetRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["target_sha256"],
+  "properties": {
+    "target_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,5 +1,12 @@
 # ForgeCAD 商业级游戏武器质量计划
 
+> **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
+
+本计划的商业目标现在具体化为穿越火线武器，而不是泛化 Hero Weapon。质量重点包括：
+第一人称屏幕占比与轮廓识别、inspect/ADS 下的近距离 bevel/normal/材质可读性、换弹/机械件
+socket 与动作空间、目标引擎预算、LOD/collision、同系列武器风格一致性，以及合作方武器美术
+人审。仍不得复制无授权资产，且玩法数值、现实结构和制造信息不属于本软件输出。
+
 > 2026-08-27 `04AV` 商业门补充：三视图 `rear-stock` 部件身份/相机/深度校准与 owner∩expected-void=0 必须分别记录。calibration=`ELIGIBLE` 只能开放一个 bounded art-shape draft，不是质量 PASS；strict owner-void、negative-space、line-flow、六视图 non-regression、FormArt/Codex review 和用户 secondary approval 必须随后通过。当前只有 source/compile 证据，real-D1 projection 因 04AU 一次性 Store/CAS 不可用而 `NOT_RUN`；不得据此进入 High/Low/UV/Bake 或宣称《无畏契约》对标。
 
 > 2026-08-27 `04AK` 商业门补充：商业 FormArt baseline 必须由 Runtime 在 approved lineage 与同一当前 cohort 上新鲜生成固定六视图，历史 FormArt 只能回读、不能晋级复用。当前只有 fail-closed preflight，materializer=`UNAVAILABLE`，因此任何 High/Low/UV/Bake、材质或 FPS 展示均不得提前开始；proposal 原子性改善也不构成视觉质量证据。

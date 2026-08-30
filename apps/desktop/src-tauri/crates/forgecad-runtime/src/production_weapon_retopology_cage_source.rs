@@ -45,6 +45,11 @@ const LOW_MESH_SCHEMA: &str = "ProductionWeaponLowMesh@1";
 const OFFSET_FIELD_SCHEMA: &str = "ProductionWeaponCageOffsetField@1";
 const LOW_READBACK_SCHEMA: &str = "ProductionWeaponLowArtifactReadback@1";
 const CAGE_READBACK_SCHEMA: &str = "ProductionWeaponCageArtifactReadback@1";
+// Whole-assembly Low correspondence repeats stable Part/vertex lineage for
+// every exported hard-edge/UV-seam vertex. Keep it bounded independently from
+// small generic derived records; 8 MiB covers the admitted production asset
+// cohort without opening an unbounded JSON path.
+const MAX_SOURCE_BUNDLE_JSON_BYTES: u64 = 8 * 1024 * 1024;
 
 const PREPARE_FIELDS: &[&str] = &[
     "schema_version",
@@ -572,6 +577,31 @@ fn mapping_vec3(value: &Value, label: &str) -> Result<[f64; 3], RuntimeError> {
 fn vector_distance(left: [f64; 3], right: [f64; 3]) -> f64 {
     ((left[0] - right[0]).powi(2) + (left[1] - right[1]).powi(2) + (left[2] - right[2]).powi(2))
         .sqrt()
+}
+
+fn normalize_source_bundle_numbers(value: &mut Value) {
+    match value {
+        Value::Number(number) if number.is_f64() => {
+            if let Some(number) = number.as_f64() {
+                let rounded = (number * 1_000_000_000.0).round() / 1_000_000_000.0;
+                let rounded = if rounded == -0.0 { 0.0 } else { rounded };
+                if let Some(number) = serde_json::Number::from_f64(rounded) {
+                    *value = Value::Number(number);
+                }
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                normalize_source_bundle_numbers(value);
+            }
+        }
+        Value::Object(values) => {
+            for value in values.values_mut() {
+                normalize_source_bundle_numbers(value);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn validate_closed_high_low_cage(
@@ -1156,16 +1186,33 @@ fn normalized_object(mut value: Value) -> Result<(Vec<u8>, String), RuntimeError
         .as_object_mut()
         .ok_or_else(|| invalid("derived JSON is not an object"))?
         .insert("canonical_sha256".to_owned(), Value::String(String::new()));
-    let canonical_sha256 = canonical_json_hash(&value);
-    value.as_object_mut().expect("object checked").insert(
-        "canonical_sha256".to_owned(),
-        Value::String(canonical_sha256.clone()),
-    );
-    let bytes = canonical_json_bytes(&value).map_err(|e| invalid(e.to_string()))?;
-    if bytes.len() > MAX_DERIVED_JSON_BYTES as usize {
-        return Err(invalid("derived JSON exceeds 1 MiB"));
+    // Rebind after each JSON parse until the CAS representation validates its
+    // own canonical hash. f32-origin numbers can need an additional lexical
+    // normalization once the hash string itself is inserted into the object.
+    let mut wire_value = value;
+    for _ in 0..8 {
+        let mut preimage = wire_value.clone();
+        preimage["canonical_sha256"] = Value::String(String::new());
+        let canonical_sha256 = canonical_json_hash(&preimage);
+        wire_value["canonical_sha256"] = Value::String(canonical_sha256.clone());
+        let bytes = canonical_json_bytes(&wire_value).map_err(|e| invalid(e.to_string()))?;
+        if bytes.len() > MAX_SOURCE_BUNDLE_JSON_BYTES as usize {
+            return Err(invalid("derived source-bundle JSON exceeds 8 MiB"));
+        }
+        let persisted: Value = serde_json::from_slice(&bytes)
+            .map_err(|_| invalid("derived JSON persisted normalization failed"))?;
+        let mut persisted_preimage = persisted.clone();
+        persisted_preimage["canonical_sha256"] = Value::String(String::new());
+        if persisted.get("canonical_sha256").and_then(Value::as_str)
+            == Some(canonical_json_hash(&persisted_preimage).as_str())
+        {
+            return Ok((bytes, canonical_sha256));
+        }
+        wire_value = persisted;
     }
-    Ok((bytes, canonical_sha256))
+    Err(invalid(
+        "derived JSON canonical wire value did not converge",
+    ))
 }
 
 fn put_json(
@@ -1318,11 +1365,11 @@ fn read_json_cas(
     if object.mime != JSON_MIME
         || object.kind != expected_kind
         || object.size_bytes == 0
-        || object.size_bytes > MAX_DERIVED_JSON_BYTES
+        || object.size_bytes > MAX_SOURCE_BUNDLE_JSON_BYTES
     {
         return Err(invalid("derived JSON metadata differs"));
     }
-    let bytes = runtime.cas_read_bounded(hash, MAX_DERIVED_JSON_BYTES)?;
+    let bytes = runtime.cas_read_bounded(hash, MAX_SOURCE_BUNDLE_JSON_BYTES)?;
     if sha256_hex(&bytes) != hash {
         return Err(invalid("derived JSON CAS hash differs"));
     }
@@ -1751,10 +1798,18 @@ fn restart_revalidate(runtime: &Runtime, record: &Value) -> Result<(), RuntimeEr
     let worker_cage_bytes = base64::engine::general_purpose::STANDARD
         .decode(result_string(&cage_first.result, "cage_glb_base64")?.as_bytes())
         .map_err(|_| invalid("restart Cage Worker GLB base64 is invalid"))?;
+    let mut replay_offset_field = cage_first
+        .result
+        .get("offset_field")
+        .cloned()
+        .ok_or_else(|| invalid("restart Cage offset field is missing"))?;
+    normalize_source_bundle_numbers(&mut replay_offset_field);
+    let replay_offset_field_sha256 = canonical_json_hash(&replay_offset_field);
     if worker_cage_bytes != cage_bytes
         || cage_readback.get("worker_readback") != cage_first.result.get("cage_artifact_readback")
-        || offset.get("offset_field") != cage_first.result.get("offset_field")
-        || offset.get("offset_field_sha256") != cage_first.result.get("offset_field_sha256")
+        || offset.get("offset_field") != Some(&replay_offset_field)
+        || offset.get("offset_field_sha256").and_then(Value::as_str)
+            != Some(replay_offset_field_sha256.as_str())
     {
         return Err(invalid("restart Cage GLB/readback/offset bytes differ"));
     }
@@ -1881,34 +1936,43 @@ impl Runtime {
         let low_value = &low_first.result;
         let cage_value = &cage_first.result;
         validate_cage_worker_diagnostic(cage_value)?;
+        let mut low_mapping = low_value
+            .get("low_mesh")
+            .cloned()
+            .ok_or_else(|| invalid("Low Worker correspondence mapping is missing"))?;
+        let mut cage_mapping = cage_value
+            .get("cage_mesh")
+            .cloned()
+            .ok_or_else(|| invalid("Cage Worker mesh correspondence is missing"))?;
+        let mut offset_field = cage_value
+            .get("offset_field")
+            .cloned()
+            .ok_or_else(|| invalid("Cage Worker offset field is missing"))?;
+        normalize_source_bundle_numbers(&mut low_mapping);
+        normalize_source_bundle_numbers(&mut cage_mapping);
+        normalize_source_bundle_numbers(&mut offset_field);
+        let runtime_mapping_sha256 = canonical_json_hash(&low_mapping);
+        let runtime_offset_field_sha256 = canonical_json_hash(&offset_field);
         let summary = validate_closed_high_low_cage(
             &high_inspection,
             &low_inspection,
             &cage_inspection,
-            low_value
-                .get("low_mesh")
-                .ok_or_else(|| invalid("Low Worker correspondence mapping is missing"))?,
-            Some(
-                cage_value
-                    .get("cage_mesh")
-                    .ok_or_else(|| invalid("Cage Worker mesh correspondence is missing"))?,
-            ),
-            cage_value
-                .get("offset_field")
-                .ok_or_else(|| invalid("Cage Worker offset field is missing"))?,
+            &low_mapping,
+            Some(&cage_mapping),
+            &offset_field,
             request.max_offset_m,
-            low_value.get("low_mesh_sha256").and_then(Value::as_str),
+            Some(&runtime_mapping_sha256),
         )?;
-        let low_mesh_value = json!({"schema_version":LOW_MESH_SCHEMA, "source_high_artifact_sha256":request.source_high_artifact_sha256, "low_artifact_sha256":low_sha, "mesh":low_value["low_mesh"], "low_mesh_sha256":low_value["low_mesh_sha256"], "canonical_sha256":""});
+        let low_mesh_value = json!({"schema_version":LOW_MESH_SCHEMA, "source_high_artifact_sha256":request.source_high_artifact_sha256, "low_artifact_sha256":low_sha, "mesh":low_mapping, "low_mesh_sha256":runtime_mapping_sha256, "canonical_sha256":""});
         let mut correspondence_value = correspondence_value(
             &request.source_high_artifact_sha256,
             &low_sha,
             &cage_sha,
             "",
             &summary,
-            low_value
-                .get("low_mesh")
-                .ok_or_else(|| invalid("Low Worker correspondence mapping is missing"))?,
+            low_mesh_value
+                .get("mesh")
+                .ok_or_else(|| invalid("normalized Low correspondence mapping is missing"))?,
             low_value
                 .get("algorithm_sha256")
                 .and_then(Value::as_str)
@@ -1916,7 +1980,7 @@ impl Runtime {
                 .ok_or_else(|| invalid("Low Worker algorithm hash is missing"))?,
             low_cohort,
         );
-        let offset_value = json!({"schema_version":OFFSET_FIELD_SCHEMA, "source_low_artifact_sha256":low_sha, "cage_artifact_sha256":cage_sha, "offset_field_policy":"exact-low-topology-per-vertex-normal-offset@1", "offset_field_sha256":cage_value["offset_field_sha256"], "offset_field":cage_value["offset_field"], "canonical_sha256":""});
+        let offset_value = json!({"schema_version":OFFSET_FIELD_SCHEMA, "source_low_artifact_sha256":low_sha, "cage_artifact_sha256":cage_sha, "offset_field_policy":"exact-low-topology-per-vertex-normal-offset@1", "offset_field_sha256":runtime_offset_field_sha256, "offset_field":offset_field, "canonical_sha256":""});
         let low_readback_value = json!({"schema_version":LOW_READBACK_SCHEMA, "artifact_sha256":low_sha, "source_high_artifact_sha256":request.source_high_artifact_sha256, "worker_readback":low_value["low_artifact_readback"], "canonical_sha256":""});
         let cage_readback_value = json!({"schema_version":CAGE_READBACK_SCHEMA, "artifact_sha256":cage_sha, "source_low_artifact_sha256":low_sha, "worker_readback":cage_value["cage_artifact_readback"], "canonical_sha256":""});
         let created_at = super::now_string();
