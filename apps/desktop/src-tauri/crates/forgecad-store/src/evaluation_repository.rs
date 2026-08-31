@@ -11,10 +11,10 @@
 //! The `Store` methods at the bottom are compatibility shims for existing
 //! Runtime callers; new Evaluation services can use the repository directly.
 
-use super::{Store, StoreError, validate_job, validate_job_event, validate_reachable_hashes};
+use super::{validate_job, validate_job_event, validate_reachable_hashes, Store, StoreError};
 use forgecad_contracts::is_opaque_id;
 pub use forgecad_contracts::{JobEventRecord, JobRecord, JobSummary};
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{params, OptionalExtension};
 use serde_json::Value;
 
 /// Borrowed Evaluation repository for the coherent Runtime Job aggregate.
@@ -704,18 +704,14 @@ mod tests {
         let repository = store.evaluation_repository();
         assert!(std::ptr::eq(repository.store, &store));
         assert!(repository.get_job("job-missing").expect("lookup").is_none());
-        assert!(
-            repository
-                .get_job_record("job-missing")
-                .expect("record lookup")
-                .is_none()
-        );
-        assert!(
-            repository
-                .list_job_events("job-missing", 0)
-                .expect("event lookup")
-                .is_empty()
-        );
+        assert!(repository
+            .get_job_record("job-missing")
+            .expect("record lookup")
+            .is_none());
+        assert!(repository
+            .list_job_events("job-missing", 0)
+            .expect("event lookup")
+            .is_empty());
     }
 
     #[test]

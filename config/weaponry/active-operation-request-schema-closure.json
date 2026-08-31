@@ -9,9 +9,10 @@
   "request_schema_aliases": {
     "game_weapon_glb_socket_get": "game-weapon-glb-socket-materialization-get-request.schema.json",
     "game_weapon_glb_socket_prepare": "game-weapon-glb-socket-materialization-prepare-request.schema.json",
-    "cross_view_promotion_confirm": "cross-view-promotion-request.schema.json"
+    "cross_view_promotion_confirm": "cross-view-promotion-request.schema.json",
+    "authoring_mesh_v2_candidate_materialize": "authoring-mesh-v2-candidate-materialize-prepare-request.schema.json"
   },
-  "expected_mcp_consumed_closed_count": 125,
+  "expected_mcp_consumed_closed_count": 142,
   "request_schema_filename_templates": [
     "{operation_kebab}-request.schema.json"
   ]

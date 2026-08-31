@@ -108,17 +108,23 @@ fn parse_specs() -> Result<Vec<FacadeSpec>, String> {
                 ));
             }
             // Façade-native operations are declared separately in the profile
-            // because they must never enter the compatibility raw manifest.
-            // They still belong to the authoring_transaction underlying route.
-            let native = if *name == "authoring_transaction" {
-                profile
-                    .get("native_operations")
-                    .and_then(Value::as_object)
-                    .map(|operations| operations.keys().cloned().collect::<BTreeSet<_>>())
-                    .unwrap_or_default()
-            } else {
-                BTreeSet::new()
-            };
+            // so their active request schemas never depend on the compatibility
+            // raw manifest. Ownership comes from each native operation's
+            // facade_name; the source-genesis bridge intentionally remains
+            // callable through the explicit compatibility profile as well.
+            let native = profile
+                .get("native_operations")
+                .and_then(Value::as_object)
+                .map(|operations| {
+                    operations
+                        .iter()
+                        .filter_map(|(operation, metadata)| {
+                            (metadata.get("facade_name").and_then(Value::as_str) == Some(*name))
+                                .then_some(operation.clone())
+                        })
+                        .collect::<BTreeSet<_>>()
+                })
+                .unwrap_or_default();
             if !read.is_disjoint(&native) || !write.is_disjoint(&native) {
                 return Err(format!(
                     "WEAPONRY_KNIFE_PROFILE_INVALID: {name} classifies a native operation twice"
@@ -195,10 +201,99 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
             "WEAPONRY_KNIFE_PROFILE_INVALID: native_operations must be an object".to_owned()
         })?;
     let expected = [
-        ("knife_curve_modifier_graph_get", true),
-        ("knife_curve_modifier_graph_prepare", false),
-        ("knife_curve_evaluated_mesh_get", true),
-        ("knife_curve_evaluated_mesh_prepare", false),
+        (
+            "knife_reference_intent_bundle_get",
+            true,
+            "reference_intake",
+        ),
+        (
+            "knife_reference_intent_bundle_prepare",
+            false,
+            "reference_intake",
+        ),
+        (
+            "weaponry_knife_production_brief_get",
+            true,
+            "reference_intake",
+        ),
+        (
+            "weaponry_knife_production_brief_prepare",
+            false,
+            "reference_intake",
+        ),
+        (
+            "knife_curve_modifier_graph_get",
+            true,
+            "authoring_transaction",
+        ),
+        (
+            "knife_curve_modifier_graph_prepare",
+            false,
+            "authoring_transaction",
+        ),
+        (
+            "knife_curve_evaluated_mesh_get",
+            true,
+            "authoring_transaction",
+        ),
+        (
+            "knife_curve_evaluated_mesh_prepare",
+            false,
+            "authoring_transaction",
+        ),
+        (
+            "authoring_mesh_v2_candidate_materialize",
+            false,
+            "authoring_transaction",
+        ),
+        (
+            "authoring_mesh_v2_high_bridge_get",
+            true,
+            "authoring_transaction",
+        ),
+        (
+            "authoring_mesh_v2_high_bridge_prepare",
+            false,
+            "authoring_transaction",
+        ),
+        (
+            "authoring_mesh_v2_high_artifact_get",
+            true,
+            "surface_pipeline",
+        ),
+        (
+            "authoring_mesh_v2_high_artifact_prepare",
+            false,
+            "surface_pipeline",
+        ),
+        (
+            "production_knife_uv_bake_v2_get",
+            true,
+            "surface_pipeline",
+        ),
+        (
+            "production_knife_uv_bake_v2_prepare",
+            false,
+            "surface_pipeline",
+        ),
+        (
+            "high_artifact_reference_compare_prepare",
+            false,
+            "quality_review",
+        ),
+        (
+            "production_weapon_authoring_mesh_v2_source_prepare",
+            false,
+            "authoring_transaction",
+        ),
+        ("knife_source_binding_get", true, "authoring_transaction"),
+        (
+            "knife_source_binding_prepare",
+            false,
+            "authoring_transaction",
+        ),
+        ("knife_pass_state_get", true, "quality_review"),
+        ("knife_pass_state_prepare", false, "quality_review"),
     ];
     if native.len() != expected.len() {
         return Err(
@@ -208,7 +303,7 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
     }
     expected
         .into_iter()
-        .map(|(operation, read_only)| {
+        .map(|(operation, read_only, facade_name)| {
             let value = native.get(operation).and_then(Value::as_object).ok_or_else(|| {
                 format!(
                     "WEAPONRY_KNIFE_PROFILE_INVALID: native operation {operation} is missing"
@@ -217,8 +312,7 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
             if value.get("operation_name").and_then(Value::as_str) != Some(operation)
                 || value.get("classification").and_then(Value::as_str)
                     != Some(if read_only { "read" } else { "write" })
-                || value.get("facade_name").and_then(Value::as_str)
-                    != Some("authoring_transaction")
+                || value.get("facade_name").and_then(Value::as_str) != Some(facade_name)
                 || value.get("status").and_then(Value::as_str) != Some("native-development-only")
             {
                 return Err(format!(
@@ -242,6 +336,18 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
                     )
                 })?;
             let expected_request_schema = match operation {
+                "knife_reference_intent_bundle_get" => {
+                    "KnifeReferenceIntentBundleGetRequest@1"
+                }
+                "knife_reference_intent_bundle_prepare" => {
+                    "KnifeReferenceIntentBundlePrepareRequest@1"
+                }
+                "weaponry_knife_production_brief_get" => {
+                    "WeaponryKnifeProductionBriefGetRequest@1"
+                }
+                "weaponry_knife_production_brief_prepare" => {
+                    "WeaponryKnifeProductionBriefPrepareRequest@1"
+                }
                 "knife_curve_modifier_graph_get" => "KnifeCurveModifierGraphGetRequest@1",
                 "knife_curve_modifier_graph_prepare" => {
                     "KnifeCurveModifierGraphPrepareRequest@1"
@@ -250,14 +356,80 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
                 "knife_curve_evaluated_mesh_prepare" => {
                     "KnifeCurveEvaluatedMeshPrepareRequest@1"
                 }
+                "authoring_mesh_v2_candidate_materialize" => {
+                    "AuthoringMeshV2CandidateMaterializeRequest@1"
+                }
+                "authoring_mesh_v2_high_bridge_get" => {
+                    "AuthoringMeshV2HighBridgeGetRequest@1"
+                }
+                "authoring_mesh_v2_high_bridge_prepare" => {
+                    "AuthoringMeshV2HighBridgePrepareRequest@1"
+                }
+                "authoring_mesh_v2_high_artifact_get" => {
+                    "AuthoringMeshV2HighArtifactGetRequest@1"
+                }
+                "authoring_mesh_v2_high_artifact_prepare" => {
+                    "AuthoringMeshV2HighArtifactPrepareRequest@1"
+                }
+                "production_knife_uv_bake_v2_get" => {
+                    "WeaponryKnifeUvBakeV2GetRequest@1"
+                }
+                "production_knife_uv_bake_v2_prepare" => {
+                    "WeaponryKnifeUvBakeV2PrepareRequest@1"
+                }
+                "high_artifact_reference_compare_prepare" => {
+                    "HighArtifactReferenceComparePrepareRequest@1"
+                }
+                "production_weapon_authoring_mesh_v2_source_prepare" => {
+                    "ProductionWeaponAuthoringMeshV2SourcePrepareRequest@1"
+                }
+                "knife_source_binding_get" => "KnifeSourceBindingGetRequest@1",
+                "knife_source_binding_prepare" => "KnifeSourceBindingPrepareRequest@1",
+                "knife_pass_state_get" => "KnifePassStateGetRequest@1",
+                "knife_pass_state_prepare" => "KnifePassStatePrepareRequest@1",
                 _ => unreachable!("native operation set is closed above"),
             };
             let expected_result_schema = match operation {
+                "knife_reference_intent_bundle_get"
+                | "knife_reference_intent_bundle_prepare" => {
+                    "KnifeReferenceIntentBundleResult@1"
+                }
+                "weaponry_knife_production_brief_get"
+                | "weaponry_knife_production_brief_prepare" => {
+                    "WeaponryKnifeProductionBriefResult@1"
+                }
                 "knife_curve_modifier_graph_get" | "knife_curve_modifier_graph_prepare" => {
                     "KnifeCurveModifierGraphResult@1"
                 }
                 "knife_curve_evaluated_mesh_get" | "knife_curve_evaluated_mesh_prepare" => {
                     "KnifeCurveEvaluatedMeshResult@1"
+                }
+                "authoring_mesh_v2_candidate_materialize" => {
+                    "AuthoringMeshV2CandidateMaterializeResult@1"
+                }
+                "authoring_mesh_v2_high_bridge_get"
+                | "authoring_mesh_v2_high_bridge_prepare" => {
+                    "AuthoringMeshV2HighBridgeResult@1"
+                }
+                "authoring_mesh_v2_high_artifact_get"
+                | "authoring_mesh_v2_high_artifact_prepare" => {
+                    "AuthoringMeshV2HighArtifactResult@1"
+                }
+                "production_knife_uv_bake_v2_get"
+                | "production_knife_uv_bake_v2_prepare" => {
+                    "WeaponryKnifeUvBakeV2Result@1"
+                }
+                "high_artifact_reference_compare_prepare" => {
+                    "HighArtifactReferenceComparisonPrepareResult@1"
+                }
+                "production_weapon_authoring_mesh_v2_source_prepare" => {
+                    "ProductionWeaponAuthoringMeshV2SourcePrepareResult@1"
+                }
+                "knife_source_binding_get" | "knife_source_binding_prepare" => {
+                    "KnifeSourceBindingResult@1"
+                }
+                "knife_pass_state_get" | "knife_pass_state_prepare" => {
+                    "KnifePassStateResult@1"
                 }
                 _ => unreachable!("native operation set is closed above"),
             };
@@ -269,7 +441,7 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
             Ok(NativeSpec {
                 operation: operation.to_owned(),
                 read_only,
-                facade_name: "authoring_transaction".to_owned(),
+                facade_name: facade_name.to_owned(),
                 request_schema: request_schema.to_owned(),
                 result_schema: result_schema.to_owned(),
             })
@@ -296,7 +468,7 @@ pub fn native_operation_is_write(operation: &str) -> bool {
 
 /// Return the write classification owned by the active knife profile.
 ///
-/// This deliberately reads only the closed profile JSON and the four native
+/// This deliberately reads only the closed profile JSON and façade-native
 /// operation descriptors.  It must remain independent from the historical
 /// compatibility registry so a default Knife request can be routed and
 /// write-gated without constructing the 226-operation manifest.
@@ -411,9 +583,29 @@ fn facade_tools(compatibility_tools: &[Value]) -> Result<Vec<Value>, String> {
                 }));
             }
             for native in native_specs {
-                let request_schema = if crate::knife_curve_modifier_graph_tools::is_tool(
-                    &native.operation,
-                ) {
+                let request_schema = if native
+                    .operation
+                    .starts_with("weaponry_knife_production_brief_")
+                    || native
+                        .operation
+                        .starts_with("knife_reference_intent_bundle_")
+                    || native.operation.starts_with("knife_source_binding_")
+                    || native.operation.starts_with("knife_pass_state_")
+                    || native.operation == "authoring_mesh_v2_candidate_materialize"
+                    || native
+                        .operation
+                        .starts_with("authoring_mesh_v2_high_bridge_")
+                    || native
+                        .operation
+                        .starts_with("authoring_mesh_v2_high_artifact_")
+                    || native
+                        .operation
+                        .starts_with("production_knife_uv_bake_v2_")
+                    || native.operation == "high_artifact_reference_compare_prepare"
+                    || native.operation == "production_weapon_authoring_mesh_v2_source_prepare"
+                {
+                    Some(crate::active_schema::advertised_schema(&native.operation)?)
+                } else if crate::knife_curve_modifier_graph_tools::is_tool(&native.operation) {
                     crate::knife_curve_modifier_graph_tools::input_schema(&native.operation)
                 } else {
                     crate::knife_curve_evaluated_mesh_tools::input_schema(&native.operation)
@@ -482,9 +674,10 @@ pub fn active_tools() -> Result<Vec<Value>, String> {
                     "additionalProperties":false
                 }));
             }
-            // Native operations are included in the profile allowlist but
-            // are not represented in `legacy_operations`; append their exact
-            // closed request schemas here without loading the raw manifest.
+            // Native operations are included in the profile allowlist. Append
+            // their exact closed request schemas here without loading the raw
+            // manifest; the source-genesis bridge also has an explicit legacy
+            // compatibility route for historical replay.
             for native in native_specs {
                 if spec.operations.iter().any(|operation| operation == &native.operation) {
                     continue;
@@ -696,10 +889,9 @@ pub fn unwrap_facade_call(
         .into_iter()
         .find(|spec| spec.name == requested_name)
         .ok_or_else(|| "WEAPONRY_KNIFE_PROFILE_INVALID: façade is not declared".to_owned())?;
-    let native_allowed = requested_name == "authoring_transaction"
-        && parse_native_specs()?
-            .iter()
-            .any(|native| native.operation == operation);
+    let native_allowed = parse_native_specs()?
+        .iter()
+        .any(|native| native.operation == operation && native.facade_name == requested_name);
     if !spec.operations.iter().any(|allowed| allowed == operation) && !native_allowed {
         return Err(format!(
             "WEAPONRY_KNIFE_PROFILE_ROUTE_DENIED: {operation} is not allowed through {requested_name}"
@@ -797,9 +989,9 @@ mod tests {
         );
         assert_eq!(summary["compatibility_manifest_sha256"], Value::Null);
         assert_eq!(summary["compatibility_requires_explicit_profile"], true);
-        assert_eq!(summary["active_operation_count"], 125);
-        assert_eq!(summary["closed_request_schema_count"], 125);
-        assert_eq!(summary["executable_operation_count"], 125);
+        assert_eq!(summary["active_operation_count"], 140);
+        assert_eq!(summary["closed_request_schema_count"], 140);
+        assert_eq!(summary["executable_operation_count"], 140);
         assert_eq!(summary["schema_blocked_request_count"], 0);
         assert_eq!(summary["runtime_validated_request_schema_count"], 0);
         assert_eq!(summary["request_schema_closure_status"], "COMPLETE");
@@ -817,7 +1009,7 @@ mod tests {
             .flat_map(|spec| spec.operations.iter().cloned())
             .collect::<BTreeSet<_>>();
         operations.extend(native.into_iter().map(|spec| spec.operation));
-        assert_eq!(operations.len(), 125);
+        assert_eq!(operations.len(), 140);
 
         for operation in operations {
             assert!(
@@ -837,10 +1029,28 @@ mod tests {
 
     #[test]
     fn knife_profile_owns_native_write_classification() {
+        assert!(!is_write_operation("knife_reference_intent_bundle_get"));
+        assert!(is_write_operation("knife_reference_intent_bundle_prepare"));
+        assert!(!is_write_operation("knife_source_binding_get"));
+        assert!(is_write_operation("knife_source_binding_prepare"));
+        assert!(!is_write_operation("weaponry_knife_production_brief_get"));
+        assert!(is_write_operation(
+            "weaponry_knife_production_brief_prepare"
+        ));
         assert!(!is_write_operation("knife_curve_modifier_graph_get"));
         assert!(is_write_operation("knife_curve_modifier_graph_prepare"));
         assert!(!is_write_operation("knife_curve_evaluated_mesh_get"));
         assert!(is_write_operation("knife_curve_evaluated_mesh_prepare"));
+        assert!(is_write_operation(
+            "production_weapon_authoring_mesh_v2_source_prepare"
+        ));
+        assert!(is_write_operation(
+            "authoring_mesh_v2_candidate_materialize"
+        ));
+        assert!(!is_write_operation("authoring_mesh_v2_high_artifact_get"));
+        assert!(is_write_operation(
+            "authoring_mesh_v2_high_artifact_prepare"
+        ));
         assert!(is_write_operation("project_create"));
         assert!(!is_write_operation("runtime_status"));
     }

@@ -216,12 +216,34 @@ pub struct WeaponryCapabilityMapping {
 
 const AUTHORING_TRANSACTION_WRITE_OPERATIONS: &[&str] = &["authoring_mesh_transaction_prepare"];
 const AUTHORING_TRANSACTION_READBACK_OPERATIONS: &[&str] = &["authoring_mesh_transaction_get"];
+const AUTHORING_MESH_V2_CANDIDATE_MATERIALIZE_OPERATIONS: &[&str] =
+    &["authoring_mesh_v2_candidate_materialize"];
 const AUTHORING_V2_DURABLE_WRITE_OPERATIONS: &[&str] = &["authoring_mesh_v2_durable_prepare"];
 const AUTHORING_V2_DURABLE_READBACK_OPERATIONS: &[&str] = &["authoring_mesh_v2_durable_get"];
+const AUTHORING_MESH_V2_SOURCE_OPERATIONS: &[&str] =
+    &["production_weapon_authoring_mesh_v2_source_prepare"];
+const AUTHORING_MESH_V2_HIGH_BRIDGE_OPERATIONS: &[&str] = &[
+    "authoring_mesh_v2_high_bridge_get",
+    "authoring_mesh_v2_high_bridge_prepare",
+];
+const AUTHORING_MESH_V2_HIGH_ARTIFACT_OPERATIONS: &[&str] = &[
+    "authoring_mesh_v2_high_artifact_get",
+    "authoring_mesh_v2_high_artifact_prepare",
+];
 const FOUNDATION_IMPORT_OPERATIONS: &[&str] = &[
     "weapon_foundation_asset_get",
     "weapon_foundation_asset_prepare",
 ];
+const KNIFE_PRODUCTION_BRIEF_OPERATIONS: &[&str] = &[
+    "weaponry_knife_production_brief_get",
+    "weaponry_knife_production_brief_prepare",
+];
+const KNIFE_REFERENCE_INTENT_BUNDLE_OPERATIONS: &[&str] = &[
+    "knife_reference_intent_bundle_get",
+    "knife_reference_intent_bundle_prepare",
+];
+const KNIFE_SOURCE_BINDING_OPERATIONS: &[&str] =
+    &["knife_source_binding_get", "knife_source_binding_prepare"];
 const FOUNDATION_MATERIALIZATION_OPERATIONS: &[&str] = &[
     "weapon_foundation_authoring_materialization_get",
     "weapon_foundation_authoring_materialization_prepare",
@@ -243,6 +265,10 @@ const LOW_QUAD_OPERATIONS: &[&str] = &[
     "low_quad_draft_durable_prepare",
 ];
 const HERO_UV_OPERATIONS: &[&str] = &["hero_uv_durable_get", "hero_uv_durable_prepare"];
+const KNIFE_UV_BAKE_V2_OPERATIONS: &[&str] = &[
+    "production_knife_uv_bake_v2_get",
+    "production_knife_uv_bake_v2_prepare",
+];
 const HIGH_LOW_BAKE_OPERATIONS: &[&str] = &[
     "production_weapon_high_low_bake_get",
     "production_weapon_high_low_bake_preflight_get",
@@ -290,6 +316,9 @@ const SILHOUETTE_OPERATIONS: &[&str] = &[
     "silhouette_evaluation_objective_prepare",
     "silhouette_fit_prepare",
 ];
+const KNIFE_PASS_STATE_OPERATIONS: &[&str] = &["knife_pass_state_get", "knife_pass_state_prepare"];
+const HIGH_ARTIFACT_REFERENCE_COMPARE_OPERATIONS: &[&str] =
+    &["high_artifact_reference_compare_prepare"];
 const JOB_OPERATIONS: &[&str] = &[
     "job_cancel",
     "job_events_read",
@@ -329,6 +358,39 @@ const EXPORT_CONFIRM_OPERATIONS: &[&str] = &["export_confirm"];
 /// merely by existing in the old registry.
 pub const KNIFE_CAPABILITY_MAPPINGS: &[WeaponryCapabilityMapping] = &[
     WeaponryCapabilityMapping {
+        capability: "knife_source_binding",
+        domain: WeaponryServiceDomain::Authoring,
+        contract: Some("KnifeSourceBinding@1"),
+        runtime_service: Some("authoring_service::knife_source_binding::{prepare,get}"),
+        store_record: Some("KnifeSourceBindingStoreRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("authoring_transaction"),
+        mcp_operations: KNIFE_SOURCE_BINDING_OPERATIONS,
+        status: MappingStatus::Complete,
+    },
+    WeaponryCapabilityMapping {
+        capability: "knife_reference_intent_bundle",
+        domain: WeaponryServiceDomain::Authoring,
+        contract: Some("KnifeReferenceIntentBundle@1"),
+        runtime_service: Some("authoring_service::knife_reference_intent_bundle::{prepare,get}"),
+        store_record: Some("KnifeReferenceIntentBundleStoreRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("reference_intake"),
+        mcp_operations: KNIFE_REFERENCE_INTENT_BUNDLE_OPERATIONS,
+        status: MappingStatus::Partial,
+    },
+    WeaponryCapabilityMapping {
+        capability: "weaponry_knife_production_brief",
+        domain: WeaponryServiceDomain::Authoring,
+        contract: Some("WeaponryKnifeProductionBrief@1"),
+        runtime_service: Some("authoring_service::weaponry_knife_production_brief::{prepare,get}"),
+        store_record: Some("WeaponryKnifeProductionBriefStoreRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("reference_intake"),
+        mcp_operations: KNIFE_PRODUCTION_BRIEF_OPERATIONS,
+        status: MappingStatus::Complete,
+    },
+    WeaponryCapabilityMapping {
         capability: "authoring_mesh_transaction",
         domain: WeaponryServiceDomain::Authoring,
         contract: Some("AuthoringMeshTransaction@1"),
@@ -351,6 +413,19 @@ pub const KNIFE_CAPABILITY_MAPPINGS: &[WeaponryCapabilityMapping] = &[
         status: MappingStatus::Complete,
     },
     WeaponryCapabilityMapping {
+        capability: "authoring_mesh_v2_candidate_materialization",
+        domain: WeaponryServiceDomain::Authoring,
+        contract: Some("AuthoringMeshV2CandidateMaterializeResult@1"),
+        runtime_service: Some("authoring_service::authoring_mesh_v2_candidate_materialize"),
+        // This operation intentionally has no second materializer Main row;
+        // it atomically reuses the existing candidate/evidence/Job records.
+        store_record: Some("CandidateRecord + GeometryCandidateEvidenceRecord + JobRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("authoring_transaction"),
+        mcp_operations: AUTHORING_MESH_V2_CANDIDATE_MATERIALIZE_OPERATIONS,
+        status: MappingStatus::Partial,
+    },
+    WeaponryCapabilityMapping {
         capability: "authoring_mesh_v2_durable",
         domain: WeaponryServiceDomain::Authoring,
         contract: Some("AuthoringMesh@2"),
@@ -359,6 +434,30 @@ pub const KNIFE_CAPABILITY_MAPPINGS: &[WeaponryCapabilityMapping] = &[
         persistence: PersistenceKind::DurableTransaction,
         mcp_facade: Some("authoring_transaction"),
         mcp_operations: AUTHORING_V2_DURABLE_WRITE_OPERATIONS,
+        status: MappingStatus::Complete,
+    },
+    WeaponryCapabilityMapping {
+        capability: "authoring_mesh_v2_source",
+        domain: WeaponryServiceDomain::Authoring,
+        contract: Some("ProductionWeaponAuthoringMeshV2SourcePrepareResult@1"),
+        runtime_service: Some("Runtime::production_weapon_authoring_mesh_v2_source_prepare"),
+        // The source bridge materializes the Runtime-derived genesis through
+        // the existing V2 durable writer; there is no separate producer row.
+        store_record: Some("AuthoringMeshV2DurableRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("authoring_transaction"),
+        mcp_operations: AUTHORING_MESH_V2_SOURCE_OPERATIONS,
+        status: MappingStatus::Complete,
+    },
+    WeaponryCapabilityMapping {
+        capability: "authoring_mesh_v2_high_bridge",
+        domain: WeaponryServiceDomain::Authoring,
+        contract: Some("AuthoringMeshV2HighBridge@1"),
+        runtime_service: Some("authoring_service::authoring_mesh_v2_high_bridge::{prepare,get}"),
+        store_record: Some("AuthoringMeshV2HighBridgeStoreRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("authoring_transaction"),
+        mcp_operations: AUTHORING_MESH_V2_HIGH_BRIDGE_OPERATIONS,
         status: MappingStatus::Complete,
     },
     WeaponryCapabilityMapping {
@@ -439,6 +538,17 @@ pub const KNIFE_CAPABILITY_MAPPINGS: &[WeaponryCapabilityMapping] = &[
         status: MappingStatus::Partial,
     },
     WeaponryCapabilityMapping {
+        capability: "knife_uv_bake_v2_aggregate",
+        domain: WeaponryServiceDomain::Surface,
+        contract: Some("WeaponryKnifeUvBakeV2Aggregate@1"),
+        runtime_service: Some("production_knife_uv_bake_v2::{prepare,get}"),
+        store_record: Some("WeaponryKnifeUvBakeV2AggregateStoreRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("surface_pipeline"),
+        mcp_operations: KNIFE_UV_BAKE_V2_OPERATIONS,
+        status: MappingStatus::Partial,
+    },
+    WeaponryCapabilityMapping {
         capability: "formal_high",
         domain: WeaponryServiceDomain::Surface,
         contract: Some("ProductionWeaponHighArtifact@1"),
@@ -447,6 +557,19 @@ pub const KNIFE_CAPABILITY_MAPPINGS: &[WeaponryCapabilityMapping] = &[
         persistence: PersistenceKind::DurableTransaction,
         mcp_facade: Some("surface_pipeline"),
         mcp_operations: FORMAL_HIGH_OPERATIONS,
+        status: MappingStatus::Complete,
+    },
+    WeaponryCapabilityMapping {
+        capability: "authoring_mesh_v2_high_artifact",
+        domain: WeaponryServiceDomain::Surface,
+        contract: Some("AuthoringMeshV2HighArtifact@1"),
+        runtime_service: Some(
+            "surface_service::authoring_mesh_v2_high_artifact::{prepare,get}",
+        ),
+        store_record: Some("AuthoringMeshV2HighArtifactStoreRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("surface_pipeline"),
+        mcp_operations: AUTHORING_MESH_V2_HIGH_ARTIFACT_OPERATIONS,
         status: MappingStatus::Complete,
     },
     WeaponryCapabilityMapping {
@@ -703,6 +826,28 @@ pub const KNIFE_CAPABILITY_MAPPINGS: &[WeaponryCapabilityMapping] = &[
         status: MappingStatus::Complete,
     },
     WeaponryCapabilityMapping {
+        capability: "knife_pass_state",
+        domain: WeaponryServiceDomain::Evaluation,
+        contract: Some("KnifePassState@1"),
+        runtime_service: Some("evaluation_service::knife_pass_state::{prepare,get}"),
+        store_record: Some("KnifePassStateStoreRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("quality_review"),
+        mcp_operations: KNIFE_PASS_STATE_OPERATIONS,
+        status: MappingStatus::Complete,
+    },
+    WeaponryCapabilityMapping {
+        capability: "high_artifact_reference_comparison",
+        domain: WeaponryServiceDomain::Evaluation,
+        contract: Some("HighArtifactReferenceComparison@1"),
+        runtime_service: Some("evaluation_service::high_artifact_reference_comparison"),
+        store_record: Some("CAS-only HighArtifactRenderSet + HighArtifactReferenceComparison"),
+        persistence: PersistenceKind::Projection,
+        mcp_facade: Some("quality_review"),
+        mcp_operations: HIGH_ARTIFACT_REFERENCE_COMPARE_OPERATIONS,
+        status: MappingStatus::Complete,
+    },
+    WeaponryCapabilityMapping {
         capability: "runtime_job_lifecycle",
         domain: WeaponryServiceDomain::Evaluation,
         contract: Some("RuntimeJob@1"),
@@ -877,6 +1022,96 @@ mod tests {
         assert_eq!(mesh_read.mcp_facade, Some("observe"));
         assert_eq!(mesh_read.mcp_operations, &["authoring_mesh_v2_durable_get"]);
         assert_eq!(mesh_read.persistence, PersistenceKind::Projection);
+
+        let materialization = capability_mapping_for("authoring_mesh_v2_candidate_materialization")
+            .expect("AuthoringMeshV2 candidate materialization mapping");
+        assert_eq!(materialization.domain, WeaponryServiceDomain::Authoring);
+        assert_eq!(
+            materialization.contract,
+            Some("AuthoringMeshV2CandidateMaterializeResult@1")
+        );
+        assert_eq!(
+            materialization.runtime_service,
+            Some("authoring_service::authoring_mesh_v2_candidate_materialize")
+        );
+        assert_eq!(
+            materialization.store_record,
+            Some("CandidateRecord + GeometryCandidateEvidenceRecord + JobRecord")
+        );
+        assert_eq!(
+            materialization.mcp_operations,
+            AUTHORING_MESH_V2_CANDIDATE_MATERIALIZE_OPERATIONS
+        );
+        assert_eq!(materialization.status, MappingStatus::Partial);
+    }
+
+    #[test]
+    fn authoring_mesh_v2_source_uses_the_existing_durable_record_seam() {
+        let source = capability_mapping_for("authoring_mesh_v2_source")
+            .expect("AuthoringMeshV2 source mapping");
+        assert_eq!(source.domain, WeaponryServiceDomain::Authoring);
+        assert_eq!(
+            source.contract,
+            Some("ProductionWeaponAuthoringMeshV2SourcePrepareResult@1")
+        );
+        assert_eq!(
+            source.runtime_service,
+            Some("Runtime::production_weapon_authoring_mesh_v2_source_prepare")
+        );
+        assert_eq!(source.store_record, Some("AuthoringMeshV2DurableRecord"));
+        assert_eq!(source.persistence, PersistenceKind::DurableTransaction);
+        assert_eq!(source.mcp_facade, Some("authoring_transaction"));
+        assert_eq!(source.mcp_operations, AUTHORING_MESH_V2_SOURCE_OPERATIONS);
+        assert_eq!(source.status, MappingStatus::Complete);
+    }
+
+    #[test]
+    fn authoring_mesh_v2_high_bridge_uses_the_authoring_transaction_seam() {
+        let bridge = capability_mapping_for("authoring_mesh_v2_high_bridge")
+            .expect("AuthoringMeshV2 High bridge mapping");
+        assert_eq!(bridge.domain, WeaponryServiceDomain::Authoring);
+        assert_eq!(bridge.contract, Some("AuthoringMeshV2HighBridge@1"));
+        assert_eq!(
+            bridge.runtime_service,
+            Some("authoring_service::authoring_mesh_v2_high_bridge::{prepare,get}")
+        );
+        assert_eq!(
+            bridge.store_record,
+            Some("AuthoringMeshV2HighBridgeStoreRecord")
+        );
+        assert_eq!(bridge.persistence, PersistenceKind::DurableTransaction);
+        assert_eq!(bridge.mcp_facade, Some("authoring_transaction"));
+        assert_eq!(
+            bridge.mcp_operations,
+            &[
+                "authoring_mesh_v2_high_bridge_get",
+                "authoring_mesh_v2_high_bridge_prepare"
+            ]
+        );
+        assert_eq!(bridge.status, MappingStatus::Complete);
+    }
+
+    #[test]
+    fn authoring_mesh_v2_high_artifact_uses_the_surface_pipeline_seam() {
+        let artifact = capability_mapping_for("authoring_mesh_v2_high_artifact")
+            .expect("AuthoringMeshV2 High artifact mapping");
+        assert_eq!(artifact.domain, WeaponryServiceDomain::Surface);
+        assert_eq!(artifact.contract, Some("AuthoringMeshV2HighArtifact@1"));
+        assert_eq!(
+            artifact.runtime_service,
+            Some("surface_service::authoring_mesh_v2_high_artifact::{prepare,get}")
+        );
+        assert_eq!(
+            artifact.store_record,
+            Some("AuthoringMeshV2HighArtifactStoreRecord")
+        );
+        assert_eq!(artifact.persistence, PersistenceKind::DurableTransaction);
+        assert_eq!(artifact.mcp_facade, Some("surface_pipeline"));
+        assert_eq!(
+            artifact.mcp_operations,
+            AUTHORING_MESH_V2_HIGH_ARTIFACT_OPERATIONS
+        );
+        assert_eq!(artifact.status, MappingStatus::Complete);
     }
 
     #[test]
@@ -1206,6 +1441,66 @@ mod tests {
                 .domain,
             WeaponryServiceDomain::Authoring
         );
+    }
+
+    #[test]
+    fn knife_production_brief_has_one_complete_reference_intake_seam() {
+        let mapping = capability_mapping_for("weaponry_knife_production_brief")
+            .expect("knife production brief mapping");
+        assert_eq!(mapping.domain, WeaponryServiceDomain::Authoring);
+        assert_eq!(mapping.contract, Some("WeaponryKnifeProductionBrief@1"));
+        assert_eq!(
+            mapping.runtime_service,
+            Some("authoring_service::weaponry_knife_production_brief::{prepare,get}")
+        );
+        assert_eq!(
+            mapping.store_record,
+            Some("WeaponryKnifeProductionBriefStoreRecord")
+        );
+        assert_eq!(mapping.persistence, PersistenceKind::DurableTransaction);
+        assert_eq!(mapping.mcp_facade, Some("reference_intake"));
+        assert_eq!(mapping.mcp_operations, KNIFE_PRODUCTION_BRIEF_OPERATIONS);
+        assert_eq!(mapping.status, MappingStatus::Complete);
+    }
+
+    #[test]
+    fn knife_reference_intent_bundle_has_one_reference_intake_seam() {
+        let mapping = capability_mapping_for("knife_reference_intent_bundle")
+            .expect("knife reference intent bundle mapping");
+        assert_eq!(mapping.domain, WeaponryServiceDomain::Authoring);
+        assert_eq!(mapping.contract, Some("KnifeReferenceIntentBundle@1"));
+        assert_eq!(
+            mapping.runtime_service,
+            Some("authoring_service::knife_reference_intent_bundle::{prepare,get}")
+        );
+        assert_eq!(
+            mapping.store_record,
+            Some("KnifeReferenceIntentBundleStoreRecord")
+        );
+        assert_eq!(mapping.persistence, PersistenceKind::DurableTransaction);
+        assert_eq!(mapping.mcp_facade, Some("reference_intake"));
+        assert_eq!(
+            mapping.mcp_operations,
+            KNIFE_REFERENCE_INTENT_BUNDLE_OPERATIONS
+        );
+        assert_eq!(mapping.status, MappingStatus::Partial);
+    }
+
+    #[test]
+    fn knife_source_binding_has_one_complete_authoring_seam() {
+        let mapping =
+            capability_mapping_for("knife_source_binding").expect("knife source binding mapping");
+        assert_eq!(mapping.domain, WeaponryServiceDomain::Authoring);
+        assert_eq!(mapping.contract, Some("KnifeSourceBinding@1"));
+        assert_eq!(
+            mapping.runtime_service,
+            Some("authoring_service::knife_source_binding::{prepare,get}")
+        );
+        assert_eq!(mapping.store_record, Some("KnifeSourceBindingStoreRecord"));
+        assert_eq!(mapping.persistence, PersistenceKind::DurableTransaction);
+        assert_eq!(mapping.mcp_facade, Some("authoring_transaction"));
+        assert_eq!(mapping.mcp_operations, KNIFE_SOURCE_BINDING_OPERATIONS);
+        assert_eq!(mapping.status, MappingStatus::Complete);
     }
 
     #[test]

@@ -201,4 +201,113 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn knife_production_brief_is_runtime_owned_reference_intake() {
+        for operation in [
+            "weaponry_knife_production_brief_get",
+            "weaponry_knife_production_brief_prepare",
+        ] {
+            let route = resolve("reference_intake", operation).expect("brief route");
+            assert_eq!(route.facade_name, "reference_intake");
+            assert_eq!(route.domain, WeaponryServiceDomain::Authoring);
+            assert_eq!(
+                route.execution_target,
+                WeaponryOperationExecutionTarget::Runtime
+            );
+        }
+    }
+
+    #[test]
+    fn knife_reference_intent_is_runtime_owned_reference_intake() {
+        for operation in [
+            "knife_reference_intent_bundle_get",
+            "knife_reference_intent_bundle_prepare",
+        ] {
+            let route = resolve("reference_intake", operation).expect("intent route");
+            assert_eq!(route.facade_name, "reference_intake");
+            assert_eq!(route.domain, WeaponryServiceDomain::Authoring);
+            assert_eq!(
+                route.execution_target,
+                WeaponryOperationExecutionTarget::Runtime
+            );
+        }
+    }
+
+    #[test]
+    fn knife_source_binding_is_runtime_owned_authoring_transaction() {
+        for operation in ["knife_source_binding_get", "knife_source_binding_prepare"] {
+            let route = resolve("authoring_transaction", operation).expect("source binding route");
+            assert_eq!(route.facade_name, "authoring_transaction");
+            assert_eq!(route.domain, WeaponryServiceDomain::Authoring);
+            assert_eq!(
+                route.execution_target,
+                WeaponryOperationExecutionTarget::Runtime
+            );
+        }
+    }
+
+    #[test]
+    fn authoring_mesh_v2_source_prepare_is_runtime_owned_authoring_transaction() {
+        let route = resolve(
+            "authoring_transaction",
+            "production_weapon_authoring_mesh_v2_source_prepare",
+        )
+        .expect("AuthoringMeshV2 source route");
+        assert_eq!(route.facade_name, "authoring_transaction");
+        assert_eq!(route.domain, WeaponryServiceDomain::Authoring);
+        assert_eq!(
+            route.execution_target,
+            WeaponryOperationExecutionTarget::Runtime
+        );
+    }
+
+    #[test]
+    fn authoring_mesh_v2_candidate_materialize_is_runtime_owned_authoring_transaction() {
+        let route = resolve(
+            "authoring_transaction",
+            "authoring_mesh_v2_candidate_materialize",
+        )
+        .expect("AuthoringMeshV2 candidate materializer route");
+        assert_eq!(route.facade_name, "authoring_transaction");
+        assert_eq!(route.domain, WeaponryServiceDomain::Authoring);
+        assert_eq!(
+            route.execution_target,
+            WeaponryOperationExecutionTarget::Runtime
+        );
+    }
+
+    #[test]
+    fn authoring_mesh_v2_high_bridge_prepare_and_get_are_runtime_owned_authoring_transaction() {
+        for operation in [
+            "authoring_mesh_v2_high_bridge_prepare",
+            "authoring_mesh_v2_high_bridge_get",
+        ] {
+            let route = resolve("authoring_transaction", operation)
+                .expect("AuthoringMeshV2 High bridge route");
+            assert_eq!(route.facade_name, "authoring_transaction");
+            assert_eq!(route.domain, WeaponryServiceDomain::Authoring);
+            assert_eq!(
+                route.execution_target,
+                WeaponryOperationExecutionTarget::Runtime
+            );
+        }
+    }
+
+    #[test]
+    fn authoring_mesh_v2_high_artifact_prepare_and_get_are_runtime_owned_surface_pipeline() {
+        for operation in [
+            "authoring_mesh_v2_high_artifact_prepare",
+            "authoring_mesh_v2_high_artifact_get",
+        ] {
+            let route = resolve("surface_pipeline", operation)
+                .expect("AuthoringMeshV2 High artifact route");
+            assert_eq!(route.facade_name, "surface_pipeline");
+            assert_eq!(route.domain, WeaponryServiceDomain::Surface);
+            assert_eq!(
+                route.execution_target,
+                WeaponryOperationExecutionTarget::Runtime
+            );
+        }
+    }
 }

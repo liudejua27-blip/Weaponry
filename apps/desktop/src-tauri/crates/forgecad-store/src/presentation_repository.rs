@@ -6,16 +6,16 @@
 //! cross-aggregate transaction semantics remain singular. The methods on
 //! Store below are compatibility shims; the implementation lives here.
 
-use forgecad_contracts::{MechanicalAnimationClipLinkRecord, is_opaque_id};
-use rusqlite::{OptionalExtension, params};
+use forgecad_contracts::{is_opaque_id, MechanicalAnimationClipLinkRecord};
+use rusqlite::{params, OptionalExtension};
 use serde_json::Value;
 use std::fs;
 
 use super::{
-    CasObject, MAX_MECHANICAL_ANIMATION_CLIP_BYTES, MAX_MECHANICAL_ANIMATION_CLIPS_PER_CANDIDATE,
-    MECHANICAL_ANIMATION_CLIP_KIND, MECHANICAL_ANIMATION_CLIP_MIME, Store, StoreError,
     mechanical_animation_clip_link_from_row, same_mechanical_animation_clip_link,
-    validate_mechanical_animation_clip_link,
+    validate_mechanical_animation_clip_link, CasObject, Store, StoreError,
+    MAX_MECHANICAL_ANIMATION_CLIPS_PER_CANDIDATE, MAX_MECHANICAL_ANIMATION_CLIP_BYTES,
+    MECHANICAL_ANIMATION_CLIP_KIND, MECHANICAL_ANIMATION_CLIP_MIME,
 };
 
 /// Borrowed repository for the coherent MechanicalAnimationClip@1 aggregate.

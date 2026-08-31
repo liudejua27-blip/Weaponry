@@ -5,7 +5,7 @@
 //! not a general scripting engine and never reads files, starts processes, or
 //! calls a model/network service.
 
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 mod high_low_cage_diagnostic;
 pub mod integrity;
@@ -16,6 +16,7 @@ mod production_cage_offset;
 mod production_geometric_bake;
 mod production_hero_material;
 mod production_hero_uv_layout;
+mod production_knife_uv_bake_v2;
 mod production_low_retopology;
 mod surface_bake;
 
@@ -24,6 +25,7 @@ mod surface_bake;
 // GeometryProgram/MCP surface; callers still receive a copied mesh result and
 // remain responsible for their own candidate/lineage policy.
 pub use manifold_bridge::{manifold_boolean_typed, ManifoldBooleanOutput};
+pub use production_knife_uv_bake_v2::run_after_low_quad_draft;
 
 use base64::Engine;
 pub use forgecad_worker_protocol::{

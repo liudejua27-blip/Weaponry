@@ -1,0 +1,42 @@
+{
+  "build_cohort_sha256": "401ccd7ec93d64a445529418f640485a74095808bd98f2bda212e9cde3cbe62a",
+  "candidate_confirmed": false,
+  "canonical_sha256": "acb729aac1f2fc0e55405ddb7e0cabb802f5f5ad87def962516f55fbf07b0c65",
+  "contact_or_signature_recorded": false,
+  "exact_replay": "PASS_NOT_TOUCHED",
+  "export_performed": false,
+  "high_entry_status": "AUTHORIZED_TO_START_NOT_EXECUTED",
+  "hq_360_status": "BLOCKED_REFERENCE_COVERAGE",
+  "image_bytes_recorded": false,
+  "missing_reference_views": [
+    "front-three-quarter",
+    "top",
+    "bottom",
+    "fps-inspect"
+  ],
+  "parent_authoring_eligibility": "BLOCKED",
+  "parent_brief_id": "dragonfang-kukri-brief",
+  "parent_brief_object_sha256": "d3e10ce620d66c01ece8471574f91f5518eaa93ec96cdba5b1e34cc98b97c481",
+  "parent_brief_sha256": "5423f129c88ec83815415bf786834643c4c9afddf7bdf39e202f7ab7b8f878f2",
+  "persistent_user_data_scope": "isolated-local-runtime-only",
+  "production_stage_advanced": false,
+  "project_id": "project-fd70151d0b164122923bb5f1cd6a4847",
+  "reference_dimensions": {
+    "height": 1024,
+    "width": 1536
+  },
+  "reference_evidence_sha256": "1739a3d0c68553735397ec781414e769e4563bfd7b94f09efac2853631f24e99",
+  "reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c",
+  "reference_object_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+  "restart_readback": "PASS_EXACT_HASH",
+  "schema_version": "WeaponryKnifeProductionBriefLiveReceipt@1",
+  "source_path_recorded": false,
+  "status": "PASS_ISOLATED_LIVE_AUTHORING_ELIGIBLE_SUCCESSOR",
+  "successor_authoring_eligibility": "ELIGIBLE",
+  "successor_authorization_binding_status": "runtime-bound",
+  "successor_brief_id": "dragonfang-kukri-brief-resolved-001",
+  "successor_brief_object_sha256": "8b5eb6edd5491c40f166361fb21bc5772a88f72308047ede08d15e7c9c130050",
+  "successor_brief_sha256": "dbaf9c63b896bbc1555a2391cbee68c50d380c81271e3f42586ff98ca53aace1",
+  "task_id": "WPN-KNIFE-BRIEF-RUNTIME-001",
+  "version_created": false
+}

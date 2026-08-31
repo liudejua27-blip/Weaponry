@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weaponry-knife-production-brief-prepare-request.schema.json",
+  "title": "WeaponryKnifeProductionBriefPrepareRequest@1",
+  "description": "Closed Runtime-write request that stores one immutable knife production brief. The brief contains hash-only source claims and no image bytes, paths, contacts, signatures or executable instructions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "reference_id",
+    "reference_object_sha256", "reference_evidence_sha256", "brief", "idempotency_key",
+    "max_response_bytes", "runtime_write_performed", "writer_policy",
+    "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponryKnifeProductionBriefPrepareRequest@1"},
+    "operation": {"const": "weaponry_knife_production_brief_prepare"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_object_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "brief": {"$ref": "https://forgecad.local/contracts/weaponry-knife-production-brief.schema.json"},
+    "idempotency_key": {"$ref": "#/$defs/idempotency_key"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,5 +1,35 @@
 # Weaponry 当前状态账本
 
+> 2026-08-30 `WPN-KNIFE-HIGH-001 / Slice A`：`design_locked_implementation_pending_no_high_mesh`。
+> 已静态审计 `img2threejs@9fbd0ca5bbcc3b13bebe712745d6784d33db0b85`，把可复用机制收口为
+> `KnifeReferenceIntentBundle@1 → KnifePassState@1 → KnifeCorrectionLedger@1` 的 Weaponry-owned
+> 设计，严格挂入既有 11 façade，不安装/执行上游 Python/Three.js，不采用其未校准阈值为商业门。
+> 当前直接缺口是 Brief eligibility 与 High 几何之间没有 durable visual-convergence controller；
+> 设计见 `docs/WEAPONRY_KNIFE_REFERENCE_CONVERGENCE_DESIGN_20260830.md`，冻结研究 receipt 见
+> `docs/evidence/adoption/img2threejs/9fbd0ca5bbcc3b13bebe712745d6784d33db0b85.yaml`。
+> 本轮只锁定设计与 Skill 编排；Contract/Store/CAS/Runtime/MCP/live loop 尚未实现，High/Low/UV/Bake/
+> material/FPS/engine/human/commercial 状态不变。
+
+> 2026-08-30 `WPN-KNIFE-BRIEF-RUNTIME-001`：`done_isolated_live_authoring_eligible_successor`。
+> `weaponry_knife_production_brief_prepare/get` 已在 `reference_intake` façade 下完成 closed Contract、
+> Runtime 唯一写入、Store/CAS durable replay/restart readback 与 MCP typed route；默认仍为 11 façade，
+> active request closure=`127/127`，manifest=`662 schemas`，compatibility=`131/95/226` 不变。
+> Dragonfang 初始四组冲突 Brief 已真实持久化为 `BLOCKED`；用户冻结正式名“尼泊尔-屠龙”、Hero
+> `25k–45k`、4K authoring master、2K shipping 和 Unreal `5.6-or-later` 后，Runtime 生成并持久化
+> immutable successor=`dragonfang-kukri-brief-resolved-001`，authoring eligibility=`ELIGIBLE`。
+> live same-cohort=`401ccd7ec93d64a445529418f640485a74095808bd98f2bda212e9cde3cbe62a`；exact replay
+> `PASS_NOT_TOUCHED`，Runtime 重启后 `PASS_EXACT_HASH`。证据见
+> `docs/evidence/weaponry/wpn-knife-brief-dragonfang-live-20260830.json`。top/bottom/front-three-quarter/
+> FPS-inspect 参考缺失继续阻断 HQ360/commercial；无 candidate/Stage/version/export 晋级。
+> 本原子 final architecture-fast same-cohort=`ef4a5ff42c608a288fccdebdadbd3fbb65bf06798b87d16e0e43baaf695a58b8`，
+> `107 passed / 0 failed / 0 ignored`、195s、四个 Worker/Runtime build identity 一致且
+> `source_drift=false`；receipt SHA-256=`c94cddf660112cffc9be584467305b23cb3199764b244e69c521b1a74fd950d2`。
+> 本轮没有重跑完整 Runtime qualification，37 个 ignored case 的本 cohort execution 仍为 0。
+
+> 同日 resolved successor fixture 仍只是模板；上方 isolated live receipt 才证明 Runtime authorization
+> binding、Store/CAS persistence、replay 和 restart readback。它只授权正式领取 `WPN-KNIFE-HIGH-001`，
+> 不表示已生成 High mesh、shipping artifact 或商业质量。
+
 > 2026-08-30 `WPN-ARCH-RUNTIME-STORE-SPLIT-001`：`done_source_physical_batch_001 / overall_runtime_store_split_pending`。Runtime 已把 Evaluation 的 reference comparison、render-pass readback、visual evidence/review 九个真实实现迁入 `evaluation_reference_comparison.rs`，根 `lib.rs` **52,542→51,603**；Store 已把 Delivery ApprovalLifecycle 的 candidate/version/export 事务迁入 `approval_repository.rs`，根 `lib.rs` **79,841→78,865**；compatibility session/checkpoint/recovery 生产职责迁入 `agentic_write_tools_session.rs`，聚合文件 **16,674→16,532**。Runtime root modules 仍为 **92**，MCP default/compat 根仍为 **996/19,332**。
 > 当前源码元数据：`schema_count=658`、`schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1`、`runtime_source_sha256=893be325dbd1f057791e3cfed815b7fd2c17517379b09c9ad6df795a9ab6483c`、`compat_mcp_source_sha256=5a5dcd163643eb378736568178e3dca65098a552f2a52fbf0be3907a6bfe0cfd`、`truth_canonical_sha256=8c77ccb9d3829553444fdd04904076cd26ad3037bc929cc464a20c015fcb0172`；source-only compatibility summary `cohort=null`、`131/95/226`、SHA-256=`1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca`，Stage0 checker PASS 且历史 receipts 未改写。
 > fresh architecture-fast same-cohort=`81a58a3d5c07bafbea82b80f3b9ab74f387e06b63380d5c8845199f56d217ee5`，`90 passed / 0 failed / 0 ignored`、188s、四个 Worker/Runtime build identity 一致、`source_drift=false`。Store full=`192/192 PASS`；MCP default/compat=`41/41`、`237/237 PASS`；fresh dep-info=default 10 / compat 44，默认图不含 compatibility registry。当前原子未重跑 full Runtime qualification；前一完整 `554/0/37` 仅保留为前序 cohort 基线，37 ignored 的当前 cohort execution 仍为 0。
@@ -736,4 +766,4 @@ MCP010A 已完成一轮可恢复旧代码清理：先建立并验证 Git bundle�
 2026-08-14 Agentic observation binding repair：`scene_observe_get` 在没有 active snapshot 时不再从多个候选中静默取列表第一项；零候选继续返回 unknown、单候选保留有界兼容回退、多个候选必须显式 `candidate_id` 或 active snapshot，否则返回 `AGENTIC_BINDING_FAIL_CLOSED`。Runtime focused regression 为 2 passed / 0 failed，receipt 为 `docs/evidence/mcp010f/agentic-observation-binding-20260814.json`。这是观察上下文和候选 lineage 的 source PASS，不改变 `QUALITY_TARGET_NOT_MET`、`BLOCKED_INCOMPLETE_BINDING`、camera `MISMATCH` 或 Viewer 质量权威边界。
 2026-08-25 `FPS-FORM-04L`：真实 D1 单变量 `stock-open-frame-clearance=0.30/0.35/0.42` 已以同一注册相机/Part-ID 严格重放，fixture **1/1 PASS（477.56s）**，但三组 owner intrusion 依次为 `356/583/635`、`377/569/713`、`374/503/837`，故全部 `BLOCKED`。不变量已收紧为除两根梁 Y 位置外整个程序全等；无 stage/secondary/confirm/version/export。
 
-<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=662 schema_set_sha256=202e080ec378ddb294eb9c880079dcec5c910b27a1c679034ca34c5a880dcec6 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

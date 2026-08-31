@@ -1,5 +1,24 @@
 # Weaponry 文档地图
 
+> 2026-08-30 `WPN-KNIFE-HIGH-001 / Slice A` 当前设计入口：
+> `WEAPONRY_KNIFE_REFERENCE_CONVERGENCE_DESIGN_20260830.md`。它冻结 img2threejs 静态研究到
+> Weaponry-owned ReferenceIntent/PassState/CorrectionLedger，并保持 11 façade、Runtime 唯一写者、
+> Store/CAS replay 和单图 unknown 边界；该文档是 implementation design，不是 High 或视觉 receipt。
+
+> 2026-08-30 `WPN-KNIFE-BRIEF-RUNTIME-001` current source：新增 `WeaponryKnifeProductionBrief@1`
+> 及 prepare/get/result 四个闭合合同，将 Knife Brief 接入 `reference_intake → Authoring Runtime →
+> Store/CAS → MCP`。默认公共面仍是 **11 façades**，active operation/request closure 从 125/125
+> 增至 **127/127**；历史 compatibility 仍为 **131/95/226**。初始 Brief 可保存 conflicted/blocked
+> 真值；只有保持 source claims/conflict ledger 的 immutable successor 才能解决冲突。当前 manifest
+> 为 **662 schemas**；Dragonfang live intake、High、视觉、人审、引擎与商业质量仍未执行或证明。
+
+> `dragonfang-kukri-brief-resolved-001` 是 contracts/fixture-only 的 immutable successor：父
+> `brief_id`/canonical hash 精确绑定，source claims 与 conflict identity 不可变；已表达正式名“尼泊尔-屠龙”、
+> Hero `25k–45k`、4K authoring 选择和 Unreal `5.6-or-later`。它不携带 Runtime-bound authorization 或
+> live Store/CAS 结果；Brief@1 已用独立的 resolved authoring/shipping 尺寸字段绑定 retained hero/production claims；
+> acceptance 的运行时 gate 状态可随 resolution 更新，但 required gate/promotion policy 不可变。
+> Runtime-bound live probe 仅允许 K0 晋级并移除授权 blocker；当前 fixture 仍保持 source-asserted、无 live persistence。
+
 > 2026-08-30 current architecture：Contracts=`658 schemas`，默认 Knife profile=`11 façades / 125 active operations / 125 closed request schemas`，blocked=0，Runtime fallback=0；compatibility 仍为显式 `131/95/226`。五域 Router 已闭合但 Runtime/Store 物理抽取仍 partial；当前 Archify 图为 `architecture/weaponry-module-optimization-current-compact.html`，下一原子为 `WPN-ARCH-MCP-SPLIT-001`。
 
 > `WPN-KNIFE-CURVE-001` 当前状态为

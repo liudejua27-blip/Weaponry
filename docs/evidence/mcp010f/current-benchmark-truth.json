@@ -55,14 +55,14 @@
       "relation_to_primary": "UNBOUND_SEPARATE_RUN"
     }
   },
-  "canonical_sha256": "8c77ccb9d3829553444fdd04904076cd26ad3037bc929cc464a20c015fcb0172",
+  "canonical_sha256": "a7a3e4025fc0c66222d5faeb355efbe78a7c8fd54627862683153fee1e21b789",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
-      "manifest_sha256": "4c09a6aca45b72967e073c0c0283eb6e29c2d0ac87b90ed43a5b16b665612274",
+      "manifest_sha256": "4af18e6717f4742c74f86075da9f30fee0f9097f3840436c818bafafe479329e",
       "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
-      "schema_content_set_sha256": "29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1",
-      "schema_count": 658
+      "schema_content_set_sha256": "202e080ec378ddb294eb9c880079dcec5c910b27a1c679034ca34c5a880dcec6",
+      "schema_count": 662
     },
     "mcp_tools": {
       "read_count": 131,
@@ -314,7 +314,7 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "543491266884f806ae56af633718f8b3f1ad4c9c8a871f4b82de530356fc7f34",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "893be325dbd1f057791e3cfed815b7fd2c17517379b09c9ad6df795a9ab6483c",
+      "runtime_source_sha256": "79fb9c50e7201a0755033dd6e1f7c8e166c125f9f77e0f581f9889fa49eefea1",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
       "viewer_projection_sha256": "e9cfc30c991bba3e1c8e4713c385431d422cc5d0885f60330d6ed21f271cc2f0"
     }

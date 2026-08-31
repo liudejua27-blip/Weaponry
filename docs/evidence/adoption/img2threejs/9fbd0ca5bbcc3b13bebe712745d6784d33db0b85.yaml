@@ -1,0 +1,51 @@
+project: img2threejs
+source_url: https://github.com/img2threejs/img2threejs
+revision: 9fbd0ca5bbcc3b13bebe712745d6784d33db0b85
+identity: workflow-reference-only
+license_name: Apache License 2.0
+license_spdx: Apache-2.0
+license_file: LICENSE
+license_file_sha256: 4595055948a67e91177115c57e154804046878e77ff223de22accc880012827a
+notice_file: absent-at-frozen-revision
+research_status: authorized-static-review
+adoption_status: approved-for-evaluation-first-party-reimplementation
+reviewed_files:
+  README.md: 49b22dabce0bb35b674aa5d43365a77c334009005d2fdc92c58eb48d558eb259
+  SKILL.md: 819dc8115c04001cfd8e79cb6e14fed081d0480431acad6193d3a87026fdba08
+  docs/ARCHITECTURE.md: 484f8307e45efec38227c2e3ed4fa91e45f8f38745e6042ae50c20afc546d116
+  docs/cs2/review-gates.md: bf6c611e71e695daaecb21a22946ebe9708bd612c3913f748bda0154c2551ec5
+  grimoire/intake/cs2_intake_contract.md: 1c2bd214b69bd2c3a9c7bca5de5573159e89cf10997e4a0ef2e06fa5409b6ad8
+  grimoire/intake/detail_inventory.md: 9d5886bb4176b6043aaee36e2e85f01f617be37478d9e8c84826ffcb6ba36b51
+  grimoire/intake/quality_contract.md: 40065c2f8209db305afb7d532f302bd27134f4a66dbefb67d65d850dee14f55e
+  grimoire/intake/surface_topology.md: 36417236d44e1e523e16279121b433be39606f3fd1c709b9b697ff8e55df1dd6
+  grimoire/review/gates_reference.md: e195b24eb25658d8881850e1f3e834e1e64ba396efa2721d49abaf5344ac9a00
+  grimoire/review/self_correction.md: 9e40e5c3ecd86925cd57e24f329a8a41a014ebdaa0c7117f40ec0d9187c427b7
+  grimoire/build/cs2_finishes.md: d66cc99466ea31fc4a16a3ac9e0bec575121bc2fe6f65539c5b13557599115d9
+adopted_design_concepts:
+  - evidence-first intake and explicit unknown regions
+  - detail inventory with executable component or material binding
+  - pass-gated resumable state machine
+  - deterministic geometry gates before visual judgement
+  - fixed-view plus non-degenerate orbit review
+  - bounded single-scope correction and explicit stop reasons
+  - projection and exactness separated from geometry authority
+denied_capabilities:
+  - upstream_skill_installation_or_execution
+  - python_or_typescript_runtime_truth
+  - threejs_factory_as_authoring_mesh_truth
+  - showcase_asset_copy
+  - arbitrary_script_or_network_execution
+  - caller_path_url_environment_or_secret
+  - automatic_candidate_confirm_version_or_export
+  - single_image_hidden_geometry_claim
+vendored_files: []
+lockfile_or_package_change: false
+runtime_allowlist_change: false
+persistent_user_data_touched: false
+binary_execution: not-run
+upstream_script_execution: not-run
+accepted_as_dependency: false
+approval: research-authorized-reference-only
+target: Weaponry-owned closed Rust Runtime and Worker quality-state implementation for Dragonfang knife High convergence
+next_gate: implement WPN-KNIFE-HIGH-001 Slice A contracts, Store/CAS, Runtime, MCP facade routing, same-cohort replay, negative fixtures and live Dragonfang intent/review loop
+fallback_or_removal_plan: retain this immutable research receipt; if the design is superseded, remove only successor product design/code after its normal migration gate because no upstream Runtime, Store, CAS, lockfile, package, plugin or installed state exists to remove

@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-v2-candidate-materialize-result.schema.json",
+  "title": "AuthoringMeshV2CandidateMaterializeResult@1",
+  "description": "Closed Runtime-owned result for an AuthoringMeshRevision@2 candidate materialization. A standalone revision lowers to one authoring-mesh node; a source-bound revision replaces exactly the selected source Part while preserving every other source Part and its semantic bindings. The generated GeometryProgram is represented by its Runtime-derived representation plan and ArtifactReadback program hash; this result is structural-only and does not advance High, visual, human, engine, confirmation, version or export gates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "request_kind",
+    "status",
+    "project_id",
+    "mesh_id",
+    "lineage_id",
+    "revision_id",
+    "revision_index",
+    "revision_sha256",
+    "revision_object_sha256",
+    "source_binding_id",
+    "source_binding_sha256",
+    "source_binding_object_sha256",
+    "representation_plan_sha256",
+    "materialization_mode",
+    "source_candidate_id",
+    "source_candidate_state_sha256",
+    "source_artifact_sha256",
+    "source_artifact_readback_sha256",
+    "source_program_sha256",
+    "source_program_object_sha256",
+    "source_node_id",
+    "source_part_id",
+    "source_material_zone_id",
+    "source_solid",
+    "source_part_output_sha256",
+    "replacement_node_id",
+    "preserved_part_ids",
+    "geometry_idempotency_key",
+    "candidate",
+    "artifact",
+    "job",
+    "replayed",
+    "restart_hash_verified",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "quality_status",
+    "visual_status",
+    "human_status",
+    "engine_status",
+    "writer_policy",
+    "canonicalization_policy",
+    "request_input_sha256",
+    "idempotency_key",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringMeshV2CandidateMaterializeResult@1"},
+    "operation": {"const": "authoring_mesh_v2_candidate_materialize"},
+    "request_kind": {"const": "prepare"},
+    "status": {"enum": ["prepared", "replayed"]},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "mesh_id": {"$ref": "#/$defs/identifier"},
+    "lineage_id": {"$ref": "#/$defs/identifier"},
+    "revision_id": {"$ref": "#/$defs/identifier"},
+    "revision_index": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "revision_sha256": {"$ref": "#/$defs/sha256"},
+    "revision_object_sha256": {"$ref": "#/$defs/sha256"},
+    "source_binding_id": {"$ref": "#/$defs/nullable_identifier"},
+    "source_binding_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_binding_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "materialization_mode": {"enum": ["standalone_revision", "source_binding_part_replacement"]},
+    "source_candidate_id": {"$ref": "#/$defs/nullable_identifier"},
+    "source_candidate_state_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_artifact_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_artifact_readback_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_program_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_program_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_node_id": {"$ref": "#/$defs/nullable_identifier"},
+    "source_part_id": {"$ref": "#/$defs/nullable_identifier"},
+    "source_material_zone_id": {"$ref": "#/$defs/nullable_identifier"},
+    "source_solid": {"type": ["boolean", "null"]},
+    "source_part_output_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "replacement_node_id": {"$ref": "#/$defs/identifier"},
+    "preserved_part_ids": {
+      "type": "array",
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "geometry_idempotency_key": {"$ref": "#/$defs/identifier"},
+    "candidate": {"$ref": "https://forgecad.local/contracts/candidate.schema.json"},
+    "artifact": {"$ref": "https://forgecad.local/contracts/artifact-readback-v2.schema.json"},
+    "job": {"$ref": "https://forgecad.local/contracts/runtime-job.schema.json"},
+    "replayed": {"type": "boolean"},
+    "restart_hash_verified": {"const": false},
+    "runtime_write_performed": {"type": "boolean"},
+    "persistent_user_data_touched": {"type": "boolean"},
+    "quality_status": {"const": "structural_only"},
+    "visual_status": {"const": "NOT_RUN"},
+    "human_status": {"const": "NOT_RUN"},
+    "engine_status": {"const": "NOT_RUN"},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "request_input_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"$ref": "#/$defs/nullable_identifier"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "materialization_mode": {"const": "standalone_revision"},
+            "source_candidate_id": {"const": null},
+            "source_candidate_state_sha256": {"const": null},
+            "source_artifact_sha256": {"const": null},
+            "source_artifact_readback_sha256": {"const": null},
+            "source_program_sha256": {"const": null},
+            "source_program_object_sha256": {"const": null},
+            "source_node_id": {"const": null},
+            "source_part_id": {"const": null},
+            "source_material_zone_id": {"const": null},
+            "source_solid": {"const": null},
+            "source_part_output_sha256": {"const": null}
+          }
+        },
+        {
+          "properties": {
+            "materialization_mode": {"const": "source_binding_part_replacement"},
+            "source_candidate_id": {"$ref": "#/$defs/identifier"},
+            "source_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+            "source_artifact_sha256": {"$ref": "#/$defs/sha256"},
+            "source_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+            "source_program_sha256": {"$ref": "#/$defs/sha256"},
+            "source_program_object_sha256": {"$ref": "#/$defs/sha256"},
+            "source_node_id": {"$ref": "#/$defs/identifier"},
+            "source_part_id": {"$ref": "#/$defs/identifier"},
+            "source_material_zone_id": {"$ref": "#/$defs/identifier"},
+            "source_solid": {"type": "boolean"},
+            "source_part_output_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      ]
+    },
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "source_binding_id": {"const": null},
+            "source_binding_sha256": {"const": null},
+            "source_binding_object_sha256": {"const": null}
+          }
+        },
+        {
+          "properties": {
+            "source_binding_id": {"$ref": "#/$defs/identifier"},
+            "source_binding_sha256": {"$ref": "#/$defs/sha256"},
+            "source_binding_object_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      ]
+    },
+    {
+      "if": {"properties": {"replayed": {"const": true}}, "required": ["replayed"]},
+      "then": {
+        "properties": {
+          "runtime_write_performed": {"const": false},
+          "persistent_user_data_touched": {"const": false},
+          "idempotency_key": {"const": null}
+        }
+      },
+      "else": {
+        "properties": {
+          "runtime_write_performed": {"const": true},
+          "persistent_user_data_touched": {"const": true},
+          "idempotency_key": {"$ref": "#/$defs/identifier"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "replayed"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "request_kind": {"const": "prepare"},
+          "replayed": {"const": true}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "prepared"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "request_kind": {"const": "prepare"},
+          "replayed": {"const": false}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "nullable_identifier": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

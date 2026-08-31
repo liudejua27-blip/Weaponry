@@ -1,0 +1,147 @@
+{
+  "schema_version": "WeaponryKnifeProductionBrief@1",
+  "brief_id": "original-control-knife-brief",
+  "project_id": "original-control-knife-cohort",
+  "parent_brief_id": null,
+  "parent_brief_sha256": null,
+  "freeze_policy": "initial-intake-no-parent@1",
+  "subject": "original-control-knife",
+  "asset_identity": {
+    "working_asset_id": "control-knife",
+    "category": "original-control-knife",
+    "functional_scope": "nonfunctional-fps-game-visual",
+    "source_labels": ["control-knife"],
+    "identity_claims": [
+      {
+        "claim_id": "control-identity",
+        "source_kind": "author",
+        "label": "control-knife",
+        "evidence_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "confidence": "high"
+      }
+    ],
+    "name_status": "resolved",
+    "selected_label": "control-knife"
+  },
+  "authorization": {
+    "status": "user-confirmed",
+    "rights_scope": ["single-project-use", "in-game-display", "derivative-editing"],
+    "restrictions": [],
+    "territory": "project-scoped",
+    "term": "time-limited",
+    "revocation": "revocable",
+    "sublicense": "none",
+    "source_reference_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "evidence_status": "runtime-bound",
+    "user_confirmation_required": false
+  },
+  "reference_coverage": {
+    "source_reference_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_dimensions": {"width": 512, "height": 512},
+    "required_views": ["front", "back", "left", "right"],
+    "supplied_views": ["front", "back", "left", "right"],
+    "missing_views": [],
+    "detail_views": [],
+    "coverage_status": "complete",
+    "hq_360_status": "eligible",
+    "camera_status": "observed"
+  },
+  "silhouette_priorities": [
+    {"rank": 1, "focus": "control-silhouette", "source_status": "observed"},
+    {"rank": 2, "focus": "control-edge-read", "source_status": "inferred"}
+  ],
+  "parts": [
+    {"part_id": "control-blade", "role": "blade", "parent_id": null, "material_zone_ids": ["control-metal"], "source_status": "observed", "fps_priority": "hero"},
+    {"part_id": "control-grip", "role": "grip", "parent_id": null, "material_zone_ids": ["control-grip"], "source_status": "observed", "fps_priority": "hero"}
+  ],
+  "material_zones": [
+    {"zone_id": "control-metal", "zone_role": "metal", "surface_language": "neutral game-asset metal", "channels": ["base-color", "normal", "roughness", "metallic", "ao"], "target_share_percent": 70, "roughness_range": {"min": 0.3, "max": 0.5}, "emissive_allowed": false, "source_status": "observed"},
+    {"zone_id": "control-grip", "zone_role": "grip", "surface_language": "neutral high-friction grip", "channels": ["base-color", "normal", "roughness", "metallic", "ao"], "target_share_percent": 30, "roughness_range": {"min": 0.4, "max": 0.7}, "emissive_allowed": false, "source_status": "observed"}
+  ],
+  "surface_constraints": {
+    "hero_budget": {
+      "status": "resolved",
+      "resolved_min_triangles": 1000,
+      "resolved_max_triangles": 5000,
+      "claims": [
+        {"claim_id": "control-hero-budget", "source_kind": "author", "value_kind": "range", "min_triangles": 1000, "max_triangles": 5000, "evidence_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "confidence": "high"}
+      ],
+      "blocks": []
+    },
+    "lod_levels": [
+      {"level_id": "lod0", "target_percent": 100},
+      {"level_id": "lod1", "target_percent": 50},
+      {"level_id": "lod2", "target_percent": 25}
+    ],
+    "texture_policy": {
+      "resolution_status": "resolved",
+      "resolved_width": 1024,
+      "resolved_height": 1024,
+      "shipping_width": 1024,
+      "shipping_height": 1024,
+      "resolution_claims": [
+        {"claim_id": "control-texture-resolution", "source_kind": "author", "width": 1024, "height": 1024, "usage": "production", "evidence_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "confidence": "high"}
+      ],
+      "udim_tile_max": 0,
+      "material_slot_count": 2,
+      "layout": ["control-metal", "control-grip"],
+      "channels": ["base-color", "normal", "roughness", "metallic", "ao"]
+    },
+    "topology_policy": {
+      "non_manifold_allowed": false,
+      "duplicate_faces_allowed": false,
+      "floating_vertices_allowed": false,
+      "edge_highlight_policy": "screen-space-controlled",
+      "low_editable_required": true,
+      "hidden_fallback_allowed": false
+    }
+  },
+  "presentation_constraints": {
+    "hand_side": "right",
+    "grip_region": "lower-right",
+    "blade_direction": "upper-left",
+    "inspect_focus_order": ["control-blade", "control-grip"],
+    "socket_ids": ["weapon-root", "grip-socket"],
+    "animation_clips": ["idle", "inspect"],
+    "lighting_modes": ["neutral"]
+  },
+  "engine_constraints": {
+    "profile_status": "resolved",
+    "preferred_engine": "unreal",
+    "preferred_engine_version": "6-or-later",
+    "target_claims": [
+      {"claim_id": "control-engine-profile", "engine_family": "unreal", "version_requirement": "6-or-later", "source_kind": "author", "evidence_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "confidence": "high"}
+    ],
+    "export_formats": ["glb"],
+    "optional_export_formats": [],
+    "unit_status": "resolved",
+    "unit_options": ["meter"],
+    "selected_unit": "meter",
+    "axis_status": "resolved",
+    "selected_axis_profile": "generic-meter-axis",
+    "pivot_policy": "runtime-profile-required",
+    "validation_requirements": ["clean-project-import", "restart-readback"]
+  },
+  "source_conflicts": [
+    {"conflict_id": "control-resolved-note", "kind": "identity-note", "observed_claim_ids": ["control-identity", "control-hero-budget"], "resolution_status": "resolved", "blocking": false}
+  ],
+  "acceptance_constraints": {
+    "status": "not-run",
+    "required_gates": ["K0_AUTH_REFERENCE", "K1_AUTHORING", "K2_FORM"],
+    "gate_statuses": [
+      {"gate_id": "K0_AUTH_REFERENCE", "status": "not-run"},
+      {"gate_id": "K1_AUTHORING", "status": "not-run"},
+      {"gate_id": "K2_FORM", "status": "not-run"}
+    ],
+    "blocking_reasons": ["acceptance-gates-not-run"],
+    "promotion_labels": ["AUTHORING_RUNTIME_PASS"],
+    "runtime_sole_writer": true,
+    "prototype_not_truth": true,
+    "human_artist_required": true,
+    "user_approval_required": true,
+    "confirm_export_requires_all_gates": true
+  },
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "canonical_sha256": "9dc77ebc328430564a00f90a418e6dbd0079a8e9bc46c70979d43c0b278ac7f7",
+  "created_at": "2026-08-30T00:00:00Z"
+}

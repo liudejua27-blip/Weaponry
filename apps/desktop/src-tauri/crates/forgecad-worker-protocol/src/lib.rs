@@ -96,6 +96,35 @@ pub const NATIVE_HIGH_EVALUATOR_OPERATION: &str = "forgecad.production.high-eval
 pub const NATIVE_HIGH_EVALUATOR_ENTRY: &str = "--isolated-once-native-high-evaluator";
 pub const NATIVE_HIGH_EVALUATOR_REQUEST_SCHEMA_VERSION: &str = "HighEvaluatorRequest@1";
 pub const NATIVE_HIGH_EVALUATOR_RESULT_SCHEMA_VERSION: &str = "HighEvaluatorResult@1";
+/// Closed one-shot transport for the existing AuthoringMesh V2 -> Native High
+/// evaluator.  Unlike the historical Canonical adapter path, this operation
+/// consumes the Runtime-owned `AuthoringMeshRevision@2` payload directly and
+/// therefore does not discard authored topology identity or revision lineage.
+pub const AUTHORING_MESH_V2_HIGH_OPERATION: &str =
+    "forgecad.production.authoring-mesh-v2-high-execute@1";
+pub const AUTHORING_MESH_V2_HIGH_ENTRY: &str = "--isolated-once-authoring-mesh-v2-high";
+pub const AUTHORING_MESH_V2_HIGH_REQUEST_SCHEMA_VERSION: &str =
+    "AuthoringMeshV2HighExecutionRequest@2";
+pub const AUTHORING_MESH_V2_HIGH_RESULT_SCHEMA_VERSION: &str = "AuthoringMeshV2HighResult@2";
+/// Closed second step of the direct V2 High bridge.  It consumes one already
+/// validated/hash-bound V2 result and emits an embedded-only GLB; keeping
+/// this as a separate operation prevents changing the established execution
+/// result contract while giving Runtime a deterministic artifact seam.
+pub const AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION: &str =
+    "forgecad.production.authoring-mesh-v2-high-artifact-materialize@1";
+pub const AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_ENTRY: &str =
+    "--isolated-once-authoring-mesh-v2-high-artifact-materialize";
+pub const AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_REQUEST_SCHEMA_VERSION: &str =
+    "AuthoringMeshV2HighArtifactMaterializeRequest@1";
+pub const AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_RESULT_SCHEMA_VERSION: &str =
+    "AuthoringMeshV2HighArtifactMaterializeResult@1";
+pub const AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_READBACK_SCHEMA_VERSION: &str =
+    "AuthoringMeshV2HighGlbReadback@1";
+pub const AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_GLB_KIND: &str =
+    "authoring-mesh-v2-high-artifact-glb@1";
+pub const AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_READBACK_KIND: &str =
+    "authoring-mesh-v2-high-artifact-readback@1";
+pub const AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_MIME: &str = "model/gltf-binary";
 
 const NATIVE_HIGH_ERROR_CODES: &[&str] = &[
     "CAPABILITY_UNAVAILABLE",
@@ -545,6 +574,8 @@ pub fn validate_request(request: &WorkerRequest) -> Result<(), String> {
             | NATIVE_HIGH_WORKER_OPERATION
             | NATIVE_HIGH_GLB_MATERIALIZE_OPERATION
             | NATIVE_HIGH_EVALUATOR_OPERATION
+            | AUTHORING_MESH_V2_HIGH_OPERATION
+            | AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION
             | PRODUCTION_WEAPON_HIGH_LOW_CAGE_DIAGNOSTIC_OPERATION
             | PRODUCTION_WEAPON_HIGH_LOW_CAGE_ARTIFACT_PRODUCER_OPERATION
             | PRODUCTION_WEAPON_LOW_RETOPOLOGY_OPERATION
@@ -566,6 +597,340 @@ pub fn validate_request(request: &WorkerRequest) -> Result<(), String> {
         validate_native_high_payload_marker(&request.payload)?;
     } else if request.operation == NATIVE_HIGH_GLB_MATERIALIZE_OPERATION {
         validate_native_high_glb_materialize_payload(&request.payload)?;
+    } else if request.operation == AUTHORING_MESH_V2_HIGH_OPERATION {
+        validate_authoring_mesh_v2_high_payload_marker(&request.payload)?;
+    } else if request.operation == AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION {
+        validate_authoring_mesh_v2_high_artifact_materialize_request(&request.payload)?;
+    }
+    Ok(())
+}
+
+/// Validate only the protocol-owned marker and byte bound for the direct V2
+/// High payload.  The standalone High worker owns and revalidates the complete
+/// revision, fixed execution policy and canonical-hash contract. Evaluator
+/// steps are derived inside the High worker and never cross this boundary as
+/// caller-controlled input.
+pub fn validate_authoring_mesh_v2_high_payload_marker(value: &Value) -> Result<(), String> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| "AuthoringMesh V2 High payload must be an object".to_owned())?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some(AUTHORING_MESH_V2_HIGH_REQUEST_SCHEMA_VERSION)
+        || object.get("operation").and_then(Value::as_str) != Some(AUTHORING_MESH_V2_HIGH_OPERATION)
+    {
+        return Err("AuthoringMesh V2 High payload marker is invalid".to_owned());
+    }
+    let bytes = canonical_json_bytes(value);
+    if bytes.is_empty() || bytes.len() > NATIVE_HIGH_MAX_PAYLOAD_BYTES {
+        return Err("AuthoringMesh V2 High payload exceeds its byte bound".to_owned());
+    }
+    Ok(())
+}
+
+/// Validate the closed second-step envelope for direct V2 High artifact
+/// materialization.  The nested High result remains opaque to this crate,
+/// but its schema marker and semantic hash are bound here; the standalone
+/// High worker performs the full typed/result-readback validation.
+pub fn validate_authoring_mesh_v2_high_artifact_materialize_request(
+    value: &Value,
+) -> Result<(), String> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| "AuthoringMesh V2 High artifact request must be an object".to_owned())?;
+    exact_value_fields(
+        object,
+        &[
+            "schema_version",
+            "operation",
+            "high_result",
+            "high_result_sha256",
+            "source_high_worker_build_cohort_sha256",
+            "canonical_sha256",
+        ],
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some(AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_REQUEST_SCHEMA_VERSION)
+        || object.get("operation").and_then(Value::as_str)
+            != Some(AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION)
+    {
+        return Err("AuthoringMesh V2 High artifact request marker is invalid".to_owned());
+    }
+    let high_result = object
+        .get("high_result")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "AuthoringMesh V2 High result must be an object".to_owned())?;
+    if high_result.get("schema_version").and_then(Value::as_str)
+        != Some(AUTHORING_MESH_V2_HIGH_RESULT_SCHEMA_VERSION)
+        || high_result.get("operation").and_then(Value::as_str)
+            != Some("forgecad.production.authoring-mesh-v2-high-evaluate@1")
+    {
+        return Err("AuthoringMesh V2 High result marker is invalid".to_owned());
+    }
+    let high_hash = object
+        .get("high_result_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "AuthoringMesh V2 High result hash is missing".to_owned())?;
+    if !is_sha256(high_hash)
+        || high_result.get("canonical_sha256").and_then(Value::as_str) != Some(high_hash)
+    {
+        return Err("AuthoringMesh V2 High result hash does not bind nested result".to_owned());
+    }
+    let source_cohort = object
+        .get("source_high_worker_build_cohort_sha256")
+        .ok_or_else(|| "AuthoringMesh V2 High source cohort is missing".to_owned())?;
+    if !source_cohort.is_null()
+        && source_cohort
+            .as_str()
+            .map_or(true, |cohort| !is_sha256(cohort))
+    {
+        return Err("AuthoringMesh V2 High source cohort is invalid".to_owned());
+    }
+    let canonical = object
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "AuthoringMesh V2 High artifact request hash is missing".to_owned())?;
+    if !is_sha256(canonical) {
+        return Err("AuthoringMesh V2 High artifact request hash is invalid".to_owned());
+    }
+    let mut preimage = value.clone();
+    preimage["canonical_sha256"] = Value::String(String::new());
+    if canonical != canonical_json_sha256(&preimage) {
+        return Err("AuthoringMesh V2 High artifact request hash does not match".to_owned());
+    }
+    let bytes = canonical_json_bytes(value);
+    if bytes.is_empty() || bytes.len() > NATIVE_HIGH_GLB_MAX_INPUT_BYTES {
+        return Err("AuthoringMesh V2 High artifact request exceeds its byte bound".to_owned());
+    }
+    Ok(())
+}
+
+/// Validate the closed artifact result emitted by the High worker.  GLB
+/// geometry and primitive lineage are checked by the worker's typed adapter;
+/// this function binds the transport-level hashes, kinds, and readback shape.
+pub fn validate_authoring_mesh_v2_high_artifact_materialize_result(
+    value: &Value,
+) -> Result<(), String> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| "AuthoringMesh V2 High artifact result must be an object".to_owned())?;
+    exact_value_fields(
+        object,
+        &[
+            "schema_version",
+            "operation",
+            "request_kind",
+            "status",
+            "high_result",
+            "high_result_sha256",
+            "source_high_worker_build_cohort_sha256",
+            "artifact_id",
+            "artifact_sha256",
+            "glb_base64",
+            "glb_sha256",
+            "strict_readback",
+            "glb_mime",
+            "glb_kind",
+            "readback_kind",
+            "runtime_write_performed",
+            "canonical_sha256",
+        ],
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some(AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_RESULT_SCHEMA_VERSION)
+        || object.get("operation").and_then(Value::as_str)
+            != Some(AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION)
+        || object.get("request_kind").and_then(Value::as_str) != Some("artifact_materialize")
+        || object.get("status").and_then(Value::as_str) != Some("materialized")
+        || object.get("runtime_write_performed") != Some(&Value::Bool(false))
+        || object.get("glb_mime").and_then(Value::as_str)
+            != Some(AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_MIME)
+        || object.get("glb_kind").and_then(Value::as_str)
+            != Some(AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_GLB_KIND)
+        || object.get("readback_kind").and_then(Value::as_str)
+            != Some(AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_READBACK_KIND)
+    {
+        return Err("AuthoringMesh V2 High artifact result marker is invalid".to_owned());
+    }
+    let high_result = object
+        .get("high_result")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "AuthoringMesh V2 High result is missing".to_owned())?;
+    if high_result.get("schema_version").and_then(Value::as_str)
+        != Some(AUTHORING_MESH_V2_HIGH_RESULT_SCHEMA_VERSION)
+        || high_result.get("operation").and_then(Value::as_str)
+            != Some("forgecad.production.authoring-mesh-v2-high-evaluate@1")
+    {
+        return Err("AuthoringMesh V2 High result schema is invalid".to_owned());
+    }
+    let high_hash = object
+        .get("high_result_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "AuthoringMesh V2 High result hash is missing".to_owned())?;
+    if !is_sha256(high_hash)
+        || high_result.get("canonical_sha256").and_then(Value::as_str) != Some(high_hash)
+    {
+        return Err("AuthoringMesh V2 High result hash is not bound".to_owned());
+    }
+    let source_cohort = object
+        .get("source_high_worker_build_cohort_sha256")
+        .ok_or_else(|| "High artifact source cohort is missing".to_owned())?;
+    if !source_cohort.is_null()
+        && source_cohort
+            .as_str()
+            .map_or(true, |cohort| !is_sha256(cohort))
+    {
+        return Err("High artifact source cohort is invalid".to_owned());
+    }
+    let artifact_hash = object
+        .get("artifact_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "High artifact hash is missing".to_owned())?;
+    let artifact_id = object
+        .get("artifact_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "High artifact id is missing".to_owned())?;
+    if !is_sha256(artifact_hash)
+        || artifact_hash != high_hash
+        || artifact_id != format!("high-mesh-{}", &artifact_hash[..24])
+    {
+        return Err("High artifact identity is invalid".to_owned());
+    }
+    let encoded = object
+        .get("glb_base64")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "High artifact GLB base64 is missing".to_owned())?;
+    let glb = decode_base64_strict(encoded, NATIVE_HIGH_GLB_MAX_RESULT_BYTES)
+        .map_err(|_| "High artifact GLB base64 is invalid".to_owned())?;
+    let glb_hash = object
+        .get("glb_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "High artifact GLB hash is missing".to_owned())?;
+    if !is_sha256(glb_hash) || glb_hash != hex_sha256(&glb) {
+        return Err("High artifact GLB hash does not match bytes".to_owned());
+    }
+    let readback = object
+        .get("strict_readback")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "High artifact strict readback is missing".to_owned())?;
+    exact_value_fields(
+        readback,
+        &[
+            "schema_version",
+            "glb_sha256",
+            "artifact_id",
+            "artifact_sha256",
+            "mesh_id",
+            "lineage_id",
+            "revision_id",
+            "revision_index",
+            "revision_sha256",
+            "source_mesh_sha256",
+            "high_evaluation_sha256",
+            "high_result_sha256",
+            "high_readback_sha256",
+            "high_worker_build_cohort_sha256",
+            "part_ids",
+            "source_node_ids",
+            "material_zone_ids",
+            "primitive_count",
+            "triangle_count",
+            "byte_length",
+            "canonical_sha256",
+        ],
+    )?;
+    if readback.get("schema_version").and_then(Value::as_str)
+        != Some(AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_READBACK_SCHEMA_VERSION)
+        || readback.get("glb_sha256").and_then(Value::as_str) != Some(glb_hash)
+        || readback.get("artifact_id").and_then(Value::as_str) != Some(artifact_id)
+        || readback.get("artifact_sha256").and_then(Value::as_str) != Some(artifact_hash)
+        || readback.get("high_result_sha256").and_then(Value::as_str) != Some(high_hash)
+        || readback.get("byte_length").and_then(Value::as_u64) != Some(glb.len() as u64)
+        || readback.get("part_ids").and_then(Value::as_array).is_none()
+        || readback
+            .get("source_node_ids")
+            .and_then(Value::as_array)
+            .is_none()
+        || readback
+            .get("material_zone_ids")
+            .and_then(Value::as_array)
+            .is_none()
+        || readback
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .map_or(true, |hash| !is_sha256(hash))
+    {
+        return Err("High artifact strict readback binding is invalid".to_owned());
+    }
+    for field in [
+        "artifact_sha256",
+        "revision_sha256",
+        "source_mesh_sha256",
+        "high_evaluation_sha256",
+        "high_result_sha256",
+        "high_readback_sha256",
+    ] {
+        if readback
+            .get(field)
+            .and_then(Value::as_str)
+            .map_or(true, |hash| !is_sha256(hash))
+        {
+            return Err("High artifact strict readback hash is invalid".to_owned());
+        }
+    }
+    let cohort = readback
+        .get("high_worker_build_cohort_sha256")
+        .ok_or_else(|| "High artifact readback cohort is missing".to_owned())?;
+    if !cohort.is_null() && cohort.as_str().map_or(true, |hash| !is_sha256(hash)) {
+        return Err("High artifact readback cohort is invalid".to_owned());
+    }
+    let readback_canonical = readback
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .expect("readback canonical checked above");
+    let mut readback_preimage = Value::Object(readback.clone());
+    readback_preimage["canonical_sha256"] = Value::String(String::new());
+    if readback_canonical != canonical_json_sha256(&readback_preimage) {
+        return Err("High artifact strict readback canonical hash does not match".to_owned());
+    }
+    for (readback_field, result_field) in [
+        ("mesh_id", "mesh_id"),
+        ("lineage_id", "lineage_id"),
+        ("revision_id", "revision_id"),
+    ] {
+        if readback.get(readback_field) != high_result.get(result_field) {
+            return Err("High artifact revision lineage does not match result".to_owned());
+        }
+    }
+    if high_result
+        .get("readback")
+        .and_then(Value::as_object)
+        .map_or(true, |high_readback| {
+            high_readback.get("canonical_sha256") != readback.get("high_readback_sha256")
+                || high_readback.get("high_evaluation_sha256")
+                    != readback.get("high_evaluation_sha256")
+                || high_readback.get("projected_source_mesh_sha256")
+                    != readback.get("source_mesh_sha256")
+        })
+    {
+        return Err("High artifact nested readback lineage is invalid".to_owned());
+    }
+    if source_cohort != readback.get("high_worker_build_cohort_sha256").unwrap() {
+        return Err("High artifact source cohort is not bound to readback".to_owned());
+    }
+    let canonical = object
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "High artifact result canonical hash is missing".to_owned())?;
+    if !is_sha256(canonical) {
+        return Err("High artifact result canonical hash is invalid".to_owned());
+    }
+    let mut preimage = value.clone();
+    preimage["canonical_sha256"] = Value::String(String::new());
+    if canonical != canonical_json_sha256(&preimage) {
+        return Err("High artifact result canonical hash does not match".to_owned());
+    }
+    if canonical_json_bytes(value).len() > MAX_WORKER_RESPONSE_BYTES {
+        return Err("High artifact result exceeds its byte bound".to_owned());
     }
     Ok(())
 }
@@ -1217,6 +1582,42 @@ mod tests {
             ..request.clone()
         };
         assert!(validate_request(&native_high_request).is_ok());
+        let authoring_mesh_v2_high_request = WorkerRequest {
+            operation: AUTHORING_MESH_V2_HIGH_OPERATION.to_owned(),
+            payload: json!({
+                "schema_version":AUTHORING_MESH_V2_HIGH_REQUEST_SCHEMA_VERSION,
+                "operation":AUTHORING_MESH_V2_HIGH_OPERATION
+            }),
+            ..request.clone()
+        };
+        assert!(validate_request(&authoring_mesh_v2_high_request).is_ok());
+        let mut invalid_v2_high = authoring_mesh_v2_high_request;
+        invalid_v2_high.payload["operation"] = Value::String("unknown".to_owned());
+        assert!(validate_request(&invalid_v2_high).is_err());
+        let nested_high_result = json!({
+            "schema_version": AUTHORING_MESH_V2_HIGH_RESULT_SCHEMA_VERSION,
+            "operation": "forgecad.production.authoring-mesh-v2-high-evaluate@1",
+            "canonical_sha256": "a".repeat(64)
+        });
+        let mut artifact_materialize_payload = json!({
+            "schema_version": AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_REQUEST_SCHEMA_VERSION,
+            "operation": AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION,
+            "high_result": nested_high_result,
+            "high_result_sha256": "a".repeat(64),
+            "source_high_worker_build_cohort_sha256": Value::Null,
+            "canonical_sha256": ""
+        });
+        artifact_materialize_payload["canonical_sha256"] =
+            Value::String(canonical_json_sha256(&artifact_materialize_payload));
+        let artifact_materialize_request = WorkerRequest {
+            operation: AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION.to_owned(),
+            payload: artifact_materialize_payload,
+            ..request.clone()
+        };
+        assert!(validate_request(&artifact_materialize_request).is_ok());
+        let mut invalid_artifact_materialize = artifact_materialize_request;
+        invalid_artifact_materialize.payload["high_result_sha256"] = Value::String("b".repeat(64));
+        assert!(validate_request(&invalid_artifact_materialize).is_err());
         for operation in [
             RENDER_TYPED_ANIMATED_SOCKET_TRAILS_OPERATION,
             RENDER_TYPED_ANIMATED_SOCKET_TRAILS_BLOOM_OPERATION,

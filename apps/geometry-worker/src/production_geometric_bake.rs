@@ -296,7 +296,7 @@ pub fn run(payload: &Map<String, Value>) -> Result<Value, GeometryError> {
         ));
     }
 
-    let high_integrity = admit_glb(&high, "High")?;
+    let high_admission = admit_high_source(&high)?;
     let low_integrity = admit_glb(&low, "Low")?;
     let cage_integrity = admit_glb(&cage, "Cage")?;
     if low_integrity.triangle_count != cage_integrity.triangle_count {
@@ -304,15 +304,18 @@ pub fn run(payload: &Map<String, Value>) -> Result<Value, GeometryError> {
             "Low and Cage triangle counts differ before correspondence".to_owned(),
         ));
     }
-    if high_integrity.triangle_count == 0 || low_integrity.triangle_count == 0 {
+    if high_admission.topology.triangles.is_empty() || low_integrity.triangle_count == 0 {
         return Err(GeometryError::Invalid(
             "geometric bake requires non-empty High and Low meshes".to_owned(),
         ));
     }
-    let high_mesh = integrity::extract_topology_mesh(&high, MAX_BAKE_TRIANGLES)?;
+    let HighInputAdmission {
+        topology: high_mesh,
+        diagnostic: high_diagnostic,
+        policy: high_source_policy,
+    } = high_admission;
     let low_mesh = integrity::extract_topology_mesh(&low, MAX_BAKE_TRIANGLES)?;
     let cage_mesh = integrity::extract_topology_mesh(&cage, MAX_BAKE_TRIANGLES)?;
-    let high_diagnostic = integrity::extract_diagnostic_mesh(&high, MAX_BAKE_TRIANGLES)?;
     let low_diagnostic = integrity::extract_diagnostic_mesh(&low, MAX_BAKE_TRIANGLES)?;
     let cage_diagnostic = integrity::extract_diagnostic_mesh(&cage, MAX_BAKE_TRIANGLES)?;
     if high_mesh.triangles.len() > MAX_BAKE_TRIANGLES
@@ -548,7 +551,7 @@ pub fn run(payload: &Map<String, Value>) -> Result<Value, GeometryError> {
             "high_triangle_count":high_mesh.triangles.len(),
             "low_triangle_count":low_mesh.triangles.len(),
             "cage_triangle_count":cage_mesh.triangles.len(),
-            "tangent_source":"decoded GLB TANGENT admitted by strict integrity/MikkTSpace compiler path",
+            "tangent_source":"Low decoded GLB TANGENT admitted by strict integrity/MikkTSpace compiler path; direct V2 High tangent optional",
             "tangent_normal_semantics":"low tangent frame with high normal transfer",
             "padding_texels":DILATION_TEXELS,
             "dilation_texels":DILATION_TEXELS,
@@ -564,6 +567,9 @@ pub fn run(payload: &Map<String, Value>) -> Result<Value, GeometryError> {
         "production_stage_advanced":false,
         "canonical_sha256":""
     });
+    result["high_source_policy"] = Value::String(high_source_policy.to_owned());
+    result["high_tangent_policy"] =
+        Value::String("not-required-for-high-projection-low-tangent-owned@1".to_owned());
     result["canonical_sha256"] = Value::String(wire_canonical_hash(&result)?);
     if serde_json::to_vec(&result)
         .map_err(|_| {
@@ -689,6 +695,751 @@ fn admit_glb(bytes: &[u8], label: &str) -> Result<integrity::GlbIntegrity, Geome
         )));
     }
     Ok(inspection)
+}
+
+struct HighInputAdmission {
+    topology: integrity::TopologyMesh,
+    diagnostic: integrity::DiagnosticMesh,
+    policy: &'static str,
+}
+
+/// Admit either the established `ArtifactReadback@2` High or the direct V2
+/// High artifact.  The direct V2 source intentionally requires only
+/// POSITION/NORMAL/TEXCOORD_0 (TANGENT is optional); Low/Cage remain on the
+/// strict `admit_glb` path above.  High tangent bytes are not used by the ray
+/// projection: tangent-space normal encoding is owned by the admitted Low
+/// tangent field in `shade_pixel`.
+fn admit_high_source(bytes: &[u8]) -> Result<HighInputAdmission, GeometryError> {
+    match integrity::inspect_glb(bytes) {
+        Ok(inspection) => {
+            if !inspection.hard_gate_passed {
+                return Err(GeometryError::Invalid(format!(
+                    "High GLB failed strict integrity: {}",
+                    inspection.failure_codes.join(",")
+                )));
+            }
+            if inspection.artifact_schema_version != "ArtifactReadback@2" {
+                return Err(GeometryError::Invalid(
+                    "High GLB has an unsupported admitted artifact schema".to_owned(),
+                ));
+            }
+            let topology = integrity::extract_topology_mesh(bytes, MAX_BAKE_TRIANGLES)?;
+            let diagnostic = integrity::extract_diagnostic_mesh(bytes, MAX_BAKE_TRIANGLES)?;
+            Ok(HighInputAdmission {
+                topology,
+                diagnostic,
+                policy: "artifact-readback-v2-position-normal-uv0-tangent@1",
+            })
+        }
+        Err(strict_error) => {
+            let (topology, diagnostic) = extract_direct_v2_high_source(bytes).map_err(|v2_error| {
+                GeometryError::Invalid(format!(
+                    "High GLB is neither strict ArtifactReadback@2 nor direct V2 source: strict={strict_error}; v2={v2_error}"
+                ))
+            })?;
+            Ok(HighInputAdmission {
+                topology,
+                diagnostic,
+                policy: "direct-v2-high-position-normal-uv0-optional-tangent@1",
+            })
+        }
+    }
+}
+
+/// Decode only the bounded direct V2 High surface contract.  This parser is
+/// deliberately local to the geometric bake Worker: it does not weaken the
+/// shared GLB integrity gate used by Low/Cage and it never writes or augments
+/// the High bytes.  A neutral tangent value is stored only because the shared
+/// `TopologyCornerSource` shape is also used by Low/Cage; High projection code
+/// never reads that field.
+fn extract_direct_v2_high_source(
+    bytes: &[u8],
+) -> Result<(integrity::TopologyMesh, integrity::DiagnosticMesh), GeometryError> {
+    const MAX_DIRECT_HIGH_BYTES: usize = 64 * 1024 * 1024;
+    if bytes.is_empty() || bytes.len() > MAX_DIRECT_HIGH_BYTES {
+        return Err(GeometryError::Invalid(
+            "direct V2 High source exceeds its byte budget".to_owned(),
+        ));
+    }
+    let (root, binary) = parse_direct_high_glb(bytes)?;
+    let asset = root
+        .get("asset")
+        .and_then(Value::as_object)
+        .ok_or_else(|| GeometryError::Invalid("direct V2 High asset is missing".to_owned()))?;
+    if asset.get("version").and_then(Value::as_str) != Some("2.0") {
+        return Err(GeometryError::Invalid(
+            "direct V2 High asset version is invalid".to_owned(),
+        ));
+    }
+    let forgecad = root
+        .get("extras")
+        .and_then(|value| value.get("forgecad"))
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High ForgeCAD lineage is missing".to_owned())
+        })?;
+    if forgecad.get("schema_version").and_then(Value::as_str) != Some("HighMeshArtifactGlb@1")
+        || forgecad
+            .get("source_schema_version")
+            .and_then(Value::as_str)
+            != Some("HighMeshArtifact@1")
+    {
+        return Err(GeometryError::Invalid(
+            "direct V2 High lineage schema is invalid".to_owned(),
+        ));
+    }
+    let root_source_hash = forgecad
+        .get("source_artifact_sha256")
+        .and_then(Value::as_str)
+        .filter(|value| is_sha256(value))
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High source artifact hash is invalid".to_owned())
+        })?;
+    if forgecad.get("embedded_only") != Some(&Value::Bool(true))
+        || forgecad.get("external_uri") != Some(&Value::Bool(false))
+        || forgecad.get("scripts") != Some(&Value::Bool(false))
+    {
+        return Err(GeometryError::Invalid(
+            "direct V2 High source must be embedded-only and script-free".to_owned(),
+        ));
+    }
+    let buffers = root
+        .get("buffers")
+        .and_then(Value::as_array)
+        .ok_or_else(|| GeometryError::Invalid("direct V2 High buffers are missing".to_owned()))?;
+    if buffers.len() != 1
+        || buffers[0].get("uri").is_some()
+        || buffers[0].get("byteLength").and_then(Value::as_u64) != Some(binary.len() as u64)
+    {
+        return Err(GeometryError::Invalid(
+            "direct V2 High buffer is not embedded".to_owned(),
+        ));
+    }
+    let meshes = root
+        .get("meshes")
+        .and_then(Value::as_array)
+        .filter(|values| !values.is_empty())
+        .ok_or_else(|| GeometryError::Invalid("direct V2 High meshes are missing".to_owned()))?;
+    let nodes = root
+        .get("nodes")
+        .and_then(Value::as_array)
+        .ok_or_else(|| GeometryError::Invalid("direct V2 High nodes are missing".to_owned()))?;
+    let accessors = root
+        .get("accessors")
+        .and_then(Value::as_array)
+        .ok_or_else(|| GeometryError::Invalid("direct V2 High accessors are missing".to_owned()))?;
+    let views = root
+        .get("bufferViews")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High bufferViews are missing".to_owned())
+        })?;
+    let materials = root
+        .get("materials")
+        .and_then(Value::as_array)
+        .ok_or_else(|| GeometryError::Invalid("direct V2 High materials are missing".to_owned()))?;
+
+    let mut topology_triangles = Vec::new();
+    let mut diagnostic_primitives = Vec::new();
+    let mut diagnostic_triangle_count = 0usize;
+    for (mesh_index, mesh) in meshes.iter().enumerate() {
+        let mesh_object = mesh.as_object().ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High mesh is not an object".to_owned())
+        })?;
+        let mesh_lineage = mesh_object.get("extras").and_then(Value::as_object);
+        let matching_nodes = nodes
+            .iter()
+            .filter_map(Value::as_object)
+            .filter(|node| node.get("mesh").and_then(Value::as_u64) == Some(mesh_index as u64))
+            .collect::<Vec<_>>();
+        if matching_nodes.len() != 1 {
+            return Err(GeometryError::Invalid(
+                "direct V2 High mesh/node lineage is ambiguous".to_owned(),
+            ));
+        }
+        let node_lineage = matching_nodes[0].get("extras").and_then(Value::as_object);
+        let primitives = mesh_object
+            .get("primitives")
+            .and_then(Value::as_array)
+            .filter(|values| !values.is_empty())
+            .ok_or_else(|| {
+                GeometryError::Invalid("direct V2 High primitive list is missing".to_owned())
+            })?;
+        for primitive in primitives {
+            let primitive_object = primitive.as_object().ok_or_else(|| {
+                GeometryError::Invalid("direct V2 High primitive is not an object".to_owned())
+            })?;
+            if primitive_object
+                .get("mode")
+                .and_then(Value::as_u64)
+                .unwrap_or(4)
+                != 4
+            {
+                return Err(GeometryError::Invalid(
+                    "direct V2 High primitive must use triangle mode".to_owned(),
+                ));
+            }
+            let primitive_lineage = primitive_object.get("extras").and_then(Value::as_object);
+            let holders = [mesh_lineage, node_lineage, primitive_lineage];
+            let part_id = direct_high_lineage_text(&holders, "part_id")?;
+            let source_node_id = direct_high_lineage_text(&holders, "source_node_id")?;
+            let material_zone_id = direct_high_lineage_text(&holders, "material_zone_id")?;
+            let primitive_source_hash =
+                direct_high_lineage_text(&holders, "source_artifact_sha256")?;
+            if primitive_source_hash != root_source_hash {
+                return Err(GeometryError::Invalid(
+                    "direct V2 High primitive source hash differs from root".to_owned(),
+                ));
+            }
+            let material_index = primitive_object
+                .get("material")
+                .and_then(Value::as_u64)
+                .and_then(|value| usize::try_from(value).ok())
+                .ok_or_else(|| {
+                    GeometryError::Invalid("direct V2 High material index is missing".to_owned())
+                })?;
+            if materials
+                .get(material_index)
+                .and_then(Value::as_object)
+                .and_then(|material| material.get("name"))
+                .and_then(Value::as_str)
+                != Some(material_zone_id.as_str())
+            {
+                return Err(GeometryError::Invalid(
+                    "direct V2 High material lineage does not match".to_owned(),
+                ));
+            }
+            let attributes = primitive_object
+                .get("attributes")
+                .and_then(Value::as_object)
+                .ok_or_else(|| {
+                    GeometryError::Invalid("direct V2 High attributes are missing".to_owned())
+                })?;
+            if attributes.keys().any(|key| {
+                !matches!(
+                    key.as_str(),
+                    "POSITION" | "NORMAL" | "TEXCOORD_0" | "TANGENT"
+                )
+            }) || !attributes.contains_key("POSITION")
+                || !attributes.contains_key("NORMAL")
+                || !attributes.contains_key("TEXCOORD_0")
+            {
+                return Err(GeometryError::Invalid(
+                    "direct V2 High requires POSITION/NORMAL/TEXCOORD_0 with optional TANGENT"
+                        .to_owned(),
+                ));
+            }
+            let positions = direct_high_vec3(
+                accessors,
+                views,
+                binary,
+                direct_high_index(attributes, "POSITION")?,
+            )?;
+            let normals = direct_high_vec3(
+                accessors,
+                views,
+                binary,
+                direct_high_index(attributes, "NORMAL")?,
+            )?;
+            let texcoords = direct_high_vec2(
+                accessors,
+                views,
+                binary,
+                direct_high_index(attributes, "TEXCOORD_0")?,
+            )?;
+            if positions.is_empty()
+                || positions.len() != normals.len()
+                || positions.len() != texcoords.len()
+                || positions.len() > MAX_BAKE_TRIANGLES.saturating_mul(3)
+            {
+                return Err(GeometryError::Invalid(
+                    "direct V2 High surface attribute counts differ".to_owned(),
+                ));
+            }
+            let optional_tangents = attributes
+                .get("TANGENT")
+                .map(|value| {
+                    let tangent_index = value
+                        .as_u64()
+                        .and_then(|value| usize::try_from(value).ok())
+                        .ok_or_else(|| {
+                            GeometryError::Invalid(
+                                "direct V2 High optional tangent accessor is invalid".to_owned(),
+                            )
+                        })?;
+                    direct_high_vec4(accessors, views, binary, tangent_index)
+                })
+                .transpose()?;
+            if optional_tangents
+                .as_ref()
+                .is_some_and(|values| values.len() != positions.len())
+            {
+                return Err(GeometryError::Invalid(
+                    "direct V2 High optional tangent count differs".to_owned(),
+                ));
+            }
+            let indices = direct_high_indices(
+                accessors,
+                views,
+                binary,
+                primitive_object
+                    .get("indices")
+                    .and_then(Value::as_u64)
+                    .and_then(|value| usize::try_from(value).ok())
+                    .ok_or_else(|| {
+                        GeometryError::Invalid("direct V2 High indices are missing".to_owned())
+                    })?,
+            )?;
+            if indices.is_empty() || indices.len() % 3 != 0 {
+                return Err(GeometryError::Invalid(
+                    "direct V2 High indices are not triangles".to_owned(),
+                ));
+            }
+            diagnostic_triangle_count = diagnostic_triangle_count
+                .checked_add(indices.len() / 3)
+                .ok_or_else(|| {
+                    GeometryError::Invalid("direct V2 High triangle count overflowed".to_owned())
+                })?;
+            if diagnostic_triangle_count > MAX_BAKE_TRIANGLES
+                || indices
+                    .iter()
+                    .any(|index| *index as usize >= positions.len())
+            {
+                return Err(GeometryError::Invalid(
+                    "direct V2 High triangle budget or index range is invalid".to_owned(),
+                ));
+            }
+            if positions
+                .iter()
+                .any(|position| !direct_high_finite3(*position))
+                || normals.iter().any(|normal| {
+                    !direct_high_finite3(*normal) || direct_high_length3(*normal) <= f32::EPSILON
+                })
+                || texcoords.iter().any(|uv| !direct_high_finite2(*uv))
+            {
+                return Err(GeometryError::Invalid(
+                    "direct V2 High source contains non-finite surface data".to_owned(),
+                ));
+            }
+            if let Some(tangents) = &optional_tangents {
+                if tangents.iter().any(|tangent| {
+                    !direct_high_finite4(*tangent) || (tangent[3].abs() - 1.0).abs() > 1.0e-5
+                }) {
+                    return Err(GeometryError::Invalid(
+                        "direct V2 High optional tangent data is invalid".to_owned(),
+                    ));
+                }
+            }
+            for triangle in indices.chunks_exact(3) {
+                let corner_indices = [
+                    triangle[0] as usize,
+                    triangle[1] as usize,
+                    triangle[2] as usize,
+                ];
+                let corners = corner_indices.map(|index| integrity::TopologyCornerSource {
+                    position: positions[index],
+                    normal: normals[index],
+                    texcoord_0: texcoords[index],
+                    tangent: optional_tangents
+                        .as_ref()
+                        .map(|values| values[index])
+                        .unwrap_or([0.0, 0.0, 0.0, 1.0]),
+                });
+                let face = direct_high_cross(
+                    direct_high_sub(corners[1].position, corners[0].position),
+                    direct_high_sub(corners[2].position, corners[0].position),
+                );
+                if direct_high_length3(face) <= 1.0e-12 {
+                    return Err(GeometryError::Invalid(
+                        "direct V2 High source contains a degenerate triangle".to_owned(),
+                    ));
+                }
+                topology_triangles.push(integrity::TopologyTriangleSource {
+                    part_id: part_id.clone(),
+                    corners,
+                    source_node_id: source_node_id.clone(),
+                    material_zone_id: material_zone_id.clone(),
+                    solid: false,
+                });
+            }
+            diagnostic_primitives.push(integrity::DiagnosticPrimitive {
+                part_id,
+                source_node_id,
+                material_zone_id,
+                solid: false,
+                positions,
+                indices,
+            });
+        }
+    }
+    if topology_triangles.is_empty() || diagnostic_primitives.is_empty() {
+        return Err(GeometryError::Invalid(
+            "direct V2 High source contains no triangles".to_owned(),
+        ));
+    }
+    if forgecad.get("triangle_count").and_then(Value::as_u64)
+        != Some(diagnostic_triangle_count as u64)
+    {
+        return Err(GeometryError::Invalid(
+            "direct V2 High declared triangle count differs".to_owned(),
+        ));
+    }
+    Ok((
+        integrity::TopologyMesh {
+            triangles: topology_triangles,
+        },
+        integrity::DiagnosticMesh {
+            primitives: diagnostic_primitives,
+            triangle_count: diagnostic_triangle_count,
+        },
+    ))
+}
+
+fn parse_direct_high_glb(bytes: &[u8]) -> Result<(Value, &[u8]), GeometryError> {
+    if bytes.len() < 28 || &bytes[..4] != b"glTF" {
+        return Err(GeometryError::Invalid(
+            "direct V2 High GLB header is invalid".to_owned(),
+        ));
+    }
+    let version =
+        u32::from_le_bytes(bytes[4..8].try_into().map_err(|_| {
+            GeometryError::Invalid("direct V2 High GLB version is invalid".to_owned())
+        })?);
+    let total =
+        u32::from_le_bytes(bytes[8..12].try_into().map_err(|_| {
+            GeometryError::Invalid("direct V2 High GLB length is invalid".to_owned())
+        })?) as usize;
+    if version != 2 || total != bytes.len() {
+        return Err(GeometryError::Invalid(
+            "direct V2 High GLB version or length is invalid".to_owned(),
+        ));
+    }
+    let json_length = u32::from_le_bytes(bytes[12..16].try_into().map_err(|_| {
+        GeometryError::Invalid("direct V2 High GLB JSON length is invalid".to_owned())
+    })?) as usize;
+    let json_start = 20usize;
+    let json_end = json_start.checked_add(json_length).ok_or_else(|| {
+        GeometryError::Invalid("direct V2 High GLB JSON length overflowed".to_owned())
+    })?;
+    if &bytes[16..20] != b"JSON" || json_end.checked_add(8).is_none_or(|end| end > bytes.len()) {
+        return Err(GeometryError::Invalid(
+            "direct V2 High GLB JSON chunk is invalid".to_owned(),
+        ));
+    }
+    let binary_length =
+        u32::from_le_bytes(bytes[json_end..json_end + 4].try_into().map_err(|_| {
+            GeometryError::Invalid("direct V2 High GLB BIN length is invalid".to_owned())
+        })?) as usize;
+    if &bytes[json_end + 4..json_end + 8] != b"BIN\0"
+        || json_end
+            .checked_add(8)
+            .and_then(|start| start.checked_add(binary_length))
+            != Some(bytes.len())
+    {
+        return Err(GeometryError::Invalid(
+            "direct V2 High GLB BIN chunk is invalid".to_owned(),
+        ));
+    }
+    let root = serde_json::from_slice(&bytes[json_start..json_end])
+        .map_err(|_| GeometryError::Invalid("direct V2 High GLB JSON is invalid".to_owned()))?;
+    Ok((root, &bytes[json_end + 8..]))
+}
+
+fn direct_high_lineage_text(
+    holders: &[Option<&Map<String, Value>>],
+    key: &str,
+) -> Result<String, GeometryError> {
+    let mut selected = None;
+    for holder in holders.iter().flatten() {
+        if let Some(value) = holder
+            .get(key)
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+        {
+            if selected.is_some_and(|previous: &str| previous != value) {
+                return Err(GeometryError::Invalid(format!(
+                    "direct V2 High lineage field {key} differs between holders"
+                )));
+            }
+            selected = Some(value);
+        }
+    }
+    selected.map(str::to_owned).ok_or_else(|| {
+        GeometryError::Invalid(format!("direct V2 High lineage field {key} is missing"))
+    })
+}
+
+fn direct_high_index(attributes: &Map<String, Value>, key: &str) -> Result<usize, GeometryError> {
+    attributes
+        .get(key)
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| GeometryError::Invalid(format!("direct V2 High {key} accessor is invalid")))
+}
+
+fn direct_high_accessor_window(
+    accessors: &[Value],
+    views: &[Value],
+    binary: &[u8],
+    index: usize,
+    expected_type: &str,
+    expected_component: u64,
+    element_size: usize,
+) -> Result<(usize, usize, usize), GeometryError> {
+    let accessor = accessors
+        .get(index)
+        .and_then(Value::as_object)
+        .ok_or_else(|| GeometryError::Invalid("direct V2 High accessor is invalid".to_owned()))?;
+    if accessor.get("type").and_then(Value::as_str) != Some(expected_type)
+        || accessor.get("componentType").and_then(Value::as_u64) != Some(expected_component)
+        || accessor.get("sparse").is_some()
+    {
+        return Err(GeometryError::Invalid(
+            "direct V2 High accessor layout is invalid".to_owned(),
+        ));
+    }
+    let count = accessor
+        .get("count")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High accessor count is invalid".to_owned())
+        })?;
+    let view_index = accessor
+        .get("bufferView")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High accessor view is missing".to_owned())
+        })?;
+    let view = views
+        .get(view_index)
+        .and_then(Value::as_object)
+        .ok_or_else(|| GeometryError::Invalid("direct V2 High bufferView is invalid".to_owned()))?;
+    if view.get("buffer").and_then(Value::as_u64) != Some(0) {
+        return Err(GeometryError::Invalid(
+            "direct V2 High accessor uses a non-embedded buffer".to_owned(),
+        ));
+    }
+    let view_offset = view.get("byteOffset").and_then(Value::as_u64).unwrap_or(0);
+    let view_length = view
+        .get("byteLength")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High bufferView length is invalid".to_owned())
+        })?;
+    let accessor_offset = accessor
+        .get("byteOffset")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let accessor_offset = usize::try_from(accessor_offset).map_err(|_| {
+        GeometryError::Invalid("direct V2 High accessor offset is invalid".to_owned())
+    })?;
+    let stride = view
+        .get("byteStride")
+        .and_then(Value::as_u64)
+        .map(|value| usize::try_from(value))
+        .transpose()
+        .map_err(|_| GeometryError::Invalid("direct V2 High stride is invalid".to_owned()))?
+        .unwrap_or(element_size);
+    if stride < element_size {
+        return Err(GeometryError::Invalid(
+            "direct V2 High stride is too small".to_owned(),
+        ));
+    }
+    let start = usize::try_from(view_offset)
+        .ok()
+        .and_then(|offset| offset.checked_add(accessor_offset))
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High accessor offset overflowed".to_owned())
+        })?;
+    let payload = if count == 0 {
+        0
+    } else {
+        (count - 1)
+            .checked_mul(stride)
+            .and_then(|value| value.checked_add(element_size))
+            .ok_or_else(|| {
+                GeometryError::Invalid("direct V2 High accessor range overflowed".to_owned())
+            })?
+    };
+    let end = start.checked_add(payload).ok_or_else(|| {
+        GeometryError::Invalid("direct V2 High accessor end overflowed".to_owned())
+    })?;
+    let view_end = usize::try_from(view_offset)
+        .ok()
+        .and_then(|offset| offset.checked_add(view_length))
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High bufferView range overflowed".to_owned())
+        })?;
+    if end > view_end || end > binary.len() {
+        return Err(GeometryError::Invalid(
+            "direct V2 High accessor exceeds BIN".to_owned(),
+        ));
+    }
+    Ok((start, count, stride))
+}
+
+fn direct_high_vec2(
+    accessors: &[Value],
+    views: &[Value],
+    binary: &[u8],
+    index: usize,
+) -> Result<Vec<[f32; 2]>, GeometryError> {
+    let (start, count, stride) =
+        direct_high_accessor_window(accessors, views, binary, index, "VEC2", 5126, 8)?;
+    (0..count)
+        .map(|item| {
+            let offset = start + item * stride;
+            Ok([
+                f32::from_le_bytes(binary[offset..offset + 4].try_into().map_err(|_| {
+                    GeometryError::Invalid("direct V2 High float bytes are invalid".to_owned())
+                })?),
+                f32::from_le_bytes(binary[offset + 4..offset + 8].try_into().map_err(|_| {
+                    GeometryError::Invalid("direct V2 High float bytes are invalid".to_owned())
+                })?),
+            ])
+        })
+        .collect()
+}
+
+fn direct_high_vec3(
+    accessors: &[Value],
+    views: &[Value],
+    binary: &[u8],
+    index: usize,
+) -> Result<Vec<[f32; 3]>, GeometryError> {
+    let (start, count, stride) =
+        direct_high_accessor_window(accessors, views, binary, index, "VEC3", 5126, 12)?;
+    (0..count)
+        .map(|item| {
+            let offset = start + item * stride;
+            Ok([
+                direct_high_float(binary, offset)?,
+                direct_high_float(binary, offset + 4)?,
+                direct_high_float(binary, offset + 8)?,
+            ])
+        })
+        .collect()
+}
+
+fn direct_high_vec4(
+    accessors: &[Value],
+    views: &[Value],
+    binary: &[u8],
+    index: usize,
+) -> Result<Vec<[f32; 4]>, GeometryError> {
+    let (start, count, stride) =
+        direct_high_accessor_window(accessors, views, binary, index, "VEC4", 5126, 16)?;
+    (0..count)
+        .map(|item| {
+            let offset = start + item * stride;
+            Ok([
+                direct_high_float(binary, offset)?,
+                direct_high_float(binary, offset + 4)?,
+                direct_high_float(binary, offset + 8)?,
+                direct_high_float(binary, offset + 12)?,
+            ])
+        })
+        .collect()
+}
+
+fn direct_high_float(binary: &[u8], offset: usize) -> Result<f32, GeometryError> {
+    let bytes = binary.get(offset..offset + 4).ok_or_else(|| {
+        GeometryError::Invalid("direct V2 High float accessor exceeds BIN".to_owned())
+    })?;
+    Ok(f32::from_le_bytes(bytes.try_into().map_err(|_| {
+        GeometryError::Invalid("direct V2 High float bytes are invalid".to_owned())
+    })?))
+}
+
+fn direct_high_indices(
+    accessors: &[Value],
+    views: &[Value],
+    binary: &[u8],
+    index: usize,
+) -> Result<Vec<u32>, GeometryError> {
+    let accessor = accessors
+        .get(index)
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High index accessor is invalid".to_owned())
+        })?;
+    let component_type = accessor
+        .get("componentType")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| {
+            GeometryError::Invalid("direct V2 High index component is missing".to_owned())
+        })?;
+    let (component_size, expected_component) = match component_type {
+        5121 => (1, 5121),
+        5123 => (2, 5123),
+        5125 => (4, 5125),
+        _ => {
+            return Err(GeometryError::Invalid(
+                "direct V2 High index component is unsupported".to_owned(),
+            ))
+        }
+    };
+    let (start, count, stride) = direct_high_accessor_window(
+        accessors,
+        views,
+        binary,
+        index,
+        "SCALAR",
+        expected_component,
+        component_size,
+    )?;
+    (0..count)
+        .map(|item| {
+            let offset = start + item * stride;
+            Ok(match component_size {
+                1 => binary[offset] as u32,
+                2 => u16::from_le_bytes(binary[offset..offset + 2].try_into().map_err(|_| {
+                    GeometryError::Invalid("direct V2 High index bytes are invalid".to_owned())
+                })?) as u32,
+                _ => u32::from_le_bytes(binary[offset..offset + 4].try_into().map_err(|_| {
+                    GeometryError::Invalid("direct V2 High index bytes are invalid".to_owned())
+                })?),
+            })
+        })
+        .collect()
+}
+
+fn direct_high_finite2(value: [f32; 2]) -> bool {
+    value.iter().all(|component| component.is_finite())
+}
+
+fn direct_high_finite3(value: [f32; 3]) -> bool {
+    value.iter().all(|component| component.is_finite())
+}
+
+fn direct_high_finite4(value: [f32; 4]) -> bool {
+    value.iter().all(|component| component.is_finite())
+}
+
+fn direct_high_length3(value: [f32; 3]) -> f32 {
+    (value[0] * value[0] + value[1] * value[1] + value[2] * value[2]).sqrt()
+}
+
+fn direct_high_sub(left: [f32; 3], right: [f32; 3]) -> [f32; 3] {
+    [left[0] - right[0], left[1] - right[1], left[2] - right[2]]
+}
+
+fn direct_high_cross(left: [f32; 3], right: [f32; 3]) -> [f32; 3] {
+    [
+        left[1] * right[2] - left[2] * right[1],
+        left[2] * right[0] - left[0] * right[2],
+        left[0] * right[1] - left[1] * right[0],
+    ]
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 fn pair_low_and_cage<'a>(

@@ -198,21 +198,38 @@
       "properties": {
         "operation_name": {"$ref": "#/$defs/tool_name"},
         "classification": {"enum": ["read", "write"]},
-        "facade_name": {"const": "authoring_transaction"},
-        "request_schema": {"enum": ["KnifeCurveModifierGraphPrepareRequest@1", "KnifeCurveModifierGraphGetRequest@1", "KnifeCurveEvaluatedMeshPrepareRequest@1", "KnifeCurveEvaluatedMeshGetRequest@1"]},
-        "result_schema": {"enum": ["KnifeCurveModifierGraphResult@1", "KnifeCurveEvaluatedMeshResult@1"]},
+        "facade_name": {"enum": ["reference_intake", "authoring_transaction", "surface_pipeline", "quality_review"]},
+        "request_schema": {"enum": ["KnifeReferenceIntentBundlePrepareRequest@1", "KnifeReferenceIntentBundleGetRequest@1", "WeaponryKnifeProductionBriefPrepareRequest@1", "WeaponryKnifeProductionBriefGetRequest@1", "KnifeCurveModifierGraphPrepareRequest@1", "KnifeCurveModifierGraphGetRequest@1", "KnifeCurveEvaluatedMeshPrepareRequest@1", "KnifeCurveEvaluatedMeshGetRequest@1", "KnifeSourceBindingPrepareRequest@1", "KnifeSourceBindingGetRequest@1", "ProductionWeaponAuthoringMeshV2SourcePrepareRequest@1", "AuthoringMeshV2CandidateMaterializeRequest@1", "AuthoringMeshV2HighBridgePrepareRequest@1", "AuthoringMeshV2HighBridgeGetRequest@1", "AuthoringMeshV2HighArtifactPrepareRequest@1", "AuthoringMeshV2HighArtifactGetRequest@1", "HighArtifactReferenceComparePrepareRequest@1", "KnifePassStateGetRequest@1", "KnifePassStatePrepareRequest@1", "WeaponryKnifeUvBakeV2PrepareRequest@1", "WeaponryKnifeUvBakeV2GetRequest@1"]},
+        "result_schema": {"enum": ["KnifeReferenceIntentBundleResult@1", "WeaponryKnifeProductionBriefResult@1", "KnifeCurveModifierGraphResult@1", "KnifeCurveEvaluatedMeshResult@1", "KnifeSourceBindingResult@1", "ProductionWeaponAuthoringMeshV2SourcePrepareResult@1", "AuthoringMeshV2CandidateMaterializeResult@1", "AuthoringMeshV2HighBridgeResult@1", "AuthoringMeshV2HighArtifactResult@1", "HighArtifactReferenceComparisonPrepareResult@1", "KnifePassStateResult@1", "WeaponryKnifeUvBakeV2Result@1"]},
         "status": {"const": "native-development-only"}
       }
     },
     "native_operations": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["knife_curve_modifier_graph_prepare", "knife_curve_modifier_graph_get", "knife_curve_evaluated_mesh_prepare", "knife_curve_evaluated_mesh_get"],
+      "required": ["knife_reference_intent_bundle_prepare", "knife_reference_intent_bundle_get", "weaponry_knife_production_brief_prepare", "weaponry_knife_production_brief_get", "knife_curve_modifier_graph_prepare", "knife_curve_modifier_graph_get", "knife_curve_evaluated_mesh_prepare", "knife_curve_evaluated_mesh_get", "knife_source_binding_prepare", "knife_source_binding_get", "production_weapon_authoring_mesh_v2_source_prepare", "authoring_mesh_v2_candidate_materialize", "authoring_mesh_v2_high_bridge_prepare", "authoring_mesh_v2_high_bridge_get", "authoring_mesh_v2_high_artifact_prepare", "authoring_mesh_v2_high_artifact_get", "high_artifact_reference_compare_prepare", "knife_pass_state_get", "knife_pass_state_prepare", "production_knife_uv_bake_v2_prepare", "production_knife_uv_bake_v2_get"],
       "properties": {
+        "knife_reference_intent_bundle_prepare": {"$ref": "#/$defs/native_operation"},
+        "knife_reference_intent_bundle_get": {"$ref": "#/$defs/native_operation"},
+        "weaponry_knife_production_brief_prepare": {"$ref": "#/$defs/native_operation"},
+        "weaponry_knife_production_brief_get": {"$ref": "#/$defs/native_operation"},
         "knife_curve_modifier_graph_prepare": {"$ref": "#/$defs/native_operation"},
         "knife_curve_modifier_graph_get": {"$ref": "#/$defs/native_operation"},
         "knife_curve_evaluated_mesh_prepare": {"$ref": "#/$defs/native_operation"},
-        "knife_curve_evaluated_mesh_get": {"$ref": "#/$defs/native_operation"}
+        "knife_curve_evaluated_mesh_get": {"$ref": "#/$defs/native_operation"},
+        "knife_source_binding_prepare": {"$ref": "#/$defs/native_operation"},
+        "knife_source_binding_get": {"$ref": "#/$defs/native_operation"},
+        "production_weapon_authoring_mesh_v2_source_prepare": {"$ref": "#/$defs/native_operation"},
+        "authoring_mesh_v2_candidate_materialize": {"$ref": "#/$defs/native_operation"},
+        "authoring_mesh_v2_high_bridge_prepare": {"$ref": "#/$defs/native_operation"},
+        "authoring_mesh_v2_high_bridge_get": {"$ref": "#/$defs/native_operation"},
+        "authoring_mesh_v2_high_artifact_prepare": {"$ref": "#/$defs/native_operation"},
+        "authoring_mesh_v2_high_artifact_get": {"$ref": "#/$defs/native_operation"},
+        "production_knife_uv_bake_v2_prepare": {"$ref": "#/$defs/native_operation"},
+        "production_knife_uv_bake_v2_get": {"$ref": "#/$defs/native_operation"},
+        "high_artifact_reference_compare_prepare": {"$ref": "#/$defs/native_operation"},
+        "knife_pass_state_get": {"$ref": "#/$defs/native_operation"},
+        "knife_pass_state_prepare": {"$ref": "#/$defs/native_operation"}
       }
     },
     "compatibility_profile": {

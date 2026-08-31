@@ -1,5 +1,7 @@
-mod authoring_mesh_v2_transaction;
 mod approval_repository;
+mod authoring_mesh_v2_high_artifact;
+mod authoring_mesh_v2_high_bridge;
+mod authoring_mesh_v2_transaction;
 pub mod authoring_repository;
 mod cas;
 pub mod delivery_repository;
@@ -18,13 +20,47 @@ pub mod surface_repository;
 pub mod weapon_foundation_import;
 mod weaponry_curve_evaluated_mesh;
 mod weaponry_curve_modifier_graph;
+mod weaponry_knife_pass_state;
+mod weaponry_knife_production_brief;
+mod weaponry_knife_reference_intent;
+mod weaponry_knife_source_binding;
+mod weaponry_knife_uv_bake_v2;
+pub use authoring_mesh_v2_high_artifact::{
+    AuthoringMeshV2HighArtifactCasBundle, AuthoringMeshV2HighArtifactCommit,
+    AuthoringMeshV2HighArtifactStoreRecord,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_CANONICALIZATION_POLICY,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_GLB_MIME, AUTHORING_MESH_V2_HIGH_ARTIFACT_GLB_OBJECT_KIND,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_HASH_POLICY, AUTHORING_MESH_V2_HIGH_ARTIFACT_JSON_MIME,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_MAX_GLB_BYTES, AUTHORING_MESH_V2_HIGH_ARTIFACT_MAX_JSON_BYTES,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_READBACK_OBJECT_KIND,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_RECEIPT_OBJECT_KIND,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_RECORD_SCHEMA_VERSION,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_SCHEMA_VERSION, AUTHORING_MESH_V2_HIGH_ARTIFACT_STATUS,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_WRITER_POLICY,
+};
+pub use authoring_mesh_v2_high_bridge::{
+    AuthoringMeshV2HighBridgeCasBundle, AuthoringMeshV2HighBridgeCommit,
+    AuthoringMeshV2HighBridgeStoreRecord, AuthoringMeshV2HighCasBundle, AuthoringMeshV2HighCommit,
+    AuthoringMeshV2HighDurableRecord, AUTHORING_MESH_V2_HIGH_BRIDGE_OBJECT_KIND,
+    AUTHORING_MESH_V2_HIGH_BRIDGE_RECORD_SCHEMA_VERSION,
+    AUTHORING_MESH_V2_HIGH_BRIDGE_SCHEMA_VERSION, AUTHORING_MESH_V2_HIGH_CANONICALIZATION_POLICY,
+    AUTHORING_MESH_V2_HIGH_COHORT_POLICY, AUTHORING_MESH_V2_HIGH_EVALUATOR_CONTRACT,
+    AUTHORING_MESH_V2_HIGH_EXECUTION_OPERATION,
+    AUTHORING_MESH_V2_HIGH_EXECUTION_REQUEST_SCHEMA_VERSION, AUTHORING_MESH_V2_HIGH_JSON_MIME,
+    AUTHORING_MESH_V2_HIGH_MAX_BRIDGE_BYTES, AUTHORING_MESH_V2_HIGH_MAX_JSON_BYTES,
+    AUTHORING_MESH_V2_HIGH_MAX_RESPONSE_BYTES, AUTHORING_MESH_V2_HIGH_OPERATION,
+    AUTHORING_MESH_V2_HIGH_READBACK_OBJECT_KIND, AUTHORING_MESH_V2_HIGH_READBACK_SCHEMA_VERSION,
+    AUTHORING_MESH_V2_HIGH_RESULT_OBJECT_KIND, AUTHORING_MESH_V2_HIGH_RESULT_SCHEMA_VERSION,
+    AUTHORING_MESH_V2_HIGH_SOURCE_SCOPE, AUTHORING_MESH_V2_HIGH_STATUS,
+    AUTHORING_MESH_V2_HIGH_SUBDIVISION_BACKEND, AUTHORING_MESH_V2_HIGH_WRITER_POLICY,
+};
 pub use authoring_mesh_v2_transaction::{
+    AuthoringMeshV2TransactionCommit, AuthoringMeshV2TransactionDurableRecord,
+    AuthoringMeshV2TransactionPayload, AuthoringMeshV2TransactionRevisionInput,
     AUTHORING_MESH_V2_TRANSACTION_MAX_BYTES, AUTHORING_MESH_V2_TRANSACTION_MAX_COMMANDS,
     AUTHORING_MESH_V2_TRANSACTION_OBJECT_KIND,
     AUTHORING_MESH_V2_TRANSACTION_PAYLOAD_SCHEMA_VERSION,
     AUTHORING_MESH_V2_TRANSACTION_RECORD_SCHEMA_VERSION, AUTHORING_MESH_V2_TRANSACTION_STATUS,
-    AuthoringMeshV2TransactionCommit, AuthoringMeshV2TransactionDurableRecord,
-    AuthoringMeshV2TransactionPayload, AuthoringMeshV2TransactionRevisionInput,
 };
 pub use authoring_repository::AuthoringRepository;
 pub use delivery_repository::DeliveryRepository;
@@ -45,23 +81,24 @@ pub use fps_presentation_package_v2::{
 };
 pub use presentation_repository::PresentationRepository;
 pub use production_weapon_form_art_baseline::{
+    ProductionWeaponFormArtBaselineCasBatch, ProductionWeaponFormArtBaselineCasBatchOwner,
+    ProductionWeaponFormArtBaselineCommitBundle,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_CAS_BATCH_OWNER_KIND,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_CAS_BATCH_SCHEMA_VERSION,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_CAS_BATCH_TIMEOUT_SECS,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_PARENT_OBJECT_KIND,
-    PRODUCTION_WEAPON_FORM_ART_BASELINE_VIEW_OBJECT_KIND, ProductionWeaponFormArtBaselineCasBatch,
-    ProductionWeaponFormArtBaselineCasBatchOwner, ProductionWeaponFormArtBaselineCommitBundle,
+    PRODUCTION_WEAPON_FORM_ART_BASELINE_VIEW_OBJECT_KIND,
 };
 pub use production_weapon_form_art_composite_evidence::{
+    record_canonical_sha256 as production_weapon_form_art_composite_evidence_record_canonical_sha256,
+    ProductionWeaponFormArtCompositeEvidenceRecord,
     PRODUCTION_WEAPON_FORM_ART_COMPOSITE_EVIDENCE_RECEIPT_OBJECT_KIND,
     PRODUCTION_WEAPON_FORM_ART_COMPOSITE_EVIDENCE_RECEIPT_SCHEMA_VERSION,
     PRODUCTION_WEAPON_FORM_ART_COMPOSITE_EVIDENCE_RECORD_SCHEMA_VERSION,
-    ProductionWeaponFormArtCompositeEvidenceRecord,
-    record_canonical_sha256 as production_weapon_form_art_composite_evidence_record_canonical_sha256,
 };
 pub use production_weapon_form_art_composite_proposal::{
-    ProductionWeaponFormArtCompositeProposalStoreRecord,
     record_canonical_sha256 as production_weapon_form_art_composite_proposal_record_canonical_sha256,
+    ProductionWeaponFormArtCompositeProposalStoreRecord,
 };
 pub use production_weapon_formal_high::ProductionWeaponFormalHighCommitBundle;
 pub use surface_repository::{
@@ -69,22 +106,64 @@ pub use surface_repository::{
     ProductionWeaponHighLowBakePreflightSources, SurfaceRepository,
 };
 pub use weaponry_curve_evaluated_mesh::{
-    KnifeCurveEvaluatedMeshCasBundle, KnifeCurveEvaluatedMeshCommit,
-    KnifeCurveEvaluatedMeshDurableRecord, WEAPONRY_CURVE_EVALUATED_MESH_JSON_MIME,
-    WEAPONRY_CURVE_EVALUATED_MESH_MAX_JSON_BYTES, WEAPONRY_CURVE_EVALUATED_MESH_RECORD_SCHEMA,
-    WEAPONRY_CURVE_EVALUATED_MESH_STATUS, WEAPONRY_CURVE_EVALUATION_PLAN_OBJECT_KIND,
-    WEAPONRY_EVALUATED_MESH_IDENTITY_OBJECT_KIND, WEAPONRY_EVALUATED_MESH_LINK_OBJECT_KIND,
-    WEAPONRY_EVALUATED_MESH_OBJECT_KIND, WeaponryCurveEvaluatedMeshCasBundle,
-    WeaponryCurveEvaluatedMeshCommit, WeaponryCurveEvaluatedMeshDurableRecord,
     record_canonical_sha256 as weaponry_curve_evaluated_mesh_record_canonical_sha256,
+    KnifeCurveEvaluatedMeshCasBundle, KnifeCurveEvaluatedMeshCommit,
+    KnifeCurveEvaluatedMeshDurableRecord, WeaponryCurveEvaluatedMeshCasBundle,
+    WeaponryCurveEvaluatedMeshCommit, WeaponryCurveEvaluatedMeshDurableRecord,
+    WEAPONRY_CURVE_EVALUATED_MESH_JSON_MIME, WEAPONRY_CURVE_EVALUATED_MESH_MAX_JSON_BYTES,
+    WEAPONRY_CURVE_EVALUATED_MESH_RECORD_SCHEMA, WEAPONRY_CURVE_EVALUATED_MESH_STATUS,
+    WEAPONRY_CURVE_EVALUATION_PLAN_OBJECT_KIND, WEAPONRY_EVALUATED_MESH_IDENTITY_OBJECT_KIND,
+    WEAPONRY_EVALUATED_MESH_LINK_OBJECT_KIND, WEAPONRY_EVALUATED_MESH_OBJECT_KIND,
 };
 pub use weaponry_curve_modifier_graph::{
-    WEAPONRY_CURVE_MODIFIER_GRAPH_JSON_MIME, WEAPONRY_CURVE_MODIFIER_GRAPH_MAX_JSON_BYTES,
-    WEAPONRY_CURVE_MODIFIER_GRAPH_RECORD_SCHEMA, WEAPONRY_CURVE_MODIFIER_GRAPH_STATUS,
-    WEAPONRY_CURVE_SET_OBJECT_KIND, WEAPONRY_DEPENDENCY_GRAPH_OBJECT_KIND,
-    WEAPONRY_MODIFIER_GRAPH_OBJECT_KIND, WEAPONRY_RECOMPUTE_PLAN_OBJECT_KIND,
-    WEAPONRY_SAMPLE_SET_OBJECT_KIND, WeaponryCurveModifierGraphCasBundle,
-    WeaponryCurveModifierGraphCommit, WeaponryCurveModifierGraphDurableRecord,
+    WeaponryCurveModifierGraphCasBundle, WeaponryCurveModifierGraphCommit,
+    WeaponryCurveModifierGraphDurableRecord, WEAPONRY_CURVE_MODIFIER_GRAPH_JSON_MIME,
+    WEAPONRY_CURVE_MODIFIER_GRAPH_MAX_JSON_BYTES, WEAPONRY_CURVE_MODIFIER_GRAPH_RECORD_SCHEMA,
+    WEAPONRY_CURVE_MODIFIER_GRAPH_STATUS, WEAPONRY_CURVE_SET_OBJECT_KIND,
+    WEAPONRY_DEPENDENCY_GRAPH_OBJECT_KIND, WEAPONRY_MODIFIER_GRAPH_OBJECT_KIND,
+    WEAPONRY_RECOMPUTE_PLAN_OBJECT_KIND, WEAPONRY_SAMPLE_SET_OBJECT_KIND,
+};
+pub use weaponry_knife_pass_state::{
+    main_value as knife_pass_state_main_value,
+    record_from_main_value as knife_pass_state_record_from_main_value, KnifePassStateCasBundle,
+    KnifePassStateCommit, KnifePassStateStoreRecord, KNIFE_PASS_STATE_CANONICALIZATION_POLICY,
+    KNIFE_PASS_STATE_EVIDENCE_BUNDLE_SCHEMA_VERSION, KNIFE_PASS_STATE_JSON_MIME,
+    KNIFE_PASS_STATE_MAX_JSON_BYTES, KNIFE_PASS_STATE_OBJECT_KIND,
+    KNIFE_PASS_STATE_RECORD_SCHEMA_VERSION, KNIFE_PASS_STATE_SCHEMA_VERSION,
+    KNIFE_PASS_STATE_STATUS,
+};
+pub use weaponry_knife_production_brief::{
+    WeaponryKnifeProductionBriefCasBundle, WeaponryKnifeProductionBriefCommit,
+    WeaponryKnifeProductionBriefStoreRecord, WEAPONRY_KNIFE_PRODUCTION_BRIEF_JSON_MIME,
+    WEAPONRY_KNIFE_PRODUCTION_BRIEF_MAX_JSON_BYTES, WEAPONRY_KNIFE_PRODUCTION_BRIEF_OBJECT_KIND,
+    WEAPONRY_KNIFE_PRODUCTION_BRIEF_RECORD_SCHEMA_VERSION, WEAPONRY_KNIFE_PRODUCTION_BRIEF_STATUS,
+};
+pub use weaponry_knife_reference_intent::{
+    KnifeReferenceIntentBundleCasBundle, KnifeReferenceIntentBundleCommit,
+    KnifeReferenceIntentBundleStoreRecord, KNIFE_REFERENCE_INTENT_BUNDLE_OBJECT_KIND,
+    KNIFE_REFERENCE_INTENT_BUNDLE_RECORD_SCHEMA_VERSION,
+    KNIFE_REFERENCE_INTENT_BUNDLE_SCHEMA_VERSION, KNIFE_REFERENCE_INTENT_BUNDLE_STATUS,
+    KNIFE_REFERENCE_INTENT_DETAIL_OBJECT_KIND, KNIFE_REFERENCE_INTENT_INTAKE_OBJECT_KIND,
+    KNIFE_REFERENCE_INTENT_JSON_MIME, KNIFE_REFERENCE_INTENT_MAX_JSON_BYTES,
+    KNIFE_REFERENCE_INTENT_QUALITY_OBJECT_KIND,
+};
+pub use weaponry_knife_source_binding::{
+    KnifeSourceBindingCasBundle, KnifeSourceBindingCommit,
+    KnifeSourceBindingDownstreamBindingRequirements, KnifeSourceBindingStoreRecord,
+    KNIFE_SOURCE_BINDING_AUTHORING_ELIGIBILITY, KNIFE_SOURCE_BINDING_BINDING_STATUS,
+    KNIFE_SOURCE_BINDING_CANONICALIZATION_POLICY, KNIFE_SOURCE_BINDING_DOWNSTREAM_POLICY,
+    KNIFE_SOURCE_BINDING_JSON_MIME, KNIFE_SOURCE_BINDING_MAX_JSON_BYTES,
+    KNIFE_SOURCE_BINDING_OBJECT_KIND, KNIFE_SOURCE_BINDING_POLICY,
+    KNIFE_SOURCE_BINDING_RECORD_SCHEMA_VERSION, KNIFE_SOURCE_BINDING_SCHEMA_VERSION,
+    KNIFE_SOURCE_BINDING_STATUS,
+};
+pub use weaponry_knife_uv_bake_v2::{
+    AggregateRecord as WeaponryKnifeUvBakeV2AggregateRecord,
+    ComponentRef as WeaponryKnifeUvBakeV2ComponentRef,
+    RECORD_SCHEMA_VERSION as WEAPONRY_KNIFE_UV_BAKE_V2_RECORD_SCHEMA_VERSION,
+    RECEIPT_MIME as WEAPONRY_KNIFE_UV_BAKE_V2_RECEIPT_MIME,
+    RECEIPT_OBJECT_KIND as WEAPONRY_KNIFE_UV_BAKE_V2_RECEIPT_OBJECT_KIND,
+    SCHEMA_VERSION as WEAPONRY_KNIFE_UV_BAKE_V2_SCHEMA_VERSION,
 };
 
 fn v2_value_string<'a>(value: &'a Value, field: &str) -> Result<&'a str, StoreError> {
@@ -2548,18 +2627,15 @@ fn fictional_energy_vfx_animated_socket_trails_v2_reachable_hashes(
 
 pub use cas::{CasError, CasObject, CasStore};
 use forgecad_contracts::{
-    AUTHORING_MESH_TOPOLOGY_CORRESPONDENCE_KINDS, AUTHORING_MESH_TOPOLOGY_EDIT_OPERATIONS,
-    AppearanceSourceLineageLinkRecord, ApprovalReceiptRecord, AuditEventRecord,
-    AuthoringMeshRevision, AuthoringMeshTopologyOperationKind, AuthoringMeshTopologyOperationProof,
-    CANDIDATE_ANIMATION_VFX_QUALITY_V2_BINDING_STATUS,
-    CANDIDATE_ANIMATION_VFX_QUALITY_V2_FRAME_COUNT,
-    CANDIDATE_ANIMATION_VFX_QUALITY_V2_FRAME_SET_SCHEMA, CANDIDATE_ANIMATION_VFX_QUALITY_V2_POLICY,
-    CANDIDATE_ANIMATION_VFX_QUALITY_V2_SCOPE, CandidateAnimationVfxQualityRecord,
-    CandidateAnimationVfxQualityV2Record, CandidateConfirmRequest, CandidateConfirmResult,
-    CandidateMaterialSurfaceQualityHardGate, CandidateMaterialSurfaceQualityRecord,
-    CandidateRecord, CandidateRejectRequest, CandidateRejectResult, CandidateTopologyQualityRecord,
-    CasObjectRecord, DesignAssetVersionRecord, ExportConfirmRequest, ExportConfirmResult,
-    ExportManifestRecord, ExportPrepareRequest, ExportPrepareResult,
+    is_opaque_id, is_sha256, production_stage_v3_is_adjacent, AppearanceSourceLineageLinkRecord,
+    ApprovalReceiptRecord, AuditEventRecord, AuthoringMeshRevision,
+    AuthoringMeshTopologyOperationKind, AuthoringMeshTopologyOperationProof,
+    CandidateAnimationVfxQualityRecord, CandidateAnimationVfxQualityV2Record,
+    CandidateConfirmRequest, CandidateConfirmResult, CandidateMaterialSurfaceQualityHardGate,
+    CandidateMaterialSurfaceQualityRecord, CandidateRecord, CandidateRejectRequest,
+    CandidateRejectResult, CandidateTopologyQualityRecord, CasObjectRecord,
+    DesignAssetVersionRecord, ExportConfirmRequest, ExportConfirmResult, ExportManifestRecord,
+    ExportPrepareRequest, ExportPrepareResult,
     FictionalEnergyVfxAnimatedSocketAttachmentFrameRecord,
     FictionalEnergyVfxAnimatedSocketAttachmentRecord,
     FictionalEnergyVfxAnimatedSocketAttachmentV2FrameRecord,
@@ -2590,10 +2666,31 @@ use forgecad_contracts::{
     GeometryCandidateEvidenceRecord, MechanicalAnimationClipLinkRecord,
     MechanicalAnimationClipV2LinkRecord, MechanicalAnimationClipV2Record,
     MechanicalAnimationGlbV2LinkRecord, MechanicalAnimationGlbV2ReceiptRecord,
-    PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY, PRODUCTION_CAMERA_LOCK_CALIBRATION_STATUS,
-    PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS, PRODUCTION_CAMERA_LOCK_DISTRIBUTION_STATUS,
-    PRODUCTION_CAMERA_LOCK_ENGINE_STATUS, PRODUCTION_CAMERA_LOCK_HUMAN_STATUS,
-    PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND, PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS,
+    ProductionCameraLockRecord, ProductionCameraLockRegistrationLineageRecord,
+    ProductionStageHeadV2Record, ProductionStageHeadV3Record, ProductionStageTransitionRecord,
+    ProductionStageTransitionV2Record, ProductionStageTransitionV3Record,
+    ProductionWeaponCageArtifactRecord, ProductionWeaponFormArtEvidenceRecord,
+    ProductionWeaponFormArtEvidenceViewRecord, ProductionWeaponFormEvidenceObservation,
+    ProductionWeaponFormEvidenceRecord, ProductionWeaponFormEvidenceViewRecord,
+    ProductionWeaponFormQualityEvidenceBinding, ProductionWeaponFormQualityNoRegression,
+    ProductionWeaponFormQualityRecord, ProductionWeaponFormQualityV2Aggregate,
+    ProductionWeaponFormQualityV2Record, ProductionWeaponFormQualityV2ViewDecision,
+    ProductionWeaponFormQualityViewRecord, ProductionWeaponHighArtifactRecord,
+    ProductionWeaponHighLowBakeGetResult, ProductionWeaponHighLowBakePlanRecord,
+    ProductionWeaponHighLowBakePrepareResult, ProductionWeaponHighLowBakeReceiptRecord,
+    ProductionWeaponHighLowCorrespondenceRecord, ProductionWeaponHighLowDiagnosticRecord,
+    ProductionWeaponLowArtifactRecord, ProjectRecord, ProjectSummary, ReferenceAuthorization,
+    ReferenceEvidenceRecord, RestoreConfirmRequest, RestoreConfirmResult, RestorePrepareRequest,
+    RestorePrepareResult, SnapshotRecord, SnapshotSummary, SubdivisionArtifactLineageLinkRecord,
+    AUTHORING_MESH_TOPOLOGY_CORRESPONDENCE_KINDS, AUTHORING_MESH_TOPOLOGY_EDIT_OPERATIONS,
+    CANDIDATE_ANIMATION_VFX_QUALITY_V2_BINDING_STATUS,
+    CANDIDATE_ANIMATION_VFX_QUALITY_V2_FRAME_COUNT,
+    CANDIDATE_ANIMATION_VFX_QUALITY_V2_FRAME_SET_SCHEMA, CANDIDATE_ANIMATION_VFX_QUALITY_V2_POLICY,
+    CANDIDATE_ANIMATION_VFX_QUALITY_V2_SCOPE, PRODUCTION_CAMERA_LOCK_CALIBRATION_POLICY,
+    PRODUCTION_CAMERA_LOCK_CALIBRATION_STATUS, PRODUCTION_CAMERA_LOCK_CAMERA_VIEW_KINDS,
+    PRODUCTION_CAMERA_LOCK_DISTRIBUTION_STATUS, PRODUCTION_CAMERA_LOCK_ENGINE_STATUS,
+    PRODUCTION_CAMERA_LOCK_HUMAN_STATUS, PRODUCTION_CAMERA_LOCK_PRIMARY_VIEW_KIND,
+    PRODUCTION_CAMERA_LOCK_REFERENCE_VIEW_KINDS,
     PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_AUTHORED_ORIENTATION_SCHEMA_VERSION,
     PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_GEOMETRY_PROGRAM_SCHEMA_VERSION,
     PRODUCTION_CAMERA_LOCK_REGISTRATION_LINEAGE_POLICY,
@@ -2655,23 +2752,6 @@ use forgecad_contracts::{
     PRODUCTION_WEAPON_HIGH_LOW_DIAGNOSTIC_POLICY, PRODUCTION_WEAPON_HIGH_LOW_SOURCE_STAGES,
     PRODUCTION_WEAPON_HIGH_LOW_TARGET_STAGES, PRODUCTION_WEAPON_LOW_ARTIFACT_KIND,
     PRODUCTION_WEAPON_LOW_ARTIFACT_POLICY, PRODUCTION_WEAPON_LOW_ARTIFACT_RECEIPT_KIND,
-    ProductionCameraLockRecord, ProductionCameraLockRegistrationLineageRecord,
-    ProductionStageHeadV2Record, ProductionStageHeadV3Record, ProductionStageTransitionRecord,
-    ProductionStageTransitionV2Record, ProductionStageTransitionV3Record,
-    ProductionWeaponCageArtifactRecord, ProductionWeaponFormArtEvidenceRecord,
-    ProductionWeaponFormArtEvidenceViewRecord, ProductionWeaponFormEvidenceObservation,
-    ProductionWeaponFormEvidenceRecord, ProductionWeaponFormEvidenceViewRecord,
-    ProductionWeaponFormQualityEvidenceBinding, ProductionWeaponFormQualityNoRegression,
-    ProductionWeaponFormQualityRecord, ProductionWeaponFormQualityV2Aggregate,
-    ProductionWeaponFormQualityV2Record, ProductionWeaponFormQualityV2ViewDecision,
-    ProductionWeaponFormQualityViewRecord, ProductionWeaponHighArtifactRecord,
-    ProductionWeaponHighLowBakeGetResult, ProductionWeaponHighLowBakePlanRecord,
-    ProductionWeaponHighLowBakePrepareResult, ProductionWeaponHighLowBakeReceiptRecord,
-    ProductionWeaponHighLowCorrespondenceRecord, ProductionWeaponHighLowDiagnosticRecord,
-    ProductionWeaponLowArtifactRecord, ProjectRecord, ProjectSummary, ReferenceAuthorization,
-    ReferenceEvidenceRecord, RestoreConfirmRequest, RestoreConfirmResult, RestorePrepareRequest,
-    RestorePrepareResult, SnapshotRecord, SnapshotSummary, SubdivisionArtifactLineageLinkRecord,
-    is_opaque_id, is_sha256, production_stage_v3_is_adjacent,
 };
 #[cfg(test)]
 use forgecad_contracts::{
@@ -2679,7 +2759,7 @@ use forgecad_contracts::{
     CandidateTopologyQualityThresholds,
 };
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{Connection, OptionalExtension, params, params_from_iter};
+use rusqlite::{params, params_from_iter, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -12242,7 +12322,6 @@ impl Store {
         }
     }
 
-
     pub fn register_object(&self, object: &CasObjectRecord) -> Result<(), StoreError> {
         self.cas.verify(&object.sha256, object.size_bytes)?;
         let connection = self.lock_connection()?;
@@ -19045,6 +19124,14 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
     fps_presentation_package_v2::ensure_table(&transaction)?;
     weaponry_curve_modifier_graph::ensure_table(&transaction)?;
     weaponry_curve_evaluated_mesh::ensure_table(&transaction)?;
+    weaponry_knife_production_brief::ensure_table(&transaction)?;
+    weaponry_knife_production_brief::ensure_columns(&transaction)?;
+    weaponry_knife_reference_intent::ensure_table(&transaction)?;
+    weaponry_knife_source_binding::ensure_table(&transaction)?;
+    weaponry_knife_pass_state::ensure_table(&transaction)?;
+    weaponry_knife_uv_bake_v2::ensure_table(&transaction)?;
+    authoring_mesh_v2_high_bridge::ensure_table(&transaction)?;
+    authoring_mesh_v2_high_artifact::ensure_table(&transaction)?;
     let version: String = transaction.query_row(
         "SELECT value FROM schema_meta WHERE key = 'runtime_schema_version'",
         [],
@@ -31447,36 +31534,30 @@ fn ensure_production_weapon_form_quality_v2_bindings(
                     "fresh proposal evidence does not contain six views",
                 )
             })?;
-        let part_id_hash = canonical_json_hash(&serde_json::json!(
-            proposal_views
-                .iter()
-                .map(|view| serde_json::json!({
-                    "view_kind": view.get("view_kind"),
-                    "part_id_pass_object_sha256": view.get("part_id_pass_object_sha256"),
-                    "part_id_status": view.get("part_id_status"),
-                }))
-                .collect::<Vec<_>>()
-        ));
-        let negative_space_hash = canonical_json_hash(&serde_json::json!(
-            proposal_views
-                .iter()
-                .map(|view| serde_json::json!({
-                    "view_kind": view.get("view_kind"),
-                    "negative_space_status": view.get("negative_space_status"),
-                    "negative_space_observations": view.get("negative_space_observations"),
-                }))
-                .collect::<Vec<_>>()
-        ));
-        let line_flow_hash = canonical_json_hash(&serde_json::json!(
-            proposal_views
-                .iter()
-                .map(|view| serde_json::json!({
-                    "view_kind": view.get("view_kind"),
-                    "line_flow_status": view.get("line_flow_status"),
-                    "line_flow_observations": view.get("line_flow_observations"),
-                }))
-                .collect::<Vec<_>>()
-        ));
+        let part_id_hash = canonical_json_hash(&serde_json::json!(proposal_views
+            .iter()
+            .map(|view| serde_json::json!({
+                "view_kind": view.get("view_kind"),
+                "part_id_pass_object_sha256": view.get("part_id_pass_object_sha256"),
+                "part_id_status": view.get("part_id_status"),
+            }))
+            .collect::<Vec<_>>()));
+        let negative_space_hash = canonical_json_hash(&serde_json::json!(proposal_views
+            .iter()
+            .map(|view| serde_json::json!({
+                "view_kind": view.get("view_kind"),
+                "negative_space_status": view.get("negative_space_status"),
+                "negative_space_observations": view.get("negative_space_observations"),
+            }))
+            .collect::<Vec<_>>()));
+        let line_flow_hash = canonical_json_hash(&serde_json::json!(proposal_views
+            .iter()
+            .map(|view| serde_json::json!({
+                "view_kind": view.get("view_kind"),
+                "line_flow_status": view.get("line_flow_status"),
+                "line_flow_observations": view.get("line_flow_observations"),
+            }))
+            .collect::<Vec<_>>()));
         if proposal_canonical
             != quality
                 .proposal_form_art_evidence_canonical_sha256
@@ -47037,7 +47118,11 @@ fn validate_game_weapon_animated_glb_socket_transform_projection_v2_request_hash
 }
 
 fn projection_v2_canonical_f32(value: f32) -> f32 {
-    if value == 0.0 { 0.0 } else { value }
+    if value == 0.0 {
+        0.0
+    } else {
+        value
+    }
 }
 
 fn projection_v2_f32_json_number(value: f32) -> f64 {
@@ -62009,6 +62094,38 @@ fn temporary_reserved_object_metadata_is_allowed(mime: &str, kind: &str, size_by
     if authoring_mesh_edit_object_metadata_is_allowed(mime, kind, size_bytes) {
         return true;
     }
+    if mime == WEAPONRY_KNIFE_PRODUCTION_BRIEF_JSON_MIME
+        && kind == WEAPONRY_KNIFE_PRODUCTION_BRIEF_OBJECT_KIND
+    {
+        return size_bytes > 0
+            && size_bytes <= WEAPONRY_KNIFE_PRODUCTION_BRIEF_MAX_JSON_BYTES as i64;
+    }
+    if mime == weaponry_knife_reference_intent::KNIFE_REFERENCE_INTENT_JSON_MIME
+        && matches!(
+            kind,
+            weaponry_knife_reference_intent::KNIFE_REFERENCE_INTENT_BUNDLE_OBJECT_KIND
+                | weaponry_knife_reference_intent::KNIFE_REFERENCE_INTENT_INTAKE_OBJECT_KIND
+                | weaponry_knife_reference_intent::KNIFE_REFERENCE_INTENT_DETAIL_OBJECT_KIND
+                | weaponry_knife_reference_intent::KNIFE_REFERENCE_INTENT_QUALITY_OBJECT_KIND
+        )
+    {
+        return size_bytes > 0
+            && size_bytes
+                <= weaponry_knife_reference_intent::KNIFE_REFERENCE_INTENT_MAX_JSON_BYTES as i64;
+    }
+    if mime == weaponry_knife_source_binding::KNIFE_SOURCE_BINDING_JSON_MIME
+        && kind == weaponry_knife_source_binding::KNIFE_SOURCE_BINDING_OBJECT_KIND
+    {
+        return size_bytes > 0
+            && size_bytes
+                <= weaponry_knife_source_binding::KNIFE_SOURCE_BINDING_MAX_JSON_BYTES as i64;
+    }
+    if mime == weaponry_knife_pass_state::KNIFE_PASS_STATE_JSON_MIME
+        && kind == weaponry_knife_pass_state::KNIFE_PASS_STATE_OBJECT_KIND
+    {
+        return size_bytes > 0
+            && size_bytes <= weaponry_knife_pass_state::KNIFE_PASS_STATE_MAX_JSON_BYTES as i64;
+    }
     if mime == NATIVE_HIGH_DURABLE_JSON_MIME
         && matches!(
             kind,
@@ -62174,6 +62291,21 @@ fn temporary_reserved_object_metadata_is_allowed(mime: &str, kind: &str, size_by
     {
         return size_bytes > 0 && size_bytes <= 256 * 1024 * 1024;
     }
+    if mime == AUTHORING_MESH_V2_HIGH_JSON_MIME
+        && matches!(
+            kind,
+            AUTHORING_MESH_V2_HIGH_BRIDGE_OBJECT_KIND
+                | AUTHORING_MESH_V2_HIGH_RESULT_OBJECT_KIND
+                | AUTHORING_MESH_V2_HIGH_READBACK_OBJECT_KIND
+        )
+    {
+        let max_bytes = if kind == AUTHORING_MESH_V2_HIGH_BRIDGE_OBJECT_KIND {
+            AUTHORING_MESH_V2_HIGH_MAX_BRIDGE_BYTES
+        } else {
+            AUTHORING_MESH_V2_HIGH_MAX_JSON_BYTES
+        };
+        return size_bytes > 0 && size_bytes <= max_bytes as i64;
+    }
     if mime == "application/json"
         && matches!(
             kind,
@@ -62301,6 +62433,13 @@ fn authoring_mesh_edit_object_is_linked(
     fps_presentation_package_v2::ensure_table(transaction)?;
     weaponry_curve_modifier_graph::ensure_table(transaction)?;
     weaponry_curve_evaluated_mesh::ensure_table(transaction)?;
+    weaponry_knife_production_brief::ensure_table(transaction)?;
+    weaponry_knife_reference_intent::ensure_table(transaction)?;
+    weaponry_knife_source_binding::ensure_table(transaction)?;
+    weaponry_knife_pass_state::ensure_table(transaction)?;
+    weaponry_knife_uv_bake_v2::ensure_table(transaction)?;
+    authoring_mesh_v2_high_bridge::ensure_table(transaction)?;
+    authoring_mesh_v2_high_artifact::ensure_table(transaction)?;
     let linked: i64 = transaction.query_row(
         "SELECT CASE WHEN
             EXISTS (SELECT 1 FROM candidates WHERE prepared_object_sha256 = ?1 OR manifest_hash = ?1)
@@ -62314,6 +62453,11 @@ fn authoring_mesh_edit_object_is_linked(
             OR EXISTS (SELECT 1 FROM weaponry_curve_modifier_graph_records WHERE curve_set_object_sha256 = ?1 OR sample_set_object_sha256 = ?1 OR modifier_graph_object_sha256 = ?1 OR dependency_graph_object_sha256 = ?1 OR recompute_plan_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM weaponry_curve_evaluated_mesh_records WHERE evaluation_plan_object_sha256 = ?1 OR evaluated_mesh_object_sha256 = ?1 OR evaluated_mesh_identity_object_sha256 = ?1 OR evaluated_mesh_link_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM reference_evidence WHERE object_sha256 = ?1 OR derived_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM weaponry_knife_production_brief_records WHERE brief_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM knife_reference_intent_bundle_records WHERE intent_bundle_object_sha256 = ?1 OR intake_manifest_object_sha256 = ?1 OR detail_inventory_object_sha256 = ?1 OR quality_contract_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM knife_source_binding_records WHERE source_binding_object_sha256 = ?1 OR intent_bundle_object_sha256 = ?1 OR brief_object_sha256 = ?1 OR reference_object_sha256 = ?1 OR quality_contract_object_sha256 = ?1 OR authoring_mesh_revision_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM knife_pass_state_records WHERE pass_state_object_sha256 = ?1 OR source_binding_object_sha256 = ?1 OR intent_bundle_object_sha256 = ?1 OR brief_object_sha256 = ?1 OR reference_object_sha256 = ?1 OR authoring_mesh_revision_object_sha256 = ?1 OR baseline_artifact_sha256 = ?1 OR baseline_geometry_program_object_sha256 = ?1 OR baseline_artifact_readback_object_sha256 = ?1 OR attempt_artifact_sha256 = ?1 OR attempt_geometry_program_object_sha256 = ?1 OR attempt_artifact_readback_object_sha256 = ?1 OR render_set_object_sha256 = ?1 OR reference_comparison_object_sha256 = ?1 OR quality_report_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM knife_pass_state_roots WHERE object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM artifact_manifests WHERE object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM approval_receipts WHERE prepared_object_sha256 = ?1 OR summary_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM export_manifests WHERE manifest_sha256 = ?1 OR instr(artifact_hashes_json, ?1) > 0)
@@ -62395,9 +62539,11 @@ fn authoring_mesh_edit_object_is_linked(
             OR EXISTS (SELECT 1 FROM candidate_material_surface_quality_links m JOIN candidate_topology_quality_links t ON t.topology_quality_id = m.source_topology_quality_id WHERE t.artifact_sha256 = ?1 OR t.artifact_readback_object_sha256 = ?1 OR t.geometry_program_object_sha256 = ?1 OR t.report_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM candidate_material_surface_quality_links m JOIN appearance_source_lineage_links a ON a.candidate_id = m.output_candidate_id AND a.appearance_program_sha256 = (SELECT json_extract(m.payload_json, '$.appearance_program_sha256')) WHERE a.sidecar_object_sha256 = ?1 OR a.appearance_program_object_sha256 = ?1 OR a.geometry_program_object_sha256 = ?1 OR a.material_pack_manifest_object_sha256 = ?1 OR a.texture_build_receipt_object_sha256 = ?1 OR a.candidate_surface_bake_receipt_object_sha256 = ?1 OR a.lod0_artifact_sha256 = ?1 OR a.lod1_artifact_sha256 = ?1 OR a.lod2_artifact_sha256 = ?1 OR a.lod0_artifact_readback_object_sha256 = ?1 OR a.lod1_artifact_readback_object_sha256 = ?1 OR a.lod2_artifact_readback_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM native_high_durable_links WHERE source_canonical_mesh_object_sha256 = ?1 OR detail_graph_object_sha256 = ?1 OR high_mesh_artifact_object_sha256 = ?1 OR high_artifact_object_sha256 = ?1 OR high_artifact_readback_object_sha256 = ?1 OR link_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM authoring_mesh_v2_high_artifact_records WHERE high_artifact_object_sha256 = ?1 OR high_artifact_readback_object_sha256 = ?1 OR receipt_object_sha256 = ?1 OR bridge_object_sha256 = ?1 OR source_binding_object_sha256 = ?1 OR revision_object_sha256 = ?1 OR materialized_program_object_sha256 = ?1 OR high_result_object_sha256 = ?1 OR high_readback_object_sha256 = ?1 OR instr(record_json, ?1) > 0)
             OR EXISTS (SELECT 1 FROM low_quad_draft_durable_links WHERE source_high_artifact_object_sha256 = ?1 OR source_high_artifact_readback_object_sha256 = ?1 OR worker_result_object_sha256 = ?1 OR artifact_object_sha256 = ?1 OR readback_object_sha256 = ?1 OR link_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM production_weapon_formal_high_links WHERE high_artifact_sha256 = ?1 OR high_artifact_readback_object_sha256 = ?1 OR receipt_object_sha256 = ?1 OR instr(payload_json, ?1) > 0)
             OR EXISTS (SELECT 1 FROM hero_uv_durable_links WHERE source_low_artifact_object_sha256 = ?1 OR source_low_artifact_readback_object_sha256 = ?1 OR layout_object_sha256 = ?1 OR link_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM weaponry_knife_uv_bake_v2_aggregate_links WHERE receipt_object_sha256 = ?1 OR instr(record_json, ?1) > 0)
             OR EXISTS (SELECT 1 FROM production_weapon_form_art_baselines WHERE registration_lineage_receipt_object_sha256 = ?1 OR registered_rig_v2_object_sha256 = ?1 OR receipt_object_sha256 = ?1 OR instr(view_receipt_object_sha256_json, ?1) > 0 OR instr(record_json, ?1) > 0)
             OR EXISTS (SELECT 1 FROM production_weapon_form_art_composite_proposal_links WHERE plan_object_sha256 = ?1 OR current_base_artifact_sha256 = ?1 OR current_base_geometry_program_object_sha256 = ?1 OR current_base_proposal_evidence_receipt_object_sha256 = ?1 OR composed_geometry_program_object_sha256 = ?1 OR proposal_artifact_sha256 = ?1 OR proposal_artifact_readback_object_sha256 = ?1 OR cross_view_evidence_bundle_sha256 = ?1 OR proposal_form_art_evidence_receipt_object_sha256 = ?1 OR receipt_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM production_weapon_form_art_composite_evidence_links WHERE parent_receipt_object_sha256 = ?1 OR cross_view_evidence_bundle_sha256 = ?1 OR proposal_form_art_evidence_receipt_object_sha256 = ?1 OR attachment_receipt_object_sha256 = ?1)
@@ -65820,12 +65966,10 @@ mod tests {
             table_count(&store, "authoring_mesh_identity_lineage_durable_records"),
             rows_before_negative
         );
-        assert!(
-            store
-                .get_authoring_mesh_identity_lineage_by_lineage(project_id, lineage_id, 2)
-                .expect("missing revision lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_authoring_mesh_identity_lineage_by_lineage(project_id, lineage_id, 2)
+            .expect("missing revision lookup")
+            .is_none());
 
         let (reused_identity, reused_identity_object) =
             authoring_mesh_identity_lineage_revision_fixture(
@@ -66701,8 +66845,8 @@ mod tests {
         attachment
     }
 
-    fn fictional_energy_vfx_animated_socket_attachment_v3_test_fixture()
-    -> (FictionalEnergyVfxAnimatedSocketAttachmentV3Record, Vec<u8>) {
+    fn fictional_energy_vfx_animated_socket_attachment_v3_test_fixture(
+    ) -> (FictionalEnergyVfxAnimatedSocketAttachmentV3Record, Vec<u8>) {
         let hash = |seed: u64| format!("{seed:064x}");
         let attachment_key = hash(30_000);
         let particle_key = hash(30_100);
@@ -66886,8 +67030,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v3_receipt_projection_is_canonical_and_reachable()
-     {
+    fn fictional_energy_vfx_animated_socket_attachment_v3_receipt_projection_is_canonical_and_reachable(
+    ) {
         let (attachment, receipt_bytes) =
             fictional_energy_vfx_animated_socket_attachment_v3_test_fixture();
         validate_fictional_energy_vfx_animated_socket_attachment_v3(&attachment)
@@ -66924,12 +67068,10 @@ mod tests {
             receipt.record.sha256,
             attachment.attachment_receipt_object_sha256
         );
-        assert!(
-            store
-                .get_object(&attachment.attachment_key_sha256)
-                .expect("Attachment@3 parent key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&attachment.attachment_key_sha256)
+            .expect("Attachment@3 parent key lookup")
+            .is_none());
         let mut connection = store.lock_connection().expect("connection");
         let transaction = connection.transaction().expect("transaction");
         mark_reachable_in_transaction(&transaction, &[receipt.record.sha256.clone()])
@@ -66947,8 +67089,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v3_requires_exact_fifteen_preroll_frames_and_retarget_fails_closed()
-     {
+    fn fictional_energy_vfx_animated_socket_attachment_v3_requires_exact_fifteen_preroll_frames_and_retarget_fails_closed(
+    ) {
         let (attachment, receipt_bytes) =
             fictional_energy_vfx_animated_socket_attachment_v3_test_fixture();
         let store = Store::memory().expect("store");
@@ -66975,14 +67117,12 @@ mod tests {
             canonical.canonical_sha256.clear();
             canonical_json_hash(&serde_json::to_value(canonical).expect("parent canonical"))
         };
-        assert!(
-            store
-                .record_fictional_energy_vfx_animated_socket_attachment_v3_link(
-                    &bad_preroll,
-                    &receipt.record,
-                )
-                .is_err()
-        );
+        assert!(store
+            .record_fictional_energy_vfx_animated_socket_attachment_v3_link(
+                &bad_preroll,
+                &receipt.record,
+            )
+            .is_err());
         assert_eq!(
             table_count(
                 &store,
@@ -67003,14 +67143,12 @@ mod tests {
             canonical.canonical_sha256.clear();
             canonical_json_hash(&serde_json::to_value(canonical).expect("retarget canonical"))
         };
-        assert!(
-            store
-                .record_fictional_energy_vfx_animated_socket_attachment_v3_link(
-                    &retarget,
-                    &receipt.record,
-                )
-                .is_err()
-        );
+        assert!(store
+            .record_fictional_energy_vfx_animated_socket_attachment_v3_link(
+                &retarget,
+                &receipt.record,
+            )
+            .is_err());
         assert_eq!(
             table_count(
                 &store,
@@ -67021,8 +67159,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v3_idempotence_conflict_and_closed_allowlist()
-     {
+    fn fictional_energy_vfx_animated_socket_attachment_v3_idempotence_conflict_and_closed_allowlist(
+    ) {
         let (original, _) = fictional_energy_vfx_animated_socket_attachment_v3_test_fixture();
         let mut replay = original.clone();
         replay.created_at = "attachment-v3-replayed".to_owned();
@@ -67073,28 +67211,24 @@ mod tests {
             .expect("Attachment@3 frame schema");
         assert_eq!(parent_columns, 70);
         assert_eq!(frame_columns, 31);
-        assert!(
-            attachment_v3_parent_texts(
-                &connection,
-                "game_weapon_animated_glb_socket_transform_projection_v2_links",
-                "projection_key_sha256",
-                &original.projection_key_sha256,
-                &["projection_key_sha256"],
-            )
-            .expect("Projection@2 parent lookup column")
-            .is_none()
-        );
-        assert!(
-            attachment_v3_parent_texts(
-                &connection,
-                "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_links",
-                "sequence_key_sha256",
-                &original.particle_sequence_key_sha256,
-                &["sequence_key_sha256"],
-            )
-            .expect("Particles@2 parent lookup column")
-            .is_none()
-        );
+        assert!(attachment_v3_parent_texts(
+            &connection,
+            "game_weapon_animated_glb_socket_transform_projection_v2_links",
+            "projection_key_sha256",
+            &original.projection_key_sha256,
+            &["projection_key_sha256"],
+        )
+        .expect("Projection@2 parent lookup column")
+        .is_none());
+        assert!(attachment_v3_parent_texts(
+            &connection,
+            "fictional_energy_vfx_animated_socket_particles_v2_projection_sequence_links",
+            "sequence_key_sha256",
+            &original.particle_sequence_key_sha256,
+            &["sequence_key_sha256"],
+        )
+        .expect("Particles@2 parent lookup column")
+        .is_none());
     }
 
     fn fictional_energy_vfx_animated_socket_attachment_test_record(
@@ -67822,12 +67956,10 @@ mod tests {
             );
         }
         drop(connection);
-        assert!(
-            store
-                .get_object(&projection.projection_key_sha256)
-                .expect("projection key is not a CAS object")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&projection.projection_key_sha256)
+            .expect("projection key is not a CAS object")
+            .is_none());
     }
 
     #[test]
@@ -67990,12 +68122,10 @@ mod tests {
             );
         }
         drop(connection);
-        assert!(
-            store
-                .get_object(&link.socket_materialization_key_sha256)
-                .expect("parent key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&link.socket_materialization_key_sha256)
+            .expect("parent key lookup")
+            .is_none());
     }
 
     #[test]
@@ -68173,12 +68303,10 @@ mod tests {
             );
         }
         drop(connection);
-        assert!(
-            store
-                .get_object(&link.animated_socket_materialization_key_sha256)
-                .expect("parent key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&link.animated_socket_materialization_key_sha256)
+            .expect("parent key lookup")
+            .is_none());
     }
 
     #[test]
@@ -68837,12 +68965,10 @@ mod tests {
             table_count(&store, "write_idempotency"),
         );
         let missing = "f".repeat(64);
-        assert!(
-            store
-                .get_object(&missing)
-                .expect("missing object lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&missing)
+            .expect("missing object lookup")
+            .is_none());
         let mut missing_candidate = candidate.clone();
         missing_candidate.prepared_object_sha256 = Some(missing.clone());
         missing_candidate.manifest_hash = Some(missing.clone());
@@ -69104,18 +69230,14 @@ mod tests {
             ),
             counts_before
         );
-        assert!(
-            store
-                .get_candidate(&candidate.candidate_id)
-                .expect("rolled-back candidate lookup")
-                .is_none()
-        );
-        assert!(
-            store
-                .get_geometry_candidate_evidence(&candidate.candidate_id)
-                .expect("rolled-back evidence lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_candidate(&candidate.candidate_id)
+            .expect("rolled-back candidate lookup")
+            .is_none());
+        assert!(store
+            .get_geometry_candidate_evidence(&candidate.candidate_id)
+            .expect("rolled-back evidence lookup")
+            .is_none());
     }
 
     #[test]
@@ -69131,17 +69253,13 @@ mod tests {
             )
             .expect("new rollback object");
         assert!(created.created_new);
-        assert!(
-            store
-                .discard_new_temporary_geometry_prepare_object(&created)
-                .expect("new temporary object rollback")
-        );
-        assert!(
-            store
-                .get_object(&created.record.sha256)
-                .expect("removed metadata lookup")
-                .is_none()
-        );
+        assert!(store
+            .discard_new_temporary_geometry_prepare_object(&created)
+            .expect("new temporary object rollback"));
+        assert!(store
+            .get_object(&created.record.sha256)
+            .expect("removed metadata lookup")
+            .is_none());
         assert!(!created.path.exists());
 
         let first = store
@@ -69168,12 +69286,10 @@ mod tests {
             store.discard_new_temporary_geometry_prepare_object(&existing),
             Err(StoreError::Contract { code, .. }) if code == "GEOMETRY_PREPARE_ROLLBACK_DENIED"
         ));
-        assert!(
-            store
-                .get_object(&first.record.sha256)
-                .expect("existing metadata")
-                .is_some()
-        );
+        assert!(store
+            .get_object(&first.record.sha256)
+            .expect("existing metadata")
+            .is_some());
         assert!(first.path.exists());
     }
 
@@ -69233,17 +69349,15 @@ mod tests {
                 "{\"schema_version\":\"GeometryPrepareResult@2\"}".to_owned(),
             )
         );
-        assert!(
-            store
-                .begin_geometry_prepare_single_flight(
-                    "project-single-flight",
-                    "geometry_prepare",
-                    "idempotency-single-flight",
-                    &request_sha256,
-                )
-                .expect("released key can retry")
-                .is_owner()
-        );
+        assert!(store
+            .begin_geometry_prepare_single_flight(
+                "project-single-flight",
+                "geometry_prepare",
+                "idempotency-single-flight",
+                &request_sha256,
+            )
+            .expect("released key can retry")
+            .is_owner());
     }
 
     #[test]
@@ -69310,28 +69424,20 @@ mod tests {
         assert!(first.created_new);
         assert!(!second.created_new);
 
-        assert!(
-            !store
-                .release_cas_reservation_object(&first_reservation, &first, true)
-                .expect("first release")
-        );
-        assert!(
-            store
-                .get_object(&first.record.sha256)
-                .expect("shared object metadata")
-                .is_some()
-        );
-        assert!(
-            store
-                .release_cas_reservation_object(&second_reservation, &second, true)
-                .expect("last release")
-        );
-        assert!(
-            store
-                .get_object(&first.record.sha256)
-                .expect("removed shared object metadata")
-                .is_none()
-        );
+        assert!(!store
+            .release_cas_reservation_object(&first_reservation, &first, true)
+            .expect("first release"));
+        assert!(store
+            .get_object(&first.record.sha256)
+            .expect("shared object metadata")
+            .is_some());
+        assert!(store
+            .release_cas_reservation_object(&second_reservation, &second, true)
+            .expect("last release"));
+        assert!(store
+            .get_object(&first.record.sha256)
+            .expect("removed shared object metadata")
+            .is_none());
         assert!(!first.path.exists());
     }
 
@@ -69350,17 +69456,13 @@ mod tests {
             )
             .expect("formal High receipt");
 
-        assert!(
-            store
-                .release_cas_reservation_object(&reservation, &object, true)
-                .expect("formal High cleanup")
-        );
-        assert!(
-            store
-                .get_object(&object.record.sha256)
-                .expect("formal High metadata")
-                .is_none()
-        );
+        assert!(store
+            .release_cas_reservation_object(&reservation, &object, true)
+            .expect("formal High cleanup"));
+        assert!(store
+            .get_object(&object.record.sha256)
+            .expect("formal High metadata")
+            .is_none());
         assert!(!object.path.exists());
     }
 
@@ -69574,11 +69676,9 @@ mod tests {
         );
         assert_eq!(table_count(&store, "write_idempotency"), 1);
 
-        assert!(
-            store
-                .discard_new_temporary_authoring_mesh_edit_object(&artifact)
-                .is_err()
-        );
+        assert!(store
+            .discard_new_temporary_authoring_mesh_edit_object(&artifact)
+            .is_err());
     }
 
     #[test]
@@ -69745,22 +69845,16 @@ mod tests {
             )
             .expect("existing object");
         assert!(!existing.created_new);
-        assert!(
-            store
-                .discard_new_temporary_authoring_mesh_edit_object(&existing)
-                .is_err()
-        );
-        assert!(
-            store
-                .discard_new_temporary_authoring_mesh_edit_object(&first)
-                .expect("unlinked rollback")
-        );
-        assert!(
-            store
-                .get_object(&first.record.sha256)
-                .expect("metadata")
-                .is_none()
-        );
+        assert!(store
+            .discard_new_temporary_authoring_mesh_edit_object(&existing)
+            .is_err());
+        assert!(store
+            .discard_new_temporary_authoring_mesh_edit_object(&first)
+            .expect("unlinked rollback"));
+        assert!(store
+            .get_object(&first.record.sha256)
+            .expect("metadata")
+            .is_none());
         assert!(!first.path.exists());
 
         let linked = store
@@ -69785,11 +69879,9 @@ mod tests {
         store
             .insert_candidate(&candidate)
             .expect("linked candidate");
-        assert!(
-            store
-                .discard_new_temporary_authoring_mesh_edit_object(&linked)
-                .is_err()
-        );
+        assert!(store
+            .discard_new_temporary_authoring_mesh_edit_object(&linked)
+            .is_err());
         assert_eq!(
             store
                 .get_object(&linked.record.sha256)
@@ -69945,11 +70037,9 @@ mod tests {
                 .reachability,
             "reachable"
         );
-        assert!(
-            store
-                .discard_new_temporary_subdivision_sidecar(&sidecar)
-                .is_err()
-        );
+        assert!(store
+            .discard_new_temporary_subdivision_sidecar(&sidecar)
+            .is_err());
         let stored = store
             .get_subdivision_artifact_lineage_link(candidate_id, node_id)
             .expect("get link")
@@ -69997,11 +70087,9 @@ mod tests {
             sidecar_object_sha256: "7".repeat(64),
             ..link
         };
-        assert!(
-            store
-                .record_subdivision_artifact_lineage_link(&missing_sidecar)
-                .is_err()
-        );
+        assert!(store
+            .record_subdivision_artifact_lineage_link(&missing_sidecar)
+            .is_err());
 
         let rollback_sidecar = store
             .put_object(
@@ -70013,17 +70101,13 @@ mod tests {
             )
             .expect("rollback sidecar");
         assert!(rollback_sidecar.created_new);
-        assert!(
-            store
-                .discard_new_temporary_subdivision_sidecar(&rollback_sidecar)
-                .expect("rollback temporary sidecar")
-        );
-        assert!(
-            store
-                .get_object(&rollback_sidecar.record.sha256)
-                .expect("rolled back metadata")
-                .is_none()
-        );
+        assert!(store
+            .discard_new_temporary_subdivision_sidecar(&rollback_sidecar)
+            .expect("rollback temporary sidecar"));
+        assert!(store
+            .get_object(&rollback_sidecar.record.sha256)
+            .expect("rolled back metadata")
+            .is_none());
         assert!(!rollback_sidecar.path.exists());
     }
 
@@ -70051,12 +70135,10 @@ mod tests {
         assert_eq!(cancelled.status, "cancelled");
         assert_eq!(cancelled.error_code.as_deref(), Some("JOB_CANCELLED"));
         assert_eq!(store.list_job_events("job-cancel", 0).unwrap().len(), 1);
-        assert!(
-            store
-                .list_versions(Some("project-job-cancel"))
-                .unwrap()
-                .is_empty()
-        );
+        assert!(store
+            .list_versions(Some("project-job-cancel"))
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -70121,12 +70203,10 @@ mod tests {
         let restored_db = root.join("restored.sqlite");
         let restored_cas = root.join("restored.cas");
         let restored = Store::restore_from(&backup, &restored_db, &restored_cas).expect("restore");
-        assert!(
-            restored
-                .get_project("project-backup")
-                .expect("read")
-                .is_some()
-        );
+        assert!(restored
+            .get_project("project-backup")
+            .expect("read")
+            .is_some());
         assert_eq!(
             restored
                 .cas()
@@ -70630,8 +70710,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_frame_rejects_trail_bloom_retarget_without_rows()
-     {
+    fn fictional_energy_vfx_animated_socket_attachment_frame_rejects_trail_bloom_retarget_without_rows(
+    ) {
         let (store, trail_bloom, _) = trails_bloom_store_fixture();
         let alternate_trail_key = trails_bloom_fixture_sha(40);
         {
@@ -70776,8 +70856,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v2_validates_one_to_fifteen_preroll_mapped_frames()
-     {
+    fn fictional_energy_vfx_animated_socket_attachment_v2_validates_one_to_fifteen_preroll_mapped_frames(
+    ) {
         let one = fictional_energy_vfx_animated_socket_attachment_v2_test_record(1);
         validate_fictional_energy_vfx_animated_socket_attachment_v2(&one)
             .expect("one V2 trail output frame");
@@ -70801,8 +70881,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v2_migration_has_independent_parent_frames_and_exact_fks()
-     {
+    fn fictional_energy_vfx_animated_socket_attachment_v2_migration_has_independent_parent_frames_and_exact_fks(
+    ) {
         let store = Store::memory().expect("store");
         let connection = store.lock_connection().expect("connection");
         let parent_columns: i64 = connection
@@ -70877,8 +70957,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v2_frame_binding_uses_explicit_current_indices_and_retarget_writes_zero_rows()
-     {
+    fn fictional_energy_vfx_animated_socket_attachment_v2_frame_binding_uses_explicit_current_indices_and_retarget_writes_zero_rows(
+    ) {
         let attachment = fictional_energy_vfx_animated_socket_attachment_v2_test_record(1);
         let frame = &attachment.frames[0];
         let connection = Connection::open_in_memory().expect("binding connection");
@@ -71049,8 +71129,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_attachment_v2_owned_receipt_is_gc_linked_and_parent_key_is_not_cas()
-     {
+    fn fictional_energy_vfx_animated_socket_attachment_v2_owned_receipt_is_gc_linked_and_parent_key_is_not_cas(
+    ) {
         let store = Store::memory().expect("store");
         let attachment = fictional_energy_vfx_animated_socket_attachment_v2_test_record(1);
         let receipt = store
@@ -71128,12 +71208,10 @@ mod tests {
                 .reachability,
             "reachable"
         );
-        assert!(
-            store
-                .get_object(&attachment.attachment_key_sha256)
-                .expect("parent key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&attachment.attachment_key_sha256)
+            .expect("parent key lookup")
+            .is_none());
     }
 
     fn production_stage_store_fixture(
@@ -71665,12 +71743,10 @@ mod tests {
                 "reachable"
             );
         }
-        assert!(
-            store
-                .get_object(&quality.topology_quality_id)
-                .expect("parent key")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&quality.topology_quality_id)
+            .expect("parent key")
+            .is_none());
     }
 
     #[test]
@@ -71729,11 +71805,9 @@ mod tests {
             )
             .expect("tamper payload");
         drop(connection);
-        assert!(
-            store
-                .get_candidate_topology_quality(&quality.topology_quality_id)
-                .is_err()
-        );
+        assert!(store
+            .get_candidate_topology_quality(&quality.topology_quality_id)
+            .is_err());
     }
 
     #[test]
@@ -71839,8 +71913,8 @@ mod tests {
         )
     }
 
-    fn candidate_material_surface_quality_store_fixture()
-    -> (Store, CandidateMaterialSurfaceQualityRecord, CasObject) {
+    fn candidate_material_surface_quality_store_fixture(
+    ) -> (Store, CandidateMaterialSurfaceQualityRecord, CasObject) {
         let (store, topology, topology_report, _) = candidate_topology_quality_store_fixture();
         let project_id = topology.project_id.clone();
         let source_candidate_id = topology.candidate_id.clone();
@@ -72183,8 +72257,8 @@ mod tests {
         (store, quality, report)
     }
 
-    fn mechanical_animation_clip_v2_store_fixture()
-    -> (Store, MechanicalAnimationClipV2LinkRecord, CasObject) {
+    fn mechanical_animation_clip_v2_store_fixture(
+    ) -> (Store, MechanicalAnimationClipV2LinkRecord, CasObject) {
         let (store, quality, material_report) = candidate_material_surface_quality_store_fixture();
         store
             .record_candidate_material_surface_quality(&quality, &material_report.record)
@@ -72954,18 +73028,14 @@ mod tests {
                 "V2 ancestor {hash} must remain reachable",
             );
         }
-        assert!(
-            store
-                .get_object(&link.animated_socket_materialization_key_sha256)
-                .expect("V2 child key lookup")
-                .is_none()
-        );
-        assert!(
-            store
-                .get_object(&link.animation_glb_key_sha256)
-                .expect("V2 parent key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&link.animated_socket_materialization_key_sha256)
+            .expect("V2 child key lookup")
+            .is_none());
+        assert!(store
+            .get_object(&link.animation_glb_key_sha256)
+            .expect("V2 parent key lookup")
+            .is_none());
     }
 
     #[test]
@@ -73082,12 +73152,10 @@ mod tests {
         assert!(!columns.contains(&"candidate_id".to_owned()));
         assert!(!columns.contains(&"mechanical_animation_glb_key_sha256".to_owned()));
         drop(connection);
-        assert!(
-            store
-                .get_object(&link.animated_socket_materialization_key_sha256)
-                .expect("V2 child key")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&link.animated_socket_materialization_key_sha256)
+            .expect("V2 child key")
+            .is_none());
     }
 
     #[test]
@@ -73494,12 +73562,10 @@ mod tests {
                 .expect("get V2 projection object"),
             Some(object.record.sha256.clone())
         );
-        assert!(
-            store
-                .get_object(&projection.projection_key_sha256)
-                .expect("V2 projection key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&projection.projection_key_sha256)
+            .expect("V2 projection key lookup")
+            .is_none());
         for hash in game_weapon_animated_glb_socket_transform_projection_v2_reachable_hashes(
             &projection,
             &object.record.sha256,
@@ -73605,8 +73671,8 @@ mod tests {
     }
 
     #[test]
-    fn game_weapon_animated_glb_socket_transform_projection_v2_rejects_input_schedule_and_roles_tamper()
-     {
+    fn game_weapon_animated_glb_socket_transform_projection_v2_rejects_input_schedule_and_roles_tamper(
+    ) {
         let (store, mut input_tamper, _) = transform_projection_v2_fixture();
         input_tamper.input_sha256 = "f".repeat(64);
         input_tamper.canonical_sha256.clear();
@@ -73671,8 +73737,8 @@ mod tests {
     }
 
     #[test]
-    fn game_weapon_animated_glb_socket_transform_projection_v2_rejects_socket_identity_and_matrix_tamper()
-     {
+    fn game_weapon_animated_glb_socket_transform_projection_v2_rejects_socket_identity_and_matrix_tamper(
+    ) {
         let (store, mut identity_tamper, _) = transform_projection_v2_fixture();
         identity_tamper.frames[0].socket_transforms[1].node_name =
             "forgecad-anchor-retargeted".to_owned();
@@ -73710,8 +73776,8 @@ mod tests {
     }
 
     #[test]
-    fn game_weapon_animated_glb_socket_transform_projection_v2_preserves_non_unit_translation_composition()
-     {
+    fn game_weapon_animated_glb_socket_transform_projection_v2_preserves_non_unit_translation_composition(
+    ) {
         let parent = forgecad_contracts::GameWeaponAnimatedGlbSocketTransformProjectionV2Pose {
             translation_m: vec![0.0, 0.0, 0.0],
             rotation_quat_xyzw: vec![0.0, 0.0, 0.0, 1.0],
@@ -73833,12 +73899,10 @@ mod tests {
                 "ancestor {hash} must remain reachable",
             );
         }
-        assert!(
-            store
-                .get_object(&link.animation_glb_key_sha256)
-                .expect("non-CAS key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&link.animation_glb_key_sha256)
+            .expect("non-CAS key lookup")
+            .is_none());
         assert_eq!(clip_object.record.kind, MECHANICAL_ANIMATION_CLIP_V2_KIND);
         assert_eq!(
             receipt_object.record.kind,
@@ -73936,12 +74000,10 @@ mod tests {
             1,
         ));
         let (store, link, _, _) = mechanical_animation_glb_v2_store_fixture();
-        assert!(
-            store
-                .get_object(&link.animation_glb_key_sha256)
-                .expect("parent key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&link.animation_glb_key_sha256)
+            .expect("parent key lookup")
+            .is_none());
     }
 
     #[test]
@@ -73970,12 +74032,10 @@ mod tests {
                 .reachability,
             "reachable"
         );
-        assert!(
-            store
-                .get_object("mechanical-animation-clip-v2-fixture")
-                .expect("clip identity is not CAS")
-                .is_none()
-        );
+        assert!(store
+            .get_object("mechanical-animation-clip-v2-fixture")
+            .expect("clip identity is not CAS")
+            .is_none());
     }
 
     #[test]
@@ -74502,8 +74562,8 @@ mod tests {
         production_stage_v3_store_fixture_with_store(Store::memory().expect("V3 store"))
     }
 
-    fn production_camera_lock_store_fixture()
-    -> (Store, ProductionCameraLockRecord, CasObject, CasObject) {
+    fn production_camera_lock_store_fixture(
+    ) -> (Store, ProductionCameraLockRecord, CasObject, CasObject) {
         let (store, transition, transition_receipt) = production_stage_v3_store_fixture();
         let (_, head, _) = store
             .record_production_stage_transition_v3_with_replay(
@@ -74655,12 +74715,10 @@ mod tests {
                 .reachability,
             "reachable"
         );
-        assert!(
-            store
-                .get_object(&record.source_transition_sha256)
-                .expect("parent key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&record.source_transition_sha256)
+            .expect("parent key lookup")
+            .is_none());
     }
 
     #[test]
@@ -74745,12 +74803,10 @@ mod tests {
             stored.source_transition_sha256,
             record.source_transition_sha256
         );
-        assert!(
-            store
-                .get_object(&stored.source_transition_sha256)
-                .expect("parent key lookup")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&stored.source_transition_sha256)
+            .expect("parent key lookup")
+            .is_none());
     }
 
     #[test]
@@ -75573,12 +75629,10 @@ mod tests {
                 "camera edge object {hash} must be reachable"
             );
         }
-        assert!(
-            store
-                .get_object(&first.transition_id)
-                .expect("transition id is not CAS")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&first.transition_id)
+            .expect("transition id is not CAS")
+            .is_none());
 
         let (_replayed_record, replayed_head, replayed) = store
             .record_production_stage_transition_v3_with_replay(&first, &first_receipt)
@@ -75850,12 +75904,10 @@ mod tests {
             "agentic-production-stage-transition-v2-unknown",
             1,
         ));
-        assert!(
-            store
-                .get_object(&transition.root_candidate_id)
-                .expect("V2 head key is not CAS")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&transition.root_candidate_id)
+            .expect("V2 head key is not CAS")
+            .is_none());
     }
 
     #[test]
@@ -75879,11 +75931,9 @@ mod tests {
                 "1",
             )
             .expect("invalid parent receipt");
-        assert!(
-            store
-                .record_production_stage_transition_v2(&invalid_parent, &invalid_receipt.record)
-                .is_err()
-        );
+        assert!(store
+            .record_production_stage_transition_v2(&invalid_parent, &invalid_receipt.record)
+            .is_err());
         assert_eq!(
             table_count(&store, "agentic_production_stage_transitions_v2"),
             0
@@ -75982,12 +76032,10 @@ mod tests {
                 "reachable"
             );
         }
-        assert!(
-            store
-                .get_object(&quality.material_surface_quality_id)
-                .expect("parent key is not CAS")
-                .is_none()
-        );
+        assert!(store
+            .get_object(&quality.material_surface_quality_id)
+            .expect("parent key is not CAS")
+            .is_none());
     }
 
     #[test]
@@ -76019,11 +76067,9 @@ mod tests {
         let mut retarget = quality.clone();
         retarget.output_candidate_id = "candidate-material-surface-missing".to_owned();
         retarget.canonical_sha256 = candidate_material_surface_quality_canonical(&retarget);
-        assert!(
-            store
-                .record_candidate_material_surface_quality(&retarget, &report.record)
-                .is_err()
-        );
+        assert!(store
+            .record_candidate_material_surface_quality(&retarget, &report.record)
+            .is_err());
         assert_eq!(
             table_count(&store, "candidate_material_surface_quality_links"),
             1
@@ -76044,11 +76090,9 @@ mod tests {
             )
             .expect("tamper row");
         drop(connection);
-        assert!(
-            store
-                .get_candidate_material_surface_quality(&quality.material_surface_quality_id)
-                .is_err()
-        );
+        assert!(store
+            .get_candidate_material_surface_quality(&quality.material_surface_quality_id)
+            .is_err());
     }
 
     #[test]
@@ -76691,8 +76735,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_replay_normalizes_metadata_but_not_bindings()
-     {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_replay_normalizes_metadata_but_not_bindings(
+    ) {
         let original = animated_socket_particles_sequence_test_record(2);
         let mut replay = original.clone();
         replay.created_at = "2026-08-22T00:00:00Z".to_owned();
@@ -76708,8 +76752,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_migration_has_parent_child_and_no_key_cas()
-     {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_migration_has_parent_child_and_no_key_cas(
+    ) {
         let root = test_root("animated-particles-sequence-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -76750,8 +76794,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_migration_has_dual_parent_child_and_no_key_cas()
-     {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_migration_has_dual_parent_child_and_no_key_cas(
+    ) {
         let root = test_root("animated-particles-sequence-v2-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -76859,8 +76903,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_api_rejects_v1_parent_key_without_rows()
-     {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_api_rejects_v1_parent_key_without_rows(
+    ) {
         let root = test_root("animated-particles-sequence-v2-v1-key-isolation");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -76936,8 +76980,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_validator_requires_dual_candidates_and_frozen_policy()
-     {
+    fn fictional_energy_vfx_animated_socket_particles_sequence_v2_validator_requires_dual_candidates_and_frozen_policy(
+    ) {
         let hash = |value: usize| format!("{value:064x}");
         let mut frame = serde_json::Map::new();
         frame.insert(
@@ -77336,8 +77380,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_trails_sequence_replay_normalizes_metadata_but_not_bindings()
-     {
+    fn fictional_energy_vfx_animated_socket_trails_sequence_replay_normalizes_metadata_but_not_bindings(
+    ) {
         let original = animated_socket_trails_sequence_test_record(2);
         let mut replay = original.clone();
         replay.created_at = "2026-08-23T00:00:00Z".to_owned();
@@ -77357,8 +77401,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_trails_sequence_migration_has_parent_frame_history_and_no_key_cas()
-     {
+    fn fictional_energy_vfx_animated_socket_trails_sequence_migration_has_parent_frame_history_and_no_key_cas(
+    ) {
         let root = test_root("animated-trails-sequence-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -77505,8 +77549,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_trails_v2_migration_has_parent_frame_history_and_no_key_cas()
-     {
+    fn fictional_energy_vfx_animated_socket_trails_v2_migration_has_parent_frame_history_and_no_key_cas(
+    ) {
         let root = test_root("animated-trails-v2-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -77600,8 +77644,8 @@ mod tests {
     }
 
     #[test]
-    fn fictional_energy_vfx_animated_socket_trails_bloom_v2_migration_has_parent_frame_and_no_key_cas()
-     {
+    fn fictional_energy_vfx_animated_socket_trails_bloom_v2_migration_has_parent_frame_and_no_key_cas(
+    ) {
         let root = test_root("animated-trails-bloom-v2-schema");
         let db = root.join("runtime.sqlite3");
         let store = Store::open(&db).expect("store");
@@ -78089,16 +78133,14 @@ mod tests {
             value["bundle_key_sha256"].as_str().expect("key"),
         );
         assert!(result.is_ok());
-        assert!(
-            store
-                .record_production_weapon_retopology_cage_source_bundle(&retarget, &receipt.record)
-                .is_err()
-        );
+        assert!(store
+            .record_production_weapon_retopology_cage_source_bundle(&retarget, &receipt.record)
+            .is_err());
     }
 
     #[test]
-    fn production_weapon_retopology_cage_source_bundle_get_rejects_scalar_tamper_and_allowlist_is_closed()
-     {
+    fn production_weapon_retopology_cage_source_bundle_get_rejects_scalar_tamper_and_allowlist_is_closed(
+    ) {
         let (store, value, receipt) = production_weapon_retopology_cage_source_fixture();
         store
             .record_production_weapon_retopology_cage_source_bundle(&value, &receipt.record)
@@ -78241,11 +78283,9 @@ mod tests {
         report["metric_gate_results"][0]["direction"] = Value::String("minimum".to_owned());
         let error = ensure_form_quality_quality_structure(&report, "quality_report")
             .expect_err("non-schema direction spelling must fail closed");
-        assert!(
-            error
-                .to_string()
-                .contains("PRODUCTION_WEAPON_FORM_QUALITY_QUALITY_METRICS_INVALID")
-        );
+        assert!(error
+            .to_string()
+            .contains("PRODUCTION_WEAPON_FORM_QUALITY_QUALITY_METRICS_INVALID"));
     }
 
     #[test]

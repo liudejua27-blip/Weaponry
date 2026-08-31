@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-v2-candidate-materialize-prepare-request.schema.json",
+  "title": "AuthoringMeshV2CandidateMaterializeRequest@1",
+  "description": "Closed Runtime-only request to reload one durable AuthoringMeshRevision@2, derive the product authoring-mesh GeometryProgram@2 and stage one reviewable geometry candidate. The caller supplies identities only; raw topology, GeometryProgram, GLB, paths, scripts and worker selection are not representable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "project_id",
+    "mesh_id",
+    "lineage_id",
+    "revision_id",
+    "revision_index",
+    "revision_sha256",
+    "revision_object_sha256",
+    "source_binding_id",
+    "source_binding_sha256",
+    "source_binding_object_sha256",
+    "base_version_id",
+    "idempotency_key",
+    "max_response_bytes",
+    "runtime_write_performed",
+    "writer_policy",
+    "canonicalization_policy",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringMeshV2CandidateMaterializeRequest@1"},
+    "operation": {"const": "authoring_mesh_v2_candidate_materialize"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "mesh_id": {"$ref": "#/$defs/identifier"},
+    "lineage_id": {"$ref": "#/$defs/identifier"},
+    "revision_id": {"$ref": "#/$defs/identifier"},
+    "revision_index": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "revision_sha256": {"$ref": "#/$defs/sha256"},
+    "revision_object_sha256": {"$ref": "#/$defs/sha256"},
+    "source_binding_id": {"$ref": "#/$defs/nullable_identifier"},
+    "source_binding_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "source_binding_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "base_version_id": {"$ref": "#/$defs/nullable_identifier"},
+    "idempotency_key": {"$ref": "#/$defs/identifier"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "source_binding_id": {"const": null},
+            "source_binding_sha256": {"const": null},
+            "source_binding_object_sha256": {"const": null}
+          }
+        },
+        {
+          "properties": {
+            "source_binding_id": {"$ref": "#/$defs/identifier"},
+            "source_binding_sha256": {"$ref": "#/$defs/sha256"},
+            "source_binding_object_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "nullable_identifier": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

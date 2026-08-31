@@ -5,7 +5,7 @@
 > **ADR-0030 knife-first override:** 当前十天交付只针对刀类；下表替代一般武器 successor
 > queue。历史 FGC/FPS 状态保持原义，不再抢占刀类队列。
 
-> 2026-08-30 final architecture source metadata：`schema_count=658`、`schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1`、`runtime_source_sha256=893be325dbd1f057791e3cfed815b7fd2c17517379b09c9ad6df795a9ab6483c`、`compat_mcp_source_sha256=5a5dcd163643eb378736568178e3dca65098a552f2a52fbf0be3907a6bfe0cfd`、`truth_canonical_sha256=8c77ccb9d3829553444fdd04904076cd26ad3037bc929cc464a20c015fcb0172`；source-only compatibility summary `cohort=null`、`131/95/226`、SHA-256=`1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca`。
+> 2026-08-30 `WPN-KNIFE-BRIEF-RUNTIME-001` current-source metadata：`schema_count=662`、`schema_set_sha256=202e080ec378ddb294eb9c880079dcec5c910b27a1c679034ca34c5a880dcec6`、`runtime_source_sha256=79fb9c50e7201a0755033dd6e1f7c8e166c125f9f77e0f581f9889fa49eefea1`、`compat_mcp_source_sha256=5a5dcd163643eb378736568178e3dca65098a552f2a52fbf0be3907a6bfe0cfd`、`truth_canonical_sha256=a7a3e4025fc0c66222d5faeb355efbe78a7c8fd54627862683153fee1e21b789`；source-only compatibility summary `cohort=null`、`131/95/226`、SHA-256=`1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca`。final architecture-fast same-cohort=`ef4a5ff42c608a288fccdebdadbd3fbb65bf06798b87d16e0e43baaf695a58b8`，`107/0/0`、`source_drift=false`；未重跑完整 Runtime qualification。
 
 ## 当前 successor queue
 
@@ -30,13 +30,22 @@
 | `WPN-ARCH-RUNTIME-STORE-SPLIT-002` | `queued_next` | 继续迁出 Evaluation 其余 37 operation 与 Store ReadModel/QualityEvidence、socket/anchor、recovery 等领域族；每批必须根净降并保持单 migration/CAS owner |
 | `WPN-ARCH-RETIRE-001` | `queued_after_runtime_store_split_002_and_retirement_gates` | 仅在 replacement、compatibility replay、consumer-zero、migration/CAS/recovery 与脏 worktree deletion gate 全部通过后退役历史模块 |
 | `WPN-MOD-001` | `pending_general_modifier_evaluation` | CurveProfile 的 bounded blade sweep/loft 已产生 EvaluatedMesh；通用 Modifier stack 几何评估仍未实现 |
-| `WPN-KNIFE-HIGH-001` | `pending` | 刀类 High 与 bounded sculpt-like detail；可用隔离 Blender prototype |
+| `WPN-KNIFE-BRIEF-RUNTIME-001` | `done_isolated_live_authoring_eligible_successor` | Brief closed Contract → Runtime → Store/CAS → MCP；真实图片导入、blocked parent、immutable eligible successor、replay/restart readback PASS；无 candidate/Stage/version/export |
+| `WPN-KNIFE-HIGH-001` | `in_progress_slice_a_design_locked_implementation_pending_no_high_mesh` | 先实现 Brief/reference-bound `ReferenceIntentBundle → PassState → CorrectionLedger` durable 收敛控制层，再执行 KnifeCurve + ModifierGraph + EvaluatedMesh 的 blade/guard/grip 主形；不跳过 secondary-form approval，不以 formal High API、单视图或材质补偿形体 |
 | `WPN-KNIFE-LOW-001` | `pending` | artist-editable Low/retopo correspondence |
 | `WPN-KNIFE-UVBAKE-001` | `pending` | Hero UV、Cage、normal/AO/curvature/thickness/ID bake diagnostics |
 | `WPN-KNIFE-MAT-001` | `pending` | 刀刃/护手/握柄 Material Layer Graph 与 wear |
 | `WPN-KNIFE-FPS-001` | `pending` | first-person idle/inspect/slash/stab、socket 与九 AOV |
 | `WPN-KNIFE-ENGINE-001` | `pending` | LOD/collision/export/目标引擎真实验证 |
 | `WPN-KNIFE-ACCEPT-001` | `pending` | 授权刀类 + original control 的同 cohort 独立美术验收 |
+
+> 2026-08-30 Brief successor fixture 已完成合同级冻结校验：
+> `dragonfang-kukri-brief-resolved-001` 精确绑定父 Brief `dragonfang-kukri-brief` /
+> `27c8893f4ff982ff90ad62b21df18e00b30db691b8d9d169ddb8cbff2235d514`，保留所有 source claims/conflict
+> identity，并冻结“尼泊尔-屠龙”、Hero `25k–45k`、4K authoring master、2K shipping 与 Unreal `5.6-or-later`。它没有
+> fixture 自身没有 Runtime-bound authorization；isolated live probe 已生成新的 runtime-bound canonical
+> successor，Store/CAS/replay/restart readback PASS，authoring eligibility=`ELIGIBLE`，因此
+> `WPN-KNIFE-HIGH-001` 已领取。当前仍无 High mesh/candidate/Stage/version/export，不能把“领取”写成“完成”。
 
 当前 cohort 已从最终编译源重建，`WPN-KNIFE-PROFILE-001` 以无网格结构纵切收口。
 `WPN-KNIFE-CURVE-001` 已完成 `done_source_durable_evaluated_mesh_structural_no_downstream_quality`：
@@ -818,7 +827,7 @@ MCP010A–F 的详细要求见 `MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`。它�
 
 `FPS-FOUNDATION-IMPORT-01`：**source/runtime structural done；promotion blocked**。三个固定 hash 的母版源已由 typed GLB importer 规范化为 compact ForgeCAD topology、socket map、rig map、PBR/animation inventory 和 `FpsPresentationPackage@1` 草案；Store/CAS 首次 prepare、幂等 replay、get hash revalidation 与 MCP tool manifest 已通过。该原子任务不创建 candidate/version/export，不改变 MCP010F 唯一 `in_progress`。下一原子为 Part-bounded AuthoringMeshV2 genesis/materialization；在完成之前不得进入“批量商业 Hero 武器”宣称。
 
-<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=662 schema_set_sha256=202e080ec378ddb294eb9c880079dcec5c910b27a1c679034ca34c5a880dcec6 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 # 2026-08-30 successor architecture atom
 
 | 任务 | 状态 | 已闭合 | 未闭合 / 下一步 |

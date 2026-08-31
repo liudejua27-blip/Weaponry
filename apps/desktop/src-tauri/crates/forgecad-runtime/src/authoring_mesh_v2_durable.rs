@@ -390,7 +390,7 @@ fn revision_from_cas_with_limit(
     Ok(revision)
 }
 
-fn revision_from_cas(
+pub(crate) fn revision_from_cas(
     runtime: &Runtime,
     record: &AuthoringMeshV2DurableRecord,
 ) -> Result<AuthoringMeshRevision, RuntimeError> {

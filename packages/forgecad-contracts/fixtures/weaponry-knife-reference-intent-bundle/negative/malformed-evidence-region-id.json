@@ -1,0 +1,74 @@
+{
+  "schema_version": "KnifeReferenceIntentBundle@1",
+  "intent_bundle_id": "malformed-evidence-region-id-negative",
+  "project_id": "weaponry-evidence-region-negative",
+  "brief_binding": {
+    "brief_schema_version": "WeaponryKnifeProductionBrief@1",
+    "brief_id": "brief-negative",
+    "brief_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "brief_object_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "authoring_eligibility": "ELIGIBLE",
+    "authorization_binding_status": "runtime-bound"
+  },
+  "reference_binding": {
+    "reference_id": "reference-primary",
+    "reference_object_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "reference_evidence_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "binding_status": "runtime-bound"
+  },
+  "route": "reference-projection",
+  "exactness": "image-only",
+  "intake_manifest": {
+    "schema_version": "KnifeIntakeManifest@1",
+    "manifest_id": "malformed-evidence-intake-negative",
+    "records": [{
+      "reference_id": "reference-primary",
+      "reference_object_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "reference_evidence_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "role": "primary",
+      "resolution": {"width": 1536, "height": 1024},
+      "decode_status": "decoded",
+      "duplicate_status": "unique",
+      "admission_status": "admitted",
+      "visible_coverage": [{"view": "front", "status": "observed"}]
+    }],
+    "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+    "canonical_sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+  },
+  "detail_inventory": {
+    "schema_version": "KnifeDetailInventory@1",
+    "inventory_id": "malformed-evidence-details-negative",
+    "details": [{
+      "detail_id": "detail-negative",
+      "scale": "macro",
+      "family": "silhouette",
+      "label": "safe blade detail",
+      "evidence_regions": [{"reference_id": "reference-primary", "view": "front", "x": 0.1, "y": 0.1, "width": 0.4, "height": 0.4, "status": "observed"}],
+      "confidence": "high",
+      "observation_status": "observed",
+      "target": {"target_kind": "part", "target_id": "blade", "mapping_status": "mapped"},
+      "priority": 1,
+      "high_action": "geometry"
+    }],
+    "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+    "canonical_sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+  },
+  "quality_contract": {
+    "schema_version": "KnifeQualityContract@1",
+    "contract_id": "malformed-evidence-quality-negative",
+    "stage_order": ["camera-lock", "silhouette-blockout", "structural-form", "secondary-form", "high-geometry"],
+    "critical_features": [{"feature_id": "feature-negative", "feature_kind": "silhouette", "target_id": "blade", "source_status": "observed", "blocking": true, "evidence_region_ids": ["reference-primary"]}],
+    "fixed_views": [{"view_id": "view-front", "view": "front", "comparison_role": "primary-reference", "reference_required": true}],
+    "blocking_failures": [{"failure_id": "failure-negative", "gate_id": "H0_LINEAGE", "condition": "missing-lineage", "blocks_promotion": true}],
+    "threshold_fixture_sha256": "cc99e2c26c147b27e59bb8544334ec24adfbd83f4e723d0c21599ebaf7304b4b",
+    "threshold_status": "CALIBRATION_PENDING",
+    "correction_policy": {"max_iterations_per_pass": 3, "max_iterations_total": 6, "one_changed_scope_per_iteration": true, "baseline_preserved": true},
+    "promotion_state": "HIGH_LOCKED_UNTIL_CALIBRATED_AND_REVIEWED@1",
+    "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+    "canonical_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+  },
+  "unknowns": [],
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "canonical_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+  "created_at": "2026-08-30T06:00:00Z"
+}

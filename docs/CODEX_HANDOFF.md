@@ -1,5 +1,38 @@
 # Weaponry 当前交接
 
+> 2026-08-30 High convergence handoff：`WPN-KNIFE-HIGH-001 / Slice A` 已完成设计锁定，未生成
+> High mesh。当前实现目标不是继续堆 High operation，而是先落地三个 Runtime-owned 聚合真值：
+> `KnifeReferenceIntentBundle@1`、`KnifePassState@1`、`KnifeCorrectionLedger@1`，经现有
+> `reference_intake / authoring_transaction / surface_pipeline / quality_review / recovery / job`
+> façade 闭合 Store/CAS replay、same-cohort render/readback 和单一 scope 纠偏。设计权威为
+> `docs/WEAPONRY_KNIFE_REFERENCE_CONVERGENCE_DESIGN_20260830.md`。在 Slice A live loop 通过前，
+> 不允许把 Brief eligibility、formal High API 或漂亮截图写成 High/商业完成。
+
+> 2026-08-30 handoff：`WPN-KNIFE-BRIEF-RUNTIME-001` 已完成 isolated live 闭环。已授权 Dragonfang
+> 图片经默认 `reference_intake` façade 进入 Runtime/CAS；初始 conflicted Brief 持久化为 `BLOCKED`，
+> 用户冻结四项选择后的 immutable successor 持久化为 `ELIGIBLE`，exact replay 不写入，Runtime 重启后
+> exact-hash 回读通过。`WPN-KNIFE-HIGH-001` 现正式 `in_progress`，但尚未生成 High mesh。当前合同面
+> 为 662 schemas / 11 façades / 127 active operations；compatibility 131/95/226 保持，商业质量未证明。
+> final architecture-fast same-cohort=`ef4a5ff42c608a288fccdebdadbd3fbb65bf06798b87d16e0e43baaf695a58b8`，
+> `107/0/0`、195s、`source_drift=false`；本轮未重跑完整 Runtime qualification，37 ignored 的本 cohort
+> execution 为 0。live cohort=`401ccd7ec93d64a445529418f640485a74095808bd98f2bda212e9cde3cbe62a`，
+> receipt=`docs/evidence/weaponry/wpn-knife-brief-dragonfang-live-20260830.json`。工作区仍为共享脏 main，未 commit/push。
+
+> 2026-08-30 Brief contract follow-up：已新增仅供合同/fixture 校验的
+> `dragonfang-kukri-brief-resolved-001` immutable successor。它精确引用父 Brief
+> `dragonfang-kukri-brief` / `27c8893f4ff982ff90ad62b21df18e00b30db691b8d9d169ddb8cbff2235d514`，保留三条
+> source identity claims、全部 source claim objects 与 conflict identity；冻结正式名“尼泊尔-屠龙”、Hero
+> `25k–45k`、4K authoring master、2K shipping 和 Unreal `5.6-or-later`。Brief@1 现以
+> `resolved_width/height` 表示 authoring master、`shipping_width/height` 表示 shipping，并分别要求匹配
+> retained `hero`/`production` claims。已移除已解决的 source-conflict blockers，但 acceptance
+> 仍保留 authorization/reference/engine/human 的运行时门；required_gates、promotion_labels 和布尔政策不可变。
+> fixture authorization 保持 `source-asserted-not-runtime-bound`；live probe 在请求内生成新 canonical
+> successor，将 evidence 绑定为 `runtime-bound`、K0 切为 `pass` 并移除
+> `authorization-not-runtime-bound`，随后由 Runtime 唯一写入。缺失视图、engine validation 与 human
+> review 仍阻断。下一子原子应先把 Brief/reference lineage 绑定到 candidate-owned KnifeCurve +
+> ModifierGraph + EvaluatedMesh 的 blade/guard/grip 主形，再进入独立 High；不得直接用旧 formal-high
+> 接口跳过 `secondary-form-approved`。
+
 > 2026-08-30 `WPN-ARCH-RUNTIME-STORE-SPLIT-001` handoff：第一批真实物理纵切已完成，但整体仍 pending。Runtime Evaluation reference-comparison/visual-evidence family 已迁出 9 个实现，`lib.rs=51,603`（净减 939）；Store Delivery ApprovalLifecycle candidate/version/export family 已迁出，`lib.rs=78,865`（净减 976）；compatibility session/checkpoint/recovery family 已迁出，`agentic_write_tools.rs=16,532`（净减 142）。MCP default/compat root=`996/19,332`，Runtime root modules 仍为 92。
 > current-source truth：schemas=658，Runtime SHA-256=`893be325dbd1f057791e3cfed815b7fd2c17517379b09c9ad6df795a9ab6483c`，compat MCP SHA-256=`5a5dcd163643eb378736568178e3dca65098a552f2a52fbf0be3907a6bfe0cfd`，truth canonical=`8c77ccb9d3829553444fdd04904076cd26ad3037bc929cc464a20c015fcb0172`；Stage0 PASS，但旧 visual ledger 的 FAIL/MISSING 与 `QUALITY_TARGET_NOT_MET` 保留。
 > fresh architecture-fast cohort=`81a58a3d5c07bafbea82b80f3b9ab74f387e06b63380d5c8845199f56d217ee5`，90/0/0、188s、四 build identity 一致、无 source drift；Store full=192/192，MCP default/compat=41/41、237/237，dep-info=10/44，compat replay=131/95/226。当前原子未重跑 full Runtime；前序 554/0/37 不冒充当前 cohort，ignored current execution=0/37。
@@ -829,7 +862,7 @@ npm run release:license-sbom
 
 2026-08-27 foundation importer handoff：`weapon_foundation_asset_prepare/get` 已接入 Runtime/Store/MCP。仅三个固定内嵌 GLB 可执行，其他 foundation pack 条目仍为 reference-only；MCP 不接受路径、URL、bytes 或脚本。真实 source readback 结果为 Pichuliru west `8045 vertices / 4352 sanitized triangles / 1 dropped / 6 sockets / 19 bones`，WRAD arms `872 / 1196 / 0 / 2 / 50`，Lightning `2332 / 3042 / 4 / 0 / 7 / 2 clips`。Runtime 首次 prepare、同请求 replay、get hash revalidation 已通过。下一原子不是直接批量生成 Hero 武器，而是按语义 Part 把 compact topology 分块物化为 AuthoringMeshV2 genesis，并对 WRAD/Lightning 坐标方向做人工确认；在此之前必须保持 `AUTHORING_MESH_MATERIALIZATION_PENDING / DRAFT_UNREVIEWED / structural_only / NOT_PROVEN`。
 
-<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=662 schema_set_sha256=202e080ec378ddb294eb9c880079dcec5c910b27a1c679034ca34c5a880dcec6 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 # 2026-08-30 — WPN-ARCH-COMPAT-001 handoff
 
 - 默认 `forgecad-mcp` 与显式 `forgecad-mcp-compat` 已成为两个 Cargo binary；后者由

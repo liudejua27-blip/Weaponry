@@ -1,0 +1,18 @@
+{
+  "schema_version": "AuthoringMeshV2CandidateMaterializeNegativeFixtures@1",
+  "cases": [
+    {"id": "request-extra-field", "target": "request", "mutation": "extra_field", "expected_failure": "closed-object"},
+    {"id": "request-operation-drift", "target": "request", "mutation": "operation_drift", "expected_failure": "operation-const"},
+    {"id": "request-input-hash-drift", "target": "request", "mutation": "input_hash_drift", "expected_failure": "input-hash"},
+    {"id": "request-source-binding-partial", "target": "request", "mutation": "source_binding_partial", "expected_failure": "all-null-or-all-present"},
+    {"id": "result-extra-field", "target": "result", "mutation": "extra_field", "expected_failure": "closed-object"},
+    {"id": "result-operation-drift", "target": "result", "mutation": "operation_drift", "expected_failure": "operation-const"},
+    {"id": "result-canonical-hash-drift", "target": "result", "mutation": "canonical_hash_drift", "expected_failure": "canonical-hash"},
+    {"id": "result-source-binding-partial", "target": "result", "mutation": "source_binding_partial", "expected_failure": "all-null-or-all-present"},
+    {"id": "result-source-proof-partial", "target": "result", "mutation": "source_proof_partial", "expected_failure": "source-proof-mode"},
+    {"id": "result-materialization-mode-drift", "target": "result", "mutation": "materialization_mode_drift", "expected_failure": "source-proof-mode"},
+    {"id": "result-status-drift", "target": "result", "mutation": "status_drift", "expected_failure": "status-replay-mismatch"},
+    {"id": "result-restart-claim", "target": "result", "mutation": "restart_claim", "expected_failure": "restart-not-run"},
+    {"id": "result-visual-promotion", "target": "result", "mutation": "visual_promotion", "expected_failure": "visual-not-run"}
+  ]
+}

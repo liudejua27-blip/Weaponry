@@ -698,6 +698,7 @@ pub fn validate_operator(
             }
             require_shape(parameters, "profile-extrude")?;
             let profile = parse_profile(parameters, "profile", 3, MAX_PROFILE_POINTS)?;
+            validate_simple_profile(&profile, "profile-extrude profile")?;
             require_nonzero_area(&profile, "profile-extrude profile")?;
             ValidatedOperator::ProfileExtrude {
                 profile,
@@ -5586,23 +5587,26 @@ fn profile_extrude_mesh(
     profile: &[[f32; 2]],
     depth: f32,
 ) -> Result<PrimitiveNodeMesh, GeometryError> {
-    let profile = oriented_profile(profile);
+    validate_simple_profile(profile, "profile-extrude profile")?;
+    require_nonzero_area(profile, "profile-extrude profile")?;
+    let profile = normalized_profile(profile);
+    let cap_triangles = triangulate_simple_profile(&profile)?;
     let mut mesh = empty_mesh();
     let half = depth / 2.0;
     let front = |point: [f32; 2]| [point[0], point[1], half];
     let back = |point: [f32; 2]| [point[0], point[1], -half];
-    for index in 1..profile.len() - 1 {
+    for [first, second, third] in cap_triangles {
         push_triangle(
             &mut mesh,
-            front(profile[0]),
-            front(profile[index]),
-            front(profile[index + 1]),
+            front(profile[first]),
+            front(profile[second]),
+            front(profile[third]),
         )?;
         push_triangle(
             &mut mesh,
-            back(profile[0]),
-            back(profile[index + 1]),
-            back(profile[index]),
+            back(profile[first]),
+            back(profile[third]),
+            back(profile[second]),
         )?;
     }
     for index in 0..profile.len() {
@@ -5621,6 +5625,88 @@ fn profile_extrude_mesh(
         )?;
     }
     Ok(mesh)
+}
+
+fn normalized_profile(profile: &[[f32; 2]]) -> Vec<[f32; 2]> {
+    let mut profile = oriented_profile(profile);
+    if let Some(first) = profile
+        .iter()
+        .enumerate()
+        .min_by(|(_, left), (_, right)| {
+            left[0]
+                .total_cmp(&right[0])
+                .then_with(|| left[1].total_cmp(&right[1]))
+        })
+        .map(|(index, _)| index)
+    {
+        profile.rotate_left(first);
+    }
+    profile
+}
+
+fn triangulate_simple_profile(profile: &[[f32; 2]]) -> Result<Vec<[usize; 3]>, GeometryError> {
+    const EPSILON: f32 = 1.0e-6;
+    let mut remaining = (0..profile.len()).collect::<Vec<_>>();
+    let mut triangles = Vec::with_capacity(profile.len().saturating_sub(2));
+    while remaining.len() > 3 {
+        let mut clipped = false;
+        for index in 0..remaining.len() {
+            let previous = remaining[(index + remaining.len() - 1) % remaining.len()];
+            let current = remaining[index];
+            let next = remaining[(index + 1) % remaining.len()];
+            let convexity = cross2(
+                subtract2(profile[current], profile[previous]),
+                subtract2(profile[next], profile[current]),
+            );
+            if convexity <= EPSILON {
+                continue;
+            }
+            let contains_other_vertex = remaining.iter().any(|candidate| {
+                *candidate != previous
+                    && *candidate != current
+                    && *candidate != next
+                    && point_in_ccw_triangle(
+                        profile[*candidate],
+                        profile[previous],
+                        profile[current],
+                        profile[next],
+                    )
+            });
+            if contains_other_vertex {
+                continue;
+            }
+            triangles.push([previous, current, next]);
+            remaining.remove(index);
+            clipped = true;
+            break;
+        }
+        if !clipped {
+            return Err(GeometryError::Invalid(
+                "profile-extrude profile cannot be deterministically triangulated".to_owned(),
+            ));
+        }
+    }
+    if remaining.len() != 3 {
+        return Err(GeometryError::Invalid(
+            "profile-extrude profile triangulation is incomplete".to_owned(),
+        ));
+    }
+    triangles.push([remaining[0], remaining[1], remaining[2]]);
+    Ok(triangles)
+}
+
+fn point_in_ccw_triangle(
+    point: [f32; 2],
+    first: [f32; 2],
+    second: [f32; 2],
+    third: [f32; 2],
+) -> bool {
+    const EPSILON: f32 = 1.0e-6;
+    let side =
+        |left: [f32; 2], right: [f32; 2]| cross2(subtract2(right, left), subtract2(point, left));
+    side(first, second) >= -EPSILON
+        && side(second, third) >= -EPSILON
+        && side(third, first) >= -EPSILON
 }
 
 /// Build a closed, rectangular panel with explicit source-level inset,
@@ -9082,5 +9168,45 @@ mod tests {
             &BTreeMap::new(),
         )
         .is_err());
+    }
+
+    #[test]
+    fn profile_extrude_ear_clips_concave_kukri_and_normalizes_winding() {
+        let forward = vec![
+            [-2.0, -0.3],
+            [0.8, -0.3],
+            [1.4, -0.1],
+            [1.0, 0.0],
+            [1.8, 0.4],
+            [0.4, 0.8],
+            [-1.8, 0.4],
+        ];
+        let mut reversed = forward.clone();
+        reversed.reverse();
+        let first = profile_extrude_mesh(&forward, 0.12).expect("concave profile");
+        let second = profile_extrude_mesh(&reversed, 0.12).expect("reversed profile");
+        assert_eq!(first.positions, second.positions);
+        assert_eq!(first.indices, second.indices);
+        assert_eq!(first.indices.len() / 3, 24);
+        assert!(first.positions.iter().all(|point| finite3(*point)));
+    }
+
+    #[test]
+    fn profile_extrude_rejects_self_intersection_before_compile() {
+        let parameters = json!({
+            "shape":"profile-extrude",
+            "profile":[[-1.0,-1.0],[1.0,1.0],[-1.0,1.0],[1.0,-1.0],[0.0,0.5]],
+            "depth_m":0.12,
+            "position_m":[0.0,0.0,0.0],
+            "rotation_rad":[0.0,0.0,0.0]
+        });
+        let error = validate_operator(
+            "forgecad.geometry.profile-extrude@1",
+            &[],
+            parameters.as_object().expect("profile parameters"),
+            &BTreeMap::new(),
+        )
+        .expect_err("self-intersecting profile must fail closed");
+        assert!(error.to_string().contains("self-intersection"), "{error}");
     }
 }

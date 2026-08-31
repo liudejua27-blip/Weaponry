@@ -8,12 +8,12 @@
 //! trait directly because Runtime already depends on Store.
 
 use forgecad_contracts::{
-    LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND, LOW_QUAD_DRAFT_DURABLE_ARTIFACT_READBACK_SCHEMA_VERSION,
-    LOW_QUAD_DRAFT_DURABLE_READBACK_KIND, PRODUCTION_WEAPON_LOW_ARTIFACT_KIND,
-    PRODUCTION_WEAPON_LOW_ARTIFACT_RECEIPT_KIND, is_opaque_id, is_sha256,
+    is_opaque_id, is_sha256, LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND,
+    LOW_QUAD_DRAFT_DURABLE_ARTIFACT_READBACK_SCHEMA_VERSION, LOW_QUAD_DRAFT_DURABLE_READBACK_KIND,
+    PRODUCTION_WEAPON_LOW_ARTIFACT_KIND, PRODUCTION_WEAPON_LOW_ARTIFACT_RECEIPT_KIND,
 };
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

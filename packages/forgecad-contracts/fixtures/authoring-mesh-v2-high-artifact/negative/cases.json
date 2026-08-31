@@ -1,0 +1,95 @@
+{
+  "schema_version": "AuthoringMeshV2HighArtifactNegativeCases@1",
+  "cases": [
+    {
+      "id": "main-extra-field",
+      "target": "main",
+      "mutation": "extra-field"
+    },
+    {
+      "id": "main-kind",
+      "target": "main",
+      "mutation": "kind"
+    },
+    {
+      "id": "main-low-kind-drift",
+      "target": "main",
+      "mutation": "low-kind-drift"
+    },
+    {
+      "id": "main-bridge-hash",
+      "target": "main",
+      "mutation": "bridge-hash"
+    },
+    {
+      "id": "main-readback-binding",
+      "target": "main",
+      "mutation": "readback-binding"
+    },
+    {
+      "id": "main-canonical-hash",
+      "target": "main",
+      "mutation": "canonical-hash"
+    },
+    {
+      "id": "prepare-extra-field",
+      "target": "prepare",
+      "mutation": "extra-field"
+    },
+    {
+      "id": "prepare-operation",
+      "target": "prepare",
+      "mutation": "operation"
+    },
+    {
+      "id": "prepare-bridge-hash",
+      "target": "prepare",
+      "mutation": "bridge-hash"
+    },
+    {
+      "id": "prepare-input-hash",
+      "target": "prepare",
+      "mutation": "input-hash"
+    },
+    {
+      "id": "get-extra-field",
+      "target": "get",
+      "mutation": "extra-field"
+    },
+    {
+      "id": "get-artifact-hash",
+      "target": "get",
+      "mutation": "artifact-hash"
+    },
+    {
+      "id": "get-write-claim",
+      "target": "get",
+      "mutation": "write-claim"
+    },
+    {
+      "id": "get-input-hash",
+      "target": "get",
+      "mutation": "input-hash"
+    },
+    {
+      "id": "result-extra-field",
+      "target": "result",
+      "mutation": "extra-field"
+    },
+    {
+      "id": "result-status",
+      "target": "result",
+      "mutation": "status"
+    },
+    {
+      "id": "result-promotion",
+      "target": "result",
+      "mutation": "promotion"
+    },
+    {
+      "id": "result-canonical-hash",
+      "target": "result",
+      "mutation": "canonical-hash"
+    }
+  ]
+}

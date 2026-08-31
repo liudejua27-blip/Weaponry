@@ -143,13 +143,22 @@ def json_equal(left: Any, right: Any) -> bool:
 
 
 def validate(
-    schema: dict[str, Any],
+    schema: dict[str, Any] | bool,
     value: Any,
     root: dict[str, Any],
     path: str = "$",
     registry: dict[str, dict[str, Any]] | None = None,
 ) -> None:
     """Validate the subset of draft 2020-12 used by the new contracts."""
+    # Draft 2020-12 permits boolean schemas.  A number of the fixed-size
+    # tuple contracts use ``items: false`` together with ``prefixItems``;
+    # handle those values explicitly instead of treating them as mappings.
+    if schema is True:
+        return
+    if schema is False:
+        raise ContractError(f"{path} matches a false schema")
+    if not isinstance(schema, dict):
+        raise ContractError(f"{path} schema must be an object or boolean")
     if "$ref" in schema:
         target, target_root = resolve_ref(root, schema["$ref"], registry)
         validate(target, value, target_root, path, registry)
@@ -253,9 +262,24 @@ def validate(
             encoded = [json.dumps(item, sort_keys=True, separators=(",", ":")) for item in value]
             if len(set(encoded)) != len(encoded):
                 raise ContractError(f"{path} contains duplicate items")
-        if "items" in schema:
-            for index, child in enumerate(value):
-                validate(schema["items"], child, root, f"{path}[{index}]", registry)
+        if "prefixItems" in schema:
+            prefix_items = schema["prefixItems"]
+            if not isinstance(prefix_items, list):
+                raise ContractError(f"{path}.prefixItems must be an array")
+            for index, item_schema in enumerate(prefix_items):
+                if index < len(value):
+                    validate(item_schema, value[index], root, f"{path}[{index}]", registry)
+            if schema.get("items") is False and len(value) > len(prefix_items):
+                raise ContractError(f"{path} has items after prefixItems")
+            elif isinstance(schema.get("items"), dict):
+                for index, child in enumerate(value[len(prefix_items):], start=len(prefix_items)):
+                    validate(schema["items"], child, root, f"{path}[{index}]", registry)
+        elif "items" in schema:
+            if schema["items"] is False and value:
+                raise ContractError(f"{path} forbids items")
+            if schema["items"] is not False and schema["items"] is not True:
+                for index, child in enumerate(value):
+                    validate(schema["items"], child, root, f"{path}[{index}]", registry)
         if "contains" in schema:
             if not any(
                 is_valid(schema["contains"], item, registry)
@@ -265,7 +289,7 @@ def validate(
 
 
 def is_valid(
-    schema: dict[str, Any],
+    schema: dict[str, Any] | bool,
     value: Any,
     registry: dict[str, dict[str, Any]] | None = None,
 ) -> bool:

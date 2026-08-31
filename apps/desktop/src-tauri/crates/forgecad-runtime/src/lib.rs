@@ -12,8 +12,11 @@ mod authoring_mesh_identity;
 mod authoring_mesh_identity_durable;
 mod authoring_mesh_transaction;
 mod authoring_mesh_v2;
+mod authoring_mesh_v2_candidate_materializer;
 mod authoring_mesh_v2_durable;
 mod authoring_mesh_v2_geometry;
+mod authoring_mesh_v2_high_artifact;
+mod authoring_mesh_v2_high_bridge;
 mod authoring_service;
 mod authoring_topology;
 mod boolean_lineage;
@@ -21,6 +24,7 @@ mod candidate_animation_vfx_quality;
 mod candidate_animation_vfx_quality_v2;
 mod candidate_material_surface_quality;
 mod candidate_topology_quality;
+mod evaluation_pass_state;
 mod fictional_energy_vfx_animated_socket_attachment;
 mod fictional_energy_vfx_animated_socket_attachment_v2;
 mod fictional_energy_vfx_animated_socket_attachment_v3;
@@ -75,6 +79,7 @@ mod production_weapon_formal_high_factory;
 mod production_weapon_formal_high_public;
 mod production_weapon_high_low_bake;
 mod production_weapon_high_low_bake_preflight;
+mod production_knife_uv_bake_v2;
 mod production_weapon_owner_reviewed_void_calibration;
 mod production_weapon_retopology_cage_source;
 mod render_evidence_integrity;
@@ -91,6 +96,10 @@ mod weapon;
 mod weapon_foundation_authoring_materialization;
 mod weapon_foundation_import;
 mod weapon_foundation_runtime;
+mod weaponry_knife_delivery;
+mod weaponry_knife_production_brief;
+mod weaponry_knife_reference_intent;
+mod weaponry_knife_source_binding;
 
 // The Runtime owns the final, strict GLB readback. Keeping the implementation
 // compiled into Runtime ensures a worker's self-reported metadata can never
@@ -10936,6 +10945,56 @@ impl Runtime {
     /// index and revalidate the typed topology after a Runtime restart.
     pub fn authoring_mesh_v2_durable_get(&self, request: &Value) -> Result<Value, RuntimeError> {
         authoring_mesh_v2_durable::get(self, request)
+    }
+
+    /// Materialize one exact Runtime-owned AuthoringMesh@2 revision into a
+    /// reviewable geometry candidate. The internal bridge reloads the
+    /// revision from Store/CAS and never accepts caller topology or a caller
+    /// GeometryProgram; it does not render, confirm, version, or export.
+    pub(crate) fn authoring_mesh_v2_candidate_materialize(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        authoring_mesh_v2_candidate_materializer::prepare(self, request)
+    }
+
+    /// Evaluate one exact AuthoringMesh@2 revision through the fixed V2 High
+    /// Worker and persist only the structural bridge/readback identities.
+    /// This path does not create a GLB or promote any production/quality gate.
+    pub fn authoring_mesh_v2_high_bridge_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        authoring_mesh_v2_high_bridge::prepare(self, request)
+    }
+
+    /// Read one persisted V2 High structural bridge by its exact lineage and
+    /// CAS identities. The operation is strictly read-only.
+    pub fn authoring_mesh_v2_high_bridge_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        authoring_mesh_v2_high_bridge::get(self, request)
+    }
+
+    /// Materialize one exact V2 High bridge through the fixed High Worker and
+    /// persist the resulting GLB, strict readback, and aggregate receipt.
+    /// This proves a durable structural High artifact only; it does not
+    /// advance visual, human-review, engine, or production gates.
+    pub fn authoring_mesh_v2_high_artifact_prepare(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        authoring_mesh_v2_high_artifact::prepare(self, request)
+    }
+
+    /// Read one direct-V2 High artifact by all public semantic and CAS
+    /// identities, revalidating its bridge ancestry and persisted objects.
+    pub fn authoring_mesh_v2_high_artifact_get(
+        &self,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        authoring_mesh_v2_high_artifact::get(self, request)
     }
 
     /// Atomically prepare a bounded multi-operation AuthoringMesh@2

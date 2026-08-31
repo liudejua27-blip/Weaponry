@@ -17,8 +17,12 @@ const SURFACE_OPERATION_NAMES: &[&str] = &[
     "appearance_prepare",
     "appearance_source_lineage_prepare",
     "appearance_source_lineage_get",
+    "authoring_mesh_v2_high_artifact_prepare",
+    "authoring_mesh_v2_high_artifact_get",
     "hero_uv_durable_prepare",
     "hero_uv_durable_get",
+    "production_knife_uv_bake_v2_prepare",
+    "production_knife_uv_bake_v2_get",
     "low_quad_draft_durable_prepare",
     "low_quad_draft_durable_get",
     "production_weapon_form_quality_v2_preflight_get",
@@ -64,8 +68,20 @@ pub(crate) fn invoke(
             Ok(runtime.appearance_source_lineage_prepare(payload)?)
         }
         "appearance_source_lineage_get" => Ok(runtime.appearance_source_lineage_get(payload)?),
+        "authoring_mesh_v2_high_artifact_prepare" => {
+            Ok(runtime.authoring_mesh_v2_high_artifact_prepare(payload)?)
+        }
+        "authoring_mesh_v2_high_artifact_get" => {
+            Ok(runtime.authoring_mesh_v2_high_artifact_get(payload)?)
+        }
         "hero_uv_durable_prepare" => Ok(runtime.hero_uv_durable_prepare(payload.clone())?),
         "hero_uv_durable_get" => Ok(runtime.hero_uv_durable_get(payload.clone())?),
+        "production_knife_uv_bake_v2_prepare" => {
+            Ok(runtime.production_knife_uv_bake_v2_prepare(payload.clone())?)
+        }
+        "production_knife_uv_bake_v2_get" => {
+            Ok(runtime.production_knife_uv_bake_v2_get(payload.clone())?)
+        }
         "low_quad_draft_durable_prepare" => {
             Ok(runtime.low_quad_draft_durable_prepare(payload.clone())?)
         }
@@ -129,13 +145,17 @@ mod tests {
 
     #[test]
     fn surface_compatibility_set_covers_the_complete_surface_aggregate() {
-        assert_eq!(SURFACE_OPERATION_NAMES.len(), 17);
+        assert_eq!(SURFACE_OPERATION_NAMES.len(), 21);
         for operation in [
             "appearance_prepare",
             "appearance_source_lineage_prepare",
             "appearance_source_lineage_get",
+            "authoring_mesh_v2_high_artifact_prepare",
+            "authoring_mesh_v2_high_artifact_get",
             "hero_uv_durable_prepare",
             "hero_uv_durable_get",
+            "production_knife_uv_bake_v2_prepare",
+            "production_knife_uv_bake_v2_get",
             "low_quad_draft_durable_prepare",
             "low_quad_draft_durable_get",
             "production_weapon_form_quality_v2_preflight_get",

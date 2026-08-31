@@ -5031,7 +5031,12 @@ pub(crate) fn validate_source_binding(
     ] {
         checked_id(value, field)?;
     }
-    if binding.source_operator_id != "forgecad.geometry.primitive@2" {
+    if !matches!(
+        binding.source_operator_id.as_str(),
+        "forgecad.geometry.primitive@2"
+            | "forgecad.geometry.profile-extrude@1"
+            | "forgecad.geometry.authoring-mesh@1"
+    ) {
         return Err(invalid(
             "source_operator_id is outside the closed source bridge",
         ));

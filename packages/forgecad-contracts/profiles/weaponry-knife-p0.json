@@ -42,13 +42,17 @@
         "reference_mask_refine_prepare"
       ],
       "underlying_operations": [
+        "knife_reference_intent_bundle_get",
+        "knife_reference_intent_bundle_prepare",
         "project_create",
         "reference_get",
         "reference_import",
         "reference_mask_prepare",
-        "reference_mask_refine_prepare"
+        "reference_mask_refine_prepare",
+        "weaponry_knife_production_brief_get",
+        "weaponry_knife_production_brief_prepare"
       ],
-      "underlying_operation_allowlist_sha256": "0f36cb7fbd7208e4b9640d528b0981e841b957157793e812adf1233c660480c5"
+      "underlying_operation_allowlist_sha256": "3ec6ecaf0c792c228d892c35083564eb5f7ee1669d288fa6a47dbc572ae83df3"
     },
     "observe": {
       "facade_name": "observe",
@@ -106,7 +110,10 @@
         "authoring_mesh_identity_lineage_get",
         "authoring_mesh_identity_lineage_prepare",
         "authoring_mesh_transaction_prepare",
+        "authoring_mesh_v2_candidate_materialize",
         "authoring_mesh_v2_durable_prepare",
+        "authoring_mesh_v2_high_bridge_get",
+        "authoring_mesh_v2_high_bridge_prepare",
         "authoring_topology_get",
         "change_prepare",
         "design_action_run_prepare",
@@ -115,9 +122,12 @@
         "knife_curve_evaluated_mesh_get",
         "knife_curve_evaluated_mesh_prepare",
         "knife_curve_modifier_graph_get",
-        "knife_curve_modifier_graph_prepare"
+        "knife_curve_modifier_graph_prepare",
+        "knife_source_binding_get",
+        "knife_source_binding_prepare",
+        "production_weapon_authoring_mesh_v2_source_prepare"
       ],
-      "underlying_operation_allowlist_sha256": "2b8bdfa0415e06ac59f83496d540cf5c8e6c1d601ae8af0ce2ae4418b05bd59c"
+      "underlying_operation_allowlist_sha256": "8e524e7bcc454c691c807d93a8e361c28121156f976ae0e0e4f1ea45b0f9540d"
     },
     "surface_pipeline": {
       "facade_name": "surface_pipeline",
@@ -146,10 +156,14 @@
         "appearance_prepare",
         "appearance_source_lineage_get",
         "appearance_source_lineage_prepare",
+        "authoring_mesh_v2_high_artifact_get",
+        "authoring_mesh_v2_high_artifact_prepare",
         "hero_uv_durable_get",
         "hero_uv_durable_prepare",
         "low_quad_draft_durable_get",
         "low_quad_draft_durable_prepare",
+        "production_knife_uv_bake_v2_get",
+        "production_knife_uv_bake_v2_prepare",
         "production_weapon_form_quality_v2_preflight_get",
         "production_weapon_formal_high_get",
         "production_weapon_formal_high_prepare",
@@ -159,7 +173,7 @@
         "production_weapon_retopology_cage_source_get",
         "production_weapon_retopology_cage_source_prepare"
       ],
-      "underlying_operation_allowlist_sha256": "f7cab6c9b2aab7c5f4f2e4822f077d3d4247b91e806c0cbcdfb333b7f0d97c85"
+      "underlying_operation_allowlist_sha256": "7746709d6968774fefeda50c521812ea4b792f864d2167b480b7a34ff77ba6be"
     },
     "fps_presentation": {
       "facade_name": "fps_presentation",
@@ -240,9 +254,9 @@
       "write_tools": [
         "candidate_material_surface_quality_prepare",
         "candidate_topology_quality_prepare",
-        "human_visual_review_submit",
         "production_weapon_form_quality_prepare",
         "production_weapon_form_quality_v2_prepare",
+        "human_visual_review_submit",
         "reference_compare_prepare",
         "visual_review_submit"
       ],
@@ -252,7 +266,10 @@
         "candidate_topology_quality_get",
         "candidate_topology_quality_prepare",
         "critic_report_get",
+        "high_artifact_reference_compare_prepare",
         "human_visual_review_submit",
+        "knife_pass_state_get",
+        "knife_pass_state_prepare",
         "production_weapon_form_quality_get",
         "production_weapon_form_quality_prepare",
         "production_weapon_form_quality_v2_get",
@@ -271,7 +288,7 @@
         "visual_evidence_bundle_get",
         "visual_review_submit"
       ],
-      "underlying_operation_allowlist_sha256": "2f40a99836a148b9c18f55347dccf427887d69b297af9823f571b956abcad4b2"
+      "underlying_operation_allowlist_sha256": "fd4af7338324a23612c963ee7687652863c76508c91206ac5df8f8f1027efb55"
     },
     "delivery": {
       "facade_name": "delivery",
@@ -658,6 +675,62 @@
   },
   "legacy_operation_allowlist_sha256": "530e6057a84f2d1772ebeb1ec584df133312b2a01273aa8ae86845b9995f81c3",
   "native_operations": {
+    "knife_reference_intent_bundle_prepare": {
+      "operation_name": "knife_reference_intent_bundle_prepare",
+      "classification": "write",
+      "facade_name": "reference_intake",
+      "request_schema": "KnifeReferenceIntentBundlePrepareRequest@1",
+      "result_schema": "KnifeReferenceIntentBundleResult@1",
+      "status": "native-development-only"
+    },
+    "knife_reference_intent_bundle_get": {
+      "operation_name": "knife_reference_intent_bundle_get",
+      "classification": "read",
+      "facade_name": "reference_intake",
+      "request_schema": "KnifeReferenceIntentBundleGetRequest@1",
+      "result_schema": "KnifeReferenceIntentBundleResult@1",
+      "status": "native-development-only"
+    },
+    "knife_source_binding_prepare": {
+      "operation_name": "knife_source_binding_prepare",
+      "classification": "write",
+      "facade_name": "authoring_transaction",
+      "request_schema": "KnifeSourceBindingPrepareRequest@1",
+      "result_schema": "KnifeSourceBindingResult@1",
+      "status": "native-development-only"
+    },
+    "knife_source_binding_get": {
+      "operation_name": "knife_source_binding_get",
+      "classification": "read",
+      "facade_name": "authoring_transaction",
+      "request_schema": "KnifeSourceBindingGetRequest@1",
+      "result_schema": "KnifeSourceBindingResult@1",
+      "status": "native-development-only"
+    },
+    "production_weapon_authoring_mesh_v2_source_prepare": {
+      "operation_name": "production_weapon_authoring_mesh_v2_source_prepare",
+      "classification": "write",
+      "facade_name": "authoring_transaction",
+      "request_schema": "ProductionWeaponAuthoringMeshV2SourcePrepareRequest@1",
+      "result_schema": "ProductionWeaponAuthoringMeshV2SourcePrepareResult@1",
+      "status": "native-development-only"
+    },
+    "weaponry_knife_production_brief_prepare": {
+      "operation_name": "weaponry_knife_production_brief_prepare",
+      "classification": "write",
+      "facade_name": "reference_intake",
+      "request_schema": "WeaponryKnifeProductionBriefPrepareRequest@1",
+      "result_schema": "WeaponryKnifeProductionBriefResult@1",
+      "status": "native-development-only"
+    },
+    "weaponry_knife_production_brief_get": {
+      "operation_name": "weaponry_knife_production_brief_get",
+      "classification": "read",
+      "facade_name": "reference_intake",
+      "request_schema": "WeaponryKnifeProductionBriefGetRequest@1",
+      "result_schema": "WeaponryKnifeProductionBriefResult@1",
+      "status": "native-development-only"
+    },
     "knife_curve_modifier_graph_prepare": {
       "operation_name": "knife_curve_modifier_graph_prepare",
       "classification": "write",
@@ -689,9 +762,89 @@
       "request_schema": "KnifeCurveEvaluatedMeshGetRequest@1",
       "result_schema": "KnifeCurveEvaluatedMeshResult@1",
       "status": "native-development-only"
+    },
+    "authoring_mesh_v2_candidate_materialize": {
+      "operation_name": "authoring_mesh_v2_candidate_materialize",
+      "classification": "write",
+      "facade_name": "authoring_transaction",
+      "request_schema": "AuthoringMeshV2CandidateMaterializeRequest@1",
+      "result_schema": "AuthoringMeshV2CandidateMaterializeResult@1",
+      "status": "native-development-only"
+    },
+    "authoring_mesh_v2_high_bridge_prepare": {
+      "operation_name": "authoring_mesh_v2_high_bridge_prepare",
+      "classification": "write",
+      "facade_name": "authoring_transaction",
+      "request_schema": "AuthoringMeshV2HighBridgePrepareRequest@1",
+      "result_schema": "AuthoringMeshV2HighBridgeResult@1",
+      "status": "native-development-only"
+    },
+    "authoring_mesh_v2_high_bridge_get": {
+      "operation_name": "authoring_mesh_v2_high_bridge_get",
+      "classification": "read",
+      "facade_name": "authoring_transaction",
+      "request_schema": "AuthoringMeshV2HighBridgeGetRequest@1",
+      "result_schema": "AuthoringMeshV2HighBridgeResult@1",
+      "status": "native-development-only"
+    },
+    "knife_pass_state_get": {
+      "operation_name": "knife_pass_state_get",
+      "classification": "read",
+      "facade_name": "quality_review",
+      "request_schema": "KnifePassStateGetRequest@1",
+      "result_schema": "KnifePassStateResult@1",
+      "status": "native-development-only"
+    },
+    "knife_pass_state_prepare": {
+      "operation_name": "knife_pass_state_prepare",
+      "classification": "write",
+      "facade_name": "quality_review",
+      "request_schema": "KnifePassStatePrepareRequest@1",
+      "result_schema": "KnifePassStateResult@1",
+      "status": "native-development-only"
+    },
+    "authoring_mesh_v2_high_artifact_prepare": {
+      "operation_name": "authoring_mesh_v2_high_artifact_prepare",
+      "classification": "write",
+      "facade_name": "surface_pipeline",
+      "request_schema": "AuthoringMeshV2HighArtifactPrepareRequest@1",
+      "result_schema": "AuthoringMeshV2HighArtifactResult@1",
+      "status": "native-development-only"
+    },
+    "authoring_mesh_v2_high_artifact_get": {
+      "operation_name": "authoring_mesh_v2_high_artifact_get",
+      "classification": "read",
+      "facade_name": "surface_pipeline",
+      "request_schema": "AuthoringMeshV2HighArtifactGetRequest@1",
+      "result_schema": "AuthoringMeshV2HighArtifactResult@1",
+      "status": "native-development-only"
+    },
+    "production_knife_uv_bake_v2_prepare": {
+      "operation_name": "production_knife_uv_bake_v2_prepare",
+      "classification": "write",
+      "facade_name": "surface_pipeline",
+      "request_schema": "WeaponryKnifeUvBakeV2PrepareRequest@1",
+      "result_schema": "WeaponryKnifeUvBakeV2Result@1",
+      "status": "native-development-only"
+    },
+    "production_knife_uv_bake_v2_get": {
+      "operation_name": "production_knife_uv_bake_v2_get",
+      "classification": "read",
+      "facade_name": "surface_pipeline",
+      "request_schema": "WeaponryKnifeUvBakeV2GetRequest@1",
+      "result_schema": "WeaponryKnifeUvBakeV2Result@1",
+      "status": "native-development-only"
+    },
+    "high_artifact_reference_compare_prepare": {
+      "operation_name": "high_artifact_reference_compare_prepare",
+      "classification": "write",
+      "facade_name": "quality_review",
+      "request_schema": "HighArtifactReferenceComparePrepareRequest@1",
+      "result_schema": "HighArtifactReferenceComparisonPrepareResult@1",
+      "status": "native-development-only"
     }
   },
-  "native_operation_allowlist_sha256": "3e22fe9b80747ba0cdebc5f35f1ce03f269aa165d8b51f4e92855e152fd27149",
-  "underlying_operation_allowlist_sha256": "db9018f3131fd861a72c77112a7154ef7b388db9e802362248645829e1e0b0ec",
-  "canonical_sha256": "690d83750fe663ae66054a83aca333cdec86771b0d85a553a3eb2d9907aab9d4"
+  "native_operation_allowlist_sha256": "7becc556d6a406d6633536ab4e825f9edc905c7daecf72bc71f01ac37123a3f7",
+  "underlying_operation_allowlist_sha256": "622e0904f0933adb66b595bdcc09e834efdde4727f0252e4fca7042142c15f2c",
+  "canonical_sha256": "11f7d92c3953c79e0b34f4c1c6e836033fac39b0f1477273f06bbec3d116206b"
 }

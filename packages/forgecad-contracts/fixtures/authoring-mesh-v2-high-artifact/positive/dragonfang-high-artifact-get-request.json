@@ -1,0 +1,21 @@
+{
+  "schema_version": "AuthoringMeshV2HighArtifactGetRequest@1",
+  "operation": "authoring_mesh_v2_high_artifact_get",
+  "project_id": "project-fd70151d0b164122923bb5f1cd6a4847",
+  "high_artifact_id": "dragonfang-high-glb-artifact-001",
+  "high_artifact_sha256": "a76cc647e48880f2a0909542b77612781bc664720eb49542acb95ef42ee52c05",
+  "high_artifact_object_sha256": "a76cc647e48880f2a0909542b77612781bc664720eb49542acb95ef42ee52c05",
+  "high_artifact_readback_sha256": "a2a862e296e713482872378c2df45ca73460129cb6465c26f425a0c3f598e045",
+  "high_artifact_readback_object_sha256": "a2a862e296e713482872378c2df45ca73460129cb6465c26f425a0c3f598e045",
+  "high_artifact_receipt_sha256": "ec627b002692aa223ab36ac9739a57384f23a4205bbb91c18426a8b5b363baec",
+  "high_artifact_receipt_object_sha256": "4a16af317179fb1c7500261b11bbe3c19eb97677f08fcb840b73b3cb92e7608d",
+  "high_bridge_id": "dragonfang-v2-high-bridge-001",
+  "high_bridge_sha256": "59d90438540f02a55a889e515b4b6e0fa68ad6ffb1ca9042dbb75c2a999dfe6e",
+  "high_bridge_object_sha256": "a40cc2e13d5b5dce8e5d3d41b400c5af594baca848cdb84d9beec601aec98f1a",
+  "max_response_bytes": 1048576,
+  "runtime_write_performed": false,
+  "persistent_user_data_touched": false,
+  "writer_policy": "forgecad-runtime-only-state-writer@1",
+  "canonicalization_policy": "canonical-json-sha256-excluding-input-sha256@1",
+  "input_sha256": "940e22a065c695fe4ea2e7f168e46a02b7a80d8daa90fcbb968916e1f492a81c"
+}

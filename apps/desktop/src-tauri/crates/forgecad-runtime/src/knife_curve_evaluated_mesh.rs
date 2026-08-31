@@ -11,7 +11,9 @@ use super::{
     RuntimeError,
 };
 use forgecad_core::weaponry_dcc::{
-    EvaluatedMeshGeometry, EvaluatedMeshLink, KnifeBladeSweepPlan, KnifeCurve, KnifeCurveBasis,
+    EvaluatedMeshGeometry, EvaluatedMeshIdentity, EvaluatedMeshLink, KnifeBladeLanguageMesh,
+    KnifeBladeLanguagePlan, KnifeBladePartRole, KnifeBladeSection, KnifeBladeSectionRole,
+    KnifeBladeSweepPlan, KnifeBladeView, KnifeBladeViewConstraint, KnifeCurve, KnifeCurveBasis,
     KnifeCurveRole, KnifeThicknessAxis, ModifierGraph, ModifierKind, ModifierNode, Sha256Hash,
     StableId,
 };
@@ -40,6 +42,9 @@ const RESULT_CANONICALIZATION: &str = "canonical-json-sha256-excluding-canonical
 const PLAN_SCHEMA: &str = "KnifeBladeProfileSweepLoftPlan@1";
 const PLAN_TRIANGULATION: &str = "station-ring-fixed-diagonal@1";
 const PLAN_LINEAGE: &str = "source-curve-modifier-graph-evaluated-mesh@1";
+const PLAN_V2_SCHEMA: &str = "KnifeBladeProfileSweepLoftPlan@2";
+const PLAN_V2_TRIANGULATION: &str = "station-ring-fixed-diagonal@2";
+const PLAN_V2_LINEAGE: &str = "source-curve-modifier-graph-sectioned-evaluated-mesh@1";
 const MESH_READBACK_STATUS: &str = "strict-evaluated-mesh-readback@1";
 const EVALUATION_STATUS: &str = "curve-sweep-loft-evaluated-mesh-created-no-geometry-artifact@1";
 const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
@@ -49,6 +54,35 @@ const PLAN_MAX_SEGMENT_LENGTH_M: f64 = 1.0;
 const SAMPLE_COUNT: u64 = 64;
 const SAMPLE_TOLERANCE_M: f64 = 0.00001;
 const SAMPLE_MAX_SEGMENT_LENGTH_M: f64 = 0.01;
+
+const PLAN_V2_FIELDS: &[&str] = &[
+    "schema_version",
+    "evaluation_id",
+    "spine_curve_id",
+    "spine_curve_sha256",
+    "edge_curve_id",
+    "edge_curve_sha256",
+    "station_count",
+    "sections",
+    "thickness_axis",
+    "root_cap",
+    "tip_cap",
+    "view_constraints",
+    "stable_triangulation",
+    "stable_lineage_policy",
+    "canonical_sha256",
+];
+const PLAN_V2_SECTION_FIELDS: &[&str] = &[
+    "section_id",
+    "role",
+    "station_t",
+    "body_thickness_m",
+    "edge_thickness_m",
+    "spine_bevel_fraction",
+    "edge_bevel_fraction",
+    "center_offset_m",
+];
+const PLAN_V2_VIEW_FIELDS: &[&str] = &["view", "min_x_m", "max_x_m", "min_y_m", "max_y_m"];
 
 const PREPARE_FIELDS: &[&str] = &[
     "schema_version",
@@ -512,36 +546,148 @@ fn parse_modifier_graph(value: &Value) -> Result<ModifierGraph, RuntimeError> {
 }
 
 fn parse_plan(value: &Value) -> Result<(Value, String), RuntimeError> {
-    let object = exact_object(value, PLAN_FIELDS, "evaluation_plan")?;
-    exact_const(object, "schema_version", PLAN_SCHEMA)?;
-    if u64_field(object, "station_count")? != STATION_COUNT as u64 {
-        return Err(invalid("evaluation_plan station_count must be exactly 32"));
-    }
-    if !bool_field(object, "root_cap")? || !bool_field(object, "tip_cap")? {
-        return Err(invalid("evaluation_plan root_cap and tip_cap must be true"));
-    }
-    exact_const(object, "stable_triangulation", PLAN_TRIANGULATION)?;
-    exact_const(object, "stable_lineage_policy", PLAN_LINEAGE)?;
-    let thickness = object
-        .get("thickness_m")
-        .and_then(Value::as_f64)
-        .filter(|value| value.is_finite())
-        .ok_or_else(|| invalid("evaluation_plan thickness_m must be finite"))?;
-    if !(0.0001 < thickness && thickness <= 0.25) {
-        return Err(invalid(
-            "evaluation_plan thickness_m is outside the closed bound",
-        ));
-    }
-    if !matches!(
-        text(object, "thickness_axis")?,
-        "local_normal" | "world_x" | "world_y" | "world_z"
-    ) {
-        return Err(invalid(
-            "evaluation_plan thickness_axis is outside the Core enum",
-        ));
+    let schema_version = value
+        .get("schema_version")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("evaluation_plan schema_version is missing"))?;
+    match schema_version {
+        PLAN_SCHEMA => {
+            let object = exact_object(value, PLAN_FIELDS, "evaluation_plan")?;
+            exact_const(object, "schema_version", PLAN_SCHEMA)?;
+            if u64_field(object, "station_count")? != STATION_COUNT as u64 {
+                return Err(invalid("evaluation_plan station_count must be exactly 32"));
+            }
+            if !bool_field(object, "root_cap")? || !bool_field(object, "tip_cap")? {
+                return Err(invalid("evaluation_plan root_cap and tip_cap must be true"));
+            }
+            exact_const(object, "stable_triangulation", PLAN_TRIANGULATION)?;
+            exact_const(object, "stable_lineage_policy", PLAN_LINEAGE)?;
+            let thickness = object
+                .get("thickness_m")
+                .and_then(Value::as_f64)
+                .filter(|value| value.is_finite())
+                .ok_or_else(|| invalid("evaluation_plan thickness_m must be finite"))?;
+            if !(0.0001 < thickness && thickness <= 0.25) {
+                return Err(invalid(
+                    "evaluation_plan thickness_m is outside the closed bound",
+                ));
+            }
+            if !matches!(
+                text(object, "thickness_axis")?,
+                "local_normal" | "world_x" | "world_y" | "world_z"
+            ) {
+                return Err(invalid(
+                    "evaluation_plan thickness_axis is outside the Core enum",
+                ));
+            }
+        }
+        PLAN_V2_SCHEMA => {
+            let object = exact_object(value, PLAN_V2_FIELDS, "evaluation_plan")?;
+            exact_const(object, "schema_version", PLAN_V2_SCHEMA)?;
+            let station_count = u64_field(object, "station_count")?;
+            if !(4..=256).contains(&station_count) {
+                return Err(invalid(
+                    "V2 evaluation_plan station_count is outside 4..=256",
+                ));
+            }
+            if !bool_field(object, "root_cap")? || !bool_field(object, "tip_cap")? {
+                return Err(invalid(
+                    "V2 evaluation_plan root_cap and tip_cap must be true",
+                ));
+            }
+            exact_const(object, "stable_triangulation", PLAN_V2_TRIANGULATION)?;
+            exact_const(object, "stable_lineage_policy", PLAN_V2_LINEAGE)?;
+            if !matches!(
+                text(object, "thickness_axis")?,
+                "local_normal" | "world_x" | "world_y" | "world_z"
+            ) {
+                return Err(invalid(
+                    "V2 evaluation_plan thickness_axis is outside the Core enum",
+                ));
+            }
+            let sections = object
+                .get("sections")
+                .and_then(Value::as_array)
+                .filter(|sections| (4..=16).contains(&sections.len()))
+                .ok_or_else(|| {
+                    invalid("V2 evaluation_plan sections must contain 4..=16 entries")
+                })?;
+            for (index, section) in sections.iter().enumerate() {
+                let section = exact_object(
+                    section,
+                    PLAN_V2_SECTION_FIELDS,
+                    &format!("evaluation_plan.sections[{index}]"),
+                )?;
+                let station = section
+                    .get("station_t")
+                    .and_then(Value::as_f64)
+                    .filter(|value| value.is_finite())
+                    .ok_or_else(|| {
+                        invalid(format!("sections[{index}].station_t must be finite"))
+                    })?;
+                if !(0.0..=1.0).contains(&station) {
+                    return Err(invalid(format!(
+                        "sections[{index}].station_t is outside [0,1]"
+                    )));
+                }
+                for field in [
+                    "body_thickness_m",
+                    "edge_thickness_m",
+                    "spine_bevel_fraction",
+                    "edge_bevel_fraction",
+                    "center_offset_m",
+                ] {
+                    if !section
+                        .get(field)
+                        .and_then(Value::as_f64)
+                        .is_some_and(f64::is_finite)
+                    {
+                        return Err(invalid(format!("sections[{index}].{field} must be finite")));
+                    }
+                }
+            }
+            let views = object
+                .get("view_constraints")
+                .and_then(Value::as_array)
+                .filter(|views| views.len() == 5)
+                .ok_or_else(|| {
+                    invalid("V2 evaluation_plan requires exactly five view constraints")
+                })?;
+            let mut seen = BTreeSet::new();
+            for (index, view) in views.iter().enumerate() {
+                let view = exact_object(
+                    view,
+                    PLAN_V2_VIEW_FIELDS,
+                    &format!("evaluation_plan.view_constraints[{index}]"),
+                )?;
+                let name = text(view, "view")?;
+                if !matches!(name, "front" | "top" | "bottom" | "left" | "right")
+                    || !seen.insert(name)
+                {
+                    return Err(invalid(
+                        "V2 view constraints must contain five distinct fixed views",
+                    ));
+                }
+                for field in ["min_x_m", "max_x_m", "min_y_m", "max_y_m"] {
+                    if !view
+                        .get(field)
+                        .and_then(Value::as_f64)
+                        .is_some_and(f64::is_finite)
+                    {
+                        return Err(invalid(format!(
+                            "view_constraints[{index}].{field} must be finite"
+                        )));
+                    }
+                }
+            }
+        }
+        _ => return Err(invalid("evaluation_plan schema_version is unsupported")),
     }
     let plan = value.clone();
     let expected_canonical = canonical_hash_without(&plan, "canonical_sha256")?;
+    let object = plan
+        .as_object()
+        .ok_or_else(|| invalid("evaluation_plan must be an object"))?;
     if expected_canonical != hash(object, "canonical_sha256")? {
         return Err(mismatch(
             "KNIFE_CURVE_EVALUATED_MESH_PLAN_CANONICAL_MISMATCH",
@@ -551,12 +697,79 @@ fn parse_plan(value: &Value) -> Result<(Value, String), RuntimeError> {
     Ok((plan, expected_canonical))
 }
 
+#[derive(Clone)]
+enum BoundEvaluationPlan {
+    V1(KnifeBladeSweepPlan),
+    V2(KnifeBladeLanguagePlan),
+}
+
+impl BoundEvaluationPlan {
+    fn evaluate(
+        &self,
+        spine: &KnifeCurve,
+        edge: &KnifeCurve,
+    ) -> Result<(Value, Sha256Hash, Sha256Hash, u64, u64), RuntimeError> {
+        match self {
+            Self::V1(plan) => {
+                let mesh = plan
+                    .evaluate(spine, edge)
+                    .map_err(|error| invalid(error.to_string()))?;
+                let value = serde_json::to_value(&mesh).map_err(|error| {
+                    invalid(format!("evaluated mesh serialization failed: {error}"))
+                })?;
+                Ok((
+                    value,
+                    mesh.semantic_sha256.clone(),
+                    mesh.plan_sha256.clone(),
+                    mesh.vertices.len() as u64,
+                    mesh.triangles.len() as u64,
+                ))
+            }
+            Self::V2(plan) => {
+                let mesh = plan
+                    .evaluate(spine, edge)
+                    .map_err(|error| invalid(error.to_string()))?;
+                let value = serde_json::to_value(&mesh).map_err(|error| {
+                    invalid(format!("V2 evaluated mesh serialization failed: {error}"))
+                })?;
+                Ok((
+                    value,
+                    mesh.semantic_sha256.clone(),
+                    mesh.plan_sha256.clone(),
+                    mesh.vertices.len() as u64,
+                    mesh.triangles.len() as u64,
+                ))
+            }
+        }
+    }
+
+    fn core_plan_sha256(&self) -> Result<Sha256Hash, RuntimeError> {
+        match self {
+            Self::V1(plan) => plan
+                .canonical_sha256()
+                .map_err(|error| invalid(error.to_string())),
+            Self::V2(plan) => plan
+                .canonical_sha256()
+                .map_err(|error| invalid(error.to_string())),
+        }
+    }
+}
+
 fn bound_plan(
     plan: &Value,
     spine: &KnifeCurve,
     edge: &KnifeCurve,
-) -> Result<(KnifeBladeSweepPlan, String), RuntimeError> {
-    let object = exact_object(plan, PLAN_FIELDS, "evaluation_plan")?;
+) -> Result<(BoundEvaluationPlan, String), RuntimeError> {
+    let schema_version = text(
+        plan.as_object()
+            .ok_or_else(|| invalid("evaluation_plan must be an object"))?,
+        "schema_version",
+    )?;
+    let object = match schema_version {
+        PLAN_SCHEMA => exact_object(plan, PLAN_FIELDS, "evaluation_plan")?,
+        PLAN_V2_SCHEMA => exact_object(plan, PLAN_V2_FIELDS, "evaluation_plan")?,
+        _ => return Err(invalid("evaluation_plan schema_version is unsupported")),
+    };
     let axis = match text(object, "thickness_axis")? {
         "local_normal" => KnifeThicknessAxis::LocalNormal,
         "world_x" => KnifeThicknessAxis::WorldX,
@@ -590,21 +803,120 @@ fn bound_plan(
             "evaluation_plan curve hashes do not bind structural curves",
         ));
     }
-    let thickness = object
-        .get("thickness_m")
-        .and_then(Value::as_f64)
-        .filter(|value| value.is_finite())
-        .ok_or_else(|| invalid("evaluation_plan thickness_m must be finite"))?;
-    let typed = KnifeBladeSweepPlan::new(
-        spine,
-        edge,
-        STATION_COUNT,
-        PLAN_TOLERANCE_M,
-        PLAN_MAX_SEGMENT_LENGTH_M,
-        axis,
-        thickness,
-    )
-    .map_err(|error| invalid(error.to_string()))?;
+    let typed = if schema_version == PLAN_SCHEMA {
+        let thickness = object
+            .get("thickness_m")
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite())
+            .ok_or_else(|| invalid("evaluation_plan thickness_m must be finite"))?;
+        BoundEvaluationPlan::V1(
+            KnifeBladeSweepPlan::new(
+                spine,
+                edge,
+                STATION_COUNT,
+                PLAN_TOLERANCE_M,
+                PLAN_MAX_SEGMENT_LENGTH_M,
+                axis,
+                thickness,
+            )
+            .map_err(|error| invalid(error.to_string()))?,
+        )
+    } else {
+        let section_values = object
+            .get("sections")
+            .and_then(Value::as_array)
+            .ok_or_else(|| invalid("V2 evaluation_plan sections are missing"))?;
+        let sections = section_values
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let section = exact_object(
+                    value,
+                    PLAN_V2_SECTION_FIELDS,
+                    &format!("evaluation_plan.sections[{index}]"),
+                )?;
+                let role = match text(section, "role")? {
+                    "root" => KnifeBladeSectionRole::Root,
+                    "mid" => KnifeBladeSectionRole::Mid,
+                    "belly" => KnifeBladeSectionRole::Belly,
+                    "tip" => KnifeBladeSectionRole::Tip,
+                    _ => return Err(invalid("V2 section role is outside the closed Core enum")),
+                };
+                let number = |field: &str| {
+                    section
+                        .get(field)
+                        .and_then(Value::as_f64)
+                        .filter(|value| value.is_finite())
+                        .ok_or_else(|| invalid(format!("sections[{index}].{field} must be finite")))
+                };
+                KnifeBladeSection::new(
+                    id(section, "section_id")?,
+                    role,
+                    number("station_t")?,
+                    number("body_thickness_m")?,
+                    number("edge_thickness_m")?,
+                    number("spine_bevel_fraction")?,
+                    number("edge_bevel_fraction")?,
+                    number("center_offset_m")?,
+                )
+                .map_err(|error| invalid(error.to_string()))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let constraints = object
+            .get("view_constraints")
+            .and_then(Value::as_array)
+            .ok_or_else(|| invalid("V2 evaluation_plan view_constraints are missing"))?
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let view = exact_object(
+                    value,
+                    PLAN_V2_VIEW_FIELDS,
+                    &format!("evaluation_plan.view_constraints[{index}]"),
+                )?;
+                let view = match text(view, "view")? {
+                    "front" => KnifeBladeView::Front,
+                    "top" => KnifeBladeView::Top,
+                    "bottom" => KnifeBladeView::Bottom,
+                    "left" => KnifeBladeView::Left,
+                    "right" => KnifeBladeView::Right,
+                    _ => return Err(invalid("V2 view is outside the closed Core enum")),
+                };
+                let number = |field: &str| {
+                    value
+                        .get(field)
+                        .and_then(Value::as_f64)
+                        .filter(|value| value.is_finite())
+                        .ok_or_else(|| {
+                            invalid(format!("view_constraints[{index}].{field} must be finite"))
+                        })
+                };
+                KnifeBladeViewConstraint::new(
+                    view,
+                    number("min_x_m")?,
+                    number("max_x_m")?,
+                    number("min_y_m")?,
+                    number("max_y_m")?,
+                )
+                .map_err(|error| invalid(error.to_string()))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let station_count = u32::try_from(u64_field(object, "station_count")?)
+            .map_err(|_| invalid("V2 station_count does not fit the Core type"))?;
+        BoundEvaluationPlan::V2(
+            KnifeBladeLanguagePlan::new(
+                spine,
+                edge,
+                station_count,
+                PLAN_TOLERANCE_M,
+                PLAN_MAX_SEGMENT_LENGTH_M,
+                sections,
+                axis,
+                constraints,
+            )
+            .map_err(|error| invalid(error.to_string()))?,
+        )
+    };
     let semantic = canonical_hash_without(plan, "canonical_sha256")?;
     Ok((typed, semantic))
 }
@@ -941,8 +1253,17 @@ fn load_structural(
 fn verify_plan_curves(
     structural: &StructuralSource,
     plan: &Value,
-) -> Result<(KnifeCurve, KnifeCurve, KnifeBladeSweepPlan, String), RuntimeError> {
-    let plan_object = exact_object(plan, PLAN_FIELDS, "evaluation_plan")?;
+) -> Result<(KnifeCurve, KnifeCurve, BoundEvaluationPlan, String), RuntimeError> {
+    let schema_version = text(
+        plan.as_object()
+            .ok_or_else(|| invalid("evaluation_plan must be an object"))?,
+        "schema_version",
+    )?;
+    let plan_object = match schema_version {
+        PLAN_SCHEMA => exact_object(plan, PLAN_FIELDS, "evaluation_plan")?,
+        PLAN_V2_SCHEMA => exact_object(plan, PLAN_V2_FIELDS, "evaluation_plan")?,
+        _ => return Err(invalid("evaluation_plan schema_version is unsupported")),
+    };
     let spine_id = id(plan_object, "spine_curve_id")?;
     let edge_id = id(plan_object, "edge_curve_id")?;
     if spine_id == edge_id {
@@ -1053,9 +1374,241 @@ fn record_canonical(record: &KnifeCurveEvaluatedMeshDurableRecord) -> Result<Str
     Ok(forgecad_store::weaponry_curve_evaluated_mesh_record_canonical_sha256(record)?)
 }
 
+/// Lower the disposable V2 blade mesh into a Runtime-derived, caller-visible
+/// GeometryProgram draft.  The caller may submit this exact hash-bearing
+/// program to the existing geometry prepare operation, but cannot supply or
+/// alter topology through the evaluated-mesh operation itself.
+///
+/// Surface lineage stays on each triangle, while the public materialization
+/// scope is exactly the two Brief Parts permitted by this correction atom:
+/// blade-body and cutting-edge.  Spine/main-face/root-transition compose the
+/// blade-body node; cutting-edge remains an independent node.
+fn v2_materialization_program(
+    project_id: &str,
+    mesh_value: &Value,
+) -> Result<(Value, Value, &'static str), RuntimeError> {
+    if mesh_value.get("parts").is_none() {
+        return Ok((Value::Null, Value::Null, "not-applicable-v1-evaluated-mesh"));
+    }
+    let mesh: KnifeBladeLanguageMesh = serde_json::from_value(mesh_value.clone())
+        .map_err(|error| invalid(format!("V2 materialization mesh is invalid: {error}")))?;
+    mesh.validate()
+        .map_err(|error| invalid(format!("V2 materialization mesh is invalid: {error}")))?;
+
+    let groups = [
+        (
+            "blade-body",
+            "dark-red-blade",
+            vec![
+                KnifeBladePartRole::Spine,
+                KnifeBladePartRole::MainFace,
+                KnifeBladePartRole::RootTransition,
+            ],
+        ),
+        (
+            "cutting-edge",
+            "silver-cutting-edge",
+            vec![KnifeBladePartRole::CuttingEdge],
+        ),
+    ];
+    let mut nodes = Vec::with_capacity(groups.len());
+    let mut outputs = Vec::with_capacity(groups.len());
+    for (part_ordinal, (part_id, material_zone_id, roles)) in groups.iter().enumerate() {
+        let node_id = format!("knife-v2-part-{part_ordinal}");
+        let triangle_indices = mesh
+            .parts
+            .iter()
+            .filter(|part| roles.contains(&part.role))
+            .flat_map(|part| part.triangle_indices.iter().copied())
+            .collect::<BTreeSet<_>>();
+        let part_vertex_indices = triangle_indices
+            .iter()
+            .flat_map(|triangle_index| mesh.triangles[*triangle_index as usize].indices)
+            .collect::<BTreeSet<_>>();
+        if part_vertex_indices.is_empty() || triangle_indices.is_empty() {
+            return Err(invalid("V2 materialization Part is empty"));
+        }
+        let mut vertices = part_vertex_indices
+            .iter()
+            .map(|index| {
+                let vertex = mesh
+                    .vertices
+                    .get(*index as usize)
+                    .ok_or_else(|| invalid("V2 Part references an unknown vertex"))?;
+                Ok(json!({
+                    "element_id": vertex.vertex_id.as_str(),
+                    "position_m": vertex.position_m,
+                }))
+            })
+            .collect::<Result<Vec<_>, RuntimeError>>()?;
+        vertices.sort_by(|left, right| {
+            left["element_id"]
+                .as_str()
+                .cmp(&right["element_id"].as_str())
+        });
+
+        let mut edge_ids = BTreeMap::<(u32, u32), String>::new();
+        let mut edges = Vec::<Value>::new();
+        let mut loops = Vec::<Value>::new();
+        let mut faces = Vec::<Value>::new();
+        for triangle_index in &triangle_indices {
+            let triangle = mesh
+                .triangles
+                .get(*triangle_index as usize)
+                .ok_or_else(|| invalid("V2 Part references an unknown triangle"))?;
+            if !roles.contains(&triangle.lineage.part_role)
+                || triangle
+                    .indices
+                    .iter()
+                    .any(|index| !part_vertex_indices.contains(index))
+            {
+                return Err(invalid("V2 Part triangle ownership drifted"));
+            }
+            let face_id = triangle.triangle_id.as_str();
+            let mut face_loop_ids = Vec::with_capacity(3);
+            for ordinal in 0..3usize {
+                let vertex_index = triangle.indices[ordinal];
+                let next_vertex_index = triangle.indices[(ordinal + 1) % 3];
+                let edge_key = if vertex_index < next_vertex_index {
+                    (vertex_index, next_vertex_index)
+                } else {
+                    (next_vertex_index, vertex_index)
+                };
+                let edge_id = if let Some(existing) = edge_ids.get(&edge_key) {
+                    existing.clone()
+                } else {
+                    let id = format!(
+                        "knife-v2-edge-{}",
+                        &canonical_json_hash(&json!({
+                            "mesh": mesh.semantic_sha256.as_str(),
+                            "part": part_id,
+                            "vertices": edge_key,
+                        }))[..32]
+                    );
+                    let first_vertex = mesh
+                        .vertices
+                        .get(edge_key.0 as usize)
+                        .ok_or_else(|| invalid("V2 edge references an unknown vertex"))?;
+                    let second_vertex = mesh
+                        .vertices
+                        .get(edge_key.1 as usize)
+                        .ok_or_else(|| invalid("V2 edge references an unknown vertex"))?;
+                    let mut endpoint_ids = [
+                        first_vertex.vertex_id.as_str(),
+                        second_vertex.vertex_id.as_str(),
+                    ];
+                    endpoint_ids.sort();
+                    edges.push(json!({
+                        "element_id": id,
+                        "vertex_ids": endpoint_ids,
+                    }));
+                    edge_ids.insert(edge_key, id.clone());
+                    id
+                };
+                // AuthoringMesh requires the first loop id to be the
+                // lexicographically smallest rotation of the face winding.
+                // Keep the winding-derived face digest stable, but place the
+                // zero-padded ordinal before it so ordinal 0 is canonical.
+                let loop_id = format!(
+                    "knife-v2-loop-{ordinal:02}-{}",
+                    &canonical_json_hash(&json!({"triangle": face_id}))[..32]
+                );
+                face_loop_ids.push(loop_id.clone());
+                loops.push(json!({
+                    "element_id": loop_id,
+                    "face_id": face_id,
+                    "ordinal": ordinal,
+                    "vertex_id": mesh.vertices[vertex_index as usize].vertex_id.as_str(),
+                    "edge_id": edge_id,
+                    "edge_forward": mesh.vertices[vertex_index as usize].vertex_id.as_str()
+                        < mesh.vertices[next_vertex_index as usize].vertex_id.as_str(),
+                }));
+            }
+            faces.push(json!({
+                "element_id": face_id,
+                "loop_ids": face_loop_ids,
+            }));
+        }
+        edges.sort_by(|left, right| {
+            left["element_id"]
+                .as_str()
+                .cmp(&right["element_id"].as_str())
+        });
+        loops.sort_by(|left, right| {
+            left["element_id"]
+                .as_str()
+                .cmp(&right["element_id"].as_str())
+        });
+        faces.sort_by(|left, right| {
+            left["element_id"]
+                .as_str()
+                .cmp(&right["element_id"].as_str())
+        });
+        nodes.push(json!({
+            "node_id": node_id,
+            "operator_id": "forgecad.geometry.authoring-mesh@1",
+            "inputs": [],
+            "parameters": {
+                "shape": "authoring-mesh",
+                "topology_policy": "triangle-quad-manifold-with-boundary@1",
+                "vertices": vertices,
+                "edges": edges,
+                "loops": loops,
+                "faces": faces,
+                "position_m": [0.0, 0.0, 0.0],
+                "rotation_rad": [0.0, 0.0, 0.0],
+            },
+        }));
+        outputs.push(json!({
+            "part_id": part_id,
+            "input_node_ids": [node_id],
+            "material_zone_id": material_zone_id,
+            "solid": false,
+        }));
+    }
+    let representation_plan_sha256 = canonical_json_hash(&json!({
+        "schema_version": "KnifeBladeV2GeometryMaterializationPlan@1",
+        "project_id": project_id,
+        "evaluated_mesh_semantic_sha256": mesh.semantic_sha256.as_str(),
+        "evaluation_plan_sha256": mesh.plan_sha256.as_str(),
+        "surface_lineage_part_ids": mesh.parts.iter().map(|part| part.part_id.as_str()).collect::<Vec<_>>(),
+        "materialized_part_ids": ["blade-body", "cutting-edge"],
+        "materialized_material_zone_ids": ["dark-red-blade", "silver-cutting-edge"],
+        "policy": "runtime-derived-two-part-four-surface-authoring-mesh-projection@1",
+    }));
+    let mut program = json!({
+        "schema_version": "GeometryProgram@2",
+        "project_id": project_id,
+        "representation_plan_sha256": representation_plan_sha256,
+        "operator_catalog_sha256": super::operator_catalog_sha256(),
+        "units": {
+            "length": "meter",
+            "angle": "radian",
+            "coordinate_system": "right-handed-y-up",
+        },
+        "budgets": {
+            "max_nodes": 2,
+            "max_triangles": mesh.triangles.len(),
+            "max_glb_bytes": 67_108_864,
+            "max_worker_memory_bytes": 536_870_912,
+            "max_runtime_ms": 10_000,
+        },
+        "nodes": nodes,
+        "part_outputs": outputs,
+    });
+    let program_sha256 = canonical_json_hash(&program);
+    program["canonical_sha256"] = Value::String(program_sha256.clone());
+    Ok((
+        program,
+        Value::String(program_sha256),
+        "runtime-derived-v2-blade-body-cutting-edge-program-ready",
+    ))
+}
+
 fn result(
     record: &KnifeCurveEvaluatedMeshDurableRecord,
     plan: &Value,
+    mesh: &Value,
     operation: &str,
     status: &str,
     request_idempotency_key: &str,
@@ -1064,6 +1617,8 @@ fn result(
     restart_hash_verified: bool,
     max_bytes: usize,
 ) -> Result<Value, RuntimeError> {
+    let (materialization_program, materialization_program_sha256, materialization_program_status) =
+        v2_materialization_program(&record.project_id, mesh)?;
     let mut value = json!({
         "schema_version":RESULT_SCHEMA,
         "operation":operation,
@@ -1095,6 +1650,9 @@ fn result(
         "evaluated_mesh_semantic_sha256":record.evaluated_mesh_semantic_sha256,
         "evaluated_mesh_identity_sha256":record.evaluated_mesh_identity_sha256,
         "evaluated_mesh_link_sha256":record.evaluated_mesh_link_sha256,
+        "materialization_program":materialization_program,
+        "materialization_program_sha256":materialization_program_sha256,
+        "materialization_program_status":materialization_program_status,
         "vertex_count":record.vertex_count,
         "triangle_count":record.triangle_count,
         "closed_two_manifold":record.closed_two_manifold,
@@ -1233,7 +1791,7 @@ fn parse_and_validate_derived(
 ) -> Result<(), RuntimeError> {
     // Reapply the closed public plan policy on readback before binding it to
     // Core rails. Store verifies the CAS bytes and semantic hash; Runtime
-    // additionally owns the fixed 32-station/tolerance/axis contract.
+    // additionally owns the V1 compatibility or V2 sectioned policy.
     parse_plan(plan)?;
     let (spine, edge, typed_plan, plan_semantic) = verify_plan_curves(structural, plan)?;
     if plan_semantic != record.evaluation_plan_semantic_sha256
@@ -1244,44 +1802,67 @@ fn parse_and_validate_derived(
             "evaluation plan object/semantic hash differs from durable truth",
         ));
     }
-    let mesh: EvaluatedMeshGeometry =
-        serde_json::from_value(mesh_value.clone()).map_err(|error| {
-            invalid(format!(
-                "evaluated mesh JSON is not typed Core geometry: {error}"
-            ))
-        })?;
-    mesh.validate()
-        .map_err(|error| invalid(error.to_string()))?;
-    if mesh.semantic_sha256.as_str() != record.evaluated_mesh_semantic_sha256
+    let (mesh_semantic, mesh_plan, vertex_count, triangle_count) = match &typed_plan {
+        BoundEvaluationPlan::V1(_plan) => {
+            let mesh: EvaluatedMeshGeometry =
+                serde_json::from_value(mesh_value.clone()).map_err(|error| {
+                    invalid(format!(
+                        "evaluated mesh JSON is not typed Core geometry: {error}"
+                    ))
+                })?;
+            mesh.validate()
+                .map_err(|error| invalid(error.to_string()))?;
+            (
+                mesh.semantic_sha256.clone(),
+                mesh.plan_sha256.clone(),
+                mesh.vertices.len() as u64,
+                mesh.triangles.len() as u64,
+            )
+        }
+        BoundEvaluationPlan::V2(plan) => {
+            let mesh: KnifeBladeLanguageMesh =
+                serde_json::from_value(mesh_value.clone()).map_err(|error| {
+                    invalid(format!(
+                        "V2 evaluated mesh JSON is not Core geometry: {error}"
+                    ))
+                })?;
+            mesh.validate()
+                .map_err(|error| invalid(error.to_string()))?;
+            mesh.validate_view_constraints(&plan.view_constraints)
+                .map_err(|error| invalid(error.to_string()))?;
+            (
+                mesh.semantic_sha256.clone(),
+                mesh.plan_sha256.clone(),
+                mesh.vertices.len() as u64,
+                mesh.triangles.len() as u64,
+            )
+        }
+    };
+    if mesh_semantic.as_str() != record.evaluated_mesh_semantic_sha256
         || canonical_json_hash(mesh_value) != record.evaluated_mesh_object_sha256
-        || mesh.plan_sha256
-            != typed_plan
-                .canonical_sha256()
-                .map_err(|error| invalid(error.to_string()))?
+        || mesh_plan != typed_plan.core_plan_sha256()?
     {
         return Err(mismatch(
             "KNIFE_CURVE_EVALUATED_MESH_OUTPUT_HASH_MISMATCH",
             "evaluated mesh payload does not match plan/object/semantic bindings",
         ));
     }
-    if mesh.vertices.len() as u64 != record.vertex_count
-        || mesh.triangles.len() as u64 != record.triangle_count
-    {
+    if vertex_count != record.vertex_count || triangle_count != record.triangle_count {
         return Err(mismatch(
             "KNIFE_CURVE_EVALUATED_MESH_COUNT_MISMATCH",
             "evaluated mesh counts differ from durable truth",
         ));
     }
     let input_hashes = input_evaluation_hashes(structural, &plan_semantic)?;
-    let identity = mesh
-        .evaluated_mesh_identity(
-            Sha256Hash::new(record.source_authoring_mesh_revision_sha256.as_str())
-                .map_err(|error| invalid(error.to_string()))?,
-            Sha256Hash::new(record.source_modifier_graph_sha256.as_str())
-                .map_err(|error| invalid(error.to_string()))?,
-            input_hashes,
-        )
-        .map_err(|error| invalid(error.to_string()))?;
+    let identity = EvaluatedMeshIdentity::new(
+        Sha256Hash::new(record.source_authoring_mesh_revision_sha256.as_str())
+            .map_err(|error| invalid(error.to_string()))?,
+        Sha256Hash::new(record.source_modifier_graph_sha256.as_str())
+            .map_err(|error| invalid(error.to_string()))?,
+        input_hashes,
+        mesh_semantic.clone(),
+    )
+    .map_err(|error| invalid(error.to_string()))?;
     let expected_identity = serde_json::to_value(&identity)
         .map_err(|error| invalid(format!("identity serialization failed: {error}")))?;
     if expected_identity != *identity_value
@@ -1306,14 +1887,9 @@ fn parse_and_validate_derived(
     // Re-evaluate the disposable mesh during readback. This checks that a
     // reopened Runtime sees the same deterministic bytes, while the public
     // result deliberately remains restart_hash_verified=false.
-    let replay = typed_plan
-        .evaluate(&spine, &edge)
-        .map_err(|error| invalid(error.to_string()))?;
-    let replay_bytes = canonical_json_bytes(
-        &serde_json::to_value(&replay)
-            .map_err(|error| invalid(format!("replay serialization failed: {error}")))?,
-    )
-    .map_err(|error| invalid(format!("replay canonicalization failed: {error}")))?;
+    let (replay, _, _, _, _) = typed_plan.evaluate(&spine, &edge)?;
+    let replay_bytes = canonical_json_bytes(&replay)
+        .map_err(|error| invalid(format!("replay canonicalization failed: {error}")))?;
     let stored_bytes = canonical_json_bytes(mesh_value)
         .map_err(|error| invalid(format!("mesh canonicalization failed: {error}")))?;
     if replay_bytes != stored_bytes {
@@ -1345,19 +1921,10 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
         .ok_or_else(|| invalid("evaluation_plan is missing"))?;
     parse_plan(plan_value)?;
     let (spine, edge, typed_plan, plan_semantic) = verify_plan_curves(&structural, plan_value)?;
-    let first = typed_plan
-        .evaluate(&spine, &edge)
-        .map_err(|error| invalid(error.to_string()))?;
-    let second = typed_plan
-        .evaluate(&spine, &edge)
-        .map_err(|error| invalid(error.to_string()))?;
-    let first_value = serde_json::to_value(&first)
-        .map_err(|error| invalid(format!("evaluated mesh serialization failed: {error}")))?;
-    let second_value = serde_json::to_value(&second).map_err(|error| {
-        invalid(format!(
-            "evaluated mesh replay serialization failed: {error}"
-        ))
-    })?;
+    let (first_value, first_semantic, first_plan_sha256, vertex_count, triangle_count) =
+        typed_plan.evaluate(&spine, &edge)?;
+    let (second_value, second_semantic, second_plan_sha256, _, _) =
+        typed_plan.evaluate(&spine, &edge)?;
     let first_bytes = canonical_json_bytes(&first_value)
         .map_err(|error| invalid(format!("evaluated mesh canonicalization failed: {error}")))?;
     let second_bytes = canonical_json_bytes(&second_value).map_err(|error| {
@@ -1371,21 +1938,27 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
             "pure Core evaluation was not byte exact",
         ));
     }
-    let identity = first
-        .evaluated_mesh_identity(
-            Sha256Hash::new(structural.record.source_revision_sha256.as_str())
-                .map_err(|error| invalid(error.to_string()))?,
-            Sha256Hash::new(structural.record.modifier_graph_sha256.as_str())
-                .map_err(|error| invalid(error.to_string()))?,
-            input_evaluation_hashes(&structural, &plan_semantic)?,
-        )
-        .map_err(|error| invalid(error.to_string()))?;
+    if first_semantic != second_semantic || first_plan_sha256 != second_plan_sha256 {
+        return Err(mismatch(
+            "KNIFE_CURVE_EVALUATED_MESH_REPLAY_MISMATCH",
+            "pure Core evaluation hashes were not stable",
+        ));
+    }
+    let identity = EvaluatedMeshIdentity::new(
+        Sha256Hash::new(structural.record.source_revision_sha256.as_str())
+            .map_err(|error| invalid(error.to_string()))?,
+        Sha256Hash::new(structural.record.modifier_graph_sha256.as_str())
+            .map_err(|error| invalid(error.to_string()))?,
+        input_evaluation_hashes(&structural, &plan_semantic)?,
+        first_semantic.clone(),
+    )
+    .map_err(|error| invalid(error.to_string()))?;
     let identity_value = serde_json::to_value(&identity)
         .map_err(|error| invalid(format!("identity serialization failed: {error}")))?;
     let link = EvaluatedMeshLink::new(identity.clone());
     let link_value = serde_json::to_value(&link)
         .map_err(|error| invalid(format!("link serialization failed: {error}")))?;
-    let mesh_semantic = first.semantic_sha256.as_str().to_owned();
+    let mesh_semantic = first_semantic.as_str().to_owned();
     let identity_sha256 = canonical_json_hash(&identity_value);
     let link_sha256 = canonical_json_hash(&link_value);
     let evaluated_mesh_id = format!("knife-evaluated-mesh-{mesh_semantic}");
@@ -1423,7 +1996,9 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
         let evaluated_lookup = lookup_key(
             &structural,
             id(
-                exact_object(plan_value, PLAN_FIELDS, "evaluation_plan")?,
+                plan_value
+                    .as_object()
+                    .ok_or_else(|| invalid("evaluation_plan must be an object"))?,
                 "evaluation_id",
             )?,
             &plan_semantic,
@@ -1468,7 +2043,9 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
             recompute_plan_semantic_sha256: structural.record.recompute_plan_sha256.clone(),
             recompute_plan_object_sha256: structural.record.recompute_plan_object_sha256.clone(),
             evaluation_id: id(
-                exact_object(plan_value, PLAN_FIELDS, "evaluation_plan")?,
+                plan_value
+                    .as_object()
+                    .ok_or_else(|| invalid("evaluation_plan must be an object"))?,
                 "evaluation_id",
             )?
             .to_owned(),
@@ -1481,8 +2058,8 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
             evaluated_mesh_identity_object_sha256: identity_object.record.sha256.clone(),
             evaluated_mesh_link_sha256: link_sha256,
             evaluated_mesh_link_object_sha256: link_object.record.sha256.clone(),
-            vertex_count: first.vertices.len() as u64,
-            triangle_count: first.triangles.len() as u64,
+            vertex_count,
+            triangle_count,
             closed_two_manifold: true,
             zero_degenerate_triangles: true,
             evaluated_mesh_lookup_key_sha256: evaluated_lookup,
@@ -1508,6 +2085,7 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
         result(
             &stored,
             plan_value,
+            &first_value,
             PREPARE_OPERATION,
             if replayed { "replayed" } else { "prepared" },
             &stored.idempotency_key,
@@ -1642,6 +2220,7 @@ pub(crate) fn get(runtime: &Runtime, request: &Value) -> Result<Value, RuntimeEr
     result(
         &record,
         &plan,
+        &mesh,
         GET_OPERATION,
         "found",
         id(object, "idempotency_key")?,
@@ -2032,6 +2611,136 @@ mod tests {
         plan["canonical_sha256"] = Value::String(expected.clone());
         let (_, semantic) = parse_plan(&plan).unwrap();
         assert_eq!(semantic, expected);
+    }
+
+    #[test]
+    fn v2_plan_binds_sections_and_views_and_evaluates_sectioned_mesh() {
+        let spine_value = curve_value(
+            "blade-spine-v2",
+            "blade_spine",
+            vec![
+                [0.0, 0.0, 0.0],
+                [0.0, 0.2, 0.4],
+                [0.0, 0.6, 0.8],
+                [0.0, 1.0, 1.0],
+            ],
+        );
+        let edge_value = curve_value(
+            "blade-edge-v2",
+            "blade_edge",
+            vec![
+                [0.42, 0.0, 0.0],
+                [0.42, 0.2, 0.0],
+                [0.34, 0.65, 0.0],
+                [0.0, 1.0, 0.0],
+            ],
+        );
+        let spine = parse_curve(&spine_value).expect("spine curve");
+        let edge = parse_curve(&edge_value).expect("edge curve");
+        let mut plan = json!({
+            "schema_version": PLAN_V2_SCHEMA,
+            "evaluation_id": "knife-evaluation-v2",
+            "spine_curve_id": spine_value["curve_id"],
+            "spine_curve_sha256": spine_value["canonical_sha256"],
+            "edge_curve_id": edge_value["curve_id"],
+            "edge_curve_sha256": edge_value["canonical_sha256"],
+            "station_count": 12,
+            "sections": [
+                {
+                    "section_id": "root-section",
+                    "role": "root",
+                    "station_t": 0.0,
+                    "body_thickness_m": 0.06,
+                    "edge_thickness_m": 0.012,
+                    "spine_bevel_fraction": 0.10,
+                    "edge_bevel_fraction": 0.12,
+                    "center_offset_m": 0.0,
+                },
+                {
+                    "section_id": "mid-section",
+                    "role": "mid",
+                    "station_t": 0.30,
+                    "body_thickness_m": 0.045,
+                    "edge_thickness_m": 0.009,
+                    "spine_bevel_fraction": 0.12,
+                    "edge_bevel_fraction": 0.16,
+                    "center_offset_m": 0.002,
+                },
+                {
+                    "section_id": "belly-section",
+                    "role": "belly",
+                    "station_t": 0.70,
+                    "body_thickness_m": 0.038,
+                    "edge_thickness_m": 0.006,
+                    "spine_bevel_fraction": 0.14,
+                    "edge_bevel_fraction": 0.20,
+                    "center_offset_m": -0.001,
+                },
+                {
+                    "section_id": "tip-section",
+                    "role": "tip",
+                    "station_t": 1.0,
+                    "body_thickness_m": 0.022,
+                    "edge_thickness_m": 0.004,
+                    "spine_bevel_fraction": 0.20,
+                    "edge_bevel_fraction": 0.24,
+                    "center_offset_m": 0.0,
+                },
+            ],
+            "thickness_axis": "local_normal",
+            "root_cap": true,
+            "tip_cap": true,
+            "view_constraints": [
+                {"view": "front", "min_x_m": -20.0, "max_x_m": 20.0, "min_y_m": -20.0, "max_y_m": 20.0},
+                {"view": "top", "min_x_m": -20.0, "max_x_m": 20.0, "min_y_m": -20.0, "max_y_m": 20.0},
+                {"view": "bottom", "min_x_m": -20.0, "max_x_m": 20.0, "min_y_m": -20.0, "max_y_m": 20.0},
+                {"view": "left", "min_x_m": -20.0, "max_x_m": 20.0, "min_y_m": -20.0, "max_y_m": 20.0},
+                {"view": "right", "min_x_m": -20.0, "max_x_m": 20.0, "min_y_m": -20.0, "max_y_m": 20.0},
+            ],
+            "stable_triangulation": PLAN_V2_TRIANGULATION,
+            "stable_lineage_policy": PLAN_V2_LINEAGE,
+            "canonical_sha256": "",
+        });
+        let expected = canonical_hash_without(&plan, "canonical_sha256").expect("plan hash");
+        plan["canonical_sha256"] = Value::String(expected.clone());
+        let (_, semantic) = parse_plan(&plan).expect("closed V2 plan");
+        assert_eq!(semantic, expected);
+
+        let (bound, bound_semantic) = bound_plan(&plan, &spine, &edge).expect("bound V2 plan");
+        assert_eq!(bound_semantic, expected);
+        let (mesh_value, mesh_semantic, mesh_plan, vertex_count, triangle_count) =
+            bound.evaluate(&spine, &edge).expect("evaluate V2 plan");
+        let mesh: KnifeBladeLanguageMesh =
+            serde_json::from_value(mesh_value).expect("typed V2 mesh");
+        assert_eq!(mesh.parts.len(), 4);
+        assert_eq!(vertex_count, 12 * 8 + 2);
+        assert_eq!(triangle_count, (12 - 1) * 16 + 16);
+        assert_eq!(mesh.semantic_sha256, mesh_semantic);
+        assert_eq!(mesh.plan_sha256, mesh_plan);
+        let (program, program_sha256, status) =
+            v2_materialization_program("knife-v2-project", &serde_json::to_value(&mesh).unwrap())
+                .expect("V2 materialization program");
+        assert_eq!(
+            status,
+            "runtime-derived-v2-blade-body-cutting-edge-program-ready"
+        );
+        assert_eq!(program["part_outputs"][0]["part_id"], "blade-body");
+        assert_eq!(program["part_outputs"][1]["part_id"], "cutting-edge");
+        assert_eq!(program["canonical_sha256"], program_sha256);
+        let artifact = crate::compile_geometry_program(&program).expect("compile V2 projection");
+        assert_eq!(artifact.part_ids, vec!["blade-body", "cutting-edge"]);
+        let source = crate::authoring_mesh_v2_geometry::authoring_mesh_source_genesis(
+            &program["nodes"][0],
+            "knife-v2-part-0",
+        )
+        .expect("recover AuthoringMesh source");
+        assert!(!source.positions_m.is_empty() && !source.faces.is_empty());
+        match &bound {
+            BoundEvaluationPlan::V2(bound_plan) => mesh
+                .validate_view_constraints(&bound_plan.view_constraints)
+                .expect("five-view bounds"),
+            BoundEvaluationPlan::V1(_) => panic!("expected V2 bound plan"),
+        }
     }
 
     #[test]

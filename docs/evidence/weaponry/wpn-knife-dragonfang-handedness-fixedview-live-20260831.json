@@ -1,0 +1,99 @@
+{
+  "aov_pass_sha256": {
+    "ao": "cad6701b3a9758cd50a42c268c2d1a60812e43cbb70668d8be06afc9d336e510",
+    "beauty": "c0daa9f4ab4e1b1e0eec271669a832a0b72bb7aa3c48e8eae390675db4495323",
+    "depth": "3887ca0d5ab2b857fe75bd6138976f71266e749358d941a0bb1a827bcc4c75a8",
+    "material-id": "9c2c4040ce30138c8183bb28eb3b26a873d7734840dea21b77d11a84e7dfaef3",
+    "normal": "fb684d9de2a63ed5ce18ce11f630b9a45f0d3542f9ad5e45ccb6327fef673747",
+    "part-id": "5e0a3f08a01206ca9b38a88ab59060732ba80baf43e657dabef45a69e92f7d4d",
+    "silhouette": "bbd22a813da78e18854eba6ed32a2f8b7219ba8298995418376229cfa60b185f",
+    "uv-stretch": "9e9311343e3cfdb32a91cd000bf1b510c3325940cae9a8e79716d53e99f2e2f5",
+    "wireframe": "98e1b97ec48b608348aed6c6c291be30fade5db93113811e05a737087b6cc219"
+  },
+  "build_cohort_sha256": "2b2a5f826110fcf9a40d2d24cdba0b76b1699863b43905595844b8405b924a69",
+  "camera_convention": {
+    "blade_axis": "+X-screen-left",
+    "camera_hash": "401340c86151db4d6a18a5635b63d49bba6d20a10aa9aa61967d1db514ec3458",
+    "camera_object_sha256": "b4d9ea99e906596e0e9ba0c3d8ae2536333b57e3dbfafeaf161b7a36fbee1c4c",
+    "coordinate_system": "right-handed-y-up",
+    "handle_axis": "-X-screen-right",
+    "old_camera_hash": "2b18d15324db753b226c5a5ede9d1a9aa11a19a59efab78ee81adc6e675c79d4",
+    "ortho_scale": 6.0,
+    "position_m": [
+      0.0,
+      0.0,
+      -20.0
+    ],
+    "projection": "orthographic",
+    "screen_right": "-X",
+    "target_m": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "up": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "view_direction": "+Z"
+  },
+  "canonical_sha256": "e0e71078d3880fcc7cc63f61cc72d7f89585db0575b843f43b5d3f39bfa35d07",
+  "engine_status": "NOT_RUN",
+  "fixed_projection_metrics": {
+    "bbox_edge_error": 0.16015625,
+    "boundary_f1_4px": 0.04441143423,
+    "centroid_error": 0.163014578617,
+    "critical_region_min_iou": 1.0,
+    "landmark_coverage": 0.0,
+    "landmark_nme": 1.0,
+    "region_median_iou": 0.0,
+    "silhouette_iou": 0.098120284728
+  },
+  "geometry_mutated": false,
+  "glb_mutated": false,
+  "high_artifact_id": "dragonfang-high-glb-artifact-correction",
+  "high_artifact_object_sha256": "e286f404acbcf16db5e6f719ca43fce081f7a1b287b207b5c77c1d7bc8287e4e",
+  "high_artifact_sha256": "e286f404acbcf16db5e6f719ca43fce081f7a1b287b207b5c77c1d7bc8287e4e",
+  "human_status": "NOT_RUN",
+  "previous_invalid_projection_metrics": {
+    "bbox_edge_error": 0.173828125,
+    "boundary_f1_4px": 0.026614554253,
+    "centroid_error": 0.105110012642,
+    "critical_region_min_iou": 1.0,
+    "landmark_coverage": 0.0,
+    "landmark_nme": 1.0,
+    "region_median_iou": 0.0,
+    "silhouette_iou": 0.140541909344
+  },
+  "project_id": "project-a1d8f469369446bbb0b7327a985d65dc",
+  "promotion": "NOT_PROMOTED",
+  "reference_id": "reference-6e96527216aa49f6bf6a4231b05a68f3",
+  "reference_object_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+  "reference_pixels_flipped": false,
+  "reference_projection": {
+    "nonuniform_scale_applied": false,
+    "normalized_crop": {
+      "height": 0.1083984375,
+      "width": 0.4361979166666667,
+      "x": 0.013020833333333334,
+      "y": 0.1240234375
+    },
+    "policy": "aspect-fit-source-canvas+contain-crop-no-stretch@1",
+    "rotation_degrees": 0.0,
+    "source_dimensions": {
+      "height": 1024,
+      "width": 1536
+    }
+  },
+  "render_set_hash": "fe966db588325990603834dfc8b55dc2e1e899c76c9f49b9b9afabd4b366495e",
+  "render_set_object_sha256": "fe966db588325990603834dfc8b55dc2e1e899c76c9f49b9b9afabd4b366495e",
+  "render_worker_build_cohort_sha256": "2b2a5f826110fcf9a40d2d24cdba0b76b1699863b43905595844b8405b924a69",
+  "schema_version": "WeaponryKnifeHighFixedViewConventionLiveReceipt@1",
+  "second_blade_correction_authorized": true,
+  "source_view": "front",
+  "status": "LIVE_FIXED_VIEW_CONVENTION_CAPTURED_QUALITY_TARGET_NOT_MET",
+  "task_id": "WPN-KNIFE-HANDEDNESS-001",
+  "view_id": "view-front",
+  "visual_status": "QUALITY_TARGET_NOT_MET"
+}

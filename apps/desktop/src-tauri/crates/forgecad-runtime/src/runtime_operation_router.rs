@@ -267,7 +267,8 @@ impl<'runtime> RuntimeOperationRouter<'runtime> {
 }
 
 fn capability_operation_access(operation: &str) -> RuntimeOperationAccess {
-    if operation.ends_with("_prepare")
+    if operation == "authoring_mesh_v2_candidate_materialize"
+        || operation.ends_with("_prepare")
         || operation.ends_with("_confirm")
         || operation.ends_with("_reject")
         || operation.ends_with("_import")
@@ -307,7 +308,7 @@ mod tests {
 
     #[test]
     fn generated_profile_routes_are_unique_and_resolve_through_contract_domains() {
-        assert_eq!(KNIFE_OPERATION_ROUTE_COUNT, 125);
+        assert_eq!(KNIFE_OPERATION_ROUTE_COUNT, 139);
         let runtime = Runtime::ephemeral().expect("runtime");
         let router = runtime.weaponry_operation_router();
         let mut operations = BTreeMap::new();
@@ -323,7 +324,34 @@ mod tests {
                 knife_facade_binding(resolved.facade_name).expect("Contract façade binding");
             assert_eq!(resolved.domain, binding.domain);
         }
-        assert_eq!(operations.len(), 125);
+        assert_eq!(operations.len(), 139);
+        for (operation, access) in [
+            (
+                "weaponry_knife_production_brief_get",
+                RuntimeOperationAccess::Read,
+            ),
+            (
+                "weaponry_knife_production_brief_prepare",
+                RuntimeOperationAccess::Write,
+            ),
+            ("knife_source_binding_get", RuntimeOperationAccess::Read),
+            (
+                "knife_source_binding_prepare",
+                RuntimeOperationAccess::Write,
+            ),
+            (
+                "production_weapon_authoring_mesh_v2_source_prepare",
+                RuntimeOperationAccess::Write,
+            ),
+            ("knife_pass_state_get", RuntimeOperationAccess::Read),
+            ("knife_pass_state_prepare", RuntimeOperationAccess::Write),
+        ] {
+            assert_eq!(
+                router.route(operation).expect("new Knife route").access,
+                access,
+                "{operation} access classification drifted"
+            );
+        }
         assert_eq!(
             router
                 .route("knife_curve_modifier_graph_prepare")
@@ -352,6 +380,13 @@ mod tests {
                 .access,
             RuntimeOperationAccess::Read
         );
+        assert_eq!(
+            router
+                .route("authoring_mesh_v2_candidate_materialize")
+                .expect("AuthoringMeshV2 candidate materializer")
+                .access,
+            RuntimeOperationAccess::Write
+        );
     }
 
     #[test]
@@ -363,7 +398,9 @@ mod tests {
                 assert_eq!(router.owner(operation), Some(mapping.domain));
             }
         }
-        assert_eq!(router.operation_count(), 129);
+        // KnifePassState and the V2 High bridge remain central-map-only seams;
+        // the direct V2 High artifact is now part of the generated profile.
+        assert_eq!(router.operation_count(), 143);
     }
 
     #[test]

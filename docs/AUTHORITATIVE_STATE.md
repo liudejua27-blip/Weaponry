@@ -1,5 +1,28 @@
 # Weaponry 权威状态与版本真值
 
+> 2026-08-30 `WPN-KNIFE-BRIEF-RUNTIME-001` 权威增量：Knife Production Brief 已成为
+> `reference_intake` 下的 Runtime-owned durable aggregate。初始 intake 可保存 `conflicted/BLOCKED`，
+> 但不会创建 candidate、推进 Stage、confirm、version 或 export；successor 必须引用 exact parent
+> ID/hash，并原样保留 reference lineage、source claim map 与 conflict identity，只有 resolution、授权、coverage
+> 和 acceptance gate 状态可变；required gates、promotion labels 与布尔政策仍冻结。当前 source 是 662 schemas / 11 façades / 127 active operations / 127 closed
+> request schemas；compatibility 131/95/226 不变。Dragonfang isolated live intake、immutable successor
+> replay 与 Runtime restart exact-hash readback 已 PASS；商业质量仍 `NOT_PROVEN`。
+> 本原子 final architecture-fast same-cohort=`ef4a5ff42c608a288fccdebdadbd3fbb65bf06798b87d16e0e43baaf695a58b8`，
+> `107/0/0`、195s、`source_drift=false`；未重跑完整 Runtime qualification，不能把 fast suite 或
+> source/focused evidence 写成 Dragonfang High、视觉或商业验收。
+
+> 2026-08-30 contracts-only successor fixture：`dragonfang-kukri-brief-resolved-001` 通过 closed
+> schema/checker，parent ID/hash 精确绑定 `dragonfang-kukri-brief` /
+> `27c8893f4ff982ff90ad62b21df18e00b30db691b8d9d169ddb8cbff2235d514`，三条 source identity claims、所有
+> source claim objects 和 conflict identity 原样保留。它冻结“尼泊尔-屠龙”、Hero `25k–45k`、4K
+> authoring master、2K shipping 和 Unreal `5.6-or-later`，但 authorization 仍为 `source-asserted-not-runtime-bound`，不
+> 是 Runtime/Store/CAS live 记录；isolated live probe 已从该模板生成新的 runtime-bound canonical
+> successor 并持久化。Brief@1 的 `resolved_width/height` 与 `shipping_width/height` 已分别
+> 绑定 retained `hero`/`production` claims。acceptance 的 status/gate_statuses/blocking_reasons 已作为 resolution-owned 投影，
+> 但 required_gates、promotion_labels 与四项布尔政策仍冻结。live successor 的 K0=`pass`，
+> authoring eligibility=`ELIGIBLE`，`WPN-KNIFE-HIGH-001` 已领取；其余视图、engine validation、human
+> review 门仍阻断，High mesh、视觉和商业质量没有晋级。
+
 > 2026-08-30 final combined architecture source truth：Authoring、Evaluation、Surface、Presentation、Delivery 五域均已由 direct typed Router/service 承接；这表示当前路由边界已闭合，不表示 Runtime/Store 五域源码与 record family 已物理抽空。Runtime/Store/MCP final root 为 `52,542 / 79,841 / 1,081` 行，MCP `agentic_write_tools.rs=22,800`，Runtime root modules=`92`。
 > 当前源码元数据：`schema_count=658`、`schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1`、`runtime_source_sha256=085714f60445ed831809564d5324424aed9a734f7dec3c782a90876fa1c5d708`、`truth_canonical_sha256=6f90c5fcb2fb2218b04c871d260964623729da6ba4adf9b7cfe1d5082c154cc3`；source-only compatibility summary `cohort=null`、`131/95/226`、SHA-256=`1eb6cf5125e4d72aa2e8eef0139ff11de8c69b615d47cb66f70b666fb83377ca`。
 > 默认 11 façade 的 active request Schema 为 **125/125**，blocked=0，Runtime fallback=0；中央 capability maturity 仍有 `Partial`。Store 新增 `GameAssetDeliveryLinkRecord` borrowed repository；`ApprovalLifecycle`、game weapon `socket/anchor`、`ReadModel/QualityEvidence` 与其余 Presentation repository 仍未抽取。226 legacy registry 已 feature 隔离，但大量 compatibility handler 仍编译。
@@ -727,7 +750,7 @@ Viewer selection 只是提示；prepare 时必须重新绑定当前 snapshot/par
 
 2026-08-27 foundation typed importer truth：当前源码仅执行三个固定 hash、Runtime 内嵌的 GLB 母版源，已经产生 ForgeCAD-owned compact topology/socket/rig/PBR/animation CAS 对象和 `FpsPresentationPackage@1` 草案；真实 source probe 与 Runtime prepare/replay/get hash revalidation 均通过。该状态只允许写成 `SOURCE_RUNTIME_STRUCTURAL_PASS`。完整 AuthoringMesh half-edge 按 Part 物化仍为 `AUTHORING_MESH_MATERIALIZATION_PENDING`，包状态为 `DRAFT_UNREVIEWED`，质量为 `structural_only`，没有 candidate confirm、version、export、engine roundtrip 或真人 Hero Art Review。证据：`docs/evidence/mcp010f/fps-foundation-typed-importer-source-runtime-gate-20260827.json`。
 
-<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=662 schema_set_sha256=202e080ec378ddb294eb9c880079dcec5c910b27a1c679034ca34c5a880dcec6 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 # 2026-08-30 架构权威增量
 
 `WPN-ARCH-MCP-ROUTER-001` 已完成 source-level typed Router 和 Authoring 第一物理切片：默认 Knife

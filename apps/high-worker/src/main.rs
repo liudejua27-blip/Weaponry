@@ -15,25 +15,36 @@
 //! response, and exits.
 
 use forgecad_high_worker::{
-    evaluator as high_evaluator,
+    authoring_mesh_v2 as authoring_mesh_v2_high, evaluator as high_evaluator,
     lower_high_mesh_artifact, run_json, HighMeshArtifact, ARTIFACT_SCHEMA_VERSION, OPERATION,
     REQUEST_SCHEMA_VERSION,
 };
 use forgecad_worker_protocol::{
     build_cohort_sha256, canonical_json_bytes, canonical_json_sha256,
+    validate_authoring_mesh_v2_high_artifact_materialize_request,
+    validate_authoring_mesh_v2_high_artifact_materialize_result,
     validate_native_high_glb_materialize_payload, validate_native_high_glb_materialize_result,
     validate_native_high_request, validate_native_high_response, validate_request,
     NativeHighWorkerBudget, NativeHighWorkerError, NativeHighWorkerRequestEnvelope,
     NativeHighWorkerResponseEnvelope, WorkerError, WorkerRequest, WorkerResponse,
-    MAX_WORKER_RESPONSE_BYTES, NATIVE_HIGH_GLB_MATERIALIZE_ENTRY,
-    NATIVE_HIGH_GLB_MATERIALIZE_OPERATION, NATIVE_HIGH_GLB_REQUEST_SCHEMA_VERSION,
-    NATIVE_HIGH_GLB_RESULT_SCHEMA_VERSION, NATIVE_HIGH_MAX_MEMORY_BYTES,
-    NATIVE_HIGH_MAX_PAYLOAD_BYTES, NATIVE_HIGH_MAX_REQUEST_BYTES, NATIVE_HIGH_MAX_RESULT_BYTES,
-    NATIVE_HIGH_MAX_RUNTIME_MS, NATIVE_HIGH_REQUEST_ENVELOPE_SCHEMA_VERSION,
-    NATIVE_HIGH_RESPONSE_ENVELOPE_SCHEMA_VERSION, NATIVE_HIGH_RESULT_SCHEMA_VERSION,
-    NATIVE_HIGH_EVALUATOR_ENTRY, NATIVE_HIGH_EVALUATOR_OPERATION,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_ENTRY,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_GLB_KIND,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_MIME,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_READBACK_KIND,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_REQUEST_SCHEMA_VERSION,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_RESULT_SCHEMA_VERSION,
+    AUTHORING_MESH_V2_HIGH_ENTRY, AUTHORING_MESH_V2_HIGH_OPERATION,
+    AUTHORING_MESH_V2_HIGH_REQUEST_SCHEMA_VERSION, AUTHORING_MESH_V2_HIGH_RESULT_SCHEMA_VERSION,
+    MAX_WORKER_RESPONSE_BYTES, NATIVE_HIGH_EVALUATOR_ENTRY, NATIVE_HIGH_EVALUATOR_OPERATION,
     NATIVE_HIGH_EVALUATOR_REQUEST_SCHEMA_VERSION, NATIVE_HIGH_EVALUATOR_RESULT_SCHEMA_VERSION,
-    NATIVE_HIGH_WORKER_ENTRY, NATIVE_HIGH_WORKER_OPERATION, WORKER_PROTOCOL,
+    NATIVE_HIGH_GLB_MATERIALIZE_ENTRY, NATIVE_HIGH_GLB_MATERIALIZE_OPERATION,
+    NATIVE_HIGH_GLB_REQUEST_SCHEMA_VERSION, NATIVE_HIGH_GLB_RESULT_SCHEMA_VERSION,
+    NATIVE_HIGH_MAX_MEMORY_BYTES, NATIVE_HIGH_MAX_PAYLOAD_BYTES, NATIVE_HIGH_MAX_REQUEST_BYTES,
+    NATIVE_HIGH_MAX_RESULT_BYTES, NATIVE_HIGH_MAX_RUNTIME_MS,
+    NATIVE_HIGH_REQUEST_ENVELOPE_SCHEMA_VERSION, NATIVE_HIGH_RESPONSE_ENVELOPE_SCHEMA_VERSION,
+    NATIVE_HIGH_RESULT_SCHEMA_VERSION, NATIVE_HIGH_WORKER_ENTRY, NATIVE_HIGH_WORKER_OPERATION,
+    WORKER_PROTOCOL,
 };
 use serde_json::Value;
 use std::io::{self, Read, Write};
@@ -58,7 +69,19 @@ fn main() {
             "evaluator_entry":NATIVE_HIGH_EVALUATOR_ENTRY,
             "evaluator_operation":NATIVE_HIGH_EVALUATOR_OPERATION,
             "evaluator_request_schema":NATIVE_HIGH_EVALUATOR_REQUEST_SCHEMA_VERSION,
-            "evaluator_result_schema":NATIVE_HIGH_EVALUATOR_RESULT_SCHEMA_VERSION
+            "evaluator_result_schema":NATIVE_HIGH_EVALUATOR_RESULT_SCHEMA_VERSION,
+            "authoring_mesh_v2_high_entry":AUTHORING_MESH_V2_HIGH_ENTRY,
+            "authoring_mesh_v2_high_execution_operation":AUTHORING_MESH_V2_HIGH_OPERATION,
+            "authoring_mesh_v2_high_execution_request_schema":AUTHORING_MESH_V2_HIGH_REQUEST_SCHEMA_VERSION,
+            "authoring_mesh_v2_high_result_operation":authoring_mesh_v2_high::OPERATION,
+            "authoring_mesh_v2_high_result_schema":AUTHORING_MESH_V2_HIGH_RESULT_SCHEMA_VERSION,
+            "authoring_mesh_v2_high_algorithm_sha256":authoring_mesh_v2_high::algorithm_sha256(),
+            "authoring_mesh_v2_high_artifact_materialize_entry":AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_ENTRY,
+            "authoring_mesh_v2_high_artifact_materialize_operation":AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION,
+            "authoring_mesh_v2_high_artifact_materialize_request_schema":AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_REQUEST_SCHEMA_VERSION,
+            "authoring_mesh_v2_high_artifact_materialize_result_schema":AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_RESULT_SCHEMA_VERSION,
+            "authoring_mesh_v2_high_artifact_materialize_glb_kind":AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_GLB_KIND,
+            "authoring_mesh_v2_high_artifact_materialize_readback_kind":AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_READBACK_KIND
         });
         println!(
             "{}",
@@ -75,9 +98,19 @@ fn main() {
     if args == [NATIVE_HIGH_EVALUATOR_ENTRY] {
         std::process::exit(run_high_evaluator_once());
     }
+    if args == [AUTHORING_MESH_V2_HIGH_ENTRY] {
+        std::process::exit(run_authoring_mesh_v2_high_once());
+    }
+    if args == [AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_ENTRY] {
+        std::process::exit(run_authoring_mesh_v2_high_artifact_materialize_once());
+    }
     eprintln!(
-        "forgecad-high-worker: expected --build-identity, {}, {}, or {}",
-        NATIVE_HIGH_WORKER_ENTRY, NATIVE_HIGH_GLB_MATERIALIZE_ENTRY, NATIVE_HIGH_EVALUATOR_ENTRY
+        "forgecad-high-worker: expected --build-identity, {}, {}, {}, {}, or {}",
+        NATIVE_HIGH_WORKER_ENTRY,
+        NATIVE_HIGH_GLB_MATERIALIZE_ENTRY,
+        NATIVE_HIGH_EVALUATOR_ENTRY,
+        AUTHORING_MESH_V2_HIGH_ENTRY,
+        AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_ENTRY
     );
     std::process::exit(64);
 }
@@ -307,7 +340,13 @@ fn handle_glb_materialize_request(request: WorkerRequest) -> WorkerResponse {
 fn run_high_evaluator_once() -> i32 {
     let request_bytes = match read_bounded_stdin() {
         Ok(bytes) => bytes,
-        Err(message) => return finish_response(error_response(INVALID_REQUEST_ID, "WORKER_PROTOCOL", message)),
+        Err(message) => {
+            return finish_response(error_response(
+                INVALID_REQUEST_ID,
+                "WORKER_PROTOCOL",
+                message,
+            ))
+        }
     };
     let request = match serde_json::from_slice::<WorkerRequest>(&request_bytes) {
         Ok(request) => request,
@@ -339,14 +378,17 @@ fn run_high_evaluator_once() -> i32 {
         Ok(bytes) => match serde_json::from_slice::<Value>(&bytes) {
             Ok(result)
                 if result.get("schema_version").and_then(Value::as_str)
-                    == Some(NATIVE_HIGH_EVALUATOR_RESULT_SCHEMA_VERSION) => WorkerResponse {
-                protocol: WORKER_PROTOCOL.to_owned(),
-                request_id,
-                build_cohort_sha256: build_cohort_sha256(),
-                ok: true,
-                result: Some(result),
-                error: None,
-            },
+                    == Some(NATIVE_HIGH_EVALUATOR_RESULT_SCHEMA_VERSION) =>
+            {
+                WorkerResponse {
+                    protocol: WORKER_PROTOCOL.to_owned(),
+                    request_id,
+                    build_cohort_sha256: build_cohort_sha256(),
+                    ok: true,
+                    result: Some(result),
+                    error: None,
+                }
+            }
             _ => error_response(
                 &request_id,
                 "HIGH_EVALUATOR_RESULT_INVALID",
@@ -378,6 +420,247 @@ fn run_high_evaluator_once() -> i32 {
         }
     };
     finish_response(output)
+}
+
+/// One-shot transport for the existing direct AuthoringMesh V2 High bridge.
+/// Runtime remains the only writer: this process validates and evaluates one
+/// immutable revision, returns one closed result, and has no CAS/SQLite access.
+fn run_authoring_mesh_v2_high_once() -> i32 {
+    let request_bytes = match read_bounded_stdin() {
+        Ok(bytes) => bytes,
+        Err(message) => {
+            return finish_response(error_response(
+                INVALID_REQUEST_ID,
+                "WORKER_PROTOCOL",
+                message,
+            ))
+        }
+    };
+    let request = match serde_json::from_slice::<WorkerRequest>(&request_bytes) {
+        Ok(request) => request,
+        Err(_) => {
+            return finish_response(error_response(
+                INVALID_REQUEST_ID,
+                "WORKER_PROTOCOL",
+                "AuthoringMesh V2 High request is not valid strict JSON",
+            ))
+        }
+    };
+    let request_id = safe_request_id(&request.request_id);
+    if request.operation != AUTHORING_MESH_V2_HIGH_OPERATION
+        || validate_request(&request).is_err()
+        || request
+            .payload
+            .get("schema_version")
+            .and_then(Value::as_str)
+            != Some(AUTHORING_MESH_V2_HIGH_REQUEST_SCHEMA_VERSION)
+    {
+        return finish_response(error_response(
+            &request_id,
+            "AUTHORING_MESH_V2_HIGH_REQUEST_INVALID",
+            "AuthoringMesh V2 High request failed the closed transport gate",
+        ));
+    }
+
+    let payload_bytes = canonical_json_bytes(&request.payload);
+    let response = match authoring_mesh_v2_high::run_execution_json(&payload_bytes) {
+        Ok(bytes) => match serde_json::from_slice::<Value>(&bytes) {
+            Ok(result)
+                if result.get("schema_version").and_then(Value::as_str)
+                    == Some(AUTHORING_MESH_V2_HIGH_RESULT_SCHEMA_VERSION) =>
+            {
+                WorkerResponse {
+                    protocol: WORKER_PROTOCOL.to_owned(),
+                    request_id,
+                    build_cohort_sha256: build_cohort_sha256(),
+                    ok: true,
+                    result: Some(result),
+                    error: None,
+                }
+            }
+            _ => error_response(
+                &request_id,
+                "AUTHORING_MESH_V2_HIGH_RESULT_INVALID",
+                "AuthoringMesh V2 High result failed the closed response gate",
+            ),
+        },
+        Err(error) => {
+            let code = if error.0.contains("REPLAY_NON_DETERMINISTIC") {
+                "WORKER_DETERMINISM_MISMATCH"
+            } else if error.0.contains("HASH") || error.0.contains("CANONICAL") {
+                "WORKER_HASH_MISMATCH"
+            } else if error.0.contains("BUDGET") {
+                "HIGH_WORKER_BUDGET_INVALID"
+            } else {
+                "AUTHORING_MESH_V2_HIGH_FAILED"
+            };
+            let message = if error.0.is_ascii()
+                && !error.0.contains('/')
+                && !error.0.contains('\\')
+                && !error.0.chars().any(char::is_control)
+            {
+                error.0.chars().take(192).collect()
+            } else {
+                "AuthoringMesh V2 High evaluator rejected the request".to_owned()
+            };
+            error_response(&request_id, code, message)
+        }
+    };
+    finish_response(response)
+}
+
+/// One-shot second step for the direct V2 High bridge.  This operation takes
+/// the already evaluated/hash-bound `AuthoringMeshV2HighResult@2` as input,
+/// lowers only its evaluated parts into the embedded GLB container, and
+/// returns a strict V2-specific readback.  It has no Runtime/CAS access.
+fn run_authoring_mesh_v2_high_artifact_materialize_once() -> i32 {
+    let request_bytes = match read_bounded_stdin() {
+        Ok(bytes) => bytes,
+        Err(message) => {
+            return finish_response(error_response(
+                INVALID_REQUEST_ID,
+                "WORKER_PROTOCOL",
+                message,
+            ))
+        }
+    };
+    let request = match serde_json::from_slice::<WorkerRequest>(&request_bytes) {
+        Ok(request) => request,
+        Err(_) => {
+            return finish_response(error_response(
+                INVALID_REQUEST_ID,
+                "WORKER_PROTOCOL",
+                "AuthoringMesh V2 High artifact request is not valid strict JSON",
+            ))
+        }
+    };
+    let request_id = safe_request_id(&request.request_id);
+    if request.operation != AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION
+        || validate_request(&request).is_err()
+        || validate_authoring_mesh_v2_high_artifact_materialize_request(&request.payload).is_err()
+    {
+        return finish_response(error_response(
+            &request_id,
+            "AUTHORING_MESH_V2_HIGH_ARTIFACT_REQUEST_INVALID",
+            "AuthoringMesh V2 High artifact request failed the closed transport gate",
+        ));
+    }
+    let high_result_value = request
+        .payload
+        .get("high_result")
+        .cloned()
+        .expect("validated nested High result");
+    let expected_high_hash = request
+        .payload
+        .get("high_result_sha256")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    if high_result_value
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        != Some(expected_high_hash)
+    {
+        return finish_response(error_response(
+            &request_id,
+            "AUTHORING_MESH_V2_HIGH_ARTIFACT_REQUEST_INVALID",
+            "AuthoringMesh V2 High result semantic hash is invalid",
+        ));
+    }
+    let cohort = build_cohort_sha256();
+    let source_cohort = match request
+        .payload
+        .get("source_high_worker_build_cohort_sha256")
+        .and_then(|value| {
+            if value.is_null() {
+                Some(None)
+            } else {
+                value.as_str().map(|cohort| Some(cohort.to_owned()))
+            }
+        }) {
+        Some(source_cohort) => source_cohort,
+        None => {
+            return finish_response(error_response(
+                &request_id,
+                "AUTHORING_MESH_V2_HIGH_ARTIFACT_REQUEST_INVALID",
+                "AuthoringMesh V2 High source cohort is invalid",
+            ))
+        }
+    };
+    if source_cohort != cohort {
+        return finish_response(error_response(
+            &request_id,
+            "WORKER_COHORT_MISMATCH",
+            "AuthoringMesh V2 High source cohort differs from materializer cohort",
+        ));
+    }
+    let lowered = match forgecad_high_worker::glb::lower_authoring_mesh_v2_high_result_wire(
+        &high_result_value,
+        cohort.as_deref(),
+    ) {
+        Ok(lowered) => lowered,
+        Err(error) => {
+            let error_text = error.0;
+            let code = error_text.rsplit(':').next().unwrap_or(error_text.as_str());
+            let code = if code.starts_with("AUTHORING_MESH_V2_HIGH_")
+                || code.starts_with("HIGH_GLB_")
+                || code.starts_with("RESULT_")
+            {
+                code
+            } else {
+                "HIGH_GLB_READBACK_REJECTED"
+            };
+            return finish_response(error_response(
+                &request_id,
+                code,
+                "AuthoringMesh V2 High artifact lowering or readback failed",
+            ));
+        }
+    };
+    let strict_readback = match serde_json::to_value(&lowered.readback) {
+        Ok(value) => value,
+        Err(_) => {
+            return finish_response(error_response(
+                &request_id,
+                "HIGH_GLB_READBACK_REJECTED",
+                "AuthoringMesh V2 High artifact readback serialization failed",
+            ))
+        }
+    };
+    let mut result = serde_json::json!({
+        "schema_version": AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_RESULT_SCHEMA_VERSION,
+        "operation": AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION,
+        "request_kind": "artifact_materialize",
+        "status": "materialized",
+        "high_result": high_result_value,
+        "high_result_sha256": expected_high_hash,
+        "source_high_worker_build_cohort_sha256": source_cohort,
+        "artifact_id": lowered.artifact_id,
+        "artifact_sha256": lowered.artifact_sha256,
+        "glb_base64": base64_encode(&lowered.glb),
+        "glb_sha256": lowered.glb_sha256,
+        "strict_readback": strict_readback,
+        "glb_mime": AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_MIME,
+        "glb_kind": AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_GLB_KIND,
+        "readback_kind": AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_READBACK_KIND,
+        "runtime_write_performed": false,
+        "canonical_sha256": ""
+    });
+    result["canonical_sha256"] = Value::String(canonical_json_sha256(&result));
+    if validate_authoring_mesh_v2_high_artifact_materialize_result(&result).is_err() {
+        return finish_response(error_response(
+            &request_id,
+            "HIGH_GLB_READBACK_REJECTED",
+            "AuthoringMesh V2 High artifact result failed the closed response gate",
+        ));
+    }
+    finish_response(WorkerResponse {
+        protocol: WORKER_PROTOCOL.to_owned(),
+        request_id,
+        build_cohort_sha256: cohort,
+        ok: true,
+        result: Some(result),
+        error: None,
+    })
 }
 
 fn native_high_request(request: &WorkerRequest) -> NativeHighWorkerRequestEnvelope {
@@ -423,21 +706,30 @@ fn run_native_high(
 
 fn map_high_error(error: &str) -> (&'static str, String) {
     if error.contains("REQUEST_TOO_LARGE") {
-        ("HIGH_WORKER_REQUEST_TOO_LARGE", "request too large".to_owned())
+        (
+            "HIGH_WORKER_REQUEST_TOO_LARGE",
+            "request too large".to_owned(),
+        )
     } else if error.contains("REQUEST_CANONICAL_MISMATCH") {
         (
             "HIGH_WORKER_REQUEST_CANONICAL_MISMATCH",
             "request canonical hash mismatch".to_owned(),
         )
     } else if error.contains("OPERATION_NOT_ALLOWED") {
-        ("HIGH_WORKER_OPERATION_NOT_ALLOWED", "operation not allowed".to_owned())
+        (
+            "HIGH_WORKER_OPERATION_NOT_ALLOWED",
+            "operation not allowed".to_owned(),
+        )
     } else if error.contains("SCHEMA_MISMATCH") {
         (
             "HIGH_WORKER_REQUEST_SCHEMA_MISMATCH",
             "request schema mismatch".to_owned(),
         )
     } else if error.contains("JSON_INVALID") {
-        ("HIGH_WORKER_JSON_INVALID", "request JSON invalid".to_owned())
+        (
+            "HIGH_WORKER_JSON_INVALID",
+            "request JSON invalid".to_owned(),
+        )
     } else if error.contains("REPLAY_NON_DETERMINISTIC") {
         (
             "WORKER_DETERMINISM_MISMATCH",
@@ -446,7 +738,10 @@ fn map_high_error(error: &str) -> (&'static str, String) {
     } else if error.contains("HASH") || error.contains("CANONICAL") {
         ("WORKER_HASH_MISMATCH", "worker hash mismatch".to_owned())
     } else if error.contains("BUDGET") {
-        ("HIGH_WORKER_BUDGET_INVALID", "worker budget invalid".to_owned())
+        (
+            "HIGH_WORKER_BUDGET_INVALID",
+            "worker budget invalid".to_owned(),
+        )
     } else {
         // High validation diagnostics are fixed ASCII tokens plus bounded typed
         // identifiers. Preserve that closed reason across the process boundary
@@ -516,16 +811,24 @@ fn safe_request_id(request_id: &str) -> String {
 }
 
 fn emit_response(response: WorkerResponse) -> bool {
-    let bytes = match serde_json::to_vec(&response) {
-        Ok(bytes) if bytes.len().saturating_add(1) <= MAX_WORKER_RESPONSE_BYTES => bytes,
-        _ => match serde_json::to_vec(&error_response(
-            INVALID_REQUEST_ID,
-            "WORKER_PROTOCOL",
-            "worker response exceeded the bounded protocol limit",
-        )) {
-            Ok(bytes) => bytes,
-            Err(_) => return false,
-        },
+    let bytes = match serde_json::to_value(&response) {
+        Ok(value) => {
+            let bytes = canonical_json_bytes(&value);
+            if bytes.len().saturating_add(1) <= MAX_WORKER_RESPONSE_BYTES {
+                bytes
+            } else {
+                let fallback = error_response(
+                    INVALID_REQUEST_ID,
+                    "WORKER_PROTOCOL",
+                    "worker response exceeded the bounded protocol limit",
+                );
+                let Ok(fallback) = serde_json::to_value(fallback) else {
+                    return false;
+                };
+                canonical_json_bytes(&fallback)
+            }
+        }
+        Err(_) => return false,
     };
     let mut stdout = io::BufWriter::new(io::stdout());
     stdout.write_all(&bytes).is_ok() && stdout.write_all(b"\n").is_ok() && stdout.flush().is_ok()

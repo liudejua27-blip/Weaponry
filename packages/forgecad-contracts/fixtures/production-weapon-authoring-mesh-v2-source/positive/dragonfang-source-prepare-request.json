@@ -1,0 +1,17 @@
+{
+  "schema_version": "ProductionWeaponAuthoringMeshV2SourcePrepareRequest@1",
+  "project_id": "dragonfang-kukri",
+  "candidate_id": "candidate-dragonfang",
+  "candidate_state_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "geometry_program_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "artifact_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+  "artifact_readback_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+  "part_id": "blade-body",
+  "source_node_id": "dragonfang-blade-body",
+  "idempotency_key": "dragonfang-source-genesis",
+  "max_response_bytes": 1048576,
+  "runtime_write_performed": false,
+  "writer_policy": "forgecad-runtime-only-state-writer@1",
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "input_sha256": "66cfabf55c1bb1125620b8d2718eaac96f23a32a4cdc1b56fb08039abc7ba4ca"
+}

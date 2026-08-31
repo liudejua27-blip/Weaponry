@@ -422,15 +422,23 @@ fn call_tool(
         session.mark_preflight_read();
     }
     match dispatched {
-        Ok(value) => result_adapter::tool_success(
-            id,
-            &operation,
-            value,
-            &[
-                knife_curve_modifier_graph_tools::summary,
-                knife_curve_evaluated_mesh_tools::summary,
-            ],
-        ),
+        Ok(value) => {
+            // Keep the Runtime value byte-for-byte as structuredContent, but
+            // do not expose a closed result operation before its package
+            // Contract has validated the complete nested evidence graph.
+            if let Err(error) = active_schema::validate_closed_result(&operation, &value) {
+                return tool_error(id, &error);
+            }
+            result_adapter::tool_success(
+                id,
+                &operation,
+                value,
+                &[
+                    knife_curve_modifier_graph_tools::summary,
+                    knife_curve_evaluated_mesh_tools::summary,
+                ],
+            )
+        }
         Err(error) => tool_error(id, &error),
     }
 }

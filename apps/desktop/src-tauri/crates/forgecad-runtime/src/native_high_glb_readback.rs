@@ -7,7 +7,7 @@
 use super::{canonical_json_hash, sha256_hex};
 use serde::de::{self, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer};
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::fmt;
 
@@ -272,7 +272,7 @@ fn accessor_bytes<'a>(
         "bufferView",
     )?;
     if number(view, "buffer")? != 0
-        || number(view, "target")? != if value_type == "VEC3" { 34962 } else { 34963 }
+        || number(view, "target")? != if value_type == "SCALAR" { 34963 } else { 34962 }
     {
         return Err(invalid("bufferView binding differs"));
     }
@@ -295,8 +295,111 @@ fn parse_strict_json(bytes: &[u8]) -> Result<Value, NativeHighGlbReadbackError> 
     Ok(strict)
 }
 
+/// Match a JSON accessor bound to the f32 value carried by the GLB payload.
+///
+/// The Worker writes accessor bounds from `[f32; 3]`, but JSON decoding stores
+/// those numbers as `f64`.  A decimal such as `2.02` can therefore be a valid
+/// serialization of the payload's `2.0199999809265137f32` even though the
+/// decoded `f64`s are not numerically identical.  Round the JSON value through
+/// the GLB component type and compare its bits; this admits only the exact f32
+/// representation, never an epsilon or a non-finite value.
+fn f32_accessor_bound_matches(value: &Value, expected: f32) -> bool {
+    let Some(decoded) = value.as_f64() else {
+        return false;
+    };
+    if !decoded.is_finite() {
+        return false;
+    }
+    let round_tripped = decoded as f32;
+    round_tripped.is_finite() && round_tripped.to_bits() == expected.to_bits()
+}
+
 /// Parse one embedded GLB and return a compact, canonical Runtime readback.
 pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlbReadbackError> {
+    inspect_native_high_glb_with_policy(glb, NativeHighGlbPolicy::Legacy)
+}
+
+/// Parse the direct V2 High Artifact GLB variant.
+///
+/// Direct V2 materialization currently has one evaluated base primitive and no
+/// detail layer.  Keep that exception at this call site instead of weakening
+/// `inspect_native_high_glb`, which is the legacy NativeHigh readback gate and
+/// must continue requiring both primitive layers.  All other GLB, lineage and
+/// payload checks remain shared with the legacy parser, including recomputing
+/// the actual primitive, part and triangle totals from the embedded bytes.
+pub(crate) fn inspect_authoring_mesh_v2_high_glb(
+    glb: &[u8],
+) -> Result<Value, NativeHighGlbReadbackError> {
+    inspect_native_high_glb_with_policy(glb, NativeHighGlbPolicy::AuthoringMeshV2)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NativeHighGlbPolicy {
+    Legacy,
+    AuthoringMeshV2,
+}
+
+const V2_STITCHED_SUBDIVISION_POLICY: &str = "forgecad-owned-cpu-catmull-clark-stitched-polygon@2";
+
+fn valid_v2_source_element_ref(value: &str) -> bool {
+    if value.is_empty() || value.len() > 128 {
+        return false;
+    }
+    if value == V2_STITCHED_SUBDIVISION_POLICY {
+        return true;
+    }
+    let stable_id = |candidate: &str| {
+        !candidate.is_empty()
+            && candidate.len() <= 128
+            && candidate
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"_.-".contains(&byte))
+    };
+    if stable_id(value) {
+        return true;
+    }
+    for prefix in [
+        "source-vertex:",
+        "source-edge:",
+        "source-face:",
+        "subdivision-step:",
+        "boolean-step:",
+        "source-revision:",
+        "material-zone:",
+        "source-node:",
+        "source-part:",
+    ] {
+        if let Some(payload) = value.strip_prefix(prefix) {
+            return stable_id(payload);
+        }
+    }
+    if let Some(payload) = value.strip_prefix("source-revision-sha256:") {
+        return payload.len() == 64
+            && payload
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase());
+    }
+    if let Some(payload) = value.strip_prefix("source-part-output-sha256:") {
+        return payload.len() == 64
+            && payload
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase());
+    }
+    if let Some(payload) = value.strip_prefix("source-part-index:") {
+        return !payload.is_empty()
+            && payload.bytes().all(|byte| byte.is_ascii_digit())
+            && payload.parse::<u32>().is_ok();
+    }
+    if let Some(payload) = value.strip_prefix("subdivision-level:") {
+        return matches!(payload, "1" | "2");
+    }
+    false
+}
+
+fn inspect_native_high_glb_with_policy(
+    glb: &[u8],
+    policy: NativeHighGlbPolicy,
+) -> Result<Value, NativeHighGlbReadbackError> {
     if glb.len() < 28 || glb.len() > MAX_GLB_BYTES || glb.get(..4) != Some(GLB_MAGIC) {
         return Err(invalid("GLB2 header is invalid"));
     }
@@ -330,21 +433,21 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
     let root = parse_strict_json(&glb[json_start..json_end])?;
     reject_external(&root)?;
     let root = object(&root, "GLB root")?;
-    exact_fields(
-        root,
-        &[
-            "asset",
-            "scene",
-            "scenes",
-            "nodes",
-            "meshes",
-            "buffers",
-            "bufferViews",
-            "accessors",
-            "extras",
-        ],
-        "GLB root",
-    )?;
+    let mut root_fields = vec![
+        "asset",
+        "scene",
+        "scenes",
+        "nodes",
+        "meshes",
+        "buffers",
+        "bufferViews",
+        "accessors",
+        "extras",
+    ];
+    if matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2) {
+        root_fields.push("materials");
+    }
+    exact_fields(root, &root_fields, "GLB root")?;
 
     let asset = object(
         root.get("asset")
@@ -434,12 +537,47 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
     let part_ids = unique_strings(array(forgecad, "part_ids")?, "part_ids")?;
     let material_zone_ids =
         unique_strings(array(forgecad, "material_zone_ids")?, "material_zone_ids")?;
+    if matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2) {
+        let materials = array(root, "materials")?;
+        if materials.len() != material_zone_ids.len() {
+            return Err(invalid("V2 material inventory count differs"));
+        }
+        for (index, material) in materials.iter().enumerate() {
+            let material = object(material, "material")?;
+            exact_fields(material, &["name", "pbrMetallicRoughness"], "material")?;
+            if material.get("name").and_then(Value::as_str)
+                != material_zone_ids.get(index).map(String::as_str)
+            {
+                return Err(invalid(
+                    "V2 material name/order differs from zone inventory",
+                ));
+            }
+            let pbr = object(
+                material
+                    .get("pbrMetallicRoughness")
+                    .ok_or_else(|| invalid("V2 neutral PBR material is missing"))?,
+                "pbrMetallicRoughness",
+            )?;
+            exact_fields(
+                pbr,
+                &["baseColorFactor", "metallicFactor", "roughnessFactor"],
+                "pbrMetallicRoughness",
+            )?;
+            if pbr.get("baseColorFactor") != Some(&serde_json::json!([0.5, 0.5, 0.5, 1.0]))
+                || pbr.get("metallicFactor").and_then(Value::as_f64) != Some(0.0)
+                || pbr.get("roughnessFactor").and_then(Value::as_f64) != Some(0.7)
+            {
+                return Err(invalid("V2 neutral transport material differs"));
+            }
+        }
+    }
     let base_count = usize_field(forgecad, "base_primitive_count")?;
     let detail_count = usize_field(forgecad, "detail_primitive_count")?;
     if part_ids.is_empty()
         || material_zone_ids.is_empty()
         || base_count == 0
-        || detail_count == 0
+        || (matches!(policy, NativeHighGlbPolicy::Legacy) && detail_count == 0)
+        || (matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2) && detail_count != 0)
         || part_ids.len() != base_count
     {
         return Err(invalid("base/detail primitive counts must be positive"));
@@ -487,33 +625,47 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
         return Err(invalid("scene node binding differs"));
     }
 
-    if views.len() != total_primitives * 2 || accessors.len() != total_primitives * 2 {
+    // V2 High is a source transport for Low retopology, not a baked surface.
+    // Its contract requires POSITION/NORMAL/TEXCOORD_0, while TANGENT is
+    // intentionally absent until the Low compiler's MikkTSpace pass. The
+    // legacy Native High path remains POSITION-only and uses the historical
+    // two-accessor layout below.
+    let require_surface_attributes = matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2);
+    let accessors_per_primitive = if require_surface_attributes { 4 } else { 2 };
+    let expected_accessor_count = total_primitives
+        .checked_mul(accessors_per_primitive)
+        .ok_or_else(|| invalid("accessor/bufferView count overflows"))?;
+    if views.len() != expected_accessor_count || accessors.len() != expected_accessor_count {
         return Err(invalid("accessor/bufferView count differs"));
     }
     let mut ranges = Vec::<(usize, usize)>::new();
     let mut accessor_refs = BTreeSet::new();
     let mut names = BTreeSet::new();
+    let mut source_node_ids = Vec::with_capacity(base_count);
+    let mut source_node_id_set = BTreeSet::new();
+    let mut used_material_zone_ids = BTreeSet::new();
+    let mut primitive_bindings = Vec::with_capacity(base_count);
     let mut base_triangles = 0u64;
     let mut detail_triangles = 0u64;
     for index in 0..total_primitives {
         let line = object(&lineage[index], "primitive lineage")?;
-        exact_fields(
-            line,
-            &[
-                "source_schema_version",
-                "source_artifact_id",
-                "source_artifact_sha256",
-                "primitive_id",
-                "kind",
-                "part_id",
-                "source_node_id",
-                "material_zone_id",
-                "source_element_lineage",
-                "position_count",
-                "triangle_count",
-            ],
-            "primitive lineage",
-        )?;
+        let mut lineage_fields = vec![
+            "source_schema_version",
+            "source_artifact_id",
+            "source_artifact_sha256",
+            "primitive_id",
+            "kind",
+            "part_id",
+            "source_node_id",
+            "material_zone_id",
+            "source_element_lineage",
+            "position_count",
+            "triangle_count",
+        ];
+        if matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2) {
+            lineage_fields.push("source_node_ids");
+        }
+        exact_fields(line, &lineage_fields, "primitive lineage")?;
         if line.get("source_schema_version").and_then(Value::as_str) != Some("HighMeshArtifact@1")
             || line.get("source_artifact_id").and_then(Value::as_str)
                 != Some(source_artifact_id.as_str())
@@ -526,7 +678,11 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
         let part_id = id_field(line, "part_id")?.to_owned();
         let kind = string_field(line, "kind")?;
         if index < base_count {
-            if kind != "authoring_base"
+            let expected_base_kind = match policy {
+                NativeHighGlbPolicy::Legacy => "authoring_base",
+                NativeHighGlbPolicy::AuthoringMeshV2 => "authoring_mesh_v2_high_evaluated",
+            };
+            if kind != expected_base_kind
                 || part_ids.get(index).map(String::as_str) != Some(part_id.as_str())
             {
                 return Err(invalid("base primitive kind/Part order differs"));
@@ -537,15 +693,43 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
         ) {
             return Err(invalid("detail primitive kind is invalid"));
         }
-        let _source_node_id = id_field(line, "source_node_id")?;
-        let _material_zone_id = id_field(line, "material_zone_id")?;
+        let source_node_id = id_field(line, "source_node_id")?.to_owned();
+        let primitive_source_node_ids = if matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2) {
+            let values = unique_strings(array(line, "source_node_ids")?, "source_node_ids")?;
+            if values.first() != Some(&source_node_id) {
+                return Err(invalid("V2 source node owner differs from source node set"));
+            }
+            values
+        } else {
+            vec![source_node_id.clone()]
+        };
+        let material_zone_id = id_field(line, "material_zone_id")?.to_owned();
+        if matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2)
+            && !material_zone_ids.contains(&material_zone_id)
+        {
+            return Err(invalid(
+                "V2 material zone binding is not declared in the root inventory",
+            ));
+        }
+        for primitive_source_node_id in &primitive_source_node_ids {
+            if source_node_id_set.insert(primitive_source_node_id.clone()) {
+                source_node_ids.push(primitive_source_node_id.clone());
+            }
+        }
+        used_material_zone_ids.insert(material_zone_id.clone());
         let source_lineage = array(line, "source_element_lineage")?;
         let lineage_ids = unique_strings(source_lineage, "source_element_lineage")?;
-        if lineage_ids.iter().any(|value| {
-            !value
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || b"_.:-".contains(&byte))
-        }) {
+        let invalid_lineage = match policy {
+            NativeHighGlbPolicy::Legacy => lineage_ids.iter().any(|value| {
+                !value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"_.:-".contains(&byte))
+            }),
+            NativeHighGlbPolicy::AuthoringMeshV2 => lineage_ids
+                .iter()
+                .any(|value| !valid_v2_source_element_ref(value)),
+        };
+        if invalid_lineage {
             return Err(invalid("source element lineage contains an invalid id"));
         }
         if !names.insert(primitive_id.clone()) || !part_ids.contains(&part_id) {
@@ -554,6 +738,15 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
         let line_vertices = usize_field(line, "position_count")?;
         let line_triangles = u64::try_from(usize_field(line, "triangle_count")?)
             .map_err(|_| invalid("lineage triangle count is too large"))?;
+        if matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2) && index < base_count {
+            primitive_bindings.push(json!({
+                "part_id": part_id,
+                "source_node_id": source_node_id,
+                "source_node_ids": primitive_source_node_ids,
+                "material_zone_id": material_zone_id,
+                "triangle_count": line_triangles
+            }));
+        }
         let mesh = object(&meshes[index], "mesh")?;
         exact_fields(mesh, &["name", "primitives", "extras"], "mesh")?;
         let name = id_field(mesh, "name")?;
@@ -590,11 +783,12 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
             return Err(invalid("each mesh must contain one primitive"));
         }
         let primitive = object(&primitives[0], "primitive")?;
-        exact_fields(
-            primitive,
-            &["attributes", "indices", "mode", "extras"],
-            "primitive",
-        )?;
+        let primitive_fields = if require_surface_attributes {
+            &["attributes", "indices", "mode", "material", "extras"][..]
+        } else {
+            &["attributes", "indices", "mode", "extras"][..]
+        };
+        exact_fields(primitive, primitive_fields, "primitive")?;
         if primitive.get("mode").and_then(Value::as_u64) != Some(4)
             || object(
                 primitive
@@ -605,19 +799,61 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
         {
             return Err(invalid("primitive mode/lineage differs"));
         }
+        if require_surface_attributes {
+            let expected_material = material_zone_ids
+                .iter()
+                .position(|zone| zone == &material_zone_id)
+                .ok_or_else(|| invalid("V2 primitive material zone is undeclared"))?;
+            if usize_field(primitive, "material")? != expected_material {
+                return Err(invalid(
+                    "V2 primitive material index differs from zone binding",
+                ));
+            }
+        }
         let attributes = object(
             primitive
                 .get("attributes")
                 .ok_or_else(|| invalid("primitive attributes missing"))?,
             "attributes",
         )?;
-        exact_fields(attributes, &["POSITION"], "attributes")?;
+        let attribute_fields = if require_surface_attributes {
+            &["POSITION", "NORMAL", "TEXCOORD_0"][..]
+        } else {
+            &["POSITION"][..]
+        };
+        exact_fields(attributes, attribute_fields, "attributes")?;
         let position_accessor = usize_field(attributes, "POSITION")?;
+        let normal_accessor = if require_surface_attributes {
+            Some(usize_field(attributes, "NORMAL")?)
+        } else {
+            None
+        };
+        let uv_accessor = if require_surface_attributes {
+            Some(usize_field(attributes, "TEXCOORD_0")?)
+        } else {
+            None
+        };
         let index_accessor = usize_field(primitive, "indices")?;
-        if position_accessor == index_accessor {
-            return Err(invalid("position/index accessor is duplicated"));
+        let primitive_accessors = [
+            Some(position_accessor),
+            normal_accessor,
+            uv_accessor,
+            Some(index_accessor),
+        ];
+        if primitive_accessors
+            .iter()
+            .flatten()
+            .collect::<BTreeSet<_>>()
+            .len()
+            != primitive_accessors.iter().flatten().count()
+        {
+            return Err(invalid("primitive accessor is duplicated"));
         }
-        if !accessor_refs.insert(position_accessor) || !accessor_refs.insert(index_accessor) {
+        if primitive_accessors
+            .iter()
+            .flatten()
+            .any(|accessor| !accessor_refs.insert(*accessor))
+        {
             return Err(invalid("accessor is referenced more than once"));
         }
         let (positions, position_count) = accessor_bytes(
@@ -638,6 +874,55 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
             "SCALAR",
             4,
         )?;
+        if let (Some(normal_accessor), Some(uv_accessor)) = (normal_accessor, uv_accessor) {
+            let (normals, normal_count) = accessor_bytes(
+                &accessors,
+                &views,
+                &glb[bin_start..bin_end],
+                normal_accessor,
+                5126,
+                "VEC3",
+                12,
+            )?;
+            let (uvs, uv_count) = accessor_bytes(
+                &accessors,
+                &views,
+                &glb[bin_start..bin_end],
+                uv_accessor,
+                5126,
+                "VEC2",
+                8,
+            )?;
+            if normal_count != position_count || uv_count != position_count {
+                return Err(invalid("surface attribute count differs from positions"));
+            }
+            for chunk in normals.chunks_exact(12) {
+                let values = [
+                    f32::from_le_bytes(chunk[0..4].try_into().expect("normal x")),
+                    f32::from_le_bytes(chunk[4..8].try_into().expect("normal y")),
+                    f32::from_le_bytes(chunk[8..12].try_into().expect("normal z")),
+                ];
+                let length = values.iter().map(|value| value * value).sum::<f32>().sqrt();
+                if values.iter().any(|value| !value.is_finite())
+                    || !length.is_finite()
+                    || !(0.999..=1.001).contains(&length)
+                {
+                    return Err(invalid("NORMAL payload is not a finite unit vector"));
+                }
+            }
+            for chunk in uvs.chunks_exact(8) {
+                let values = [
+                    f32::from_le_bytes(chunk[0..4].try_into().expect("UV u")),
+                    f32::from_le_bytes(chunk[4..8].try_into().expect("UV v")),
+                ];
+                if values
+                    .iter()
+                    .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+                {
+                    return Err(invalid("TEXCOORD_0 payload is outside [0,1]"));
+                }
+            }
+        }
         if position_count != line_vertices
             || index_count % 3 != 0
             || u64::try_from(index_count / 3).ok() != Some(line_triangles)
@@ -680,7 +965,7 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
                 || bound
                     .iter()
                     .enumerate()
-                    .any(|(axis, value)| value.as_f64() != Some(f64::from(expected[axis])))
+                    .any(|(axis, value)| !f32_accessor_bound_matches(value, expected[axis]))
             {
                 return Err(invalid("position accessor bounds differ from payload"));
             }
@@ -694,9 +979,17 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
                 return Err(invalid("triangle index is out of bounds"));
             }
         }
-        let range_a = view_range(&accessors, &views, position_accessor)?;
-        let range_b = view_range(&accessors, &views, index_accessor)?;
-        for range in [range_a, range_b] {
+        let mut ranges_for_primitive = vec![
+            view_range(&accessors, &views, position_accessor)?,
+            view_range(&accessors, &views, index_accessor)?,
+        ];
+        if let Some(accessor) = normal_accessor {
+            ranges_for_primitive.push(view_range(&accessors, &views, accessor)?);
+        }
+        if let Some(accessor) = uv_accessor {
+            ranges_for_primitive.push(view_range(&accessors, &views, accessor)?);
+        }
+        for range in ranges_for_primitive {
             if ranges
                 .iter()
                 .any(|other| other.0 < range.1 && range.0 < other.1)
@@ -715,11 +1008,21 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
                 .ok_or_else(|| invalid("triangle count overflows"))?;
         }
     }
+    let triangle_count = base_triangles
+        .checked_add(detail_triangles)
+        .ok_or_else(|| invalid("triangle count overflows"))?;
     if number(forgecad, "base_triangle_count")? != base_triangles
         || number(forgecad, "detail_triangle_count")? != detail_triangles
-        || number(forgecad, "triangle_count")? != base_triangles + detail_triangles
+        || number(forgecad, "triangle_count")? != triangle_count
     {
         return Err(invalid("triangle totals differ"));
+    }
+    if matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2)
+        && material_zone_ids.iter().cloned().collect::<BTreeSet<_>>() != used_material_zone_ids
+    {
+        return Err(invalid(
+            "V2 material zone inventory differs from primitive bindings",
+        ));
     }
 
     let mut result = serde_json::json!({
@@ -732,10 +1035,18 @@ pub(crate) fn inspect_native_high_glb(glb: &[u8]) -> Result<Value, NativeHighGlb
         "detail_primitive_count": detail_count,
         "base_triangle_count": base_triangles,
         "detail_triangle_count": detail_triangles,
-        "triangle_count": base_triangles + detail_triangles,
+        "triangle_count": triangle_count,
         "byte_length": glb.len(),
         "canonical_sha256": ""
     });
+    if matches!(policy, NativeHighGlbPolicy::AuthoringMeshV2) {
+        // Direct V2 readback exposes unique inventories, matching the strict
+        // artifact contract.  The primitive lineage above remains the
+        // per-primitive binding source of truth.
+        result["source_node_ids"] = json!(source_node_ids);
+        result["material_zone_ids"] = json!(material_zone_ids);
+        result["primitive_bindings"] = json!(primitive_bindings);
+    }
     result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
     Ok(result)
 }
@@ -908,5 +1219,230 @@ impl<'de> Deserialize<'de> for StrictJson {
             }
         }
         deserializer.deserialize_any(StrictVisitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn v2_glb_fixture(edit_forgecad: impl FnOnce(&mut Value)) -> Vec<u8> {
+        let source_artifact_sha256 = "a".repeat(64);
+        let source_artifact_id = format!("high-mesh-{}", &source_artifact_sha256[..24]);
+        let lineage = json!({
+            "source_schema_version": "HighMeshArtifact@1",
+            "source_artifact_id": source_artifact_id,
+            "source_artifact_sha256": source_artifact_sha256,
+            "primitive_id": "primitive-blade-body",
+            "kind": "authoring_mesh_v2_high_evaluated",
+            "part_id": "blade-body",
+            "source_node_id": "node-blade-body",
+            "material_zone_id": "blade-steel",
+            "source_element_lineage": ["element-0", V2_STITCHED_SUBDIVISION_POLICY],
+            "position_count": 3,
+            "triangle_count": 1
+        });
+        let binary = [
+            2.02f32.to_le_bytes(),
+            (-0.31f32).to_le_bytes(),
+            (-0.03f32).to_le_bytes(),
+            0.42f32.to_le_bytes(),
+            0.0f32.to_le_bytes(),
+            0.0f32.to_le_bytes(),
+            0.0f32.to_le_bytes(),
+            1.01f32.to_le_bytes(),
+            0.0f32.to_le_bytes(),
+            0u32.to_le_bytes(),
+            1u32.to_le_bytes(),
+            2u32.to_le_bytes(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+        let mut root = json!({
+            "asset": {
+                "version": "2.0",
+                "generator": "ForgeCAD Native High GLB Lowering@1",
+                "extras": {"unit": "meter", "meter": 1.0, "length": "meter"}
+            },
+            "scene": 0,
+            "scenes": [{"nodes": [0]}],
+            "nodes": [{
+                "name": "blade-body",
+                "mesh": 0,
+                "extras": lineage
+            }],
+            "meshes": [{
+                "name": "blade-body",
+                "primitives": [{
+                    "attributes": {"POSITION": 0},
+                    "indices": 1,
+                    "mode": 4,
+                    "extras": lineage
+                }],
+                "extras": lineage
+            }],
+            "buffers": [{"byteLength": binary.len()}],
+            "bufferViews": [
+                {"buffer": 0, "byteOffset": 0, "byteLength": 36, "target": 34962},
+                {"buffer": 0, "byteOffset": 36, "byteLength": 12, "target": 34963}
+            ],
+            "accessors": [
+                {
+                    "bufferView": 0,
+                    "componentType": 5126,
+                    "count": 3,
+                    "type": "VEC3",
+                    "min": [0.0, -0.31, -0.03],
+                    "max": [2.02, 1.01, 0.0]
+                },
+                {"bufferView": 1, "componentType": 5125, "count": 3, "type": "SCALAR"}
+            ],
+            "extras": {"forgecad": {
+                "schema_version": "HighMeshArtifactGlb@1",
+                "source_schema_version": "HighMeshArtifact@1",
+                "source_artifact_id": source_artifact_id,
+                "source_artifact_sha256": source_artifact_sha256,
+                "part_ids": ["blade-body"],
+                "material_zone_ids": ["blade-steel"],
+                "base_primitive_count": 1,
+                "detail_primitive_count": 0,
+                "base_triangle_count": 1,
+                "detail_triangle_count": 0,
+                "triangle_count": 1,
+                "units": {"length": "meter", "meter": 1.0},
+                "embedded_only": true,
+                "external_uri": false,
+                "scripts": false,
+                "primitive_lineage": [lineage]
+            }}
+        });
+        edit_forgecad(
+            root.get_mut("extras")
+                .and_then(|extras| extras.get_mut("forgecad"))
+                .expect("ForgeCAD fixture extras"),
+        );
+        let mut json_bytes = serde_json::to_vec(&root).expect("V2 GLB JSON");
+        while json_bytes.len() % 4 != 0 {
+            json_bytes.push(b' ');
+        }
+        let total_length = 12 + 8 + json_bytes.len() + 8 + binary.len();
+        let mut glb = Vec::with_capacity(total_length);
+        glb.extend_from_slice(GLB_MAGIC);
+        glb.extend_from_slice(&2u32.to_le_bytes());
+        glb.extend_from_slice(&(total_length as u32).to_le_bytes());
+        glb.extend_from_slice(&(json_bytes.len() as u32).to_le_bytes());
+        glb.extend_from_slice(JSON_CHUNK);
+        glb.extend_from_slice(&json_bytes);
+        glb.extend_from_slice(&(binary.len() as u32).to_le_bytes());
+        glb.extend_from_slice(BIN_CHUNK);
+        glb.extend_from_slice(&binary);
+        glb
+    }
+
+    #[test]
+    fn direct_v2_readback_uses_actual_base_and_zero_detail_counts() {
+        let glb = v2_glb_fixture(|_| {});
+        let readback = inspect_authoring_mesh_v2_high_glb(&glb).expect("valid V2 High GLB");
+        assert_eq!(readback["base_primitive_count"], 1);
+        assert_eq!(readback["detail_primitive_count"], 0);
+        assert_eq!(readback["base_triangle_count"], 1);
+        assert_eq!(readback["detail_triangle_count"], 0);
+        assert_eq!(readback["triangle_count"], 1);
+        assert_eq!(readback["part_ids"], json!(["blade-body"]));
+    }
+
+    #[test]
+    fn accessor_bounds_round_trip_through_f32_bits_and_reject_non_finite_or_drift() {
+        // The fixture uses decimal JSON such as 2.02 while its binary payload
+        // carries 2.0199999809265137f32, matching the Worker's f32 serializer.
+        inspect_authoring_mesh_v2_high_glb(&v2_glb_fixture(|_| {}))
+            .expect("shortest decimal f32 bounds must be accepted");
+
+        assert!(f32_accessor_bound_matches(&json!(2.02), 2.02f32));
+        assert!(f32_accessor_bound_matches(&json!(-0.31), -0.31f32));
+        assert!(!f32_accessor_bound_matches(&json!(2.020001), 2.02f32));
+        assert!(!f32_accessor_bound_matches(&json!("NaN"), 0.0f32));
+        assert!(!f32_accessor_bound_matches(&json!("Infinity"), 0.0f32));
+        assert!(!f32_accessor_bound_matches(&json!(f64::MAX), 0.0f32));
+    }
+
+    #[test]
+    fn legacy_readback_keeps_positive_detail_gate_and_v2_rejects_triangle_drift() {
+        let glb = v2_glb_fixture(|forgecad| {
+            forgecad["base_triangle_count"] = Value::from(2u64);
+            forgecad["triangle_count"] = Value::from(2u64);
+        });
+        let v2_error = inspect_authoring_mesh_v2_high_glb(&glb)
+            .expect_err("actual triangle payload must bind to V2 metadata");
+        assert!(v2_error.to_string().contains("triangle totals differ"));
+
+        let valid_glb = v2_glb_fixture(|_| {});
+        let legacy_error = inspect_native_high_glb(&valid_glb)
+            .expect_err("legacy NativeHigh must retain its detail-layer gate");
+        assert!(legacy_error
+            .to_string()
+            .contains("base/detail primitive counts must be positive"));
+    }
+
+    #[test]
+    fn direct_v2_readback_rejects_detail_layer_wrong_kind_and_lineage_id_drift() {
+        let detail_error = inspect_authoring_mesh_v2_high_glb(&v2_glb_fixture(|forgecad| {
+            forgecad["detail_primitive_count"] = Value::from(1u64);
+        }))
+        .expect_err("direct V2 must not admit a detail layer");
+        assert!(detail_error
+            .to_string()
+            .contains("base/detail primitive counts must be positive"));
+
+        let kind_error = inspect_authoring_mesh_v2_high_glb(&v2_glb_fixture(|forgecad| {
+            forgecad["primitive_lineage"][0]["kind"] = Value::String("authoring_base".into());
+        }))
+        .expect_err("direct V2 must reject legacy primitive kinds");
+        assert!(kind_error
+            .to_string()
+            .contains("base primitive kind/Part order differs"));
+
+        let part_error = inspect_authoring_mesh_v2_high_glb(&v2_glb_fixture(|forgecad| {
+            forgecad["part_ids"][0] = Value::String("other-part".into());
+        }))
+        .expect_err("direct V2 must bind the primitive to the declared Part");
+        assert!(part_error
+            .to_string()
+            .contains("base primitive kind/Part order differs"));
+    }
+
+    #[test]
+    fn v2_source_element_lineage_accepts_only_closed_stable_ref_forms() {
+        let sha = "a".repeat(64);
+        for valid in [
+            "amv2-mesh-b05db075f4be0baccb9c83f102294461b8210dcb1c4e36e1",
+            "source-vertex:v-01",
+            "source-edge:e-01",
+            "source-face:f-01",
+            "subdivision-step:step-01",
+            "boolean-step:step-01",
+            "source-revision:amrev-01",
+            &format!("source-revision-sha256:{sha}"),
+            "subdivision-level:1",
+            V2_STITCHED_SUBDIVISION_POLICY,
+        ] {
+            assert!(valid_v2_source_element_ref(valid), "accepted form: {valid}");
+        }
+        for invalid in [
+            "source-edge:e/01",
+            "source-edge:e 01",
+            "source-edge:e@01",
+            "source-revision-sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "subdivision-level:0",
+            "subdivision-level:3",
+            "forgecad-owned-cpu-catmull-clark-stitched-polygon@3",
+            "arbitrary-policy@2",
+            "source-edge:",
+            "source-edge:e-01\n",
+        ] {
+            assert!(!valid_v2_source_element_ref(invalid), "rejected form: {invalid:?}");
+        }
     }
 }

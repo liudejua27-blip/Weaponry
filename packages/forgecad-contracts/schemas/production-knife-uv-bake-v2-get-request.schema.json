@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-knife-uv-bake-v2-get-request.schema.json",
+  "title": "WeaponryKnifeUvBakeV2GetRequest@1",
+  "description": "Closed readback request for a Runtime-owned Knife UV/Cage/Bake aggregate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "candidate_id", "candidate_state_sha256",
+    "aggregate_id", "idempotency_key", "source_only", "runtime_write_performed",
+    "persistent_user_data_touched", "writer_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponryKnifeUvBakeV2GetRequest@1"},
+    "operation": {"const": "production_knife_uv_bake_v2_get"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "aggregate_id": {"$ref": "#/$defs/id"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "source_only": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string", "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

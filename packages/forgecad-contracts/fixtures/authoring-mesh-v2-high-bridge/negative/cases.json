@@ -1,0 +1,102 @@
+{
+  "schema_version": "AuthoringMeshV2HighBridgeNegativeCases@1",
+  "description": "Schema-valid mutations rejected by the bridge semantic checker; these cases do not widen direct Worker scope or claim High quality.",
+  "cases": [
+    {
+      "id": "main-extra-field",
+      "target": "main",
+      "mutation": "extra_field",
+      "expected": "reject"
+    },
+    {
+      "id": "main-source-scope",
+      "target": "main",
+      "mutation": "source_scope",
+      "expected": "reject"
+    },
+    {
+      "id": "main-candidate-as-source",
+      "target": "main",
+      "mutation": "candidate_as_source",
+      "expected": "reject"
+    },
+    {
+      "id": "main-artifact-topology-policy",
+      "target": "main",
+      "mutation": "artifact_topology_policy",
+      "expected": "reject"
+    },
+    {
+      "id": "main-artifact-hash-mismatch",
+      "target": "main",
+      "mutation": "artifact_hash_mismatch",
+      "expected": "reject"
+    },
+    {
+      "id": "main-high-promotion",
+      "target": "main",
+      "mutation": "high_promotion",
+      "expected": "reject"
+    },
+    {
+      "id": "main-worker-cohort-missing",
+      "target": "main",
+      "mutation": "worker_cohort_missing",
+      "expected": "reject"
+    },
+    {
+      "id": "main-canonical-hash",
+      "target": "main",
+      "mutation": "canonical_hash",
+      "expected": "reject"
+    },
+    {
+      "id": "prepare-extra-field",
+      "target": "prepare",
+      "mutation": "extra_field",
+      "expected": "reject"
+    },
+    {
+      "id": "prepare-raw-revision",
+      "target": "prepare",
+      "mutation": "raw_revision",
+      "expected": "reject"
+    },
+    {
+      "id": "prepare-input-hash",
+      "target": "prepare",
+      "mutation": "input_hash",
+      "expected": "reject"
+    },
+    {
+      "id": "get-write-claim",
+      "target": "get",
+      "mutation": "write_claim",
+      "expected": "reject"
+    },
+    {
+      "id": "result-extra-field",
+      "target": "result",
+      "mutation": "extra_field",
+      "expected": "reject"
+    },
+    {
+      "id": "result-status",
+      "target": "result",
+      "mutation": "result_status",
+      "expected": "reject"
+    },
+    {
+      "id": "result-promotion",
+      "target": "result",
+      "mutation": "result_promotion",
+      "expected": "reject"
+    },
+    {
+      "id": "result-canonical-hash",
+      "target": "result",
+      "mutation": "canonical_hash",
+      "expected": "reject"
+    }
+  ]
+}

@@ -8,7 +8,8 @@
 //! receipts reachable in one SQLite transaction.
 
 use forgecad_contracts::{
-    CasObjectRecord, PRODUCTION_WEAPON_FORM_ART_BASELINE_AOV_KINDS,
+    is_opaque_id, is_sha256, CasObjectRecord, ProductionWeaponFormArtBaselineRecord,
+    ProductionWeaponFormArtBaselineView, PRODUCTION_WEAPON_FORM_ART_BASELINE_AOV_KINDS,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_CANONICALIZATION_POLICY,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_IDEMPOTENCY_POLICY,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_MATERIALIZATION_STATUS,
@@ -16,11 +17,10 @@ use forgecad_contracts::{
     PRODUCTION_WEAPON_FORM_ART_BASELINE_SCHEMA_VERSION,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_VIEW_KINDS,
     PRODUCTION_WEAPON_FORM_ART_BASELINE_VIEW_SCHEMA_VERSION,
-    PRODUCTION_WEAPON_FORM_ART_BASELINE_WRITER_POLICY, ProductionWeaponFormArtBaselineRecord,
-    ProductionWeaponFormArtBaselineView, is_opaque_id, is_sha256,
+    PRODUCTION_WEAPON_FORM_ART_BASELINE_WRITER_POLICY,
 };
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{OptionalExtension, Row, params};
+use rusqlite::{params, OptionalExtension, Row};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;

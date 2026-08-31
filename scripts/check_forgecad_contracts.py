@@ -13691,9 +13691,19 @@ def main() -> int:
     check_fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_contracts()
     from check_weaponry_knife_profile import run_checks as check_weaponry_knife_profile
     from check_knife_curve_modifier_graph_contract import run_checks as check_knife_curve_modifier_graph_contract
+    from check_weaponry_knife_production_brief import run_checks as check_weaponry_knife_production_brief
+    from check_weaponry_knife_reference_intent_bundle import run_checks as check_weaponry_knife_reference_intent_bundle
+    from check_weaponry_knife_pass_state import run_checks as check_weaponry_knife_pass_state
+    from check_weaponry_knife_source_binding import run_checks as check_weaponry_knife_source_binding
+    from check_reference_comparison_prepare_result import run_checks as check_reference_comparison_prepare_result
 
     check_weaponry_knife_profile()
     check_knife_curve_modifier_graph_contract()
+    check_weaponry_knife_production_brief()
+    check_weaponry_knife_reference_intent_bundle()
+    check_weaponry_knife_pass_state()
+    check_weaponry_knife_source_binding()
+    check_reference_comparison_prepare_result()
     print(f"ForgeCAD contracts OK: {len(actual_schemas)} schemas")
     return 0
 

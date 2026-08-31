@@ -7,22 +7,22 @@
 //! CAS registration and reachability transaction remain owned by `Store`.
 
 use forgecad_contracts::{
-    PRODUCTION_WEAPON_HIGH_LOW_GATE_SCOPES, ProductionStageHeadV3Record,
-    ProductionWeaponCageArtifactRecord, ProductionWeaponHighArtifactRecord,
-    ProductionWeaponHighLowBakeGetResult, ProductionWeaponHighLowBakePlanRecord,
-    ProductionWeaponHighLowBakePrepareResult, ProductionWeaponHighLowBakeReceiptRecord,
-    ProductionWeaponHighLowCorrespondenceRecord, ProductionWeaponHighLowDiagnosticRecord,
-    ProductionWeaponLowArtifactRecord, is_opaque_id,
+    is_opaque_id, ProductionStageHeadV3Record, ProductionWeaponCageArtifactRecord,
+    ProductionWeaponHighArtifactRecord, ProductionWeaponHighLowBakeGetResult,
+    ProductionWeaponHighLowBakePlanRecord, ProductionWeaponHighLowBakePrepareResult,
+    ProductionWeaponHighLowBakeReceiptRecord, ProductionWeaponHighLowCorrespondenceRecord,
+    ProductionWeaponHighLowDiagnosticRecord, ProductionWeaponLowArtifactRecord,
+    PRODUCTION_WEAPON_HIGH_LOW_GATE_SCOPES,
 };
 
 use super::{
-    CasObjectRecord, Store, StoreError, commit_production_weapon_high_low_bake_in_transaction,
+    commit_production_weapon_high_low_bake_in_transaction,
     ensure_production_weapon_high_low_bake_bindings_in_transaction,
     prepare_production_weapon_high_low_bake, production_weapon_high_low_bake_get_result,
     production_weapon_high_low_bake_prepare_result, production_weapon_high_low_error,
     read_production_stage_head_v3_for_connection,
     read_production_weapon_high_low_bake_in_transaction,
-    read_production_weapon_high_low_bake_preflight_sources,
+    read_production_weapon_high_low_bake_preflight_sources, CasObjectRecord, Store, StoreError,
 };
 
 /// Read-only presence and hash summary for one immutable formal

@@ -1,5 +1,13 @@
 # ForgeCAD Runtime Schema 规范
 
+> 2026-08-30 Brief addendum：manifest=`662 schemas`；新增
+> `WeaponryKnifeProductionBrief@1`、prepare/get/result 四个 package-owned closed Schema。Brief 明确
+> 区分无父的 `initial-intake-no-parent@1` 与绑定 exact parent ID/hash 的
+> `immutable-successor-preserve-source-claims@1`；successor 不得增删改 source claims 或 conflict
+> identity；resolved successor 的 `resolved_width/height` 与 `shipping_width/height` 分别冻结 authoring master
+> 和 shipping 尺寸，并要求匹配 retained `hero`/`production` claims。默认 Knife profile active request closure 为 127/127。MCP validator 本轮补了 `not`
+> 关键字，但仍不能宣称实现完整 JSON Schema 标准；复杂 regex/组合、循环 `$ref` 和预算门继续单列。
+
 > **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
 
 > 2026-08-30 current source：manifest=`658 schemas`；默认 Knife profile 的 125 个 active operation 已全部绑定 package-owned closed request Schema，blocked=0，Runtime fallback=0。MCP validator 已执行 `minProperties/maxProperties`；复杂组合关键字、循环 `$ref` 与预算耗尽仍需继续负向覆盖。以下旧数量均为历史 cohort。
@@ -317,4 +325,4 @@ parent_refs / lineage
 
 每个 Schema 至少测试 unknown fields、超长字符串/数组、深嵌套、非有限数、错误单位/ID/hash、路径/URL/secret-like 字段、循环 DAG、预算溢出、stale base、重复 key 和版本不兼容。
 
-<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=662 schema_set_sha256=202e080ec378ddb294eb9c880079dcec5c910b27a1c679034ca34c5a880dcec6 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weaponry-knife-production-brief-result.schema.json",
+  "title": "WeaponryKnifeProductionBriefResult@1",
+  "description": "Closed Runtime-owned durable intake result. It preserves the full immutable brief and reports authoring eligibility without advancing a production stage, confirming a candidate, creating a version or exporting.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "request_kind", "status", "project_id", "reference_id",
+    "reference_object_sha256", "reference_evidence_sha256", "brief_id",
+    "parent_brief_id", "parent_brief_sha256", "freeze_policy", "brief",
+    "brief_sha256", "brief_object_sha256", "idempotency_key", "replayed",
+    "authorization_binding_status", "conflict_status", "authoring_eligibility",
+    "blocking_reasons", "store_effect", "cas_effect", "runtime_write_performed",
+    "persistent_user_data_touched", "production_stage_advanced", "candidate_confirmed",
+    "version_created", "export_performed", "writer_policy", "canonicalization_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponryKnifeProductionBriefResult@1"},
+    "request_kind": {"enum": ["prepare", "get"]},
+    "status": {"enum": ["stored", "replayed", "found"]},
+    "project_id": {"$ref": "#/$defs/id"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_object_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "brief_id": {"$ref": "#/$defs/id"},
+    "parent_brief_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "parent_brief_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "freeze_policy": {"enum": ["initial-intake-no-parent@1", "immutable-successor-preserve-source-claims@1"]},
+    "brief": {"$ref": "https://forgecad.local/contracts/weaponry-knife-production-brief.schema.json"},
+    "brief_sha256": {"$ref": "#/$defs/sha256"},
+    "brief_object_sha256": {"$ref": "#/$defs/sha256"},
+    "idempotency_key": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "replayed": {"type": "boolean"},
+    "authorization_binding_status": {"enum": ["source-asserted-not-runtime-bound", "runtime-bound"]},
+    "conflict_status": {"enum": ["conflicted", "resolved"]},
+    "authoring_eligibility": {"enum": ["BLOCKED", "ELIGIBLE"]},
+    "blocking_reasons": {
+      "type": "array", "maxItems": 32, "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Z0-9][A-Z0-9_.:-]{0,127}$"}
+    },
+    "store_effect": {"enum": ["inserted", "not-touched"]},
+    "cas_effect": {"enum": ["inserted", "not-touched"]},
+    "runtime_write_performed": {"type": "boolean"},
+    "persistent_user_data_touched": {"type": "boolean"},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"freeze_policy": {"const": "initial-intake-no-parent@1"}}, "required": ["freeze_policy"]},
+      "then": {"properties": {"parent_brief_id": {"const": null}, "parent_brief_sha256": {"const": null}}}
+    },
+    {
+      "if": {"properties": {"freeze_policy": {"const": "immutable-successor-preserve-source-claims@1"}}, "required": ["freeze_policy"]},
+      "then": {"properties": {"parent_brief_id": {"$ref": "#/$defs/id"}, "parent_brief_sha256": {"$ref": "#/$defs/sha256"}}}
+    },
+    {
+      "if": {"properties": {"request_kind": {"const": "get"}}, "required": ["request_kind"]},
+      "then": {"properties": {"status": {"const": "found"}, "idempotency_key": {"type": "null"}, "replayed": {"const": false}, "store_effect": {"const": "not-touched"}, "cas_effect": {"const": "not-touched"}, "runtime_write_performed": {"const": false}, "persistent_user_data_touched": {"const": false}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "replayed"}}, "required": ["status"]},
+      "then": {"properties": {"request_kind": {"const": "prepare"}, "replayed": {"const": true}, "store_effect": {"const": "not-touched"}, "cas_effect": {"const": "not-touched"}, "runtime_write_performed": {"const": false}, "persistent_user_data_touched": {"const": false}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "stored"}}, "required": ["status"]},
+      "then": {"properties": {"request_kind": {"const": "prepare"}, "replayed": {"const": false}, "store_effect": {"const": "inserted"}, "cas_effect": {"const": "inserted"}, "runtime_write_performed": {"const": true}, "persistent_user_data_touched": {"const": true}}}
+    },
+    {
+      "if": {"properties": {"conflict_status": {"const": "conflicted"}}, "required": ["conflict_status"]},
+      "then": {"properties": {"authoring_eligibility": {"const": "BLOCKED"}, "blocking_reasons": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"authorization_binding_status": {"const": "source-asserted-not-runtime-bound"}}, "required": ["authorization_binding_status"]},
+      "then": {"properties": {"authoring_eligibility": {"const": "BLOCKED"}, "blocking_reasons": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"authoring_eligibility": {"const": "ELIGIBLE"}}, "required": ["authoring_eligibility"]},
+      "then": {"properties": {"authorization_binding_status": {"const": "runtime-bound"}, "conflict_status": {"const": "resolved"}, "blocking_reasons": {"maxItems": 0}}}
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

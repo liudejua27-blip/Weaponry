@@ -1,6 +1,6 @@
 # FGC-MCP010 高质量硬表面参考闭环计划
 
-> 2026-08-30 current-source truth 已由 source-only compatibility MCP 编译产物重建；当前为 **658 个 JSON Schema / compatibility 131 read + 95 opt-in write = 226 tools / default 11 knife façades**。默认 125 个 active operation 已全部消费 package-owned closed request Schema，blocked=0，Runtime fallback=0。该数字只描述当前协议与请求边界；attempt35 仍为 `QUALITY_TARGET_NOT_MET / INCOMPLETE_TRUTH_BINDING / camera MISMATCH`，不因架构或 bounded evaluated-mesh 纵切接入而升级。
+> 2026-08-30 current-source truth 已由 source-only compatibility MCP 编译产物重建；当前为 **662 个 JSON Schema / compatibility 131 read + 95 opt-in write = 226 tools / default 11 knife façades**。默认 127 个 active operation 已全部消费 package-owned closed request Schema，blocked=0，Runtime fallback=0。该数字只描述当前协议与请求边界；attempt35 仍为 `QUALITY_TARGET_NOT_MET / INCOMPLETE_TRUTH_BINDING / camera MISMATCH`，不因架构、bounded evaluated-mesh 或 Brief durable 纵切接入而升级。
 
 > **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
 
@@ -691,4 +691,4 @@ Evidence 目录为 `docs/evidence/mcp010a/` 至 `mcp010f/`。每个 manifest 分
 - 不 commit、merge 或 push，除非用户另行明确要求。
 2026-08-25 `FPS-FORM-04L` checkpoint：已完成真实 D1 单变量 stock-clearance 闭集试验，`0.30/0.35/0.42` 均未达成三视图 owner intrusion=0；0.30 外轮廓回退，0.35/0.42 仅轮廓不回退。该参数方向已穷尽，不得用更大 clearance 替代新的 typed 几何证据；下一步先收敛 rear3q owner-binding 唯一性，再仅评估一个新的 stock-plane-position 自由度。
 
-<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=662 schema_set_sha256=202e080ec378ddb294eb9c880079dcec5c910b27a1c679034ca34c5a880dcec6 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

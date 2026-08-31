@@ -130,8 +130,8 @@ mod tests {
     fn manifest_summary_is_default_only_and_does_not_claim_compatibility_loaded() {
         let summary = build_manifest_summary().expect("Knife manifest summary");
         assert_eq!(summary["default_tool_count"], 11);
-        assert_eq!(summary["active_operation_count"], 125);
-        assert_eq!(summary["closed_request_schema_count"], 125);
+        assert_eq!(summary["active_operation_count"], 140);
+        assert_eq!(summary["closed_request_schema_count"], 140);
         assert_eq!(summary["schema_blocked_request_count"], 0);
         assert_eq!(summary["compatibility_manifest_sha256"], Value::Null);
         assert_eq!(summary["compatibility_requires_explicit_profile"], true);

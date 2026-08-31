@@ -1,0 +1,202 @@
+{
+  "authoring_mesh_id": "amv2-mesh-1d1fbef0ee5efed827abc1c54cf1c3d9e0825927ecb134f0",
+  "authoring_mesh_lineage_id": "amv2-lineage-1d1fbef0ee5efed827abc1c54cf1c3d9e0825927ecb134f0",
+  "authoring_mesh_revision_sha256": "e9e986dcd5b936e369d00b8867fe124377ef1e3bdc80a0ad53b77db175c5af66",
+  "blockout_artifact_readback_sha256": "1263043fce60e68c223d8332faba66a7c2d9800b5eda54380a18bc1d20732bad",
+  "blockout_candidate_id": "candidate-959d6ac795f746cb90e6b969bc22bb20",
+  "blockout_candidate_state_sha256": "b9f9d650226970b9685c5f71446a5c233e8602798dd288af3ec14a6ee78c252c",
+  "blockout_geometry_program_sha256": "a524df822e27b5b3cde8e942dd1b43fb240272bdafad31a92c4340032d83fef8",
+  "blockout_quality_status": "structural_only",
+  "build_cohort_sha256": "3f8135d6f9ae128e3576f694c99382d34e44dfa4d4c56f16ab850de493eda7a0",
+  "candidate_confirmed": false,
+  "canonical_sha256": "308047e01f4ae94f2d1efe51ba770be63d0689f9627e38d635fb0309a52082ec",
+  "contact_or_signature_recorded": false,
+  "exact_replay": "PASS_NOT_TOUCHED",
+  "export_performed": false,
+  "fixed_reference_views": {
+    "view-front": {
+      "canonical_sha256": "00d0a9732682bbaad3892ddf6c12efb1dff6d10b419a8d570899bddba249729d",
+      "image": {
+        "crop": {
+          "height": 0.1083984375,
+          "width": 0.4361979166666667,
+          "x": 0.013020833333333334,
+          "y": 0.1240234375
+        },
+        "height": 1024,
+        "rotation_degrees": 0.0,
+        "width": 1536
+      },
+      "landmarks": [],
+      "reference_id": "reference-553ff49bdb6a4cf3960a980c15941212",
+      "reference_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+      "regions": [
+        {
+          "confidence": 1.0,
+          "height": 0.1083984375,
+          "region_id": "dragonfang-front-panel",
+          "visibility": "observed",
+          "width": 0.4361979166666667,
+          "x": 0.013020833333333334,
+          "y": 0.1240234375
+        }
+      ],
+      "schema_version": "ReferenceViewSpec@1",
+      "source_view": "front",
+      "view_id": "view-front"
+    },
+    "view-orbit-a": {
+      "canonical_sha256": "ef4f48b949119f446676c30b619edacf9ec5d05bd16881f56e2d95d574dd6d15",
+      "image": {
+        "crop": {
+          "height": 1.0,
+          "width": 1.0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        "height": 1024,
+        "rotation_degrees": 0.0,
+        "width": 1536
+      },
+      "landmarks": [],
+      "reference_id": "reference-553ff49bdb6a4cf3960a980c15941212",
+      "reference_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+      "regions": [],
+      "schema_version": "ReferenceViewSpec@1",
+      "source_view": "unknown",
+      "view_id": "view-orbit-a"
+    },
+    "view-orbit-b": {
+      "canonical_sha256": "c8429cfb045baad4331afa78ef8a526bdd8515a6d4bee93eaf34f588dfceca7d",
+      "image": {
+        "crop": {
+          "height": 1.0,
+          "width": 1.0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        "height": 1024,
+        "rotation_degrees": 0.0,
+        "width": 1536
+      },
+      "landmarks": [],
+      "reference_id": "reference-553ff49bdb6a4cf3960a980c15941212",
+      "reference_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+      "regions": [],
+      "schema_version": "ReferenceViewSpec@1",
+      "source_view": "unknown",
+      "view_id": "view-orbit-b"
+    }
+  },
+  "high_entry_status": "HIGH_ARTIFACT_CREATED_STRUCTURAL_ONLY",
+  "high_mesh_created": true,
+  "high_stage_unlocked": false,
+  "hq_360_status": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review_status": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "intent_bundle_id": "dragonfang-reference-intent-001",
+  "intent_bundle_object_sha256": "e884adfe6b1451f8b798534aafda5a0dd7918cc323db43ec7bafd59e1142a16d",
+  "intent_bundle_sha256": "e5f7aa8d4dac551fb01b583a050e8d01824be4f832e67f5373c6196b2ce97ec2",
+  "intent_exact_replay": "PASS_NOT_TOUCHED",
+  "intent_restart_readback": "PASS_EXACT_HASH",
+  "intent_visual_contract": {
+    "correction_policy": {
+      "baseline_preserved": true,
+      "max_iterations_per_pass": 3,
+      "max_iterations_total": 6,
+      "one_changed_scope_per_iteration": true
+    },
+    "detail_ids": [
+      "blade-thickness-taper",
+      "controlled-edge-wear",
+      "cutting-edge-bevel",
+      "dragon-engraving",
+      "dragon-relief-scale-flow",
+      "gold-spine-armor",
+      "grip-curvature",
+      "grip-fasteners-3-to-5",
+      "grip-gold-border",
+      "grip-segment-breaks",
+      "guard-dragon-muzzle",
+      "guard-eye-setting",
+      "guard-horns",
+      "guard-jaw-choil-negative-space",
+      "kukri-belly-contour",
+      "kukri-spine-contour",
+      "kukri-tip-sweep",
+      "pommel-hook"
+    ],
+    "detail_inventory_count": 18,
+    "fixed_view_ids": [
+      "view-front",
+      "view-orbit-a",
+      "view-orbit-b",
+      "view-fps-inspect"
+    ],
+    "hq_360_status": null,
+    "orbit_view_ids": [
+      "view-orbit-a",
+      "view-orbit-b"
+    ]
+  },
+  "materialization_exact_replay": "PASS_NOT_TOUCHED",
+  "materialization_mode": "source_binding_part_replacement",
+  "materialization_preserved_part_ids": [
+    "cutting-edge",
+    "dragon-eye-left",
+    "dragon-eye-right",
+    "dragon-relief",
+    "gem",
+    "grip",
+    "grip-fastener",
+    "guard-dragon-head",
+    "pommel"
+  ],
+  "materialization_replacement_node_id": "authoring-mesh-v2-b12aab7c377ed39d94152f067ac4c516",
+  "materialization_representation_plan_sha256": "82f76955e7978093cce38c14e557432f993d7fca52b4fe2f09db907a6cfbc566",
+  "materialization_restart_readback": "PASS_EXACT_HASH",
+  "materialized_artifact_readback_sha256": "8c8c06bd2c545d71db1ae1b980df052d63a161ef9ac80a77b111338038462557",
+  "materialized_artifact_sha256": "b176f8a44154293062a64ea0ee4eb439af47a3cb4939c028dbc542d1b81b118c",
+  "materialized_candidate_id": "candidate-f807199f4d6244a5b896dfe06a20b90b",
+  "materialized_candidate_state_sha256": "b5e6db2d6c21a38e1159b593a5174802cef596c84e1f7b4ee3716b862b7f4bdb",
+  "materialized_geometry_program_sha256": "3ba66be91325bc581192f45704001c6b2307c31b7d1c49255fa5601f341ca6bd",
+  "missing_reference_views": [
+    "front-three-quarter",
+    "top",
+    "bottom",
+    "fps-inspect"
+  ],
+  "parent_authoring_eligibility": "BLOCKED",
+  "parent_brief_id": "dragonfang-kukri-brief",
+  "parent_brief_object_sha256": "90bbfa847310298837994b0fa2249b97fe7031b0a1c5d3db7ba474b6dc308409",
+  "parent_brief_sha256": "32b1d53883fe4bbaa5688a820d290caaa56ce61887885bd15ed19651eb3a2578",
+  "persistent_user_data_scope": "isolated-local-runtime-only",
+  "production_stage_advanced": false,
+  "project_id": "project-9f46be26ebc4465fa3144745f80f253f",
+  "quality_status": "structural_only",
+  "reference_dimensions": {
+    "height": 1024,
+    "width": 1536
+  },
+  "reference_evidence_sha256": "188f0e12a0579d9aa36d0ea029c7e9282fe87026d80e308352a697e965b737c9",
+  "reference_id": "reference-553ff49bdb6a4cf3960a980c15941212",
+  "reference_object_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+  "restart_readback": "PASS_EXACT_HASH",
+  "schema_version": "WeaponryKnifeMaterializationLiveReceipt@1",
+  "source_binding_exact_replay": "PASS_NOT_TOUCHED",
+  "source_binding_id": "dragonfang-source-binding-4745f80f253f",
+  "source_binding_object_sha256": "02322aa14330db53318d5a0b890eef96fc5cc0600a582c95a8f5e1e01949f69f",
+  "source_binding_restart_readback": "PASS_EXACT_HASH",
+  "source_binding_sha256": "322cb2dd630c01decc590bda957734a8becc2189e5aae1f0169e48fae54ad5dc",
+  "source_path_recorded": false,
+  "status": "PASS_ISOLATED_LIVE_HIGH_ARTIFACT_VISUAL_NOT_RUN",
+  "successor_authoring_eligibility": "ELIGIBLE",
+  "successor_authorization_binding_status": "runtime-bound",
+  "successor_brief_id": "dragonfang-kukri-brief-resolved-001",
+  "successor_brief_object_sha256": "4bfc59ff94a6b69a6aab3d5d065add00f9f7539333d66c5897918b41350c5073",
+  "successor_brief_sha256": "27d2bb91f5802eff17337944032d28666bc4aeda888711cf3d2dd514944f7d7a",
+  "task_id": "WPN-AUTH-MATERIALIZE-001",
+  "unreal_5_6_status": "NOT_RUN",
+  "version_created": false,
+  "visual_review_status": "NOT_RUN"
+}

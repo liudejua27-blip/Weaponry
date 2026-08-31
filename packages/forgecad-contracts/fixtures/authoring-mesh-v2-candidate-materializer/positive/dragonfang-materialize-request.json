@@ -1,0 +1,21 @@
+{
+  "schema_version": "AuthoringMeshV2CandidateMaterializeRequest@1",
+  "operation": "authoring_mesh_v2_candidate_materialize",
+  "project_id": "dragonfang-materializer",
+  "mesh_id": "dragonfang-authoring-mesh",
+  "lineage_id": "dragonfang-authoring-lineage",
+  "revision_id": "dragonfang-revision-0",
+  "revision_index": 0,
+  "revision_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "revision_object_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "source_binding_id": null,
+  "source_binding_sha256": null,
+  "source_binding_object_sha256": null,
+  "base_version_id": null,
+  "idempotency_key": "dragonfang-materialize-001",
+  "max_response_bytes": 1048576,
+  "runtime_write_performed": false,
+  "writer_policy": "forgecad-runtime-only-state-writer@1",
+  "canonicalization_policy": "canonical-json-sha256-excluding-input-sha256@1",
+  "input_sha256": "f1e399f192d53920f213d7a99eafe7669007d3010dd9b48fe314f895c8d1f684"
+}

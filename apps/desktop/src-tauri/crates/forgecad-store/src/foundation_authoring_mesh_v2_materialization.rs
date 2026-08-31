@@ -7,9 +7,9 @@
 //! verifies their metadata and canonical bytes, then inserts the revision rows
 //! and aggregate row in one SQLite transaction.
 
-use forgecad_contracts::{AuthoringMeshRevision, CasObjectRecord, is_opaque_id, is_sha256};
+use forgecad_contracts::{is_opaque_id, is_sha256, AuthoringMeshRevision, CasObjectRecord};
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{OptionalExtension, Transaction, params};
+use rusqlite::{params, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};

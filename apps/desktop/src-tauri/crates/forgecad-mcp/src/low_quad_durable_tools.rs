@@ -385,7 +385,7 @@ mod tests {
             "request_input_sha256":hash,
             "idempotency_key":"low-1",
             "replayed":true,
-            "restart_hash_verified":true,
+            "restart_hash_verified":false,
             "runtime_write_performed":true,
             "persistent_user_data_touched":true,
             "production_stage_advanced":false,
@@ -431,7 +431,7 @@ mod tests {
         assert_eq!(prepare_summary["request_input_sha256"], hash);
         assert_eq!(prepare_summary["idempotency_key"], "low-1");
         assert_eq!(prepare_summary["replayed"], true);
-        assert_eq!(prepare_summary["restart_hash_verified"], true);
+        assert_eq!(prepare_summary["restart_hash_verified"], false);
         assert_eq!(prepare_summary["persistent_user_data_touched"], true);
         assert_eq!(prepare_summary["source_only"], true);
         assert_eq!(prepare_summary["production_stage_advanced"], false);
@@ -451,7 +451,7 @@ mod tests {
                     "operation":"forgecad.production.low-quad-draft-durable-get@1",
                     "runtime_write_performed":false,
                     "persistent_user_data_touched":false,
-                    "restart_hash_verified":true,
+                    "restart_hash_verified":false,
                     "durable_link":{"source_high_artifact_id":"high-1"}
                 }),
             )
@@ -465,7 +465,7 @@ mod tests {
         assert_eq!(get_summary["runtime_method"], "low_quad_draft_durable_get");
         assert_eq!(get_summary["runtime_write_performed"], false);
         assert_eq!(get_summary["persistent_user_data_touched"], false);
-        assert_eq!(get_summary["restart_hash_verified"], true);
+        assert_eq!(get_summary["restart_hash_verified"], false);
         assert_eq!(summary("unknown_low_quad_tool", &value), None);
     }
 }

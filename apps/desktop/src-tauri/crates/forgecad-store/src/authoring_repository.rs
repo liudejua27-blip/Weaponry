@@ -322,12 +322,10 @@ mod tests {
                 .expect("evaluated mesh lookup"),
             None
         );
-        assert!(
-            repository
-                .store
-                .get_project("weaponry")
-                .expect("same store")
-                .is_none()
-        );
+        assert!(repository
+            .store
+            .get_project("weaponry")
+            .expect("same store")
+            .is_none());
     }
 }

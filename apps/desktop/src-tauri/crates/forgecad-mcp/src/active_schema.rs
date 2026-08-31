@@ -107,6 +107,39 @@ pub(crate) fn validate(operation: &str, request: &Value) -> Result<(), String> {
     validate_with_resolver(&resolver, operation, request)
 }
 
+/// Validate the Runtime result for an operation whose output Contract is
+/// explicitly closed at the MCP boundary.  Result validation is deliberately
+/// opt-in per operation: operations without a checked-in result contract
+/// retain their existing compatibility behavior and are not silently
+/// assigned a guessed schema.
+pub(crate) fn validate_closed_result(operation: &str, value: &Value) -> Result<(), String> {
+    let Some(filename) = result_schema_file_for_operation(operation) else {
+        return Ok(());
+    };
+    let source = embedded_document(filename).ok_or_else(|| {
+        format!(
+            "WEAPONRY_ACTIVE_RESULT_SCHEMA_UNAVAILABLE: {operation} result schema {filename} is not embedded"
+        )
+    })?;
+    let schema: Value = serde_json::from_str(source).map_err(|error| {
+        format!(
+            "WEAPONRY_ACTIVE_RESULT_SCHEMA_INVALID: {operation} result schema is not valid JSON: {error}"
+        )
+    })?;
+    let schema = materialize_schema(schema, operation)
+        .map_err(|error| format!("WEAPONRY_ACTIVE_RESULT_SCHEMA_INVALID: {operation} {error}"))?;
+    if !root_is_closed(&schema) {
+        return Err(format!(
+            "WEAPONRY_ACTIVE_RESULT_NOT_CLOSED: {operation} result schema must declare additionalProperties=false"
+        ));
+    }
+    validate_schema_shape(operation, &schema)
+        .map_err(|error| format!("WEAPONRY_ACTIVE_RESULT_SCHEMA_INVALID: {operation} {error}"))?;
+    let mut budget = ValidationBudget::default();
+    validate_value(&schema, &schema, value, "$", &mut budget)
+        .map_err(|detail| format!("WEAPONRY_ACTIVE_RESULT_INVALID: {operation} {detail}"))
+}
+
 /// Validate through an injected resolver.  Focused tests and a future
 /// Contracts-owned registry use this seam; no compatibility handler is
 /// consulted.
@@ -159,9 +192,34 @@ fn schema_file_for_operation(operation: &str) -> String {
         "game_weapon_glb_socket_get" => "game-weapon-glb-socket-materialization-get",
         "game_weapon_glb_socket_prepare" => "game-weapon-glb-socket-materialization-prepare",
         "cross_view_promotion_confirm" => "cross-view-promotion",
+        "authoring_mesh_v2_candidate_materialize" => {
+            "authoring-mesh-v2-candidate-materialize-prepare"
+        }
         _ => return format!("{}-request.schema.json", operation.replace('_', "-")),
     };
     format!("{file_stem}-request.schema.json")
+}
+
+fn result_schema_file_for_operation(operation: &str) -> Option<&'static str> {
+    match operation {
+        "reference_compare_prepare" => Some("reference-comparison-prepare-result.schema.json"),
+        "high_artifact_reference_compare_prepare" => {
+            Some("high-artifact-reference-comparison-prepare-result.schema.json")
+        }
+        "knife_pass_state_prepare" | "knife_pass_state_get" => {
+            Some("knife-pass-state-result.schema.json")
+        }
+        "authoring_mesh_v2_high_bridge_prepare" | "authoring_mesh_v2_high_bridge_get" => {
+            Some("authoring-mesh-v2-high-bridge-result.schema.json")
+        }
+        "authoring_mesh_v2_high_artifact_prepare" | "authoring_mesh_v2_high_artifact_get" => {
+            Some("authoring-mesh-v2-high-artifact-result.schema.json")
+        }
+        "production_knife_uv_bake_v2_prepare" | "production_knife_uv_bake_v2_get" => {
+            Some("production-knife-uv-bake-v2-result.schema.json")
+        }
+        _ => None,
+    }
 }
 
 /// Schema documents present in the checked-in Contracts package.  This is a
@@ -223,6 +281,42 @@ const EMBEDDED_SCHEMA_DOCUMENTS: &[(&str, &str)] = &[
     (
         "authoring-mesh-transaction-prepare-request.schema.json",
         embedded_schema!("authoring-mesh-transaction-prepare-request.schema.json"),
+    ),
+    (
+        "authoring-mesh-v2-candidate-materialize-prepare-request.schema.json",
+        embedded_schema!("authoring-mesh-v2-candidate-materialize-prepare-request.schema.json"),
+    ),
+    (
+        "authoring-mesh-v2-high-bridge-get-request.schema.json",
+        embedded_schema!("authoring-mesh-v2-high-bridge-get-request.schema.json"),
+    ),
+    (
+        "authoring-mesh-v2-high-bridge-prepare-request.schema.json",
+        embedded_schema!("authoring-mesh-v2-high-bridge-prepare-request.schema.json"),
+    ),
+    (
+        "authoring-mesh-v2-high-bridge-result.schema.json",
+        embedded_schema!("authoring-mesh-v2-high-bridge-result.schema.json"),
+    ),
+    (
+        "authoring-mesh-v2-high-bridge.schema.json",
+        embedded_schema!("authoring-mesh-v2-high-bridge.schema.json"),
+    ),
+    (
+        "authoring-mesh-v2-high-artifact-get-request.schema.json",
+        embedded_schema!("authoring-mesh-v2-high-artifact-get-request.schema.json"),
+    ),
+    (
+        "authoring-mesh-v2-high-artifact-prepare-request.schema.json",
+        embedded_schema!("authoring-mesh-v2-high-artifact-prepare-request.schema.json"),
+    ),
+    (
+        "authoring-mesh-v2-high-artifact-result.schema.json",
+        embedded_schema!("authoring-mesh-v2-high-artifact-result.schema.json"),
+    ),
+    (
+        "authoring-mesh-v2-high-artifact.schema.json",
+        embedded_schema!("authoring-mesh-v2-high-artifact.schema.json"),
     ),
     (
         "candidate-confirm-request.schema.json",
@@ -345,12 +439,40 @@ const EMBEDDED_SCHEMA_DOCUMENTS: &[(&str, &str)] = &[
         embedded_schema!("knife-curve-modifier-graph-prepare-request.schema.json"),
     ),
     (
+        "knife-pass-state-get-request.schema.json",
+        embedded_schema!("knife-pass-state-get-request.schema.json"),
+    ),
+    (
+        "knife-pass-state-prepare-request.schema.json",
+        embedded_schema!("knife-pass-state-prepare-request.schema.json"),
+    ),
+    (
+        "knife-pass-state-result.schema.json",
+        embedded_schema!("knife-pass-state-result.schema.json"),
+    ),
+    (
+        "knife-pass-state.schema.json",
+        embedded_schema!("knife-pass-state.schema.json"),
+    ),
+    (
         "low-quad-draft-durable-get-request.schema.json",
         embedded_schema!("low-quad-draft-durable-get-request.schema.json"),
     ),
     (
         "low-quad-draft-durable-prepare-request.schema.json",
         embedded_schema!("low-quad-draft-durable-prepare-request.schema.json"),
+    ),
+    (
+        "production-knife-uv-bake-v2-get-request.schema.json",
+        embedded_schema!("production-knife-uv-bake-v2-get-request.schema.json"),
+    ),
+    (
+        "production-knife-uv-bake-v2-prepare-request.schema.json",
+        embedded_schema!("production-knife-uv-bake-v2-prepare-request.schema.json"),
+    ),
+    (
+        "production-knife-uv-bake-v2-result.schema.json",
+        embedded_schema!("production-knife-uv-bake-v2-result.schema.json"),
     ),
     (
         "mechanical-animation-clip-get-request.schema.json",
@@ -484,6 +606,10 @@ const EMBEDDED_SCHEMA_DOCUMENTS: &[(&str, &str)] = &[
         embedded_schema!("authoring-mesh-v2-durable-prepare-request.schema.json"),
     ),
     (
+        "production-weapon-authoring-mesh-v2-source-prepare-request.schema.json",
+        embedded_schema!("production-weapon-authoring-mesh-v2-source-prepare-request.schema.json"),
+    ),
+    (
         "authoring-topology-get-request.schema.json",
         embedded_schema!("authoring-topology-get-request.schema.json"),
     ),
@@ -598,8 +724,68 @@ const EMBEDDED_SCHEMA_DOCUMENTS: &[(&str, &str)] = &[
         embedded_schema!("reference-compare-prepare-request.schema.json"),
     ),
     (
+        "high-artifact-reference-compare-prepare-request.schema.json",
+        embedded_schema!("high-artifact-reference-compare-prepare-request.schema.json"),
+    ),
+    (
+        "reference-comparison-prepare-result.schema.json",
+        embedded_schema!("reference-comparison-prepare-result.schema.json"),
+    ),
+    (
+        "high-artifact-reference-comparison-prepare-result.schema.json",
+        embedded_schema!("high-artifact-reference-comparison-prepare-result.schema.json"),
+    ),
+    (
         "reference-get-request.schema.json",
         embedded_schema!("reference-get-request.schema.json"),
+    ),
+    (
+        "knife-reference-intent-bundle-get-request.schema.json",
+        embedded_schema!("knife-reference-intent-bundle-get-request.schema.json"),
+    ),
+    (
+        "knife-reference-intent-bundle-prepare-request.schema.json",
+        embedded_schema!("knife-reference-intent-bundle-prepare-request.schema.json"),
+    ),
+    (
+        "knife-reference-intent-bundle.schema.json",
+        embedded_schema!("knife-reference-intent-bundle.schema.json"),
+    ),
+    (
+        "knife-reference-intent-bundle-result.schema.json",
+        embedded_schema!("knife-reference-intent-bundle-result.schema.json"),
+    ),
+    (
+        "knife-source-binding-get-request.schema.json",
+        embedded_schema!("knife-source-binding-get-request.schema.json"),
+    ),
+    (
+        "knife-source-binding-prepare-request.schema.json",
+        embedded_schema!("knife-source-binding-prepare-request.schema.json"),
+    ),
+    (
+        "knife-source-binding.schema.json",
+        embedded_schema!("knife-source-binding.schema.json"),
+    ),
+    (
+        "knife-source-binding-result.schema.json",
+        embedded_schema!("knife-source-binding-result.schema.json"),
+    ),
+    (
+        "weaponry-knife-production-brief-get-request.schema.json",
+        embedded_schema!("weaponry-knife-production-brief-get-request.schema.json"),
+    ),
+    (
+        "weaponry-knife-production-brief-prepare-request.schema.json",
+        embedded_schema!("weaponry-knife-production-brief-prepare-request.schema.json"),
+    ),
+    (
+        "weaponry-knife-production-brief.schema.json",
+        embedded_schema!("weaponry-knife-production-brief.schema.json"),
+    ),
+    (
+        "weaponry-knife-production-brief-result.schema.json",
+        embedded_schema!("weaponry-knife-production-brief-result.schema.json"),
     ),
     (
         "reference-mask-prepare-request.schema.json",
@@ -718,6 +904,22 @@ const EMBEDDED_SCHEMA_DOCUMENTS: &[(&str, &str)] = &[
     (
         "production-weapon-form-quality.schema.json",
         embedded_schema!("production-weapon-form-quality.schema.json"),
+    ),
+    (
+        "quality-report-v2.schema.json",
+        embedded_schema!("quality-report-v2.schema.json"),
+    ),
+    (
+        "reference-comparison-report.schema.json",
+        embedded_schema!("reference-comparison-report.schema.json"),
+    ),
+    (
+        "render-profile.schema.json",
+        embedded_schema!("render-profile.schema.json"),
+    ),
+    (
+        "render-set-v2.schema.json",
+        embedded_schema!("render-set-v2.schema.json"),
     ),
     (
         "authoring-topology-request.schema.json",
@@ -956,8 +1158,10 @@ fn validate_schema_shape_inner(
         "oneOf",
         "anyOf",
         "allOf",
+        "not",
         "if",
         "then",
+        "else",
         "const",
         "enum",
         "minLength",
@@ -1069,6 +1273,9 @@ fn validate_schema_shape_inner(
             }
         }
     }
+    if let Some(not_schema) = object.get("not") {
+        validate_schema_shape_inner(not_schema, root, &format!("{path}.not"), depth + 1, budget)?;
+    }
     if let Some(if_schema) = object.get("if") {
         validate_schema_shape_inner(if_schema, root, &format!("{path}.if"), depth + 1, budget)?;
     }
@@ -1077,6 +1284,15 @@ fn validate_schema_shape_inner(
             then_schema,
             root,
             &format!("{path}.then"),
+            depth + 1,
+            budget,
+        )?;
+    }
+    if let Some(else_schema) = object.get("else") {
+        validate_schema_shape_inner(
+            else_schema,
+            root,
+            &format!("{path}.else"),
             depth + 1,
             budget,
         )?;
@@ -1247,12 +1463,20 @@ fn validate_value(
             }
         }
     }
+    if let Some(not_schema) = object.get("not") {
+        let mut not_budget = *budget;
+        if validate_value(not_schema, root, value, path, &mut not_budget).is_ok() {
+            return Err(format!("at {path}: not schema matched"));
+        }
+    }
     if let Some(if_schema) = object.get("if") {
         let mut condition_budget = *budget;
         if validate_value(if_schema, root, value, path, &mut condition_budget).is_ok() {
             if let Some(then_schema) = object.get("then") {
                 validate_value(then_schema, root, value, path, budget)?;
             }
+        } else if let Some(else_schema) = object.get("else") {
+            validate_value(else_schema, root, value, path, budget)?;
         }
     }
     if let Some(number) = value.as_f64() {
@@ -1426,6 +1650,22 @@ fn value_matches_type(schema_type: &Value, value: &Value) -> bool {
 
 fn matches_pattern(pattern: &str, value: &str) -> bool {
     match pattern {
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$" => {
+            matches_utc_timestamp(value)
+        }
+        "^20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" => {
+            value.starts_with("20") && matches_utc_timestamp(value) && !value.contains('.')
+        }
+        "^[^\\r\\n]{1,512}$" => {
+            let length = value.chars().count();
+            (1..=512).contains(&length)
+                && !value
+                    .chars()
+                    .any(|character| matches!(character, '\r' | '\n'))
+        }
+        "^[^\\u0000-\\u001f\\u007f]*$" => !value
+            .chars()
+            .any(|character| character <= '\u{001f}' || character == '\u{007f}'),
         "^[0-9a-f]{64}$" => {
             value.len() == 64
                 && value
@@ -1450,12 +1690,69 @@ fn matches_pattern(pattern: &str, value: &str) -> bool {
                     byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-')
                 })
         }
+        "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}:(front|back|left|right|front-three-quarter|rear-three-quarter|top|bottom|fps-hold|fps-inspect)$" => {
+            let Some((reference_id, view)) = value.rsplit_once(':') else {
+                return false;
+            };
+            is_opaque_id(reference_id)
+                && reference_id
+                    .bytes()
+                    .next()
+                    .is_some_and(|byte| byte.is_ascii_alphanumeric())
+                && matches!(
+                    view,
+                    "front"
+                        | "back"
+                        | "left"
+                        | "right"
+                        | "front-three-quarter"
+                        | "rear-three-quarter"
+                        | "top"
+                        | "bottom"
+                        | "fps-hold"
+                        | "fps-inspect"
+                )
+        }
+        "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}:(front|back|left|right|front-three-quarter|rear-three-quarter|top|bottom|fps-hold|fps-inspect)$" => {
+            let Some((reference_id, view)) = value.rsplit_once(':') else {
+                return false;
+            };
+            !reference_id.is_empty()
+                && reference_id.len() <= 128
+                && reference_id
+                    .bytes()
+                    .next()
+                    .is_some_and(|byte| byte.is_ascii_alphanumeric())
+                && reference_id.bytes().all(|byte| {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-')
+                })
+                && matches!(
+                    view,
+                    "front"
+                        | "back"
+                        | "left"
+                        | "right"
+                        | "front-three-quarter"
+                        | "rear-three-quarter"
+                        | "top"
+                        | "bottom"
+                        | "fps-hold"
+                        | "fps-inspect"
+                )
+        }
         "^[A-Za-z0-9_.-]{1,128}$" => {
             !value.is_empty()
                 && value.len() <= 128
                 && value
                     .bytes()
                     .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+        }
+        "^[A-Za-z0-9_.@-]{1,128}$" => {
+            !value.is_empty()
+                && value.len() <= 128
+                && value.bytes().all(|byte| {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'@' | b'-')
+                })
         }
         "^[A-Za-z0-9_.:-]{1,128}$" => {
             !value.is_empty()
@@ -1484,9 +1781,136 @@ fn matches_pattern(pattern: &str, value: &str) -> bool {
     }
 }
 
+fn matches_utc_timestamp(value: &str) -> bool {
+    let (whole_seconds, fraction) = match value.strip_suffix('Z') {
+        Some(value) => match value.split_once('.') {
+            Some((whole_seconds, fraction)) => (whole_seconds, Some(fraction)),
+            None => (value, None),
+        },
+        None => return false,
+    };
+    if whole_seconds.len() != 19 {
+        return false;
+    }
+    let bytes = whole_seconds.as_bytes();
+    if !bytes.iter().enumerate().all(|(index, byte)| match index {
+        4 | 7 => *byte == b'-',
+        10 => *byte == b'T',
+        13 | 16 => *byte == b':',
+        _ => byte.is_ascii_digit(),
+    }) {
+        return false;
+    }
+    let parse = |range: std::ops::Range<usize>| {
+        whole_seconds[range]
+            .parse::<u32>()
+            .expect("timestamp digits were validated")
+    };
+    let month = parse(5..7);
+    let day = parse(8..10);
+    let hour = parse(11..13);
+    let minute = parse(14..16);
+    let second = parse(17..19);
+    if !(1..=12).contains(&month)
+        || !(1..=31).contains(&day)
+        || hour > 23
+        || minute > 59
+        || second > 59
+    {
+        return false;
+    }
+    fraction.is_none_or(|fraction| {
+        (1..=6).contains(&fraction.len()) && fraction.bytes().all(|byte| byte.is_ascii_digit())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn brief_timestamp_pattern_is_bounded_and_fail_closed() {
+        let pattern = "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$";
+        assert!(matches_pattern(pattern, "2026-08-30T12:34:56Z"));
+        assert!(matches_pattern(pattern, "2026-08-30T12:34:56.123456Z"));
+        assert!(!matches_pattern(pattern, "2026-08-30 12:34:56Z"));
+        assert!(!matches_pattern(pattern, "2026-08-30T12:34:56.1234567Z"));
+        assert!(!matches_pattern(pattern, "2026-13-30T12:34:56Z"));
+        let pass_state_pattern = "^20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$";
+        assert!(matches_pattern(pass_state_pattern, "2026-08-30T12:34:56Z"));
+        assert!(!matches_pattern(pass_state_pattern, "1999-08-30T12:34:56Z"));
+        assert!(!matches_pattern(
+            pass_state_pattern,
+            "2026-08-30T12:34:56.1Z"
+        ));
+        assert!(matches_pattern("^[^\\r\\n]{1,512}$", "尼泊尔-屠龙"));
+        assert!(!matches_pattern("^[^\\r\\n]{1,512}$", "line\nbreak"));
+        let control_free_pattern = "^[^\\u0000-\\u001f\\u007f]*$";
+        assert!(matches_pattern(
+            control_free_pattern,
+            "An authorized primary reference view is required."
+        ));
+        assert!(!matches_pattern(control_free_pattern, "line\nbreak"));
+        assert!(!matches_pattern(control_free_pattern, "bad\u{007f}text"));
+        assert!(matches_pattern(
+            "^[A-Za-z0-9_.@-]{1,128}$",
+            "fixed-ggx-material-shading@1"
+        ));
+        assert!(!matches_pattern(
+            "^[A-Za-z0-9_.@-]{1,128}$",
+            "fixed shading@1"
+        ));
+    }
+
+    #[test]
+    fn conditional_else_and_reference_view_pattern_are_enforced() {
+        let evidence_region_pattern = "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}:(front|back|left|right|front-three-quarter|rear-three-quarter|top|bottom|fps-hold|fps-inspect)$";
+        let resolver = StubResolver(json!({
+            "type":"object",
+            "required":["topic","view","region"],
+            "properties":{
+                "topic":{"enum":["reference-view","other"]},
+                "view":{"anyOf":[{"type":"string"},{"type":"null"}]},
+                "region":{"pattern":evidence_region_pattern}
+            },
+            "allOf":[{
+                "if":{"properties":{"topic":{"const":"reference-view"}},"required":["topic"]},
+                "then":{"properties":{"view":{"type":"string"}}},
+                "else":{"properties":{"view":{"const":null}}}
+            }],
+            "additionalProperties":false
+        }));
+        assert!(validate_with_resolver(
+            &resolver,
+            "probe",
+            &json!({"topic":"reference-view","view":"front","region":"reference-1:front"})
+        )
+        .is_ok());
+        assert!(validate_with_resolver(
+            &resolver,
+            "probe",
+            &json!({"topic":"other","view":null,"region":"reference-1:rear-three-quarter"})
+        )
+        .is_ok());
+        assert!(validate_with_resolver(
+            &resolver,
+            "probe",
+            &json!({"topic":"other","view":"front","region":"reference-1:front"})
+        )
+        .is_err());
+        assert!(validate_with_resolver(
+            &resolver,
+            "probe",
+            &json!({"topic":"reference-view","view":"front","region":"reference-1:side"})
+        )
+        .is_err());
+        assert!(validate_with_resolver(
+            &resolver,
+            "probe",
+            &json!({"topic":"reference-view","view":"front","region":"reference:segment:front"})
+        )
+        .is_err());
+    }
 
     #[derive(Debug)]
     struct StubResolver(Value);
@@ -1550,6 +1974,26 @@ mod tests {
         assert!(
             validate_with_resolver(&resolver, "probe", &json!({"a":"x","b":"y","c":"z"})).is_err()
         );
+    }
+
+    #[test]
+    fn not_keyword_rejects_matching_values_and_preserves_bounded_validation() {
+        let resolver = StubResolver(json!({
+            "type":"object",
+            "required":["label"],
+            "properties":{
+                "label":{
+                    "type":"string",
+                    "not":{"anyOf":[
+                        {"pattern":"^(file|https?)://"},
+                        {"const":"forbidden"}
+                    ]}
+                }
+            },
+            "additionalProperties":false
+        }));
+        assert!(validate_with_resolver(&resolver, "probe", &json!({"label":"safe"})).is_ok());
+        assert!(validate_with_resolver(&resolver, "probe", &json!({"label":"forbidden"})).is_err());
     }
 
     #[test]
@@ -1651,5 +2095,217 @@ mod tests {
         .is_ok());
         request.insert("script".to_owned(), json!("forbidden"));
         assert!(validate("knife_curve_modifier_graph_get", &Value::Object(request)).is_err());
+    }
+
+    #[test]
+    fn game_asset_delivery_prepare_accepts_the_closed_knife_projection_branch() {
+        let request = json!({
+            "schema_version": "WeaponryKnifeDeliveryPrepareRequest@1",
+            "project_id": "dragonfang-project",
+            "source_selector": {
+                "kind": "v2-high",
+                "id": "dragonfang-high-artifact"
+            }
+        });
+        validate("game_asset_delivery_prepare", &request)
+            .expect("Knife delivery projection uses the existing Delivery operation");
+
+        let mut invalid = request;
+        invalid
+            .as_object_mut()
+            .expect("projection request object")
+            .insert("script".to_owned(), json!("forbidden"));
+        assert!(validate("game_asset_delivery_prepare", &invalid)
+            .expect_err("closed Delivery projection must reject unknown fields")
+            .starts_with("WEAPONRY_ACTIVE_REQUEST_INVALID: game_asset_delivery_prepare"));
+    }
+
+    #[test]
+    fn reference_compare_result_is_embedded_closed_and_fail_closed() {
+        let filename = result_schema_file_for_operation("reference_compare_prepare")
+            .expect("reference comparison result has a closed contract");
+        let source = embedded_document(filename).expect("result schema is embedded");
+        let schema: Value = serde_json::from_str(source).expect("result schema is valid JSON");
+        let schema = materialize_schema(schema, "reference_compare_prepare")
+            .expect("nested result contracts materialize");
+        assert!(root_is_closed(&schema));
+        assert_eq!(schema["properties"]["render_set"]["type"], "object");
+        assert_eq!(schema["properties"]["comparison_report"]["type"], "object");
+        assert_eq!(schema["properties"]["quality_report"]["type"], "object");
+        validate_schema_shape("reference_compare_prepare", &schema)
+            .expect("materialized result schema remains bounded");
+
+        let error = validate_closed_result("reference_compare_prepare", &json!({}))
+            .expect_err("an incomplete Runtime result must be rejected");
+        assert!(error.starts_with("WEAPONRY_ACTIVE_RESULT_INVALID: reference_compare_prepare"));
+        assert!(validate_closed_result("runtime_status", &json!({})).is_ok());
+    }
+
+    #[test]
+    fn knife_pass_state_results_are_embedded_closed_and_fail_closed() {
+        for operation in ["knife_pass_state_prepare", "knife_pass_state_get"] {
+            let filename = result_schema_file_for_operation(operation)
+                .expect("PassState result has a closed contract");
+            let source = embedded_document(filename).expect("PassState result is embedded");
+            let schema: Value = serde_json::from_str(source).expect("PassState result JSON");
+            let schema = materialize_schema(schema, operation)
+                .expect("PassState result nested Main schema materializes");
+            assert!(root_is_closed(&schema));
+            validate_schema_shape(operation, &schema)
+                .expect("PassState result schema remains bounded");
+            let error = validate_closed_result(operation, &json!({}))
+                .expect_err("incomplete PassState result must be rejected");
+            assert!(error.starts_with(&format!("WEAPONRY_ACTIVE_RESULT_INVALID: {operation}")));
+        }
+    }
+
+    #[test]
+    fn knife_pass_state_positive_main_passes_the_active_prepare_schema() {
+        let pass_state: Value = serde_json::from_str(include_str!(concat!(
+            "../../../../../../packages/forgecad-contracts/fixtures/knife-pass-state/positive/",
+            "dragonfang-pass-state.json"
+        )))
+        .expect("checked-in PassState fixture is valid JSON");
+        let project_id = pass_state["project_id"]
+            .as_str()
+            .expect("fixture project_id");
+        let request = json!({
+            "schema_version":"KnifePassStatePrepareRequest@1",
+            "operation":"knife_pass_state_prepare",
+            "project_id":project_id,
+            "pass_state":pass_state,
+            "idempotency_key":"knife-pass-state-active-schema-fixture",
+            "max_response_bytes":1048576,
+            "runtime_write_performed":false,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "canonicalization_policy":"canonical-json-sha256-excluding-input-sha256@1",
+            "input_sha256":"0000000000000000000000000000000000000000000000000000000000000000"
+        });
+        validate("knife_pass_state_prepare", &request)
+            .expect("the published positive PassState must pass the active MCP request schema");
+    }
+
+    #[test]
+    fn authoring_mesh_v2_high_bridge_requests_and_result_are_embedded_closed() {
+        let resolver = default_resolver();
+        for operation in [
+            "authoring_mesh_v2_high_bridge_prepare",
+            "authoring_mesh_v2_high_bridge_get",
+        ] {
+            let schema = resolver
+                .resolve(operation)
+                .expect("High bridge request schema resolves")
+                .expect("High bridge request schema is embedded");
+            assert!(root_is_closed(&schema));
+            validate_schema_shape(operation, &schema)
+                .expect("High bridge request schema remains bounded");
+            assert!(is_closed(operation).expect("High bridge closure check"));
+        }
+
+        let result: Value = serde_json::from_str(include_str!(concat!(
+            "../../../../../../packages/forgecad-contracts/fixtures/authoring-mesh-v2-high-bridge/positive/",
+            "dragonfang-high-bridge-result-prepared.json"
+        )))
+        .expect("checked-in High bridge result fixture is valid JSON");
+        validate_closed_result("authoring_mesh_v2_high_bridge_prepare", &result)
+            .expect("the published structural High bridge result must pass");
+        let mut invalid = result;
+        invalid
+            .as_object_mut()
+            .expect("High bridge result object")
+            .insert("unexpected".to_owned(), json!(true));
+        assert!(
+            validate_closed_result("authoring_mesh_v2_high_bridge_prepare", &invalid)
+                .expect_err("High bridge result must reject unknown fields")
+                .starts_with(
+                    "WEAPONRY_ACTIVE_RESULT_INVALID: authoring_mesh_v2_high_bridge_prepare"
+                )
+        );
+    }
+
+    #[test]
+    fn authoring_mesh_v2_high_artifact_requests_and_result_are_embedded_closed() {
+        let resolver = default_resolver();
+        for operation in [
+            "authoring_mesh_v2_high_artifact_prepare",
+            "authoring_mesh_v2_high_artifact_get",
+        ] {
+            let schema = resolver
+                .resolve(operation)
+                .expect("High artifact request schema resolves")
+                .expect("High artifact request schema is embedded");
+            assert!(root_is_closed(&schema));
+            validate_schema_shape(operation, &schema)
+                .expect("High artifact request schema remains bounded");
+            assert!(is_closed(operation).expect("High artifact request closure check"));
+        }
+
+        let prepare: Value = serde_json::from_str(include_str!(concat!(
+            "../../../../../../packages/forgecad-contracts/fixtures/authoring-mesh-v2-high-artifact/positive/",
+            "dragonfang-high-artifact-prepare-request.json"
+        )))
+        .expect("checked-in High artifact prepare fixture is valid JSON");
+        validate("authoring_mesh_v2_high_artifact_prepare", &prepare)
+            .expect("the published High artifact prepare request must pass");
+
+        let get: Value = serde_json::from_str(include_str!(concat!(
+            "../../../../../../packages/forgecad-contracts/fixtures/authoring-mesh-v2-high-artifact/positive/",
+            "dragonfang-high-artifact-get-request.json"
+        )))
+        .expect("checked-in High artifact get fixture is valid JSON");
+        validate("authoring_mesh_v2_high_artifact_get", &get)
+            .expect("the published High artifact get request must pass");
+
+        let result: Value = serde_json::from_str(include_str!(concat!(
+            "../../../../../../packages/forgecad-contracts/fixtures/authoring-mesh-v2-high-artifact/positive/",
+            "dragonfang-high-artifact-result-prepared.json"
+        )))
+        .expect("checked-in High artifact result fixture is valid JSON");
+        validate_closed_result("authoring_mesh_v2_high_artifact_prepare", &result)
+            .expect("the published High artifact result must pass");
+        let mut invalid = result;
+        invalid
+            .as_object_mut()
+            .expect("High artifact result object")
+            .insert("unexpected".to_owned(), json!(true));
+        assert!(
+            validate_closed_result("authoring_mesh_v2_high_artifact_prepare", &invalid)
+                .expect_err("High artifact result must reject unknown fields")
+                .starts_with(
+                    "WEAPONRY_ACTIVE_RESULT_INVALID: authoring_mesh_v2_high_artifact_prepare"
+                )
+        );
+    }
+
+    #[test]
+    fn high_artifact_reference_comparison_result_is_fully_closed() {
+        let source =
+            embedded_document("high-artifact-reference-comparison-prepare-result.schema.json")
+                .expect("High artifact comparison result is embedded");
+        let schema: Value =
+            serde_json::from_str(source).expect("High artifact comparison result is valid JSON");
+        let schema = materialize_schema(schema, "high_artifact_reference_compare_prepare")
+            .expect("High artifact comparison nested contracts materialize");
+        assert!(root_is_closed(&schema));
+        let camera_alternatives = schema["properties"]["camera"]["oneOf"]
+            .as_array()
+            .expect("High artifact camera has closed calibration alternatives");
+        assert_eq!(camera_alternatives.len(), 2);
+        assert!(camera_alternatives
+            .iter()
+            .all(|alternative| root_is_closed(alternative)));
+        for field in ["render_set", "comparison_report"] {
+            assert_eq!(
+                schema["properties"][field]["additionalProperties"], false,
+                "{field} must remain a closed result object"
+            );
+        }
+        validate_schema_shape("high_artifact_reference_compare_prepare", &schema)
+            .expect("High artifact comparison result schema remains bounded");
+        let error = validate_closed_result("high_artifact_reference_compare_prepare", &json!({}))
+            .expect_err("incomplete High artifact comparison result must fail closed");
+        assert!(error.starts_with(
+            "WEAPONRY_ACTIVE_RESULT_INVALID: high_artifact_reference_compare_prepare"
+        ));
     }
 }

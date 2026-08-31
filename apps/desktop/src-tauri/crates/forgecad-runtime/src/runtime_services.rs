@@ -95,6 +95,7 @@ const AUTHORING_READ_OPERATIONS: &[&str] = &[
     "authoring_mesh_identity_lineage_get",
     "authoring_topology_get",
     "geometry_program_hash",
+    "authoring_mesh_v2_high_bridge_get",
     "knife_curve_modifier_graph_get",
     "knife_curve_evaluated_mesh_get",
 ];
@@ -108,7 +109,9 @@ const AUTHORING_WRITE_OPERATIONS: &[&str] = &[
     "authoring_mesh_edit_prepare",
     "authoring_mesh_identity_lineage_prepare",
     "authoring_mesh_transaction_prepare",
+    "authoring_mesh_v2_candidate_materialize",
     "authoring_mesh_v2_durable_prepare",
+    "authoring_mesh_v2_high_bridge_prepare",
     "change_prepare",
     "design_action_run_prepare",
     "geometry_prepare",
@@ -130,6 +133,7 @@ const EVALUATION_WRITE_OPERATIONS: &[&str] = evaluation_service::EVALUATION_WRIT
 
 const SURFACE_READ_OPERATIONS: &[&str] = &[
     "appearance_source_lineage_get",
+    "authoring_mesh_v2_high_artifact_get",
     "hero_uv_durable_get",
     "low_quad_draft_durable_get",
     "production_weapon_form_quality_v2_preflight_get",
@@ -142,6 +146,7 @@ const SURFACE_READ_OPERATIONS: &[&str] = &[
 const SURFACE_WRITE_OPERATIONS: &[&str] = &[
     "appearance_prepare",
     "appearance_source_lineage_prepare",
+    "authoring_mesh_v2_high_artifact_prepare",
     "hero_uv_durable_prepare",
     "low_quad_draft_durable_prepare",
     "production_weapon_formal_high_prepare",
@@ -382,8 +387,11 @@ mod tests {
         }
         // `doctor` is the sole profile operation intentionally owned by the
         // MCP adapter rather than a Runtime service boundary.
-        assert_eq!(all_operations.len(), 124);
-        assert_eq!(all_writes.len(), 56);
+        // The active Runtime inventory includes the native KnifePassState
+        // prepare/get pair in addition to the legacy-backed routes. `doctor`
+        // remains MCP-local and is intentionally absent here.
+        assert_eq!(all_operations.len(), 131);
+        assert_eq!(all_writes.len(), 60);
     }
 
     #[test]

@@ -1,0 +1,8 @@
+{
+  "schema_version": "KnifeQualityThresholdCalibrationFixture@1",
+  "status": "CALIBRATION_PENDING",
+  "metric_names": ["silhouette_iou", "projection_distance", "region_coverage"],
+  "calibration_required": true,
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "canonical_sha256": "cc99e2c26c147b27e59bb8544334ec24adfbd83f4e723d0c21599ebaf7304b4b"
+}

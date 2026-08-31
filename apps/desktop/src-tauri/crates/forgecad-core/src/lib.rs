@@ -3,6 +3,11 @@ use sha2::{Digest, Sha256};
 pub mod feature_graph;
 pub mod weaponry_dcc;
 
+// Convenience path for the V2 knife blade language.  The canonical owner is
+// still `weaponry_dcc`; this re-export avoids forcing Worker callers to know
+// the historical module nesting while keeping one implementation/truth.
+pub use weaponry_dcc::knife_blade_language;
+
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
     #[error("invalid JSON payload: {0}")]

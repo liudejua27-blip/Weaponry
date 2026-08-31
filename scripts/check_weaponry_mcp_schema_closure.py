@@ -129,8 +129,11 @@ def profile_operations(profile: dict[str, Any]) -> tuple[list[dict[str, Any]], d
         )
         require(not set(read) & set(write), f"{facade_name} classifies an operation as both read and write")
         classified = set(read) | set(write)
-        if facade_name == "authoring_transaction":
-            classified |= native_names
+        classified |= {
+            operation
+            for operation, metadata in native.items()
+            if isinstance(metadata, dict) and metadata.get("facade_name") == facade_name
+        }
         require(
             classified == set(underlying),
             f"{facade_name}.underlying_operations does not match its profile classification",
@@ -405,7 +408,10 @@ def parse_active_schema_source(
     alias_matches = list(
         re.finditer(
             r'"(?P<operation>[a-z][a-z0-9_]{2,63})"\s*=>\s*'
-            r'"(?P<stem>[a-z0-9][a-z0-9_-]{1,127})"',
+            # rustfmt keeps short match arms inline and expands longer arms to
+            # a block.  Both forms are the same closed alias; the checker must
+            # parse source semantics rather than depend on line wrapping.
+            r'(?:\{\s*)?"(?P<stem>[a-z0-9][a-z0-9_-]{1,127})"(?:\s*\})?',
             schema_source,
         )
     )
@@ -1109,7 +1115,7 @@ def run_negative_fixtures(config: dict[str, Any], paths: dict[str, Path]) -> Non
     completion_fixture = (
         "package request-schema growth PASS"
         if package_growth_fixture_ran
-        else "complete 125-operation package closure PASS"
+        else "complete active-operation package closure PASS"
     )
     print(
         "Weaponry MCP schema closure negative fixtures PASS: duplicate, missing, "

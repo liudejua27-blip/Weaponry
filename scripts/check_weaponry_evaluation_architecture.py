@@ -42,7 +42,7 @@ EXPECTED_READ = (
     "scene_observe_get",
     "selection_get",
     "snapshot_get",
-    # quality_review (16)
+    # quality_review (17, including one façade-native operation)
     "candidate_material_surface_quality_get",
     "candidate_topology_quality_get",
     "critic_report_get",
@@ -59,6 +59,7 @@ EXPECTED_READ = (
     "silhouette_rig_hash",
     "silhouette_target_get",
     "visual_evidence_bundle_get",
+    "knife_pass_state_get",
     # job (4)
     "job_events_read",
     "job_get",
@@ -66,7 +67,7 @@ EXPECTED_READ = (
     "optimization_job_get",
 )
 EXPECTED_WRITE = (
-    # quality_review (7)
+    # quality_review (8, including one façade-native operation)
     "candidate_material_surface_quality_prepare",
     "candidate_topology_quality_prepare",
     "human_visual_review_submit",
@@ -74,6 +75,7 @@ EXPECTED_WRITE = (
     "production_weapon_form_quality_v2_prepare",
     "reference_compare_prepare",
     "visual_review_submit",
+    "knife_pass_state_prepare",
     # job (4)
     "job_cancel",
     "optimization_job_prepare",
@@ -93,7 +95,7 @@ EXPECTED_OBSERVE = (
     "selection_get",
     "snapshot_get",
 )
-EXPECTED_QUALITY_READ = (
+EXPECTED_QUALITY_TOOL_READ = (
     "candidate_material_surface_quality_get",
     "candidate_topology_quality_get",
     "critic_report_get",
@@ -111,7 +113,9 @@ EXPECTED_QUALITY_READ = (
     "silhouette_target_get",
     "visual_evidence_bundle_get",
 )
-EXPECTED_QUALITY_WRITE = (
+EXPECTED_QUALITY_NATIVE_READ = ("knife_pass_state_get",)
+EXPECTED_QUALITY_READ = EXPECTED_QUALITY_TOOL_READ + EXPECTED_QUALITY_NATIVE_READ
+EXPECTED_QUALITY_TOOL_WRITE = (
     "candidate_material_surface_quality_prepare",
     "candidate_topology_quality_prepare",
     "human_visual_review_submit",
@@ -120,6 +124,8 @@ EXPECTED_QUALITY_WRITE = (
     "reference_compare_prepare",
     "visual_review_submit",
 )
+EXPECTED_QUALITY_NATIVE_WRITE = ("knife_pass_state_prepare",)
+EXPECTED_QUALITY_WRITE = EXPECTED_QUALITY_TOOL_WRITE + EXPECTED_QUALITY_NATIVE_WRITE
 EXPECTED_JOB_READ = (
     "job_events_read",
     "job_get",
@@ -151,6 +157,10 @@ EXPECTED_OBSERVE_MAPPING_OPERATIONS = (
     "candidate_get",
     "snapshot_get",
     "scene_observe_get",
+)
+EXPECTED_KNIFE_PASS_STATE_OPERATIONS = (
+    "knife_pass_state_get",
+    "knife_pass_state_prepare",
 )
 
 JOB_REPOSITORY_METHODS = (
@@ -300,6 +310,43 @@ def profile_operations(value: dict[str, object], field: str, facade: str) -> tup
     return tuple(raw)
 
 
+def profile_native_operations(
+    profile: dict[str, object], facade: str
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return the read/write native operations owned by one façade.
+
+    Native operations are intentionally kept out of a façade's legacy
+    ``read_tools``/``write_tools`` arrays.  They are nevertheless active
+    Runtime routes and are classified by their closed profile metadata.
+    """
+
+    raw = profile.get("native_operations")
+    require(isinstance(raw, dict), "profile.native_operations must be an object")
+    native_read: list[str] = []
+    native_write: list[str] = []
+    for operation, metadata in raw.items():
+        require(
+            isinstance(operation, str) and operation,
+            "profile.native_operations contains an invalid operation name",
+        )
+        require(
+            isinstance(metadata, dict),
+            f"profile.native_operations.{operation} must be an object",
+        )
+        if metadata.get("facade_name") != facade:
+            continue
+        classification = metadata.get("classification")
+        require(
+            classification in {"read", "write"},
+            f"profile.native_operations.{operation} has invalid classification",
+        )
+        if classification == "read":
+            native_read.append(operation)
+        else:
+            native_write.append(operation)
+    return tuple(native_read), tuple(native_write)
+
+
 def check_profile() -> tuple[tuple[str, ...], tuple[str, ...]]:
     try:
         profile = json.loads(read(PROFILE))
@@ -311,20 +358,35 @@ def check_profile() -> tuple[tuple[str, ...], tuple[str, ...]]:
     quality = profile_facade(profile, "quality_review")
     job = profile_facade(profile, "job")
     expected_by_facade = {
-        "observe": (EXPECTED_OBSERVE, ()),
-        "quality_review": (EXPECTED_QUALITY_READ, EXPECTED_QUALITY_WRITE),
-        "job": (EXPECTED_JOB_READ, EXPECTED_JOB_WRITE),
+        "observe": (EXPECTED_OBSERVE, (), (), ()),
+        "quality_review": (
+            EXPECTED_QUALITY_TOOL_READ,
+            EXPECTED_QUALITY_TOOL_WRITE,
+            EXPECTED_QUALITY_NATIVE_READ,
+            EXPECTED_QUALITY_NATIVE_WRITE,
+        ),
+        "job": (EXPECTED_JOB_READ, EXPECTED_JOB_WRITE, (), ()),
     }
     for facade, value in (("observe", observe), ("quality_review", quality), ("job", job)):
-        expected_read, expected_write = expected_by_facade[facade]
+        expected_read, expected_write, expected_native_read, expected_native_write = expected_by_facade[facade]
         actual_read = profile_operations(value, "read_tools", facade)
         actual_write = profile_operations(value, "write_tools", facade)
         require(actual_read == expected_read, f"profile {facade}.read_tools drifted")
         require(actual_write == expected_write, f"profile {facade}.write_tools drifted")
-        actual_underlying = profile_operations(value, "underlying_operations", facade)
+        actual_native_read, actual_native_write = profile_native_operations(profile, facade)
         require(
-            actual_underlying == actual_read + actual_write
-            or set(actual_underlying) == set(actual_read + actual_write),
+            actual_native_read == expected_native_read,
+            f"profile {facade} native read operations drifted",
+        )
+        require(
+            actual_native_write == expected_native_write,
+            f"profile {facade} native write operations drifted",
+        )
+        actual_underlying = profile_operations(value, "underlying_operations", facade)
+        expected_underlying = actual_read + actual_write + actual_native_read + actual_native_write
+        require(
+            len(actual_underlying) == len(set(actual_underlying))
+            and set(actual_underlying) == set(expected_underlying),
             f"profile {facade}.underlying_operations does not match read/write ownership",
         )
 
@@ -332,15 +394,20 @@ def check_profile() -> tuple[tuple[str, ...], tuple[str, ...]]:
     require(isinstance(facades, dict), "profile.facades must be an object")
     actual_facades = tuple(name for name in EXPECTED_FACADES if name in facades)
     require(actual_facades == EXPECTED_FACADES, "Evaluation façade set drifted")
-    combined_read = profile_operations(observe, "read_tools", "observe")
-    combined_read += profile_operations(quality, "read_tools", "quality_review")
-    combined_read += profile_operations(job, "read_tools", "job")
-    combined_write = profile_operations(quality, "write_tools", "quality_review")
-    combined_write += profile_operations(job, "write_tools", "job")
-    require(len(combined_read) == 30, "Evaluation read operation count must remain 30")
-    require(len(combined_write) == 11, "Evaluation write operation count must remain 11")
-    require(len(set(combined_read)) == 30, "Evaluation read operations contain duplicates")
-    require(len(set(combined_write)) == 11, "Evaluation write operations contain duplicates")
+    observe_read = profile_operations(observe, "read_tools", "observe")
+    observe_native_read, observe_native_write = profile_native_operations(profile, "observe")
+    quality_read = profile_operations(quality, "read_tools", "quality_review")
+    quality_write = profile_operations(quality, "write_tools", "quality_review")
+    quality_native_read, quality_native_write = profile_native_operations(profile, "quality_review")
+    job_read = profile_operations(job, "read_tools", "job")
+    job_write = profile_operations(job, "write_tools", "job")
+    job_native_read, job_native_write = profile_native_operations(profile, "job")
+    combined_read = observe_read + observe_native_read + quality_read + quality_native_read + job_read + job_native_read
+    combined_write = quality_write + quality_native_write + job_write + job_native_write
+    require(len(combined_read) == 31, "Evaluation read operation count must remain 31")
+    require(len(combined_write) == 12, "Evaluation write operation count must remain 12")
+    require(len(set(combined_read)) == 31, "Evaluation read operations contain duplicates")
+    require(len(set(combined_write)) == 12, "Evaluation write operations contain duplicates")
     require(not set(combined_read).intersection(combined_write), "Evaluation read/write sets overlap")
     require(combined_read == EXPECTED_READ, "Evaluation read operation order/set drifted")
     require(combined_write == EXPECTED_WRITE, "Evaluation write operation order/set drifted")
@@ -532,6 +599,11 @@ def check_contract_map(read_operations: tuple[str, ...], write_operations: tuple
         rust_array(contract_map, "OBSERVE_OPERATIONS") == EXPECTED_OBSERVE_MAPPING_OPERATIONS,
         "central observe mapping drifted",
     )
+    require(
+        rust_array(contract_map, "KNIFE_PASS_STATE_OPERATIONS")
+        == EXPECTED_KNIFE_PASS_STATE_OPERATIONS,
+        "central KnifePassState operation mapping drifted",
+    )
     profile_operations_set = set(read_operations + write_operations)
     require(
         set(EXPECTED_SILHOUETTE_OPERATIONS).issubset(profile_operations_set)
@@ -547,6 +619,32 @@ def check_contract_map(read_operations: tuple[str, ...], write_operations: tuple
     require('mcp_facade: Some("quality_review")' in silhouette, "silhouette is not owned by quality_review")
     require("mcp_operations: SILHOUETTE_OPERATIONS" in silhouette, "silhouette mapping does not use central operation array")
     require("status: MappingStatus::Complete" in silhouette, "silhouette mapping is not complete")
+
+    pass_state = mapping_block(contract_map, "knife_pass_state")
+    require("domain: WeaponryServiceDomain::Evaluation" in pass_state, "KnifePassState mapping has wrong domain")
+    require('contract: Some("KnifePassState@1")' in pass_state, "KnifePassState contract drifted")
+    require(
+        'runtime_service: Some("evaluation_service::knife_pass_state::{prepare,get}")'
+        in pass_state,
+        "KnifePassState Runtime owner drifted",
+    )
+    require(
+        'store_record: Some("KnifePassStateStoreRecord")' in pass_state,
+        "KnifePassState mapping does not name its Store record",
+    )
+    require(
+        "persistence: PersistenceKind::DurableTransaction" in pass_state,
+        "KnifePassState mapping is not durable",
+    )
+    require(
+        'mcp_facade: Some("quality_review")' in pass_state,
+        "KnifePassState is not owned by quality_review",
+    )
+    require(
+        "mcp_operations: KNIFE_PASS_STATE_OPERATIONS" in pass_state,
+        "KnifePassState mapping does not use central operation array",
+    )
+    require("status: MappingStatus::Complete" in pass_state, "KnifePassState mapping is not complete")
 
     job = mapping_block(contract_map, "runtime_job_lifecycle")
     require("domain: WeaponryServiceDomain::Evaluation" in job, "Job mapping has wrong domain")

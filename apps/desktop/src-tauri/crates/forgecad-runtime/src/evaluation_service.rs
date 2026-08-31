@@ -17,7 +17,7 @@ use serde_json::Value;
 pub(crate) mod reference_comparison;
 
 /// The exact read operation inventory of the default knife profile's three
-/// Evaluation façades: `observe` (10), `quality_review` (23), and `job` (8).
+/// Evaluation façades: `observe` (10), `quality_review` (25), and `job` (8).
 /// Keep this list derived from the checked-in profile's active operation set,
 /// not from the partial capability map used for migration exceptions.
 pub(crate) const EVALUATION_READ_OPERATIONS: &[&str] = &[
@@ -32,7 +32,7 @@ pub(crate) const EVALUATION_READ_OPERATIONS: &[&str] = &[
     "scene_observe_get",
     "selection_get",
     "snapshot_get",
-    // quality_review (16)
+    // quality_review (17, including KnifePassState)
     "candidate_material_surface_quality_get",
     "candidate_topology_quality_get",
     "critic_report_get",
@@ -49,6 +49,8 @@ pub(crate) const EVALUATION_READ_OPERATIONS: &[&str] = &[
     "silhouette_rig_hash",
     "silhouette_target_get",
     "visual_evidence_bundle_get",
+    // knife pass state (2)
+    "knife_pass_state_get",
     // job (4)
     "job_events_read",
     "job_get",
@@ -57,16 +59,18 @@ pub(crate) const EVALUATION_READ_OPERATIONS: &[&str] = &[
 ];
 
 /// The exact write operation inventory of the default knife profile's three
-/// Evaluation façades: `quality_review` (7) and `job` (4).
+/// Evaluation façades: `quality_review` (8, including KnifePassState) and `job` (4).
 pub(crate) const EVALUATION_WRITE_OPERATIONS: &[&str] = &[
-    // quality_review (7)
+    // quality_review (8, including KnifePassState)
     "candidate_material_surface_quality_prepare",
     "candidate_topology_quality_prepare",
     "human_visual_review_submit",
     "production_weapon_form_quality_prepare",
     "production_weapon_form_quality_v2_prepare",
+    "high_artifact_reference_compare_prepare",
     "reference_compare_prepare",
     "visual_review_submit",
+    "knife_pass_state_prepare",
     // job (4)
     "job_cancel",
     "optimization_job_prepare",
@@ -209,8 +213,14 @@ pub(crate) fn invoke(
             let project_id = required_str(payload, "project_id")?;
             runtime.prepare_reference_comparison(project_id, payload.clone())
         }
+        "high_artifact_reference_compare_prepare" => {
+            let project_id = required_str(payload, "project_id")?;
+            runtime.prepare_high_artifact_reference_comparison(project_id, payload.clone())
+        }
         "visual_review_submit" => runtime.submit_visual_review(payload.clone()),
         "human_visual_review_submit" => runtime.submit_human_visual_review(payload.clone()),
+        "knife_pass_state_prepare" => runtime.knife_pass_state_prepare(payload),
+        "knife_pass_state_get" => runtime.knife_pass_state_get(payload),
 
         // job
         "job_events_read" => {
@@ -270,12 +280,12 @@ mod tests {
 
     #[test]
     fn inventory_matches_all_three_default_evaluation_facades() {
-        assert_eq!(EVALUATION_READ_OPERATIONS.len(), 30);
-        assert_eq!(EVALUATION_WRITE_OPERATIONS.len(), 11);
+        assert_eq!(EVALUATION_READ_OPERATIONS.len(), 31);
+        assert_eq!(EVALUATION_WRITE_OPERATIONS.len(), 13);
         let mut operations = BTreeSet::new();
         operations.extend(EVALUATION_READ_OPERATIONS.iter().copied());
         operations.extend(EVALUATION_WRITE_OPERATIONS.iter().copied());
-        assert_eq!(operations.len(), 41);
+        assert_eq!(operations.len(), 43);
         assert!(operations.contains("scene_observe_get"));
         assert!(operations.contains("critic_report_get"));
         assert!(operations.contains("visual_evidence_bundle_get"));

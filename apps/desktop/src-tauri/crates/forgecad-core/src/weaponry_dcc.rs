@@ -10,6 +10,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 
+/// V2 knife blade language.  This remains a pure-core module: it owns no
+/// Runtime, Store, CAS, Worker or MCP state.  The V1 four-sided sweep below
+/// is intentionally preserved for compatibility; callers that need a blade
+/// with sectioned asymmetric form should use `knife_blade_language`.
+#[path = "knife_blade_language.rs"]
+pub mod knife_blade_language;
+pub use knife_blade_language::*;
+
 const MAX_ID_BYTES: usize = 128;
 const MAX_GRAPH_NODES: usize = 64;
 const MAX_GRAPH_EDGES: usize = 128;

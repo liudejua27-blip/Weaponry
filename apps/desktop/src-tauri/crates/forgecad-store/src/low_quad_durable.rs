@@ -7,12 +7,13 @@
 //! additive table in the same SQLite connection used by the Runtime.
 
 use forgecad_contracts::{
-    CasObjectRecord, LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND, LOW_QUAD_DRAFT_DURABLE_OBJECT_KIND,
+    is_opaque_id, is_sha256, CasObjectRecord, LowQuadDraftDurableRecord,
+    LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND, LOW_QUAD_DRAFT_DURABLE_OBJECT_KIND,
     LOW_QUAD_DRAFT_DURABLE_READBACK_KIND, LOW_QUAD_DRAFT_DURABLE_RECORD_SCHEMA_VERSION,
-    LOW_QUAD_DRAFT_DURABLE_WORKER_RESULT_KIND, LowQuadDraftDurableRecord, is_opaque_id, is_sha256,
+    LOW_QUAD_DRAFT_DURABLE_WORKER_RESULT_KIND,
 };
 use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{params, OptionalExtension};
 use serde_json::Value;
 
 use super::{Store, StoreError};
@@ -22,6 +23,13 @@ const JSON_MIME: &str = "application/json";
 const GLB_MIME: &str = "model/gltf-binary";
 const MAX_JSON_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_GLB_BYTES: u64 = 64 * 1024 * 1024;
+
+// A V2 High artifact is a separate durable source family.  Keep the legacy
+// values below intact: old Low rows must continue to validate against the
+// Native High GLB materializer, while V2 rows must resolve through the
+// Runtime-owned High artifact row (and therefore its bridge ancestors).
+const V2_HIGH_ARTIFACT_GLB_KIND: &str = "authoring-mesh-v2-high-artifact-glb@1";
+const V2_HIGH_ARTIFACT_READBACK_KIND: &str = "authoring-mesh-v2-high-artifact-readback@1";
 
 fn contract(code: &str, message: impl Into<String>) -> StoreError {
     StoreError::Contract {
@@ -200,6 +208,56 @@ fn validate_candidate(store: &Store, record: &LowQuadDraftDurableRecord) -> Resu
     Ok(())
 }
 
+fn validate_v2_high_source(
+    store: &Store,
+    record: &LowQuadDraftDurableRecord,
+    source_object: &CasObjectRecord,
+    source_readback: &CasObjectRecord,
+) -> Result<(), StoreError> {
+    if source_object.kind != V2_HIGH_ARTIFACT_GLB_KIND
+        || source_readback.kind != V2_HIGH_ARTIFACT_READBACK_KIND
+    {
+        return Err(contract(
+            "LOW_QUAD_DRAFT_DURABLE_V2_SOURCE_KIND_MISMATCH",
+            "V2 High GLB and readback kinds must be paired",
+        ));
+    }
+    // This lookup is deliberately the only V2 source selection path.  The
+    // High-artifact repository validates the full bridge, revision, result,
+    // cohort and all ancestor CAS roots before returning the row.  Low then
+    // compares every source identity it stores; a matching GLB alone can
+    // never substitute for a durable High lineage.
+    let high = store
+        .get_authoring_mesh_v2_high_artifact_for_low(
+            &record.project_id,
+            &record.source_high_artifact_id,
+        )?
+        .ok_or_else(|| {
+            contract(
+                "LOW_QUAD_DRAFT_DURABLE_V2_SOURCE_UNAVAILABLE",
+                "V2 High artifact source row is unavailable",
+            )
+        })?;
+    if high.project_id != record.project_id
+        || high.artifact_id != record.source_high_artifact_id
+        || high.high_artifact_sha256 != record.source_high_artifact_sha256
+        || high.high_artifact_object_sha256 != record.source_high_artifact_object_sha256
+        || high.high_artifact_readback_sha256 != record.source_high_artifact_readback_sha256
+        || high.high_artifact_readback_object_sha256
+            != record.source_high_artifact_readback_object_sha256
+        || high.materialized_candidate_id != record.candidate_id
+        || high.materialized_candidate_state_sha256 != record.candidate_state_sha256
+        || source_object.sha256 != high.high_artifact_object_sha256
+        || source_readback.sha256 != high.high_artifact_readback_object_sha256
+    {
+        return Err(contract(
+            "LOW_QUAD_DRAFT_DURABLE_V2_SOURCE_BINDING_MISMATCH",
+            "V2 High artifact, candidate or readback binding differs",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_objects(
     store: &Store,
     record: &LowQuadDraftDurableRecord,
@@ -210,12 +268,31 @@ fn validate_objects(
     readback: &CasObjectRecord,
     link: &CasObjectRecord,
 ) -> Result<(), StoreError> {
+    let (source_kind, source_readback_kind) = match source_object.kind.as_str() {
+        "production-weapon-high-artifact-glb" => (
+            "production-weapon-high-artifact-glb",
+            "native-high-glb-materialize-result",
+        ),
+        V2_HIGH_ARTIFACT_GLB_KIND => (V2_HIGH_ARTIFACT_GLB_KIND, V2_HIGH_ARTIFACT_READBACK_KIND),
+        _ => {
+            return Err(contract(
+                "LOW_QUAD_DRAFT_DURABLE_SOURCE_KIND_UNSUPPORTED",
+                "source High GLB kind is not an admitted legacy or V2 family",
+            ));
+        }
+    };
+    if source_readback.kind != source_readback_kind {
+        return Err(contract(
+            "LOW_QUAD_DRAFT_DURABLE_SOURCE_KIND_MISMATCH",
+            "source High GLB and readback kinds are not paired",
+        ));
+    }
     validate_object(
         store,
         source_object,
         &record.source_high_artifact_object_sha256,
         GLB_MIME,
-        "production-weapon-high-artifact-glb",
+        source_kind,
         MAX_GLB_BYTES,
     )?;
     validate_object(
@@ -223,7 +300,7 @@ fn validate_objects(
         source_readback,
         &record.source_high_artifact_readback_object_sha256,
         JSON_MIME,
-        "native-high-glb-materialize-result",
+        source_readback_kind,
         MAX_JSON_BYTES,
     )?;
     validate_object(
@@ -258,6 +335,9 @@ fn validate_objects(
         LOW_QUAD_DRAFT_DURABLE_OBJECT_KIND,
         MAX_JSON_BYTES,
     )?;
+    if source_kind == V2_HIGH_ARTIFACT_GLB_KIND {
+        validate_v2_high_source(store, record, source_object, source_readback)?;
+    }
     Ok(())
 }
 
@@ -431,19 +511,57 @@ impl Store {
         }
         validate_record_shape(&record)?;
         validate_candidate(self, &record)?;
+        let source_object = self
+            .get_object(&record.source_high_artifact_object_sha256)?
+            .ok_or_else(|| {
+                contract(
+                    "LOW_QUAD_DRAFT_DURABLE_CAS_MISSING",
+                    "source High CAS object is missing",
+                )
+            })?;
+        let source_kind = match source_object.kind.as_str() {
+            "production-weapon-high-artifact-glb" => "production-weapon-high-artifact-glb",
+            V2_HIGH_ARTIFACT_GLB_KIND => V2_HIGH_ARTIFACT_GLB_KIND,
+            _ => {
+                return Err(contract(
+                    "LOW_QUAD_DRAFT_DURABLE_SOURCE_KIND_UNSUPPORTED",
+                    "source High GLB kind is not an admitted legacy or V2 family",
+                ))
+            }
+        };
+        let source_readback_kind = if source_kind == V2_HIGH_ARTIFACT_GLB_KIND {
+            V2_HIGH_ARTIFACT_READBACK_KIND
+        } else {
+            "native-high-glb-materialize-result"
+        };
+        let source_readback_object = self
+            .get_object(&record.source_high_artifact_readback_object_sha256)?
+            .ok_or_else(|| {
+                contract(
+                    "LOW_QUAD_DRAFT_DURABLE_CAS_MISSING",
+                    "source High readback CAS object is missing",
+                )
+            })?;
+        validate_object(
+            self,
+            &source_object,
+            &record.source_high_artifact_object_sha256,
+            GLB_MIME,
+            source_kind,
+            MAX_GLB_BYTES,
+        )?;
+        validate_object(
+            self,
+            &source_readback_object,
+            &record.source_high_artifact_readback_object_sha256,
+            JSON_MIME,
+            source_readback_kind,
+            MAX_JSON_BYTES,
+        )?;
+        if source_kind == V2_HIGH_ARTIFACT_GLB_KIND {
+            validate_v2_high_source(self, &record, &source_object, &source_readback_object)?;
+        }
         let objects = [
-            (
-                &record.source_high_artifact_object_sha256,
-                GLB_MIME,
-                "production-weapon-high-artifact-glb",
-                MAX_GLB_BYTES,
-            ),
-            (
-                &record.source_high_artifact_readback_object_sha256,
-                JSON_MIME,
-                "native-high-glb-materialize-result",
-                MAX_JSON_BYTES,
-            ),
             (
                 &record.worker_result_object_sha256,
                 JSON_MIME,

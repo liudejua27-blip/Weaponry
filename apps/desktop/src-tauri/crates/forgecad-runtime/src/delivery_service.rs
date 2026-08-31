@@ -63,6 +63,11 @@ pub(crate) fn invoke(
             serde_json::to_value(runtime.prepare_export(&request)?)
                 .map_err(|error| RuntimeError::InvalidInput(error.to_string()))
         }
+        // Keep the established three-authored-LOD contract and its durable
+        // GameAssetDeliveryLink replay path byte-for-byte compatible. The
+        // Dragonfang High/Low projection remains an internal read-only seam
+        // until it has its own Store aggregate and replay contract; it must
+        // not be selected by this public prepare operation.
         "game_asset_delivery_prepare" => runtime.game_asset_delivery_prepare(payload),
         "game_weapon_glb_socket_prepare" => runtime.game_weapon_glb_socket_prepare(payload),
 

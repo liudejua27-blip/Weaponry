@@ -1,0 +1,351 @@
+{
+  "schema_version": "KnifeReferenceIntentBundle@1",
+  "intent_bundle_id": "dragonfang-reference-intent-001",
+  "project_id": "project-fd70151d0b164122923bb5f1cd6a4847",
+  "brief_binding": {
+    "brief_schema_version": "WeaponryKnifeProductionBrief@1",
+    "brief_id": "dragonfang-kukri-brief-resolved-001",
+    "brief_sha256": "dbaf9c63b896bbc1555a2391cbee68c50d380c81271e3f42586ff98ca53aace1",
+    "brief_object_sha256": "8b5eb6edd5491c40f166361fb21bc5772a88f72308047ede08d15e7c9c130050",
+    "authoring_eligibility": "ELIGIBLE",
+    "authorization_binding_status": "runtime-bound"
+  },
+  "reference_binding": {
+    "reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c",
+    "reference_object_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+    "reference_evidence_sha256": "1739a3d0c68553735397ec781414e769e4563bfd7b94f09efac2853631f24e99",
+    "binding_status": "runtime-bound"
+  },
+  "route": "reference-projection",
+  "exactness": "image-only",
+  "intake_manifest": {
+    "schema_version": "KnifeIntakeManifest@1",
+    "manifest_id": "dragonfang-intake-001",
+    "records": [
+      {
+        "reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c",
+        "reference_object_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+        "reference_evidence_sha256": "1739a3d0c68553735397ec781414e769e4563bfd7b94f09efac2853631f24e99",
+        "role": "primary",
+        "resolution": {"width": 1536, "height": 1024},
+        "decode_status": "decoded",
+        "duplicate_status": "unique",
+        "admission_status": "admitted",
+        "visible_coverage": [
+          {"view": "front", "status": "observed"},
+          {"view": "back", "status": "observed"},
+          {"view": "left", "status": "observed"},
+          {"view": "right", "status": "observed"},
+          {"view": "rear-three-quarter", "status": "observed"},
+          {"view": "fps-hold", "status": "observed"}
+        ]
+      }
+    ],
+    "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+    "canonical_sha256": "3f75d0d7b87897c266cb681424e53c4089add1f66649b725586e786a0a169bd4"
+  },
+  "detail_inventory": {
+    "schema_version": "KnifeDetailInventory@1",
+    "inventory_id": "dragonfang-details-001",
+    "details": [
+      {
+        "detail_id": "kukri-spine-contour",
+        "scale": "macro",
+        "family": "silhouette",
+        "label": "kukri spine contour",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "front", "x": 0.08, "y": 0.12, "width": 0.84, "height": 0.34, "status": "observed"}
+        ],
+        "confidence": "high",
+        "observation_status": "observed",
+        "target": {"target_kind": "part", "target_id": "blade", "mapping_status": "mapped"},
+        "priority": 1,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "kukri-belly-contour",
+        "scale": "macro",
+        "family": "silhouette",
+        "label": "kukri belly contour",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "left", "x": 0.14, "y": 0.34, "width": 0.76, "height": 0.24, "status": "observed"}
+        ],
+        "confidence": "high",
+        "observation_status": "observed",
+        "target": {"target_kind": "part", "target_id": "blade", "mapping_status": "mapped"},
+        "priority": 1,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "kukri-tip-sweep",
+        "scale": "macro",
+        "family": "silhouette",
+        "label": "kukri tip sweep",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "front", "x": 0.72, "y": 0.1, "width": 0.2, "height": 0.22, "status": "observed"}
+        ],
+        "confidence": "high",
+        "observation_status": "observed",
+        "target": {"target_kind": "part", "target_id": "blade", "mapping_status": "mapped"},
+        "priority": 1,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "cutting-edge-bevel",
+        "scale": "meso",
+        "family": "cross-section",
+        "label": "cutting edge and bevel",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "right", "x": 0.16, "y": 0.42, "width": 0.7, "height": 0.16, "status": "inferred"}
+        ],
+        "confidence": "medium",
+        "observation_status": "inferred",
+        "target": {"target_kind": "part", "target_id": "cutting-edge", "mapping_status": "mapped"},
+        "priority": 2,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "blade-thickness-taper",
+        "scale": "meso",
+        "family": "cross-section",
+        "label": "blade thickness taper",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "rear-three-quarter", "x": 0.2, "y": 0.18, "width": 0.62, "height": 0.3, "status": "inferred"}
+        ],
+        "confidence": "medium",
+        "observation_status": "inferred",
+        "target": {"target_kind": "part", "target_id": "blade-body", "mapping_status": "mapped"},
+        "priority": 2,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "gold-spine-armor",
+        "scale": "meso",
+        "family": "surface",
+        "label": "gold spine armor",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "front", "x": 0.18, "y": 0.16, "width": 0.58, "height": 0.22, "status": "observed"}
+        ],
+        "confidence": "high",
+        "observation_status": "observed",
+        "target": {"target_kind": "material-zone", "target_id": "antique-gold-ornament", "mapping_status": "mapped"},
+        "priority": 3,
+        "high_action": "material-override"
+      },
+      {
+        "detail_id": "dragon-relief-scale-flow",
+        "scale": "meso",
+        "family": "identity",
+        "label": "dragon relief and scale flow",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "front", "x": 0.26, "y": 0.2, "width": 0.42, "height": 0.2, "status": "observed"},
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "back", "x": 0.24, "y": 0.2, "width": 0.42, "height": 0.2, "status": "inferred"}
+        ],
+        "confidence": "high",
+        "observation_status": "observed",
+        "target": {"target_kind": "part", "target_id": "dragon-relief", "mapping_status": "mapped"},
+        "priority": 2,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "guard-dragon-muzzle",
+        "scale": "meso",
+        "family": "attachment",
+        "label": "dragon guard muzzle",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "front", "x": 0.34, "y": 0.36, "width": 0.24, "height": 0.18, "status": "inferred"}
+        ],
+        "confidence": "medium",
+        "observation_status": "inferred",
+        "target": {"target_kind": "part", "target_id": "guard-dragon-head", "mapping_status": "mapped"},
+        "priority": 2,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "guard-jaw-choil-negative-space",
+        "scale": "meso",
+        "family": "negative-space",
+        "label": "dragon guard jaw choil and negative space",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "front", "x": 0.18, "y": 0.28, "width": 0.46, "height": 0.44, "status": "inferred"}
+        ],
+        "confidence": "medium",
+        "observation_status": "inferred",
+        "target": {"target_kind": "part", "target_id": "guard-dragon-head", "mapping_status": "mapped"},
+        "priority": 2,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "guard-horns",
+        "scale": "meso",
+        "family": "identity",
+        "label": "dragon guard horns",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "rear-three-quarter", "x": 0.36, "y": 0.3, "width": 0.24, "height": 0.2, "status": "inferred"}
+        ],
+        "confidence": "medium",
+        "observation_status": "inferred",
+        "target": {"target_kind": "part", "target_id": "guard-dragon-head", "mapping_status": "mapped"},
+        "priority": 3,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "guard-eye-setting",
+        "scale": "micro",
+        "family": "identity",
+        "label": "dragon eye setting",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "fps-hold", "x": 0.34, "y": 0.34, "width": 0.14, "height": 0.14, "status": "inferred"}
+        ],
+        "confidence": "low",
+        "observation_status": "inferred",
+        "target": {"target_kind": "part", "target_id": "dragon-eye-left", "mapping_status": "mapped"},
+        "priority": 5,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "grip-curvature",
+        "scale": "meso",
+        "family": "silhouette",
+        "label": "grip curvature",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "front", "x": 0.54, "y": 0.52, "width": 0.24, "height": 0.3, "status": "observed"}
+        ],
+        "confidence": "high",
+        "observation_status": "observed",
+        "target": {"target_kind": "part", "target_id": "grip", "mapping_status": "mapped"},
+        "priority": 2,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "grip-segment-breaks",
+        "scale": "meso",
+        "family": "attachment",
+        "label": "grip segment breaks",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "left", "x": 0.52, "y": 0.48, "width": 0.3, "height": 0.34, "status": "inferred"}
+        ],
+        "confidence": "medium",
+        "observation_status": "inferred",
+        "target": {"target_kind": "part", "target_id": "grip", "mapping_status": "mapped"},
+        "priority": 3,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "grip-gold-border",
+        "scale": "micro",
+        "family": "surface",
+        "label": "grip gold border",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "fps-hold", "x": 0.5, "y": 0.48, "width": 0.3, "height": 0.12, "status": "inferred"}
+        ],
+        "confidence": "medium",
+        "observation_status": "inferred",
+        "target": {"target_kind": "material-zone", "target_id": "antique-gold-ornament", "mapping_status": "mapped"},
+        "priority": 4,
+        "high_action": "material-override"
+      },
+      {
+        "detail_id": "grip-fasteners-3-to-5",
+        "scale": "micro",
+        "family": "attachment",
+        "label": "grip fastener pattern of three to five",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "right", "x": 0.58, "y": 0.56, "width": 0.18, "height": 0.22, "status": "inferred"}
+        ],
+        "confidence": "low",
+        "observation_status": "inferred",
+        "target": {"target_kind": "part", "target_id": "grip-fastener", "mapping_status": "mapped"},
+        "priority": 5,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "pommel-hook",
+        "scale": "meso",
+        "family": "silhouette",
+        "label": "pommel hook",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "back", "x": 0.62, "y": 0.72, "width": 0.2, "height": 0.18, "status": "observed"}
+        ],
+        "confidence": "medium",
+        "observation_status": "observed",
+        "target": {"target_kind": "part", "target_id": "pommel", "mapping_status": "mapped"},
+        "priority": 3,
+        "high_action": "geometry"
+      },
+      {
+        "detail_id": "controlled-edge-wear",
+        "scale": "micro",
+        "family": "wear",
+        "label": "controlled edge wear",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "front", "x": 0.24, "y": 0.42, "width": 0.5, "height": 0.08, "status": "unknown"}
+        ],
+        "confidence": "low",
+        "observation_status": "unknown",
+        "target": {"target_kind": "material-zone", "target_id": "silver-cutting-edge", "mapping_status": "inferred"},
+        "priority": 8,
+        "high_action": "material-override"
+      },
+      {
+        "detail_id": "dragon-engraving",
+        "scale": "micro",
+        "family": "identity",
+        "label": "dragon engraving",
+        "evidence_regions": [
+          {"reference_id": "reference-1853369fdeb04bd6878ffe54699f5c4c", "view": "back", "x": 0.28, "y": 0.22, "width": 0.36, "height": 0.16, "status": "unknown"}
+        ],
+        "confidence": "low",
+        "observation_status": "unknown",
+        "target": {"target_kind": "material-zone", "target_id": "antique-gold-ornament", "mapping_status": "inferred"},
+        "priority": 8,
+        "high_action": "later-normal-bake"
+      }
+    ],
+    "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+    "canonical_sha256": "dc688919d269b62d7224905e0d9082e5d99dbdca1ba76359142961c268a0fa0f"
+  },
+  "quality_contract": {
+    "schema_version": "KnifeQualityContract@1",
+    "contract_id": "dragonfang-high-quality-001",
+    "stage_order": ["camera-lock", "silhouette-blockout", "structural-form", "secondary-form", "high-geometry"],
+    "critical_features": [
+      {"feature_id": "feature-kukri-silhouette", "feature_kind": "silhouette", "target_id": "blade", "source_status": "observed", "blocking": true, "evidence_region_ids": ["reference-1853369fdeb04bd6878ffe54699f5c4c:front"]},
+      {"feature_id": "feature-blade-section", "feature_kind": "cross-section", "target_id": "blade-body", "source_status": "inferred", "blocking": true, "evidence_region_ids": ["reference-1853369fdeb04bd6878ffe54699f5c4c:rear-three-quarter"]},
+      {"feature_id": "feature-guard-attachment", "feature_kind": "attachment", "target_id": "guard-dragon-head", "source_status": "inferred", "blocking": true, "evidence_region_ids": ["reference-1853369fdeb04bd6878ffe54699f5c4c:front"]},
+      {"feature_id": "feature-guard-negative-space", "feature_kind": "negative-space", "target_id": "guard-dragon-head", "source_status": "inferred", "blocking": true, "evidence_region_ids": ["reference-1853369fdeb04bd6878ffe54699f5c4c:front"]},
+      {"feature_id": "feature-grip-contour", "feature_kind": "silhouette", "target_id": "grip", "source_status": "observed", "blocking": true, "evidence_region_ids": ["reference-1853369fdeb04bd6878ffe54699f5c4c:front"]},
+      {"feature_id": "feature-pommel-hook", "feature_kind": "attachment", "target_id": "pommel", "source_status": "observed", "blocking": true, "evidence_region_ids": ["reference-1853369fdeb04bd6878ffe54699f5c4c:back"]},
+      {"feature_id": "feature-dragon-relief", "feature_kind": "identity", "target_id": "dragon-relief", "source_status": "observed", "blocking": true, "evidence_region_ids": ["reference-1853369fdeb04bd6878ffe54699f5c4c:front"]},
+      {"feature_id": "feature-material-lock", "feature_kind": "material", "target_id": "antique-gold-ornament", "source_status": "unknown", "blocking": false, "evidence_region_ids": []},
+      {"feature_id": "feature-micro-engraving-lock", "feature_kind": "identity", "target_id": "antique-gold-ornament", "source_status": "unknown", "blocking": false, "evidence_region_ids": []}
+    ],
+    "fixed_views": [
+      {"view_id": "view-front", "view": "front", "comparison_role": "primary-reference", "reference_required": true},
+      {"view_id": "view-orbit-a", "view": "rear-three-quarter", "comparison_role": "orbit-nonreference", "reference_required": false},
+      {"view_id": "view-orbit-b", "view": "front-three-quarter", "comparison_role": "orbit-nonreference", "reference_required": false},
+      {"view_id": "view-fps-inspect", "view": "fps-inspect", "comparison_role": "fps-inspect", "reference_required": false}
+    ],
+    "blocking_failures": [
+      {"failure_id": "failure-lineage", "gate_id": "H0_LINEAGE", "condition": "missing-lineage", "blocks_promotion": true},
+      {"failure_id": "failure-silhouette", "gate_id": "H1_SILHOUETTE", "condition": "silhouette-collapse", "blocks_promotion": true},
+      {"failure_id": "failure-geometry", "gate_id": "H2_GEOMETRY", "condition": "self-intersection", "blocks_promotion": true},
+      {"failure_id": "failure-attachment", "gate_id": "H3_ATTACHMENT", "condition": "attachment-invalid", "blocks_promotion": true}
+    ],
+    "threshold_fixture_sha256": "cc99e2c26c147b27e59bb8544334ec24adfbd83f4e723d0c21599ebaf7304b4b",
+    "threshold_status": "CALIBRATION_PENDING",
+    "correction_policy": {"max_iterations_per_pass": 3, "max_iterations_total": 6, "one_changed_scope_per_iteration": true, "baseline_preserved": true},
+    "promotion_state": "HIGH_LOCKED_UNTIL_CALIBRATED_AND_REVIEWED@1",
+    "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+    "canonical_sha256": "cff54c6c17c4bdc37b2bb99efeabad096e1525bc08c6ec260f6193a7350f03dd"
+  },
+  "unknowns": [
+    {"unknown_id": "unknown-front-three-quarter-view", "topic": "reference-view", "view": "front-three-quarter", "description": "front three-quarter view is not supplied", "impact": "blocking", "resolution_status": "open"},
+    {"unknown_id": "unknown-top-view", "topic": "reference-view", "view": "top", "description": "top view is not supplied", "impact": "blocking", "resolution_status": "open"},
+    {"unknown_id": "unknown-bottom-view", "topic": "reference-view", "view": "bottom", "description": "bottom view is not supplied", "impact": "blocking", "resolution_status": "open"},
+    {"unknown_id": "unknown-fps-inspect-view", "topic": "reference-view", "view": "fps-inspect", "description": "FPS inspect view is not supplied", "impact": "blocking", "resolution_status": "open"}
+  ],
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "canonical_sha256": "6f55e355a92ca904e4939ff16938947878313644e0ac661126857606a5ec01af",
+  "created_at": "2026-08-30T06:00:00Z"
+}

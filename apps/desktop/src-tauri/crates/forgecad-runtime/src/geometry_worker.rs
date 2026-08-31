@@ -12,8 +12,10 @@
 use forgecad_contracts::{build_cohort_sha256, is_sha256};
 use forgecad_worker_protocol::{
     validate_native_high_glb_materialize_payload, validate_native_high_glb_materialize_result,
-    validate_response, WorkerRequest, WorkerResponse, MAX_WORKER_REQUEST_BYTES,
-    MAX_WORKER_RESPONSE_BYTES, MAX_WORKER_STDERR_BYTES, NATIVE_HIGH_GLB_MATERIALIZE_ENTRY,
+    validate_response, WorkerRequest, WorkerResponse,
+    AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_ENTRY, AUTHORING_MESH_V2_HIGH_ENTRY,
+    AUTHORING_MESH_V2_HIGH_OPERATION, MAX_WORKER_REQUEST_BYTES, MAX_WORKER_RESPONSE_BYTES,
+    MAX_WORKER_STDERR_BYTES, NATIVE_HIGH_GLB_MATERIALIZE_ENTRY,
     NATIVE_HIGH_GLB_MATERIALIZE_OPERATION, WORKER_PROTOCOL,
 };
 use serde_json::{json, Value};
@@ -297,6 +299,40 @@ pub(crate) fn production_weapon_native_high(
     )
 }
 
+/// Run the fixed direct AuthoringMesh V2 -> Native High sibling as a transient
+/// structural projection.  The caller must still independently validate and
+/// persist the result/readback through Runtime-owned CAS and Store records.
+pub(crate) fn production_weapon_authoring_mesh_v2_high(
+    payload: &Value,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
+    execute_sibling_worker_with_metadata(
+        HIGH_WORKER_BINARY,
+        AUTHORING_MESH_V2_HIGH_OPERATION,
+        payload.clone(),
+    )
+}
+
+/// Materialize one already validated direct V2 High result into a bounded,
+/// embedded-only GLB.  This is a distinct worker operation from the High
+/// evaluation bridge: Runtime must validate the returned V2 readback and own
+/// every CAS/Store write before a later Low service may consume the artifact.
+pub(crate) fn production_weapon_authoring_mesh_v2_high_artifact_materialize(
+    payload: &Value,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
+    forgecad_worker_protocol::validate_authoring_mesh_v2_high_artifact_materialize_request(payload)
+        .map_err(|_| GeometryWorkerError::Protocol)?;
+    let result = execute_sibling_worker_with_metadata(
+        HIGH_WORKER_BINARY,
+        forgecad_worker_protocol::AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION,
+        payload.clone(),
+    )?;
+    forgecad_worker_protocol::validate_authoring_mesh_v2_high_artifact_materialize_result(
+        &result.result,
+    )
+    .map_err(|_| GeometryWorkerError::Protocol)?;
+    Ok(result)
+}
+
 /// Run the fixed Native High → embedded GLB sibling as a transient structural
 /// projection. The wrapper validates the closed request/result shape but does
 /// not write CAS/SQLite, alter a candidate, or advance a Runtime stage.
@@ -513,6 +549,12 @@ fn execute_sibling_worker_with_metadata_and_budget(
     // remains on the ten-second entry point.
     let worker_args = if operation == forgecad_worker_protocol::NATIVE_HIGH_WORKER_OPERATION {
         [forgecad_worker_protocol::NATIVE_HIGH_WORKER_ENTRY]
+    } else if operation == AUTHORING_MESH_V2_HIGH_OPERATION {
+        [AUTHORING_MESH_V2_HIGH_ENTRY]
+    } else if operation
+        == forgecad_worker_protocol::AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_OPERATION
+    {
+        [AUTHORING_MESH_V2_HIGH_ARTIFACT_MATERIALIZE_ENTRY]
     } else if operation == NATIVE_HIGH_GLB_MATERIALIZE_OPERATION {
         [NATIVE_HIGH_GLB_MATERIALIZE_ENTRY]
     } else if operation

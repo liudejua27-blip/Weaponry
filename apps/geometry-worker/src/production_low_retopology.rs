@@ -325,7 +325,7 @@ pub fn run_quad_draft(payload: &Map<String, Value>) -> Result<Value, GeometryErr
         .and_then(Value::as_object)
         .ok_or_else(|| invalid("LOW_QUAD_DRAFT_AUTHORING_MESH_INVALID"))?;
     let authoring_mesh_value = Value::Object(authoring_mesh.clone());
-    validate_quad_authoring_mesh(
+    let boundary_edge_count = validate_quad_authoring_mesh(
         authoring_mesh,
         max_vertices,
         max_edges,
@@ -371,7 +371,7 @@ pub fn run_quad_draft(payload: &Map<String, Value>) -> Result<Value, GeometryErr
             "part_id":source_high_part_id,
             "input_node_ids":[source_high_node_id],
             "material_zone_id":source_high_material_zone_id,
-            "solid":true
+            "solid":boundary_edge_count == 0
         }],
         "canonical_sha256":""
     });
@@ -529,7 +529,7 @@ fn validate_quad_authoring_mesh(
     max_faces: usize,
     source_part_id: &str,
     source_node_id: &str,
-) -> Result<(), GeometryError> {
+) -> Result<usize, GeometryError> {
     let expected_fields = [
         "shape",
         "topology_policy",
@@ -736,21 +736,28 @@ fn validate_quad_authoring_mesh(
     if used_loops.len() != loop_by_id.len() {
         return Err(invalid("LOW_QUAD_DRAFT_UNOWNED_LOOP"));
     }
+    let mut boundary_edge_count = 0usize;
     for edge_id in &edge_ids {
         let incidence = edge_incidence
             .get(edge_id)
             .ok_or_else(|| invalid("LOW_QUAD_DRAFT_UNUSED_EDGE"))?;
-        if incidence.len() != 2
-            || incidence[0].0 == incidence[1].0
-            || incidence[0].1 == incidence[1].1
-        {
-            return Err(invalid("LOW_QUAD_DRAFT_NON_MANIFOLD_ORIENTATION"));
+        match incidence.as_slice() {
+            [single] => {
+                let _ = single;
+                boundary_edge_count += 1;
+            }
+            [first, second] => {
+                if first.0 == second.0 || first.1 == second.1 {
+                    return Err(invalid("LOW_QUAD_DRAFT_NON_MANIFOLD_ORIENTATION"));
+                }
+            }
+            _ => return Err(invalid("LOW_QUAD_DRAFT_NON_MANIFOLD_ORIENTATION")),
         }
     }
     if source_part_id.is_empty() || source_node_id.is_empty() {
         return Err(invalid("LOW_QUAD_DRAFT_SOURCE_BINDING_INVALID"));
     }
-    Ok(())
+    Ok(boundary_edge_count)
 }
 
 fn quad_edge_flow(parameters: &Map<String, Value>) -> Result<(Value, usize), GeometryError> {
@@ -830,6 +837,7 @@ fn quad_edge_flow(parameters: &Map<String, Value>) -> Result<(Value, usize), Geo
         }));
     }
     let mut adjacent_faces = Vec::new();
+    let mut boundary_edge_count = 0usize;
     for face in &flow_faces {
         let edge_ids = face
             .get("edge_ids")
@@ -841,20 +849,29 @@ fn quad_edge_flow(parameters: &Map<String, Value>) -> Result<(Value, usize), Geo
             let faces = edge_faces
                 .get(edge_id)
                 .ok_or_else(|| invalid("LOW_QUAD_DRAFT_FLOW_EDGE_UNKNOWN"))?;
-            if faces.len() != 2 {
-                return Err(invalid("LOW_QUAD_DRAFT_FLOW_EDGE_INCIDENT_INVALID"));
-            }
             let face_id = face
                 .get("face_id")
                 .and_then(Value::as_str)
                 .expect("face ID string");
-            adjacent.push(Value::String(
-                faces
-                    .iter()
-                    .find(|candidate| candidate.as_str() != face_id)
-                    .expect("closed edge has an adjacent face")
-                    .clone(),
-            ));
+            match faces.as_slice() {
+                [single] => {
+                    if single.as_str() != face_id {
+                        return Err(invalid("LOW_QUAD_DRAFT_FLOW_EDGE_BINDING_INVALID"));
+                    }
+                    boundary_edge_count += 1;
+                    adjacent.push(Value::Array(Vec::new()));
+                }
+                [first, second] => {
+                    adjacent.push(Value::String(
+                        [first, second]
+                            .into_iter()
+                            .find(|candidate| candidate.as_str() != face_id)
+                            .expect("closed edge has an adjacent face")
+                            .to_owned(),
+                    ));
+                }
+                _ => return Err(invalid("LOW_QUAD_DRAFT_FLOW_EDGE_INCIDENT_INVALID")),
+            }
         }
         adjacent_faces.push(json!({
             "face_id":face.get("face_id"),
@@ -880,7 +897,7 @@ fn quad_edge_flow(parameters: &Map<String, Value>) -> Result<(Value, usize), Geo
         "quad_faces":adjacent_faces,
         "quad_face_count":face_count,
         "edge_count":edge_faces.len(),
-        "boundary_edge_count":0,
+        "boundary_edge_count":boundary_edge_count,
         "non_manifold_edge_count":0,
         "vertex_face_valence_histogram":histogram,
         "status":"DRAFT_UNREVIEWED",

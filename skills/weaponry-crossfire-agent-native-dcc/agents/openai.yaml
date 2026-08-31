@@ -1,7 +1,7 @@
 interface:
   display_name: "Weaponry CrossFire Agent-native DCC"
   short_description: "Compose authorized weapon modeling transactions and evidence"
-  default_prompt: "Use $weaponry-crossfire-agent-native-dcc to build or revise an authorized nonfunctional game weapon through Weaponry's Rust-owned authoring, modifier, game-ready and approval gates."
+  default_prompt: "Use $weaponry-crossfire-agent-native-dcc to build or revise an authorized nonfunctional game knife through the 11-façade reference, AuthoringMesh, High-to-Low, UV/bake, material, FPS, engine, review, approval, and recovery gates."
 
 policy:
   allow_implicit_invocation: false

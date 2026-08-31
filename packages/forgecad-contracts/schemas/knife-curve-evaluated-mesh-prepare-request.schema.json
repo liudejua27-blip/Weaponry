@@ -37,7 +37,10 @@
     "modifier_graph_semantic_sha256": {"$ref": "#/$defs/sha256"},
     "dependency_graph_semantic_sha256": {"$ref": "#/$defs/sha256"},
     "recompute_plan_semantic_sha256": {"$ref": "#/$defs/sha256"},
-    "evaluation_plan": {"$ref": "#/$defs/knife_blade_profile_sweep_loft_plan"},
+    "evaluation_plan": {"oneOf": [
+      {"$ref": "#/$defs/knife_blade_profile_sweep_loft_plan"},
+      {"$ref": "#/$defs/knife_blade_profile_sweep_loft_plan_v2"}
+    ]},
     "idempotency_key": {"$ref": "#/$defs/idempotency_key"},
     "max_response_bytes": {"const": 1048576},
     "runtime_write_performed": {"const": false},
@@ -76,6 +79,68 @@
         "stable_triangulation": {"const": "station-ring-fixed-diagonal@1"},
         "stable_lineage_policy": {"const": "source-curve-modifier-graph-evaluated-mesh@1"},
         "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "knife_blade_profile_sweep_loft_plan_v2": {
+      "title": "KnifeBladeProfileSweepLoftPlan@2",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "evaluation_id", "spine_curve_id", "spine_curve_sha256",
+        "edge_curve_id", "edge_curve_sha256", "station_count", "sections",
+        "thickness_axis", "root_cap", "tip_cap", "view_constraints",
+        "stable_triangulation", "stable_lineage_policy", "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "KnifeBladeProfileSweepLoftPlan@2"},
+        "evaluation_id": {"$ref": "#/$defs/identifier"},
+        "spine_curve_id": {"$ref": "#/$defs/identifier"},
+        "spine_curve_sha256": {"$ref": "#/$defs/sha256"},
+        "edge_curve_id": {"$ref": "#/$defs/identifier"},
+        "edge_curve_sha256": {"$ref": "#/$defs/sha256"},
+        "station_count": {"type": "integer", "minimum": 4, "maximum": 256},
+        "sections": {
+          "type": "array", "minItems": 4, "maxItems": 16,
+          "items": {"$ref": "#/$defs/knife_blade_section"}
+        },
+        "thickness_axis": {"enum": ["local_normal", "world_x", "world_y", "world_z"]},
+        "root_cap": {"const": true},
+        "tip_cap": {"const": true},
+        "view_constraints": {
+          "type": "array", "minItems": 5, "maxItems": 5,
+          "items": {"$ref": "#/$defs/knife_blade_view_constraint"}
+        },
+        "stable_triangulation": {"const": "station-ring-fixed-diagonal@2"},
+        "stable_lineage_policy": {"const": "source-curve-modifier-graph-sectioned-evaluated-mesh@1"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "knife_blade_section": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "section_id", "role", "station_t", "body_thickness_m", "edge_thickness_m",
+        "spine_bevel_fraction", "edge_bevel_fraction", "center_offset_m"
+      ],
+      "properties": {
+        "section_id": {"$ref": "#/$defs/identifier"},
+        "role": {"enum": ["root", "mid", "belly", "tip"]},
+        "station_t": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "body_thickness_m": {"type": "number", "exclusiveMinimum": 0.00001, "maximum": 2.0},
+        "edge_thickness_m": {"type": "number", "exclusiveMinimum": 0.00001, "maximum": 2.0},
+        "spine_bevel_fraction": {"type": "number", "minimum": 0.0, "maximum": 0.5},
+        "edge_bevel_fraction": {"type": "number", "minimum": 0.0, "maximum": 0.5},
+        "center_offset_m": {"type": "number", "minimum": -1.0, "maximum": 1.0}
+      }
+    },
+    "knife_blade_view_constraint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["view", "min_x_m", "max_x_m", "min_y_m", "max_y_m"],
+      "properties": {
+        "view": {"enum": ["front", "top", "bottom", "left", "right"]},
+        "min_x_m": {"type": "number", "minimum": -20.0, "maximum": 20.0},
+        "max_x_m": {"type": "number", "minimum": -20.0, "maximum": 20.0},
+        "min_y_m": {"type": "number", "minimum": -20.0, "maximum": 20.0},
+        "max_y_m": {"type": "number", "minimum": -20.0, "maximum": 20.0}
       }
     }
   }

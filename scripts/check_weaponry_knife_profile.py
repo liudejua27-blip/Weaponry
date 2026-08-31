@@ -2,9 +2,10 @@
 """Focused contract gate for the closed Weaponry knife Tool profile.
 
 The profile is deliberately a small, separate manifest.  It groups the current
-MCP routes behind eleven public workflow façades without duplicating the 226
-route schemas or changing the MCP/Runtime implementation.  This checker binds
-the profile to the current source tool summary and keeps legacy replay explicit.
+MCP routes behind eleven public workflow façades without changing the legacy
+226-route compatibility manifest.  This checker binds the profile to the current
+source tool summary and keeps legacy replay explicit, including the one bounded
+source-genesis bridge that is exposed natively and retained for raw replay.
 """
 
 from __future__ import annotations
@@ -47,10 +48,63 @@ FACADES = [
 ]
 
 NATIVE_OPERATION_NAMES = {
+    "knife_reference_intent_bundle_prepare",
+    "knife_reference_intent_bundle_get",
+    "weaponry_knife_production_brief_prepare",
+    "weaponry_knife_production_brief_get",
     "knife_curve_modifier_graph_prepare",
     "knife_curve_modifier_graph_get",
     "knife_curve_evaluated_mesh_prepare",
     "knife_curve_evaluated_mesh_get",
+    "authoring_mesh_v2_candidate_materialize",
+    "authoring_mesh_v2_high_bridge_prepare",
+    "authoring_mesh_v2_high_bridge_get",
+    "authoring_mesh_v2_high_artifact_prepare",
+    "authoring_mesh_v2_high_artifact_get",
+    "production_knife_uv_bake_v2_prepare",
+    "production_knife_uv_bake_v2_get",
+    "high_artifact_reference_compare_prepare",
+    "knife_source_binding_prepare",
+    "knife_source_binding_get",
+    "production_weapon_authoring_mesh_v2_source_prepare",
+    "knife_pass_state_get",
+    "knife_pass_state_prepare",
+}
+NATIVE_COMPATIBILITY_OPERATION_NAMES = {
+    "production_weapon_authoring_mesh_v2_source_prepare",
+}
+NATIVE_OPERATIONS_BY_FACADE = {
+    "reference_intake": {
+        "knife_reference_intent_bundle_prepare",
+        "knife_reference_intent_bundle_get",
+        "weaponry_knife_production_brief_prepare",
+        "weaponry_knife_production_brief_get",
+    },
+    "authoring_transaction": NATIVE_OPERATION_NAMES
+    - {
+        "knife_reference_intent_bundle_prepare",
+        "knife_reference_intent_bundle_get",
+        "weaponry_knife_production_brief_prepare",
+        "weaponry_knife_production_brief_get",
+        "knife_pass_state_get",
+        "knife_pass_state_prepare",
+        "authoring_mesh_v2_high_artifact_get",
+        "authoring_mesh_v2_high_artifact_prepare",
+        "production_knife_uv_bake_v2_get",
+        "production_knife_uv_bake_v2_prepare",
+        "high_artifact_reference_compare_prepare",
+    },
+    "quality_review": {
+        "high_artifact_reference_compare_prepare",
+        "knife_pass_state_get",
+        "knife_pass_state_prepare",
+    },
+    "surface_pipeline": {
+        "authoring_mesh_v2_high_artifact_get",
+        "authoring_mesh_v2_high_artifact_prepare",
+        "production_knife_uv_bake_v2_get",
+        "production_knife_uv_bake_v2_prepare",
+    },
 }
 
 FORBIDDEN_PROPERTY_NAMES = {
@@ -296,7 +350,7 @@ def check_profile_shape(
         require(not set(read_tools) & set(write_tools), f"{name} read/write routes overlap")
         require(set(read_tools) <= read_set, f"{name} contains a route absent from current read manifest")
         require(set(write_tools) <= write_set, f"{name} contains a route absent from current write manifest")
-        facade_native = NATIVE_OPERATION_NAMES if name == "authoring_transaction" else set()
+        facade_native = NATIVE_OPERATIONS_BY_FACADE.get(name, set())
         require(
             underlying == sorted(set(read_tools) | set(write_tools) | facade_native),
             f"{name} underlying operation allowlist is not the sorted read/write/native union",
@@ -332,6 +386,38 @@ def check_profile_shape(
 
     native_operations = profile.get("native_operations")
     expected_native = {
+        "knife_reference_intent_bundle_prepare": {
+            "operation_name": "knife_reference_intent_bundle_prepare",
+            "classification": "write",
+            "facade_name": "reference_intake",
+            "request_schema": "KnifeReferenceIntentBundlePrepareRequest@1",
+            "result_schema": "KnifeReferenceIntentBundleResult@1",
+            "status": "native-development-only",
+        },
+        "knife_reference_intent_bundle_get": {
+            "operation_name": "knife_reference_intent_bundle_get",
+            "classification": "read",
+            "facade_name": "reference_intake",
+            "request_schema": "KnifeReferenceIntentBundleGetRequest@1",
+            "result_schema": "KnifeReferenceIntentBundleResult@1",
+            "status": "native-development-only",
+        },
+        "weaponry_knife_production_brief_prepare": {
+            "operation_name": "weaponry_knife_production_brief_prepare",
+            "classification": "write",
+            "facade_name": "reference_intake",
+            "request_schema": "WeaponryKnifeProductionBriefPrepareRequest@1",
+            "result_schema": "WeaponryKnifeProductionBriefResult@1",
+            "status": "native-development-only",
+        },
+        "weaponry_knife_production_brief_get": {
+            "operation_name": "weaponry_knife_production_brief_get",
+            "classification": "read",
+            "facade_name": "reference_intake",
+            "request_schema": "WeaponryKnifeProductionBriefGetRequest@1",
+            "result_schema": "WeaponryKnifeProductionBriefResult@1",
+            "status": "native-development-only",
+        },
         "knife_curve_modifier_graph_prepare": {
             "operation_name": "knife_curve_modifier_graph_prepare",
             "classification": "write",
@@ -356,6 +442,30 @@ def check_profile_shape(
             "result_schema": "KnifeCurveEvaluatedMeshResult@1",
             "status": "native-development-only",
         },
+        "authoring_mesh_v2_candidate_materialize": {
+            "operation_name": "authoring_mesh_v2_candidate_materialize",
+            "classification": "write",
+            "facade_name": "authoring_transaction",
+            "request_schema": "AuthoringMeshV2CandidateMaterializeRequest@1",
+            "result_schema": "AuthoringMeshV2CandidateMaterializeResult@1",
+            "status": "native-development-only",
+        },
+        "authoring_mesh_v2_high_bridge_prepare": {
+            "operation_name": "authoring_mesh_v2_high_bridge_prepare",
+            "classification": "write",
+            "facade_name": "authoring_transaction",
+            "request_schema": "AuthoringMeshV2HighBridgePrepareRequest@1",
+            "result_schema": "AuthoringMeshV2HighBridgeResult@1",
+            "status": "native-development-only",
+        },
+        "authoring_mesh_v2_high_bridge_get": {
+            "operation_name": "authoring_mesh_v2_high_bridge_get",
+            "classification": "read",
+            "facade_name": "authoring_transaction",
+            "request_schema": "AuthoringMeshV2HighBridgeGetRequest@1",
+            "result_schema": "AuthoringMeshV2HighBridgeResult@1",
+            "status": "native-development-only",
+        },
         "knife_curve_evaluated_mesh_get": {
             "operation_name": "knife_curve_evaluated_mesh_get",
             "classification": "read",
@@ -364,15 +474,97 @@ def check_profile_shape(
             "result_schema": "KnifeCurveEvaluatedMeshResult@1",
             "status": "native-development-only",
         },
+        "knife_source_binding_prepare": {
+            "operation_name": "knife_source_binding_prepare",
+            "classification": "write",
+            "facade_name": "authoring_transaction",
+            "request_schema": "KnifeSourceBindingPrepareRequest@1",
+            "result_schema": "KnifeSourceBindingResult@1",
+            "status": "native-development-only",
+        },
+        "knife_source_binding_get": {
+            "operation_name": "knife_source_binding_get",
+            "classification": "read",
+            "facade_name": "authoring_transaction",
+            "request_schema": "KnifeSourceBindingGetRequest@1",
+            "result_schema": "KnifeSourceBindingResult@1",
+            "status": "native-development-only",
+        },
+        "production_weapon_authoring_mesh_v2_source_prepare": {
+            "operation_name": "production_weapon_authoring_mesh_v2_source_prepare",
+            "classification": "write",
+            "facade_name": "authoring_transaction",
+            "request_schema": "ProductionWeaponAuthoringMeshV2SourcePrepareRequest@1",
+            "result_schema": "ProductionWeaponAuthoringMeshV2SourcePrepareResult@1",
+            "status": "native-development-only",
+        },
+        "knife_pass_state_get": {
+            "operation_name": "knife_pass_state_get",
+            "classification": "read",
+            "facade_name": "quality_review",
+            "request_schema": "KnifePassStateGetRequest@1",
+            "result_schema": "KnifePassStateResult@1",
+            "status": "native-development-only",
+        },
+        "knife_pass_state_prepare": {
+            "operation_name": "knife_pass_state_prepare",
+            "classification": "write",
+            "facade_name": "quality_review",
+            "request_schema": "KnifePassStatePrepareRequest@1",
+            "result_schema": "KnifePassStateResult@1",
+            "status": "native-development-only",
+        },
+        "authoring_mesh_v2_high_artifact_prepare": {
+            "operation_name": "authoring_mesh_v2_high_artifact_prepare",
+            "classification": "write",
+            "facade_name": "surface_pipeline",
+            "request_schema": "AuthoringMeshV2HighArtifactPrepareRequest@1",
+            "result_schema": "AuthoringMeshV2HighArtifactResult@1",
+            "status": "native-development-only",
+        },
+        "authoring_mesh_v2_high_artifact_get": {
+            "operation_name": "authoring_mesh_v2_high_artifact_get",
+            "classification": "read",
+            "facade_name": "surface_pipeline",
+            "request_schema": "AuthoringMeshV2HighArtifactGetRequest@1",
+            "result_schema": "AuthoringMeshV2HighArtifactResult@1",
+            "status": "native-development-only",
+        },
+        "production_knife_uv_bake_v2_prepare": {
+            "operation_name": "production_knife_uv_bake_v2_prepare",
+            "classification": "write",
+            "facade_name": "surface_pipeline",
+            "request_schema": "WeaponryKnifeUvBakeV2PrepareRequest@1",
+            "result_schema": "WeaponryKnifeUvBakeV2Result@1",
+            "status": "native-development-only",
+        },
+        "production_knife_uv_bake_v2_get": {
+            "operation_name": "production_knife_uv_bake_v2_get",
+            "classification": "read",
+            "facade_name": "surface_pipeline",
+            "request_schema": "WeaponryKnifeUvBakeV2GetRequest@1",
+            "result_schema": "WeaponryKnifeUvBakeV2Result@1",
+            "status": "native-development-only",
+        },
+        "high_artifact_reference_compare_prepare": {
+            "operation_name": "high_artifact_reference_compare_prepare",
+            "classification": "write",
+            "facade_name": "quality_review",
+            "request_schema": "HighArtifactReferenceComparePrepareRequest@1",
+            "result_schema": "HighArtifactReferenceComparisonPrepareResult@1",
+            "status": "native-development-only",
+        },
     }
     require(native_operations == expected_native, "native operation binding drifted")
     require(
         profile.get("native_operation_allowlist_sha256") == native_operation_hash(native_operations),
         "native operation allowlist hash is stale",
     )
+    legacy_native_overlap = set(native_operations) & (read_set | write_set)
     require(
-        not set(native_operations) & (read_set | write_set),
-        "native operation leaked into the legacy 226 route manifest",
+        legacy_native_overlap == NATIVE_COMPATIBILITY_OPERATION_NAMES
+        and NATIVE_COMPATIBILITY_OPERATION_NAMES <= write_set,
+        "native/legacy compatibility bridge drifted",
     )
 
     default_profile = profile.get("default_profile")

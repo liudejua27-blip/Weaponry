@@ -81,6 +81,13 @@ Blender 的产品身份固定为 `reference-only / unavailable-for-product`。�
 
 ### 2.1 img2threejs 研究快照（2026-08-12）
 
+2026-08-30 successor：已对 upstream `main@9fbd0ca5bbcc3b13bebe712745d6784d33db0b85`
+进行新的只读静态审计，冻结文件 hash 与 Apache-2.0 receipt 至
+`docs/evidence/adoption/img2threejs/9fbd0ca5bbcc3b13bebe712745d6784d33db0b85.yaml`。
+当前 Weaponry 采用设计见 `WEAPONRY_KNIFE_REFERENCE_CONVERGENCE_DESIGN_20260830.md`：
+只重写 evidence-first intake、detail binding、pass state、deterministic-first review 和 bounded
+correction；不安装/执行上游 Python/TypeScript/Three.js，也不直接采用其待校准 CS2 阈值。
+
 本次阅读了 upstream repository 的 README 与 `SKILL.md`。最值得移植的是方法，而不是运行时：先做 detail inventory 和质量合同，再按 `blockout → structural → form → material → lighting → interaction → optimization` 分阶段生成；每个可见特征必须落到有名字的组件/材质条目；每轮都用受控相机把 render 与 reference 对照，并对关键区域单独记录 confidence；单张图无法证明的背面和隐藏结构必须标为 approximate/unknown，而不是伪造确定性。upstream 明确把结果定位为 code-only、procedural、可编辑的 Three.js 场景，而不是不可编辑的黑盒 mesh。[img2threejs repository](https://github.com/img2threejs/img2threejs)、[upstream SKILL.md](https://github.com/img2threejs/img2threejs/blob/main/SKILL.md)
 
 ForgeCAD 已把这些原则映射到自己的边界：`GeometryProgram@2`/semantic Part/Operator Catalog 对应可编辑组件；`reference_compare_prepare`、九 AOV、`visual_review_submit` 和 `quality_get` 对应分阶段回看；Skill recipe 与 evidence manifest 对应 detail inventory/quality contract；unknown coverage 与 `BLOCKED_REFERENCE_COVERAGE` 对应单图不可见区域。当前没有安装 upstream Python/TypeScript skill，也没有把 Three.js、浏览器预览、Hosted Converter 或其任意脚本变成 Runtime 真值；产品真值仍是 Rust Worker 的 typed program、GLB BIN/accessor 回读、CAS hash 和用户确认。

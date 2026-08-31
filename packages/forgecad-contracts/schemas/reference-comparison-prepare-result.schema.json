@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-comparison-prepare-result.schema.json",
+  "title": "ReferenceComparisonPrepareResult@1",
+  "description": "Closed Runtime-owned result for one candidate-bound fixed-view comparison. The nested camera, RenderSet, comparison report and QualityReport are the exact durable evidence objects produced by reference_compare_prepare; this contract does not promote visual, human or engine quality.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "reference_id",
+    "camera",
+    "camera_object_sha256",
+    "render_set",
+    "render_set_hash",
+    "render_set_object_sha256",
+    "comparison_report",
+    "comparison_report_hash",
+    "comparison_report_object_sha256",
+    "quality_report",
+    "quality_report_object_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ReferenceComparisonPrepareResult@1"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "camera": {
+      "oneOf": [
+        {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration-v2.schema.json"}
+      ]
+    },
+    "camera_object_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set": {"$ref": "https://forgecad.local/contracts/render-set-v2.schema.json"},
+    "render_set_hash": {"$ref": "#/$defs/sha256"},
+    "render_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "comparison_report": {"$ref": "https://forgecad.local/contracts/reference-comparison-report.schema.json"},
+    "comparison_report_hash": {"$ref": "#/$defs/sha256"},
+    "comparison_report_object_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report": {"$ref": "https://forgecad.local/contracts/quality-report-v2.schema.json"},
+    "quality_report_object_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

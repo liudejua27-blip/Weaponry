@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/knife-reference-intent-bundle.schema.json",
+  "title": "KnifeReferenceIntentBundle@1",
+  "description": "Closed, hash-bound reference intent for the Weaponry knife High slice. It records observations and quality policy only; it carries no image bytes, locator, script, secret, or generated output.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "intent_bundle_id", "project_id", "brief_binding",
+    "reference_binding", "route", "exactness", "intake_manifest",
+    "detail_inventory", "quality_contract", "unknowns",
+    "canonicalization_policy", "canonical_sha256", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "KnifeReferenceIntentBundle@1"},
+    "intent_bundle_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "brief_binding": {"$ref": "#/$defs/brief_binding"},
+    "reference_binding": {"$ref": "#/$defs/reference_binding"},
+    "route": {"enum": ["reference-projection", "authored-texture", "procedural-finish"]},
+    "exactness": {"enum": ["image-only", "metadata-assisted", "exact-texture"]},
+    "intake_manifest": {"$ref": "#/$defs/intake_manifest"},
+    "detail_inventory": {"$ref": "#/$defs/detail_inventory"},
+    "quality_contract": {"$ref": "#/$defs/quality_contract"},
+    "unknowns": {
+      "type": "array", "minItems": 0, "maxItems": 64, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/unknown"}
+    },
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"},
+    "safe_text": {
+      "type": "string", "minLength": 1, "maxLength": 512,
+      "not": {"anyOf": [
+        {"pattern": "^[/\\\\]"},
+        {"pattern": "^[A-Za-z]:[/\\\\]"},
+        {"pattern": "(^|[/\\\\])\\.\\.?([/\\\\]|$)"},
+        {"pattern": "^(file|data|https?|ftp)://"},
+        {"pattern": "[Bb][Ll][Ee][Nn][Dd][Ee][Rr]\\s+--[Pp][Yy][Tt][Hh][Oo][Nn]\\b"},
+        {"pattern": "[Pp][Ll][Uu][Gg][Ii][Nn]|[Aa][Dd][Dd](?:-?[Oo][Nn])?\\b"},
+        {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+        {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+        {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+        {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"},
+        {"pattern": "[Oo][Uu][Tt][Pp][Uu][Tt]\\s*[:=]"}
+      ]}
+    },
+    "dimensions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "height": {"type": "integer", "minimum": 1, "maximum": 16384}
+      }
+    },
+    "brief_binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["brief_schema_version", "brief_id", "brief_sha256", "brief_object_sha256", "authoring_eligibility", "authorization_binding_status"],
+      "properties": {
+        "brief_schema_version": {"const": "WeaponryKnifeProductionBrief@1"},
+        "brief_id": {"$ref": "#/$defs/identifier"},
+        "brief_sha256": {"$ref": "#/$defs/sha256"},
+        "brief_object_sha256": {"$ref": "#/$defs/sha256"},
+        "authoring_eligibility": {"const": "ELIGIBLE"},
+        "authorization_binding_status": {"const": "runtime-bound"}
+      }
+    },
+    "reference_binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reference_id", "reference_object_sha256", "reference_evidence_sha256", "binding_status"],
+      "properties": {
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "reference_object_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "binding_status": {"const": "runtime-bound"}
+      }
+    },
+    "view_kind": {"enum": ["front", "back", "left", "right", "front-three-quarter", "rear-three-quarter", "top", "bottom", "fps-hold", "fps-inspect"]},
+    "coverage_observation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["view", "status"],
+      "properties": {
+        "view": {"$ref": "#/$defs/view_kind"},
+        "status": {"enum": ["observed", "inferred", "unknown"]}
+      }
+    },
+    "intake_record": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reference_id", "reference_object_sha256", "reference_evidence_sha256", "role", "resolution", "decode_status", "duplicate_status", "admission_status", "visible_coverage"],
+      "properties": {
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "reference_object_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "role": {"enum": ["primary", "secondary", "detail", "control"]},
+        "resolution": {"$ref": "#/$defs/dimensions"},
+        "decode_status": {"enum": ["decoded", "rejected", "not-run"]},
+        "duplicate_status": {"enum": ["unique", "duplicate", "not-run"]},
+        "admission_status": {"enum": ["admitted", "rejected", "blocked"]},
+        "visible_coverage": {"type": "array", "minItems": 1, "maxItems": 10, "uniqueItems": true, "items": {"$ref": "#/$defs/coverage_observation"}}
+      }
+    },
+    "intake_manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "manifest_id", "records", "canonicalization_policy", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "KnifeIntakeManifest@1"},
+        "manifest_id": {"$ref": "#/$defs/identifier"},
+        "records": {"type": "array", "minItems": 1, "maxItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/intake_record"}},
+        "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "evidence_region": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reference_id", "view", "x", "y", "width", "height", "status"],
+      "properties": {
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "view": {"$ref": "#/$defs/view_kind"},
+        "x": {"type": "number", "minimum": 0, "maximum": 1},
+        "y": {"type": "number", "minimum": 0, "maximum": 1},
+        "width": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "status": {"enum": ["observed", "inferred", "unknown"]}
+      }
+    },
+    "detail_target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_kind", "target_id", "mapping_status"],
+      "properties": {
+        "target_kind": {"enum": ["part", "edge-role", "material-zone", "surface-finish", "unknown"]},
+      "target_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+        "mapping_status": {"enum": ["mapped", "inferred", "unknown"]}
+      },
+      "allOf": [
+        {"if": {"properties": {"target_kind": {"const": "unknown"}}, "required": ["target_kind"]}, "then": {"properties": {"target_id": {"const": null}, "mapping_status": {"const": "unknown"}}}},
+        {"if": {"properties": {"mapping_status": {"const": "mapped"}}, "required": ["mapping_status"]}, "then": {"properties": {"target_id": {"type": "string"}, "target_kind": {"enum": ["part", "edge-role", "material-zone", "surface-finish"]}}}}
+      ]
+    },
+    "detail": {
+      "type": "object", "additionalProperties": false,
+      "required": ["detail_id", "scale", "family", "label", "evidence_regions", "confidence", "observation_status", "target", "priority", "high_action"],
+      "properties": {
+        "detail_id": {"$ref": "#/$defs/identifier"},
+        "scale": {"enum": ["macro", "meso", "micro"]},
+        "family": {"enum": ["silhouette", "cross-section", "attachment", "negative-space", "identity", "surface", "wear", "unknown"]},
+        "label": {"$ref": "#/$defs/safe_text"},
+        "evidence_regions": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_region"}},
+        "confidence": {"enum": ["high", "medium", "low"]},
+        "observation_status": {"enum": ["observed", "inferred", "unknown"]},
+        "target": {"$ref": "#/$defs/detail_target"},
+        "priority": {"type": "integer", "minimum": 1, "maximum": 16},
+        "high_action": {"enum": ["geometry", "later-normal-bake", "material-override", "defer-unknown"]}
+      }
+    },
+    "detail_inventory": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "inventory_id", "details", "canonicalization_policy", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "KnifeDetailInventory@1"},
+        "inventory_id": {"$ref": "#/$defs/identifier"},
+        "details": {"type": "array", "minItems": 1, "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/detail"}},
+        "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "evidence_region_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}:(front|back|left|right|front-three-quarter|rear-three-quarter|top|bottom|fps-hold|fps-inspect)$"
+    },
+    "critical_feature": {
+      "type": "object", "additionalProperties": false,
+      "required": ["feature_id", "feature_kind", "target_id", "source_status", "blocking", "evidence_region_ids"],
+      "properties": {
+        "feature_id": {"$ref": "#/$defs/identifier"},
+        "feature_kind": {"enum": ["silhouette", "proportion", "negative-space", "cross-section", "attachment", "topology", "normal", "identity", "material"]},
+        "target_id": {"$ref": "#/$defs/identifier"},
+        "source_status": {"enum": ["observed", "inferred", "unknown"]},
+        "blocking": {"type": "boolean"},
+        "evidence_region_ids": {"type": "array", "minItems": 0, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_region_id"}}
+      }
+    },
+    "fixed_view": {
+      "type": "object", "additionalProperties": false,
+      "required": ["view_id", "view", "comparison_role", "reference_required"],
+      "properties": {
+        "view_id": {"$ref": "#/$defs/identifier"},
+        "view": {"$ref": "#/$defs/view_kind"},
+        "comparison_role": {"enum": ["primary-reference", "orbit-nonreference", "fps-inspect"]},
+        "reference_required": {"type": "boolean"}
+      },
+      "allOf": [
+        {"if": {"properties": {"comparison_role": {"const": "primary-reference"}}, "required": ["comparison_role"]}, "then": {"properties": {"reference_required": {"const": true}}}},
+        {"if": {"properties": {"comparison_role": {"const": "orbit-nonreference"}}, "required": ["comparison_role"]}, "then": {"properties": {"reference_required": {"const": false}}}}
+      ]
+    },
+    "blocking_failure": {
+      "type": "object", "additionalProperties": false,
+      "required": ["failure_id", "gate_id", "condition", "blocks_promotion"],
+      "properties": {
+        "failure_id": {"$ref": "#/$defs/identifier"},
+        "gate_id": {"$ref": "#/$defs/identifier"},
+        "condition": {"enum": ["missing-lineage", "non-finite", "degenerate", "non-manifold", "self-intersection", "flipped-normal", "budget-exceeded", "silhouette-collapse", "attachment-invalid", "negative-space-collapse", "unknown"]},
+        "blocks_promotion": {"const": true}
+      }
+    },
+    "quality_contract": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "contract_id", "stage_order", "critical_features", "fixed_views", "blocking_failures", "threshold_fixture_sha256", "threshold_status", "correction_policy", "promotion_state", "canonicalization_policy", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "KnifeQualityContract@1"},
+        "contract_id": {"$ref": "#/$defs/identifier"},
+        "stage_order": {"const": ["camera-lock", "silhouette-blockout", "structural-form", "secondary-form", "high-geometry"]},
+        "critical_features": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/critical_feature"}},
+        "fixed_views": {"type": "array", "minItems": 1, "maxItems": 10, "uniqueItems": true, "items": {"$ref": "#/$defs/fixed_view"}},
+        "blocking_failures": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/blocking_failure"}},
+        "threshold_fixture_sha256": {"const": "cc99e2c26c147b27e59bb8544334ec24adfbd83f4e723d0c21599ebaf7304b4b"},
+        "threshold_status": {"const": "CALIBRATION_PENDING"},
+        "correction_policy": {
+          "type": "object", "additionalProperties": false,
+          "required": ["max_iterations_per_pass", "max_iterations_total", "one_changed_scope_per_iteration", "baseline_preserved"],
+          "properties": {
+            "max_iterations_per_pass": {"const": 3},
+            "max_iterations_total": {"const": 6},
+            "one_changed_scope_per_iteration": {"const": true},
+            "baseline_preserved": {"const": true}
+          }
+        },
+        "promotion_state": {"const": "HIGH_LOCKED_UNTIL_CALIBRATED_AND_REVIEWED@1"},
+        "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "unknown": {
+      "type": "object", "additionalProperties": false,
+      "required": ["unknown_id", "topic", "view", "description", "impact", "resolution_status"],
+      "properties": {
+        "unknown_id": {"$ref": "#/$defs/identifier"},
+        "topic": {"enum": ["reference-view", "hidden-surface", "identity", "geometry", "material", "camera", "engine", "other"]},
+        "view": {"anyOf": [{"$ref": "#/$defs/view_kind"}, {"type": "null"}]},
+        "description": {"$ref": "#/$defs/safe_text"},
+        "impact": {"enum": ["blocking", "non-blocking"]},
+        "resolution_status": {"const": "open"}
+      },
+      "allOf": [
+        {"if": {"properties": {"topic": {"const": "reference-view"}}, "required": ["topic"]}, "then": {"properties": {"view": {"type": "string"}}}},
+        {"if": {"properties": {"topic": {"const": "reference-view"}}, "required": ["topic"]}, "else": {"properties": {"view": {"const": null}}}}
+      ]
+    }
+  }
+}

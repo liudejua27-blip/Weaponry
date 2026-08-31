@@ -179,6 +179,80 @@ def plan_fixture(source: dict[str, Any]) -> dict[str, Any]:
     return plan
 
 
+def plan_v2_fixture(source: dict[str, Any]) -> dict[str, Any]:
+    """Return the V2 sectioned language envelope without mesh bytes.
+
+    The fixture intentionally uses the flattened public plan shape.  Runtime
+    reconstructs Core's nested tessellation plans from these closed values;
+    callers never provide a Core object or an evaluated mesh buffer.
+    """
+    plan = {
+        "schema_version": "KnifeBladeProfileSweepLoftPlan@2",
+        "evaluation_id": "knife-evaluation-v2-1",
+        "spine_curve_id": "blade-spine-1",
+        "spine_curve_sha256": sha256({"curve_id": "blade-spine-1", "role": "blade_spine"}),
+        "edge_curve_id": "blade-edge-1",
+        "edge_curve_sha256": sha256({"curve_id": "blade-edge-1", "role": "blade_edge"}),
+        "station_count": 32,
+        "sections": [
+            {
+                "section_id": "root-section",
+                "role": "root",
+                "station_t": 0.0,
+                "body_thickness_m": 0.12,
+                "edge_thickness_m": 0.035,
+                "spine_bevel_fraction": 0.25,
+                "edge_bevel_fraction": 0.08,
+                "center_offset_m": 0.01,
+            },
+            {
+                "section_id": "mid-section",
+                "role": "mid",
+                "station_t": 0.32,
+                "body_thickness_m": 0.09,
+                "edge_thickness_m": 0.022,
+                "spine_bevel_fraction": 0.18,
+                "edge_bevel_fraction": 0.12,
+                "center_offset_m": 0.005,
+            },
+            {
+                "section_id": "belly-section",
+                "role": "belly",
+                "station_t": 0.68,
+                "body_thickness_m": 0.1,
+                "edge_thickness_m": 0.018,
+                "spine_bevel_fraction": 0.12,
+                "edge_bevel_fraction": 0.2,
+                "center_offset_m": -0.004,
+            },
+            {
+                "section_id": "tip-section",
+                "role": "tip",
+                "station_t": 1.0,
+                "body_thickness_m": 0.035,
+                "edge_thickness_m": 0.008,
+                "spine_bevel_fraction": 0.1,
+                "edge_bevel_fraction": 0.3,
+                "center_offset_m": 0.0,
+            },
+        ],
+        "thickness_axis": "local_normal",
+        "root_cap": True,
+        "tip_cap": True,
+        "view_constraints": [
+            {"view": "front", "min_x_m": -1.0, "max_x_m": 1.0, "min_y_m": -1.0, "max_y_m": 2.0},
+            {"view": "top", "min_x_m": -1.0, "max_x_m": 1.0, "min_y_m": -1.0, "max_y_m": 1.0},
+            {"view": "bottom", "min_x_m": -1.0, "max_x_m": 1.0, "min_y_m": -1.0, "max_y_m": 1.0},
+            {"view": "left", "min_x_m": -1.0, "max_x_m": 2.0, "min_y_m": -1.0, "max_y_m": 1.0},
+            {"view": "right", "min_x_m": -1.0, "max_x_m": 2.0, "min_y_m": -1.0, "max_y_m": 1.0},
+        ],
+        "stable_triangulation": "station-ring-fixed-diagonal@2",
+        "stable_lineage_policy": "source-curve-modifier-graph-sectioned-evaluated-mesh@1",
+    }
+    plan["canonical_sha256"] = canonical_object_hash(plan)
+    return plan
+
+
 def source_hashes(source: dict[str, Any]) -> dict[str, str]:
     curve_set = sha256({"curve_set": "durable-curve-set-1"})
     sample_set = sha256({"sample_set": "durable-sample-set-1"})
@@ -272,21 +346,9 @@ def evaluation_lookup(source: dict[str, Any], source_hash: dict[str, str], plan:
 
 
 def plan_semantic(plan: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "schema_version": plan["schema_version"],
-        "evaluation_id": plan["evaluation_id"],
-        "spine_curve_id": plan["spine_curve_id"],
-        "spine_curve_sha256": plan["spine_curve_sha256"],
-        "edge_curve_id": plan["edge_curve_id"],
-        "edge_curve_sha256": plan["edge_curve_sha256"],
-        "station_count": plan["station_count"],
-        "thickness_axis": plan["thickness_axis"],
-        "thickness_m": plan["thickness_m"],
-        "root_cap": plan["root_cap"],
-        "tip_cap": plan["tip_cap"],
-        "stable_triangulation": plan["stable_triangulation"],
-        "stable_lineage_policy": plan["stable_lineage_policy"],
-    }
+    payload = copy.deepcopy(plan)
+    payload.pop("canonical_sha256", None)
+    return payload
 
 
 def prepare_fixture(source: dict[str, Any], source_hash: dict[str, str], plan: dict[str, Any]) -> dict[str, Any]:
@@ -329,6 +391,9 @@ def result_fixture(source: dict[str, Any], source_hash: dict[str, str], plan: di
         **mesh,
         "evaluated_mesh_identity_sha256": identity_sha,
         "evaluated_mesh_link_sha256": link_sha,
+        "materialization_program": None,
+        "materialization_program_sha256": None,
+        "materialization_program_status": "not-applicable-v1-evaluated-mesh",
         "closed_two_manifold": True,
         "zero_degenerate_triangles": True,
         "mesh_readback_status": "strict-evaluated-mesh-readback@1",
@@ -421,6 +486,21 @@ def check_semantics(source: dict[str, Any], source_hash: dict[str, str], plan: d
     require(source_hash["modifier_graph_semantic_sha256"] != source_hash["curve_set_semantic_sha256"], "semantic graph hash must not alias curve hash")
 
 
+def check_v2_semantics(plan: dict[str, Any]) -> None:
+    require(plan["schema_version"] == "KnifeBladeProfileSweepLoftPlan@2", "V2 plan version drifted")
+    require(plan["canonical_sha256"] == canonical_object_hash(plan), "V2 plan canonical hash drifted")
+    require(plan["spine_curve_id"] != plan["edge_curve_id"], "V2 spine and edge curves must be distinct")
+    require(4 <= plan["station_count"] <= 256, "V2 station count is outside the Core budget")
+    sections = plan["sections"]
+    require(4 <= len(sections) <= 16, "V2 section count is outside the Core budget")
+    require([section["role"] for section in sections] == ["root", "mid", "belly", "tip"], "V2 fixture must cover root/mid/belly/tip")
+    require(sections[0]["station_t"] == 0.0 and sections[-1]["station_t"] == 1.0, "V2 section domain must cover both endpoints")
+    views = {constraint["view"] for constraint in plan["view_constraints"]}
+    require(views == {"front", "top", "bottom", "left", "right"}, "V2 must bind all five fixed views")
+    require(plan["stable_triangulation"] == "station-ring-fixed-diagonal@2", "V2 triangulation policy drifted")
+    require(plan["stable_lineage_policy"] == "source-curve-modifier-graph-sectioned-evaluated-mesh@1", "V2 lineage policy drifted")
+
+
 def check_result(result: dict[str, Any], source: dict[str, Any], source_hash: dict[str, str], plan: dict[str, Any]) -> None:
     check_semantics(source, source_hash, plan)
     require(result["evaluation_plan_object_sha256"] == sha256(plan), "result plan object hash is stale")
@@ -453,7 +533,7 @@ def check_get(request: dict[str, Any], result: dict[str, Any]) -> None:
         require(request[key] == expected, f"get exact binding drifted: {key}")
 
 
-def check_negative_cases(schemas: dict[str, dict[str, Any]], registry: dict[str, dict[str, Any]], prepare: dict[str, Any], result: dict[str, Any], get: dict[str, Any], source: dict[str, Any], source_hash: dict[str, str], plan: dict[str, Any]) -> None:
+def check_negative_cases(schemas: dict[str, dict[str, Any]], registry: dict[str, dict[str, Any]], prepare: dict[str, Any], result: dict[str, Any], get: dict[str, Any], source: dict[str, Any], source_hash: dict[str, str], plan: dict[str, Any], prepare_v2: dict[str, Any]) -> None:
     candidate = copy.deepcopy(prepare)
     candidate["curve_graph_lookup_key_sha256"] = source_hash["curve_graph_lookup_key_sha256"]
     require(not is_valid(schemas[PREPARE], candidate, registry), "caller-supplied structural lookup key was accepted")
@@ -472,6 +552,15 @@ def check_negative_cases(schemas: dict[str, dict[str, Any]], registry: dict[str,
     candidate = copy.deepcopy(prepare)
     candidate["evaluation_plan"]["thickness_axis"] = "x"
     require(not is_valid(schemas[PREPARE], candidate, registry), "ambiguous thickness axis was accepted")
+    candidate = copy.deepcopy(prepare_v2)
+    candidate["evaluation_plan"]["sections"] = candidate["evaluation_plan"]["sections"][:3]
+    require(not is_valid(schemas[PREPARE], candidate, registry), "V2 plan accepted fewer than four sections")
+    candidate = copy.deepcopy(prepare_v2)
+    candidate["evaluation_plan"]["view_constraints"] = candidate["evaluation_plan"]["view_constraints"][:4]
+    require(not is_valid(schemas[PREPARE], candidate, registry), "V2 plan accepted partial five-view constraints")
+    candidate = copy.deepcopy(prepare_v2)
+    candidate["evaluation_plan"]["stable_triangulation"] = "station-ring-fixed-diagonal@1"
+    require(not is_valid(schemas[PREPARE], candidate, registry), "V2 plan accepted the V1 triangulation policy")
     candidate = copy.deepcopy(result)
     candidate["geometry_artifact_created"] = True
     require(not is_valid(schemas[RESULT], candidate, registry), "geometry artifact overclaim was accepted")
@@ -493,7 +582,11 @@ def check_native_bindings() -> None:
     manifest = load(MANIFEST_PATH)
     source = load(SOURCE_SUMMARY_PATH)
     profile = load(PROFILE_ROOT / "weaponry-knife-p0.json")
-    require(set(profile.get("native_operations", {})) == set(NATIVE_OPERATIONS), "profile native operation set drifted")
+    # The current source cohort may contain additional native knife contracts
+    # owned by sibling slices. This focused gate only owns the Curve and
+    # EvaluatedMesh pair; it must not fail merely because another slice added
+    # a native operation to the same profile.
+    require(set(NATIVE_OPERATIONS) <= set(profile.get("native_operations", {})), "Curve native operation set is incomplete")
     legacy = set(source["read_names"]) | set(source["write_names"])
     require(not legacy & set(NATIVE_OPERATIONS), "new façade-native operations leaked into legacy raw tools/list")
     for operation, (classification, request_schema, result_schema) in NATIVE_OPERATIONS.items():
@@ -532,13 +625,17 @@ def run_checks() -> None:
     plan = plan_fixture(source)
     prepare = prepare_fixture(source, source_hash, plan)
     require(is_valid(schemas[PREPARE], prepare, registry), "valid prepare fixture rejected")
+    plan_v2 = plan_v2_fixture(source)
+    prepare_v2 = prepare_fixture(source, source_hash, plan_v2)
+    require(is_valid(schemas[PREPARE], prepare_v2, registry), "valid V2 prepare fixture rejected")
+    check_v2_semantics(plan_v2)
     result = result_fixture(source, source_hash, plan)
     require(is_valid(schemas[RESULT], result, registry), "valid result fixture rejected")
     check_result(result, source, source_hash, plan)
     get = get_fixture(source, source_hash, result)
     require(is_valid(schemas[GET], get, registry), "valid get fixture rejected")
     check_get(get, result)
-    check_negative_cases(schemas, registry, prepare, result, get, source, source_hash, plan)
+    check_negative_cases(schemas, registry, prepare, result, get, source, source_hash, plan, prepare_v2)
     check_native_bindings()
     check_legacy_compatibility()
 

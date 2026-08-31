@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/high-artifact-reference-comparison-prepare-result.schema.json",
+  "title": "HighArtifactReferenceComparisonPrepareResult@1",
+  "description": "Closed direct High Artifact comparison result. Nested render and metric objects are immutable CAS projections and never become Candidate visual evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "high_artifact_id", "high_artifact_sha256",
+    "high_artifact_object_sha256", "high_artifact_readback_sha256",
+    "high_artifact_readback_object_sha256", "high_artifact_receipt_sha256",
+    "high_artifact_receipt_object_sha256", "reference_id", "view_id", "camera",
+    "camera_object_sha256", "render_set", "render_set_hash", "render_set_object_sha256",
+    "comparison_report", "comparison_report_hash", "comparison_report_object_sha256",
+    "high_artifact_status", "visual_status", "human_status", "engine_status",
+    "candidate_visual_evidence_projection"
+  ],
+  "properties": {
+    "schema_version": {"const": "HighArtifactReferenceComparisonPrepareResult@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "high_artifact_id": {"$ref": "#/$defs/id"},
+    "high_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_object_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "view_id": {"$ref": "#/$defs/id"},
+    "camera": {
+      "oneOf": [
+        {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration-v2.schema.json"}
+      ]
+    },
+    "camera_object_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set": {"$ref": "#/$defs/high_artifact_render_set"},
+    "render_set_hash": {"$ref": "#/$defs/sha256"},
+    "render_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "comparison_report": {"$ref": "#/$defs/high_artifact_comparison_report"},
+    "comparison_report_hash": {"$ref": "#/$defs/sha256"},
+    "comparison_report_object_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_status": {"const": "PASS_SOURCE_STRUCTURAL"},
+    "visual_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET"]},
+    "human_status": {"const": "NOT_RUN"},
+    "engine_status": {"const": "NOT_RUN"},
+    "candidate_visual_evidence_projection": {"const": "NOT_UPDATED"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "high_artifact_render_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "project_id", "high_artifact_id", "high_artifact_sha256",
+        "high_artifact_object_sha256", "high_artifact_readback_sha256",
+        "high_artifact_readback_object_sha256", "high_artifact_receipt_sha256",
+        "high_artifact_receipt_object_sha256", "high_bridge_id", "high_bridge_sha256",
+        "high_bridge_object_sha256", "revision_id", "revision_sha256", "revision_object_sha256",
+        "high_result_sha256", "high_result_object_sha256", "high_readback_sha256",
+        "high_readback_object_sha256", "high_worker_algorithm_sha256",
+        "high_worker_build_cohort_sha256", "reference_id", "view_id", "camera_hash",
+        "camera_object_sha256", "renderer_hash", "render_profile", "render_profile_sha256",
+        "aov_definition_sha256", "color_pipeline_sha256", "id_palette_definition_sha256",
+        "render_worker_build_cohort_sha256", "render_worker_binding_status", "width", "height",
+        "passes", "pass_artifacts", "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "HighArtifactRenderSet@1"},
+        "project_id": {"$ref": "#/$defs/id"},
+        "high_artifact_id": {"$ref": "#/$defs/id"},
+        "high_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_bridge_id": {"$ref": "#/$defs/id"},
+        "high_bridge_sha256": {"$ref": "#/$defs/sha256"},
+        "high_bridge_object_sha256": {"$ref": "#/$defs/sha256"},
+        "revision_id": {"$ref": "#/$defs/id"},
+        "revision_sha256": {"$ref": "#/$defs/sha256"},
+        "revision_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_result_sha256": {"$ref": "#/$defs/sha256"},
+        "high_result_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_readback_sha256": {"$ref": "#/$defs/sha256"},
+        "high_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_worker_algorithm_sha256": {"$ref": "#/$defs/sha256"},
+        "high_worker_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_id": {"$ref": "#/$defs/id"},
+        "view_id": {"$ref": "#/$defs/id"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "camera_object_sha256": {"$ref": "#/$defs/sha256"},
+        "renderer_hash": {"$ref": "#/$defs/sha256"},
+        "render_profile": {"$ref": "https://forgecad.local/contracts/render-profile.schema.json"},
+        "render_profile_sha256": {"$ref": "#/$defs/sha256"},
+        "aov_definition_sha256": {"$ref": "#/$defs/sha256"},
+        "color_pipeline_sha256": {"$ref": "#/$defs/sha256"},
+        "id_palette_definition_sha256": {"$ref": "#/$defs/sha256"},
+        "render_worker_build_cohort_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "render_worker_binding_status": {"enum": ["same_cohort_verified", "cohort_unavailable"]},
+        "width": {"const": 512},
+        "height": {"const": 512},
+        "passes": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "prefixItems": [
+            {"const": "beauty"}, {"const": "silhouette"}, {"const": "depth"},
+            {"const": "normal"}, {"const": "ao"}, {"const": "part-id"},
+            {"const": "material-id"}, {"const": "wireframe"}, {"const": "uv-stretch"}
+          ],
+          "items": false
+        },
+        "pass_artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"],
+          "properties": {
+            "beauty": {"$ref": "#/$defs/high_pass_artifact"},
+            "silhouette": {"$ref": "#/$defs/high_pass_artifact"},
+            "depth": {"$ref": "#/$defs/high_pass_artifact"},
+            "normal": {"$ref": "#/$defs/high_pass_artifact"},
+            "ao": {"$ref": "#/$defs/high_pass_artifact"},
+            "part-id": {"$ref": "#/$defs/high_pass_artifact"},
+            "material-id": {"$ref": "#/$defs/high_pass_artifact"},
+            "wireframe": {"$ref": "#/$defs/high_pass_artifact"},
+            "uv-stretch": {"$ref": "#/$defs/high_pass_artifact"}
+          }
+        },
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "high_pass_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "mime", "size_bytes", "width", "height", "channels", "color_space"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "mime": {"const": "image/png"},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "width": {"const": 512},
+        "height": {"const": 512},
+        "channels": {"const": "rgba8"},
+        "color_space": {"enum": ["srgb", "data"]}
+      }
+    },
+    "high_artifact_comparison_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "report_id", "project_id", "high_artifact_id", "high_artifact_sha256",
+        "high_artifact_object_sha256", "high_artifact_readback_sha256",
+        "high_artifact_readback_object_sha256", "high_artifact_receipt_sha256",
+        "high_artifact_receipt_object_sha256", "high_bridge_id", "high_bridge_sha256",
+        "high_bridge_object_sha256", "revision_id", "revision_sha256", "revision_object_sha256",
+        "high_result_sha256", "high_result_object_sha256", "high_readback_sha256",
+        "high_readback_object_sha256", "high_worker_algorithm_sha256",
+        "high_worker_build_cohort_sha256", "reference_id", "reference_sha256", "render_set_hash",
+        "camera_hash", "benchmark_eligibility", "mask", "metrics", "status", "limitations",
+        "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "HighArtifactReferenceComparisonReport@1"},
+        "report_id": {"$ref": "#/$defs/id"},
+        "project_id": {"$ref": "#/$defs/id"},
+        "high_artifact_id": {"$ref": "#/$defs/id"},
+        "high_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "high_artifact_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_bridge_id": {"$ref": "#/$defs/id"},
+        "high_bridge_sha256": {"$ref": "#/$defs/sha256"},
+        "high_bridge_object_sha256": {"$ref": "#/$defs/sha256"},
+        "revision_id": {"$ref": "#/$defs/id"},
+        "revision_sha256": {"$ref": "#/$defs/sha256"},
+        "revision_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_result_sha256": {"$ref": "#/$defs/sha256"},
+        "high_result_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_readback_sha256": {"$ref": "#/$defs/sha256"},
+        "high_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+        "high_worker_algorithm_sha256": {"$ref": "#/$defs/sha256"},
+        "high_worker_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_id": {"$ref": "#/$defs/id"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "render_set_hash": {"$ref": "#/$defs/sha256"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "benchmark_eligibility": {"const": "DIRECT_HIGH_ARTIFACT_COMPARE"},
+        "mask": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "revision", "sha256", "width", "height"],
+          "properties": {
+            "method": {"const": "direct-reference-mask"},
+            "revision": {"$ref": "#/$defs/id"},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "width": {"const": 512},
+            "height": {"const": 512}
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou", "critical_region_min_iou"],
+          "properties": {
+            "silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1},
+            "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1},
+            "bbox_edge_error": {"type": "number", "minimum": 0, "maximum": 1},
+            "centroid_error": {"type": "number", "minimum": 0, "maximum": 1},
+            "landmark_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+            "landmark_nme": {"type": "number", "minimum": 0, "maximum": 1},
+            "region_median_iou": {"type": "number", "minimum": 0, "maximum": 1},
+            "critical_region_min_iou": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        },
+        "status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET"]},
+        "limitations": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {"const": "candidate_visual_evidence_projection_not_updated"},
+            {"const": "human_visual_review_not_run"},
+            {"const": "commercial_quality_not_proven"}
+          ],
+          "items": false
+        },
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

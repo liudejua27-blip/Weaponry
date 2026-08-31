@@ -20,6 +20,13 @@ pub(crate) fn invoke(
 ) -> Result<Value, RuntimeError> {
     match operation {
         "authoring_mesh_transaction_prepare" => runtime.authoring_mesh_transaction_prepare(payload),
+        "authoring_mesh_v2_candidate_materialize" => {
+            runtime.authoring_mesh_v2_candidate_materialize(payload)
+        }
+        "authoring_mesh_v2_high_bridge_prepare" => {
+            runtime.authoring_mesh_v2_high_bridge_prepare(payload)
+        }
+        "authoring_mesh_v2_high_bridge_get" => runtime.authoring_mesh_v2_high_bridge_get(payload),
         "authoring_mesh_v2_durable_prepare" => runtime.authoring_mesh_v2_durable_prepare(payload),
         "knife_curve_modifier_graph_prepare" => runtime.knife_curve_modifier_graph_prepare(payload),
         "knife_curve_modifier_graph_get" => runtime.knife_curve_modifier_graph_get(payload),
@@ -33,6 +40,18 @@ pub(crate) fn invoke(
         "weapon_foundation_authoring_materialization_get" => {
             runtime.weapon_foundation_authoring_materialization_get(payload)
         }
+        "weaponry_knife_production_brief_prepare" => {
+            runtime.weaponry_knife_production_brief_prepare(payload)
+        }
+        "weaponry_knife_production_brief_get" => {
+            runtime.weaponry_knife_production_brief_get(payload)
+        }
+        "knife_reference_intent_bundle_prepare" => {
+            runtime.knife_reference_intent_bundle_prepare(payload)
+        }
+        "knife_reference_intent_bundle_get" => runtime.knife_reference_intent_bundle_get(payload),
+        "knife_source_binding_prepare" => runtime.knife_source_binding_prepare(payload),
+        "knife_source_binding_get" => runtime.knife_source_binding_get(payload),
         _ => runtime.dispatch_ipc(operation, payload),
     }
 }

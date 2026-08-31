@@ -1,5 +1,11 @@
 # Weaponry 刀类模块评估与优化顺序 — 2026-08-30
 
+> `WPN-KNIFE-BRIEF-RUNTIME-001` addendum：Contracts 新增 4 个 Brief schema，默认 Knife profile
+> 为 11 façade / 127 active operation / 127 closed request；Runtime 新增 Authoring-owned Brief service，
+> Store 新增独立 Brief repository/CAS record，MCP 复用中央 map 与 `reference_intake`，未新增主题 façade。
+> 这使 Brief 形成一一映射；isolated live parent/successor/replay/restart readback 已 PASS，High 已领取但
+> 尚无 mesh。它不表示 Runtime/Store 整体物理拆分完成，也不证明 Dragonfang 视觉/商业质量。
+
 状态：`WPN-ARCH-RUNTIME-STORE-SPLIT-001 / DONE_SOURCE_PHYSICAL_BATCH_001 / OVERALL_PHYSICAL_EXTRACTION_PENDING`
 
 > 2026-08-30 current addendum：Runtime Evaluation reference-comparison/visual-review family 已物理迁出，Runtime root **52,542→51,603**；Store Delivery ApprovalLifecycle 已物理迁出，Store root **79,841→78,865**；compat session/checkpoint/recovery 已物理迁出，`agentic_write_tools.rs` **16,674→16,532**。Runtime root modules 仍为 92，MCP default/compat root 为 996/19,332，fresh dep-info 为 10/44。architecture-fast cohort=`81a58a3d5c07bafbea82b80f3b9ab74f387e06b63380d5c8845199f56d217ee5`，90/0/0 PASS；Store/MCP full=192/192、41/41、237/237 PASS。

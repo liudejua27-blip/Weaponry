@@ -18,7 +18,7 @@ use super::{
 };
 use base64::Engine;
 use forgecad_contracts::{
-    LowQuadDraftDurableRecord, LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND,
+    CasObjectRecord, LowQuadDraftDurableRecord, LOW_QUAD_DRAFT_DURABLE_ARTIFACT_KIND,
     LOW_QUAD_DRAFT_DURABLE_ARTIFACT_READBACK_SCHEMA_VERSION,
     LOW_QUAD_DRAFT_DURABLE_CANONICALIZATION_POLICY,
     LOW_QUAD_DRAFT_DURABLE_GET_RESULT_SCHEMA_VERSION, LOW_QUAD_DRAFT_DURABLE_GET_SCHEMA_VERSION,
@@ -49,6 +49,10 @@ const ARTIFACT_READBACK_KIND: &str = LOW_QUAD_DRAFT_DURABLE_READBACK_KIND;
 const MAX_SOURCE_JSON_BYTES: u64 = LOW_QUAD_DRAFT_DURABLE_MAX_JSON_BYTES;
 const MAX_WORKER_RESULT_BYTES: u64 = LOW_QUAD_DRAFT_DURABLE_MAX_JSON_BYTES;
 const MAX_SOURCE_GLB_BYTES: u64 = LOW_QUAD_DRAFT_DURABLE_MAX_GLB_BYTES;
+
+const V2_HIGH_ARTIFACT_GLB_KIND: &str = "authoring-mesh-v2-high-artifact-glb@1";
+const V2_HIGH_ARTIFACT_READBACK_KIND: &str = "authoring-mesh-v2-high-artifact-readback@1";
+const V2_HIGH_ARTIFACT_READBACK_SCHEMA: &str = "AuthoringMeshV2HighArtifactStoreReadback@1";
 
 const PREPARE_FIELDS: &[&str] = &[
     "schema_version",
@@ -344,10 +348,271 @@ fn parse_get(value: &Value) -> Result<&Map<String, Value>, RuntimeError> {
     Ok(object)
 }
 
-fn source_preflight(
+fn source_preflight_v2(
     runtime: &Runtime,
     request: &PrepareRequest,
-) -> Result<(forgecad_store::NativeHighDurableRecord, Vec<u8>), RuntimeError> {
+    source_object: &CasObjectRecord,
+) -> Result<Vec<u8>, RuntimeError> {
+    let worker = request
+        .worker_request
+        .as_object()
+        .ok_or_else(|| invalid("nested Low quad Worker request is missing"))?;
+    let worker_source_id = |field: &str| {
+        worker
+            .get(field)
+            .and_then(Value::as_str)
+            .filter(|value| is_opaque_id(value))
+            .map(str::to_owned)
+            .ok_or_else(|| invalid(format!("nested Worker {field} is not an opaque id")))
+    };
+    let requested_part_id = worker_source_id("source_high_part_id")?;
+    let requested_source_node_id = worker_source_id("source_high_node_id")?;
+    let requested_material_zone_id = worker_source_id("source_high_material_zone_id")?;
+    let high = runtime
+        .store
+        .get_authoring_mesh_v2_high_artifact_for_low(
+            &request.project_id,
+            &request.source_high_artifact_id,
+        )?
+        .ok_or_else(|| invalid("durable V2 High artifact source is unavailable"))?;
+    if high.project_id != request.project_id
+        || high.artifact_id != request.source_high_artifact_id
+        || high.high_artifact_sha256 != request.source_high_artifact_sha256
+        || high.high_artifact_object_sha256 != request.source_high_artifact_object_sha256
+        || high.high_artifact_readback_sha256 != request.source_high_artifact_readback_sha256
+        || high.high_artifact_readback_object_sha256
+            != request.source_high_artifact_readback_object_sha256
+        || high.materialized_candidate_id != request.candidate_id
+        || high.materialized_candidate_state_sha256 != request.candidate_state_sha256
+    {
+        return Err(invalid("source V2 High durable artifact binding differs"));
+    }
+    let bridge = runtime
+        .store
+        .get_authoring_mesh_v2_high_bridge_by_id(&high.project_id, &high.bridge_id)?
+        .ok_or_else(|| invalid("source V2 High bridge is unavailable"))?;
+    // The bridge identifies the Part being replaced, but its source node is
+    // the pre-materialization node.  A source-bound AuthoringMesh V2 High
+    // artifact legitimately substitutes that node.  Bind the replacement to
+    // the exact node/material tuple embedded in the strict High GLB below.
+    let requested_bridge_binding_matches = requested_part_id == bridge.part_id
+        && requested_material_zone_id == bridge.material_zone_id;
+    let requested_preserved_part = bridge
+        .preserved_part_ids
+        .iter()
+        .any(|part_id| part_id == &requested_part_id);
+    if bridge.project_id != high.project_id
+        || bridge.bridge_id != high.bridge_id
+        || bridge.bridge_sha256 != high.bridge_sha256
+        || bridge.bridge_object_sha256 != high.bridge_object_sha256
+        || (!requested_bridge_binding_matches && !requested_preserved_part)
+    {
+        return Err(invalid("source V2 High bridge Part binding differs"));
+    }
+    // The durable artifact row proves the bridge/revision/result/cohort
+    // ancestry.  This independent byte parser additionally proves that the
+    // GLB's embedded source identity is the direct V2 High result, rather
+    // than a caller-supplied or legacy artifact with a relabeled CAS kind.
+    if source_object.mime != GLB_MIME
+        || source_object.kind != V2_HIGH_ARTIFACT_GLB_KIND
+        || source_object.size_bytes == 0
+        || source_object.size_bytes > MAX_SOURCE_GLB_BYTES
+    {
+        return Err(invalid("source V2 High CAS metadata differs"));
+    }
+    let artifact_bytes = runtime.cas_read_bounded(
+        &request.source_high_artifact_object_sha256,
+        MAX_SOURCE_GLB_BYTES.min(MAX_GEOMETRY_ARTIFACT_BYTES),
+    )?;
+    if sha256_hex(&artifact_bytes) != request.source_high_artifact_object_sha256
+        || artifact_bytes.len() as u64 != source_object.size_bytes
+    {
+        return Err(invalid("source V2 High GLB CAS hash differs"));
+    }
+    let high_mesh_id = format!("high-mesh-{}", &high.high_result_sha256[..24]);
+    let inspection =
+        super::native_high_glb_readback::inspect_authoring_mesh_v2_high_glb(&artifact_bytes)
+            .map_err(|error| invalid(error.to_string()))?;
+    let inspected_part_ids = inspection
+        .get("part_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("source V2 High GLB Part inventory is missing"))?;
+    let inspected_source_node_ids = inspection
+        .get("source_node_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("source V2 High GLB source-node inventory is missing"))?;
+    let inspected_material_zone_ids = inspection
+        .get("material_zone_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("source V2 High GLB material inventory is missing"))?;
+    if inspection.get("glb_sha256").and_then(Value::as_str)
+        != Some(request.source_high_artifact_object_sha256.as_str())
+        || inspection.get("source_artifact_id").and_then(Value::as_str)
+            != Some(high_mesh_id.as_str())
+        || inspection
+            .get("source_artifact_sha256")
+            .and_then(Value::as_str)
+            != Some(high.high_result_sha256.as_str())
+        || inspection
+            .get("base_primitive_count")
+            .and_then(Value::as_u64)
+            != Some(high.high_evaluated_part_count)
+        || inspection
+            .get("detail_primitive_count")
+            .and_then(Value::as_u64)
+            != Some(0)
+        || inspected_part_ids.len() != high.high_evaluated_part_count as usize
+        || inspected_source_node_ids.len() != inspected_part_ids.len()
+        || inspected_material_zone_ids.len() != inspected_part_ids.len()
+        || !inspected_part_ids.iter().enumerate().any(|(index, value)| {
+            value.as_str() == Some(requested_part_id.as_str())
+                && inspected_source_node_ids.get(index).and_then(Value::as_str)
+                    == Some(requested_source_node_id.as_str())
+                && inspected_material_zone_ids
+                    .get(index)
+                    .and_then(Value::as_str)
+                    == Some(requested_material_zone_id.as_str())
+        })
+    {
+        return Err(invalid("source V2 High GLB embedded lineage differs"));
+    }
+    let readback_object = runtime
+        .store
+        .get_object(&request.source_high_artifact_readback_object_sha256)?
+        .ok_or_else(|| invalid("source V2 High readback CAS object is unavailable"))?;
+    if readback_object.mime != JSON_MIME
+        || readback_object.kind != V2_HIGH_ARTIFACT_READBACK_KIND
+        || readback_object.size_bytes == 0
+        || readback_object.size_bytes > MAX_SOURCE_JSON_BYTES
+    {
+        return Err(invalid("source V2 High readback CAS metadata differs"));
+    }
+    let readback_bytes = runtime.cas_read_bounded(
+        &request.source_high_artifact_readback_object_sha256,
+        MAX_SOURCE_JSON_BYTES.min(MAX_DERIVED_JSON_BYTES),
+    )?;
+    if sha256_hex(&readback_bytes) != request.source_high_artifact_readback_object_sha256
+        || readback_bytes.len() as u64 != readback_object.size_bytes
+    {
+        return Err(invalid("source V2 High readback CAS hash differs"));
+    }
+    let readback: Value = serde_json::from_slice(&readback_bytes)
+        .map_err(|_| invalid("source V2 High readback JSON is invalid"))?;
+    // The readback payload carries artifact/bridge semantic identity only. Its
+    // own CAS object hash and materialized candidate identity are supplied by
+    // the exact durable Store/request binding verified above. Embedding the
+    // former would require an impossible self-reference; duplicating the
+    // latter here would create a second candidate authority.
+    if readback.get("schema_version").and_then(Value::as_str)
+        != Some(V2_HIGH_ARTIFACT_READBACK_SCHEMA)
+        || readback.get("project_id").and_then(Value::as_str) != Some(request.project_id.as_str())
+        || readback.get("high_artifact_sha256").and_then(Value::as_str)
+            != Some(request.source_high_artifact_sha256.as_str())
+        || readback
+            .get("high_artifact_object_sha256")
+            .and_then(Value::as_str)
+            != Some(request.source_high_artifact_object_sha256.as_str())
+        || readback
+            .get("high_artifact_readback_sha256")
+            .and_then(Value::as_str)
+            != Some(request.source_high_artifact_readback_sha256.as_str())
+        || readback.get("high_result_sha256").and_then(Value::as_str)
+            != Some(high.high_result_sha256.as_str())
+        || readback
+            .get("high_worker_build_cohort_sha256")
+            .and_then(Value::as_str)
+            != Some(high.high_worker_build_cohort_sha256.as_str())
+    {
+        return Err(invalid("source V2 High readback identity differs"));
+    }
+    let strict = readback
+        .get("strict_readback")
+        .and_then(Value::as_object)
+        .ok_or_else(|| invalid("source V2 High strict readback is missing"))?;
+    let strict_inventory = |field: &str| -> Result<&Vec<Value>, RuntimeError> {
+        strict
+            .get(field)
+            .and_then(Value::as_array)
+            .ok_or_else(|| invalid(format!("source V2 High strict {field} is missing")))
+    };
+    let strict_part_ids = strict_inventory("part_ids")?;
+    let strict_source_node_ids = strict_inventory("source_node_ids")?;
+    let strict_material_zone_ids = strict_inventory("material_zone_ids")?;
+    if strict_part_ids.len() != high.high_evaluated_part_count as usize
+        || strict_source_node_ids.len() != strict_part_ids.len()
+        || strict_material_zone_ids.len() != strict_part_ids.len()
+    {
+        return Err(invalid(
+            "source V2 High strict Part inventory count differs",
+        ));
+    }
+    let part_index = strict_part_ids
+        .iter()
+        .position(|value| value.as_str() == Some(requested_part_id.as_str()))
+        .ok_or_else(|| invalid("source V2 High strict Part binding differs"))?;
+    if strict_source_node_ids[part_index].as_str() != Some(requested_source_node_id.as_str())
+        || strict_material_zone_ids[part_index].as_str()
+            != Some(requested_material_zone_id.as_str())
+    {
+        return Err(invalid(
+            "source V2 High strict Part node/material binding differs",
+        ));
+    }
+    let bindings = strict
+        .get("part_bindings")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("source V2 High strict part_bindings is missing"))?;
+    if bindings.len() != high.high_evaluated_part_count as usize {
+        return Err(invalid("source V2 High strict part_bindings count differs"));
+    }
+    let binding = bindings
+        .iter()
+        .find(|value| {
+            value.get("part_id").and_then(Value::as_str) == Some(requested_part_id.as_str())
+                && value.get("source_node_id").and_then(Value::as_str)
+                    == Some(requested_source_node_id.as_str())
+                && value.get("material_zone_id").and_then(Value::as_str)
+                    == Some(requested_material_zone_id.as_str())
+        })
+        .ok_or_else(|| invalid("source V2 High strict part binding is unavailable"))?
+        .as_object()
+        .ok_or_else(|| invalid("source V2 High strict part binding is not an object"))?;
+    let binding_triangle_count = binding
+        .get("triangle_count")
+        .and_then(Value::as_u64)
+        .filter(|value| *value > 0)
+        .ok_or_else(|| invalid("source V2 High strict part triangle count is invalid"))?;
+    // The selected Part output hash changes when the AuthoringMesh revision
+    // replaces the bridge's pre-materialization source node.  The durable High
+    // row and strict GLB/readback already bind the replacement program/output;
+    // comparing it with the bridge's old output hash would reject every valid
+    // source-bound replacement.  The Part's declared solid policy must remain
+    // stable across that replacement.
+    if requested_part_id == high.part_id
+        && binding.get("solid").and_then(Value::as_bool) != Some(high.solid)
+    {
+        return Err(invalid("source V2 High strict part binding differs"));
+    }
+    if strict.get("source_artifact_id").and_then(Value::as_str) != Some(high_mesh_id.as_str())
+        || strict.get("source_artifact_sha256").and_then(Value::as_str)
+            != Some(high.high_result_sha256.as_str())
+        || strict.get("glb_sha256").and_then(Value::as_str)
+            != Some(request.source_high_artifact_object_sha256.as_str())
+        || strict.get("glb_object_sha256").and_then(Value::as_str)
+            != Some(request.source_high_artifact_object_sha256.as_str())
+        || strict.get("triangle_count").and_then(Value::as_u64)
+            != Some(high.high_evaluated_triangle_count)
+        || binding_triangle_count == 0
+    {
+        return Err(invalid("source V2 High strict source lineage differs"));
+    }
+    Ok(artifact_bytes)
+}
+
+fn source_preflight_legacy(
+    runtime: &Runtime,
+    request: &PrepareRequest,
+) -> Result<Vec<u8>, RuntimeError> {
     let candidate = runtime
         .candidate(&request.candidate_id)?
         .ok_or_else(|| invalid("candidate is unavailable"))?;
@@ -465,7 +730,32 @@ fn source_preflight(
         &readback["strict_readback"],
     )
     .map_err(|error| invalid(error.to_string()))?;
-    Ok((high, artifact_bytes))
+    Ok(artifact_bytes)
+}
+
+fn source_preflight(runtime: &Runtime, request: &PrepareRequest) -> Result<Vec<u8>, RuntimeError> {
+    let candidate = runtime
+        .candidate(&request.candidate_id)?
+        .ok_or_else(|| invalid("candidate is unavailable"))?;
+    if candidate.project_id != request.project_id
+        || candidate.canonical_sha256 != request.candidate_state_sha256
+        || candidate.base_version_id != request.base_version_id
+    {
+        return Err(invalid(
+            "candidate project/state/base-version binding differs",
+        ));
+    }
+    let source_object = runtime
+        .store
+        .get_object(&request.source_high_artifact_object_sha256)?
+        .ok_or_else(|| invalid("source High CAS object is unavailable"))?;
+    match source_object.kind.as_str() {
+        V2_HIGH_ARTIFACT_GLB_KIND => source_preflight_v2(runtime, request, &source_object),
+        PRODUCTION_WEAPON_HIGH_ARTIFACT_KIND => source_preflight_legacy(runtime, request),
+        _ => Err(invalid(
+            "source High CAS kind is not an admitted legacy or V2 family",
+        )),
+    }
 }
 
 fn run_worker(request: &PrepareRequest) -> Result<(Value, Vec<u8>, String), RuntimeError> {
@@ -534,6 +824,44 @@ fn validate_worker_result(value: &Value, request: &PrepareRequest) -> Result<(),
     ] {
         if object.get(field).and_then(Value::as_str) != Some(expected) {
             return Err(invalid(format!("Worker result {field} binding differs")));
+        }
+    }
+    let worker_request = request
+        .worker_request
+        .as_object()
+        .ok_or_else(|| invalid("nested Low quad Worker request is missing"))?;
+    for field in [
+        "source_high_part_id",
+        "source_high_node_id",
+        "source_high_material_zone_id",
+    ] {
+        if object.get(field) != worker_request.get(field) {
+            return Err(invalid(format!(
+                "Worker result {field} binding differs from request"
+            )));
+        }
+    }
+    let result_lineage = object
+        .get("source_lineage")
+        .and_then(Value::as_object)
+        .ok_or_else(|| invalid("Worker result source lineage is not an object"))?;
+    let request_lineage = worker_request
+        .get("draft")
+        .and_then(Value::as_object)
+        .and_then(|draft| draft.get("source_lineage"))
+        .and_then(Value::as_object)
+        .ok_or_else(|| invalid("nested Worker draft source lineage is not an object"))?;
+    for field in [
+        "source_high_artifact_sha256",
+        "source_high_artifact_readback_sha256",
+        "source_high_part_id",
+        "source_high_node_id",
+        "source_high_material_zone_id",
+    ] {
+        if result_lineage.get(field) != request_lineage.get(field) {
+            return Err(invalid(format!(
+                "Worker result source lineage {field} differs from request"
+            )));
         }
     }
     for (field, expected) in [
@@ -915,7 +1243,6 @@ fn restart_revalidate(
         idempotency_key: record.idempotency_key.clone(),
         input_sha256: record.input_sha256.clone(),
     };
-    let _ = source_preflight(runtime, &request)?;
     let worker_result = read_json_cas(
         runtime,
         &record.worker_result_object_sha256,
@@ -942,6 +1269,10 @@ fn restart_revalidate(
         .as_object()
         .expect("restart outer object"),
     )?;
+    // V2 source preflight binds the nested Part/Node/Material identity. It
+    // must run after the persisted Worker result has reconstructed that
+    // request; the temporary Null placeholder is not a valid source request.
+    let _ = source_preflight(runtime, &request)?;
     let (replayed_result, replayed_glb, cohort) = run_worker(&request)?;
     if replayed_result != worker_result
         || cohort != record.worker_build_cohort_sha256
@@ -988,6 +1319,7 @@ fn output(
     record: &LowQuadDraftDurableRecord,
     link: Value,
     replayed: bool,
+    restart_hash_verified: bool,
     runtime_write_performed: bool,
 ) -> Result<Value, RuntimeError> {
     let mut output = json!({
@@ -1009,7 +1341,7 @@ fn output(
         "request_input_sha256":record.input_sha256,
         "idempotency_key":record.idempotency_key,
         "replayed":replayed,
-        "restart_hash_verified":true,
+        "restart_hash_verified":restart_hash_verified,
         "runtime_write_performed":runtime_write_performed,
         "persistent_user_data_touched":runtime_write_performed,
         "production_stage_advanced":false,
@@ -1048,6 +1380,7 @@ impl Runtime {
                 &existing,
                 link,
                 true,
+                false,
                 true,
             );
         }
@@ -1223,6 +1556,7 @@ impl Runtime {
             &stored.0,
             link,
             stored.1,
+            false,
             true,
         )
     }
@@ -1281,6 +1615,7 @@ impl Runtime {
             LOW_QUAD_DRAFT_DURABLE_OPERATION_GET,
             &record,
             link,
+            false,
             false,
             false,
         )
@@ -1552,6 +1887,24 @@ mod tests {
         source_high_artifact_sha256: &str,
         source_high_artifact_readback_sha256: &str,
     ) -> Value {
+        low_quad_worker_request_for_source(
+            project_id,
+            source_high_artifact_sha256,
+            source_high_artifact_readback_sha256,
+            "low-quad-restart-panel",
+            "low-quad-restart-panel",
+            "zone-low-quad-shell",
+        )
+    }
+
+    fn low_quad_worker_request_for_source(
+        project_id: &str,
+        source_high_artifact_sha256: &str,
+        source_high_artifact_readback_sha256: &str,
+        source_high_part_id: &str,
+        source_high_node_id: &str,
+        source_high_material_zone_id: &str,
+    ) -> Value {
         let vertices = vec![
             ("v0", [-1.0, -1.0, -1.0]),
             ("v1", [1.0, -1.0, -1.0]),
@@ -1632,9 +1985,9 @@ mod tests {
         let source_lineage = json!({
             "source_high_artifact_sha256":source_high_artifact_sha256,
             "source_high_artifact_readback_sha256":source_high_artifact_readback_sha256,
-            "source_high_part_id":"low-quad-restart-panel",
-            "source_high_node_id":"low-quad-restart-panel",
-            "source_high_material_zone_id":"zone-low-quad-shell"
+            "source_high_part_id":source_high_part_id,
+            "source_high_node_id":source_high_node_id,
+            "source_high_material_zone_id":source_high_material_zone_id
         });
         let mut request = json!({
             "schema_version":PRODUCTION_WEAPON_LOW_QUAD_DRAFT_REQUEST_SCHEMA_VERSION,
@@ -1642,9 +1995,9 @@ mod tests {
             "project_id":project_id,
             "source_high_artifact_sha256":source_high_artifact_sha256,
             "source_high_artifact_readback_sha256":source_high_artifact_readback_sha256,
-            "source_high_part_id":"low-quad-restart-panel",
-            "source_high_node_id":"low-quad-restart-panel",
-            "source_high_material_zone_id":"zone-low-quad-shell",
+            "source_high_part_id":source_high_part_id,
+            "source_high_node_id":source_high_node_id,
+            "source_high_material_zone_id":source_high_material_zone_id,
             "draft":{
                 "schema_version":"LowQuadRetopologyDraft@1",
                 "source_lineage":source_lineage,
@@ -1739,6 +2092,39 @@ mod tests {
             canonical_json_hash(&preimage)
         });
         get
+    }
+
+    fn high_artifact_prepare_request(bridge: &Value, suffix: &str) -> Value {
+        let mut request = json!({
+            "schema_version":"AuthoringMeshV2HighArtifactPrepareRequest@1",
+            "operation":"authoring_mesh_v2_high_artifact_prepare",
+            "project_id":bridge["project_id"],
+            "high_artifact_id":format!("high-artifact-{suffix}"),
+            "high_bridge_id":bridge["bridge_id"],
+            "high_bridge_sha256":bridge["bridge_sha256"],
+            "high_bridge_object_sha256":bridge["bridge_object_sha256"],
+            "idempotency_key":format!("high-artifact-key-{suffix}"),
+            "max_response_bytes":1048576,
+            "runtime_write_performed":false,
+            "writer_policy":"forgecad-runtime-only-state-writer@1",
+            "canonicalization_policy":"canonical-json-sha256-excluding-input-sha256@1",
+            "input_sha256":""
+        });
+        request["input_sha256"] = Value::String(canonical_json_hash(&request));
+        request
+    }
+
+    fn refresh_low_prepare_hashes(value: &mut Value) {
+        let mut worker_preimage = value["low_quad_draft_worker_request"].clone();
+        worker_preimage
+            .as_object_mut()
+            .expect("Low Worker request object")
+            .remove("canonical_sha256");
+        let worker_hash = canonical_json_hash(&worker_preimage);
+        value["low_quad_draft_worker_request"]["canonical_sha256"] =
+            Value::String(worker_hash.clone());
+        value["low_quad_draft_worker_request_sha256"] = Value::String(worker_hash);
+        value["input_sha256"] = Value::String(request_input_hash(value).expect("input hash"));
     }
 
     #[test]
@@ -1944,7 +2330,7 @@ mod tests {
                 .low_quad_draft_durable_prepare(request.clone())
                 .expect("Low quad durable prepare");
             assert_eq!(first["replayed"], false);
-            assert_eq!(first["restart_hash_verified"], true);
+            assert_eq!(first["restart_hash_verified"], false);
             assert_eq!(first["runtime_write_performed"], true);
             assert_eq!(first["persistent_user_data_touched"], true);
             assert_eq!(first["production_stage_advanced"], false);
@@ -1991,7 +2377,7 @@ mod tests {
                 .low_quad_draft_durable_prepare(request.clone())
                 .expect("same-key Low quad replay");
             assert_eq!(replay["replayed"], true);
-            assert_eq!(replay["restart_hash_verified"], true);
+            assert_eq!(replay["restart_hash_verified"], false);
             assert_eq!(replay["durable_link"], first["durable_link"]);
             for field in [
                 "link_id",
@@ -2044,7 +2430,7 @@ mod tests {
             .low_quad_draft_durable_get(get_request)
             .expect("Low quad durable get after restart");
         assert_eq!(get["replayed"], false);
-        assert_eq!(get["restart_hash_verified"], true);
+        assert_eq!(get["restart_hash_verified"], false);
         assert_eq!(get["runtime_write_performed"], false);
         assert_eq!(get["persistent_user_data_touched"], false);
         assert_eq!(get["durable_link"], first["durable_link"]);
@@ -2130,5 +2516,324 @@ mod tests {
         assert_eq!(fields.len(), PREPARE_FIELDS.len());
         assert!(fields.contains("low_quad_draft_worker_request"));
         assert!(fields.contains("source_high_artifact_readback_object_sha256"));
+    }
+
+    #[test]
+    fn live_same_cohort_v2_high_artifact_to_low_quad_prepare_replay_get_restart_and_roots() {
+        if crate::build_cohort_sha256().is_none() {
+            eprintln!("V2 High artifact to Low live test requires FORGECAD_BUILD_COHORT_SHA256");
+            return;
+        }
+        let root =
+            std::env::temp_dir().join(format!("forgecad-v2-high-to-low-live-{}", Uuid::new_v4()));
+        fs::create_dir_all(&root).expect("V2 High to Low test root");
+        let database = root.join("runtime.sqlite");
+        let cas = root.join("cas");
+        let (request, first, high, project_id, low_hashes) = {
+            let runtime = Runtime::open_with_cas(&database, &cas).expect("file-backed Runtime");
+            let bridge =
+                crate::authoring_mesh_v2_high_bridge::tests::prepare_live_high_bridge_for_artifact(
+                    &runtime,
+                    "low-v2-live",
+                );
+            let high_request = high_artifact_prepare_request(&bridge, "low-v2-live");
+            let high = runtime
+                .authoring_mesh_v2_high_artifact_prepare(&high_request)
+                .expect("V2 High artifact prepare");
+            assert_eq!(high["status"], "prepared");
+            assert_eq!(high["high_artifact_kind"], V2_HIGH_ARTIFACT_GLB_KIND);
+            assert_eq!(
+                high["high_artifact_readback_kind"],
+                V2_HIGH_ARTIFACT_READBACK_KIND
+            );
+            assert_eq!(high["high_artifact_status"], "PASS_SOURCE_STRUCTURAL");
+            assert_eq!(high["high_status"], "NOT_RUN");
+            assert_eq!(high["quality_status"], "structural_only");
+            assert_eq!(high["visual_status"], "NOT_RUN");
+            assert_eq!(high["human_status"], "NOT_RUN");
+            assert_eq!(high["engine_status"], "NOT_RUN");
+            assert_ne!(
+                high["high_artifact_kind"],
+                "production-weapon-high-artifact-glb"
+            );
+            assert_ne!(
+                high["high_artifact_readback_kind"],
+                "native-high-glb-materialize-result"
+            );
+
+            let project_id = high["project_id"]
+                .as_str()
+                .expect("High project id")
+                .to_owned();
+            let candidate_id = high["materialized_candidate_id"]
+                .as_str()
+                .expect("High candidate id")
+                .to_owned();
+            let candidate_state_sha256 = high["materialized_candidate_state_sha256"]
+                .as_str()
+                .expect("High candidate state SHA")
+                .to_owned();
+            let candidate = runtime
+                .candidate(&candidate_id)
+                .expect("candidate lookup")
+                .expect("High candidate");
+            assert_eq!(candidate.canonical_sha256, candidate_state_sha256);
+            let base_version_id = candidate
+                .base_version_id
+                .clone()
+                .map(Value::String)
+                .unwrap_or(Value::Null);
+            let strict = high["strict_readback"]
+                .as_object()
+                .expect("High strict readback");
+            let part_id = strict["part_ids"][0]
+                .as_str()
+                .expect("High source Part id")
+                .to_owned();
+            let source_node_id = strict["source_node_ids"][0]
+                .as_str()
+                .expect("High source Node id")
+                .to_owned();
+            let material_zone_id = strict["material_zone_ids"][0]
+                .as_str()
+                .expect("High source MaterialZone id")
+                .to_owned();
+            let worker_request = low_quad_worker_request_for_source(
+                &project_id,
+                high["high_artifact_sha256"]
+                    .as_str()
+                    .expect("High artifact SHA"),
+                high["high_artifact_readback_sha256"]
+                    .as_str()
+                    .expect("High readback SHA"),
+                &part_id,
+                &source_node_id,
+                &material_zone_id,
+            );
+            let request = low_prepare_request(
+                &project_id,
+                &candidate_id,
+                &candidate_state_sha256,
+                base_version_id,
+                high["high_artifact_id"].as_str().expect("High artifact id"),
+                high["high_artifact_object_sha256"]
+                    .as_str()
+                    .expect("High artifact object SHA"),
+                high["high_artifact_sha256"]
+                    .as_str()
+                    .expect("High artifact SHA"),
+                high["high_artifact_readback_object_sha256"]
+                    .as_str()
+                    .expect("High readback object SHA"),
+                high["high_artifact_readback_sha256"]
+                    .as_str()
+                    .expect("High readback SHA"),
+                worker_request,
+                "low-v2-live",
+            );
+
+            for (field, wrong) in [
+                ("source_high_part_id", "wrong-v2-part"),
+                ("source_high_node_id", "wrong-v2-node"),
+                ("source_high_material_zone_id", "wrong-v2-material"),
+            ] {
+                let mut negative = request.clone();
+                let negative_key = format!("low-v2-negative-{field}");
+                negative["idempotency_key"] = Value::String(negative_key.clone());
+                negative["low_quad_draft_worker_request"][field] = Value::String(wrong.into());
+                negative["low_quad_draft_worker_request"]["draft"]["source_lineage"][field] =
+                    Value::String(wrong.into());
+                refresh_low_prepare_hashes(&mut negative);
+                let before = runtime
+                    .store
+                    .cas()
+                    .list_objects()
+                    .expect("CAS before negative")
+                    .len();
+                let error = runtime
+                    .low_quad_draft_durable_prepare(negative.clone())
+                    .expect_err("wrong V2 source identity must fail before Low Worker");
+                assert!(error.to_string().contains("LOW_QUAD_DRAFT_DURABLE_INVALID"));
+                assert!(error.to_string().contains("source V2 High"));
+                assert_eq!(
+                    runtime
+                        .store
+                        .cas()
+                        .list_objects()
+                        .expect("CAS after negative")
+                        .len(),
+                    before
+                );
+                assert!(runtime
+                    .store
+                    .get_low_quad_draft_durable(&project_id, &negative_key)
+                    .expect("negative Store lookup")
+                    .is_none());
+            }
+
+            let before_low = runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS before Low")
+                .len();
+            let first = runtime
+                .low_quad_draft_durable_prepare(request.clone())
+                .expect("V2 High to Low prepare");
+            assert_eq!(first["replayed"], false);
+            assert_eq!(first["runtime_write_performed"], true);
+            assert_eq!(first["persistent_user_data_touched"], true);
+            assert_eq!(first["quality_status"], "structural_only");
+            assert_eq!(first["edge_flow_status"], "DRAFT_UNREVIEWED");
+            assert_eq!(first["production_stage_advanced"], false);
+            assert_eq!(first["promotion_eligible"], false);
+            assert_eq!(first["candidate_confirmed"], false);
+            assert_eq!(first["version_created"], false);
+            assert_eq!(first["export_performed"], false);
+            assert!(
+                runtime
+                    .store
+                    .cas()
+                    .list_objects()
+                    .expect("CAS after Low")
+                    .len()
+                    > before_low
+            );
+
+            let after_low = runtime
+                .store
+                .cas()
+                .list_objects()
+                .expect("CAS after Low prepare")
+                .len();
+            let replay = runtime
+                .low_quad_draft_durable_prepare(request.clone())
+                .expect("V2 High to Low replay");
+            assert_eq!(replay["replayed"], true);
+            for field in [
+                "link_id",
+                "link_object_sha256",
+                "worker_result_object_sha256",
+                "worker_result_sha256",
+                "artifact_object_sha256",
+                "artifact_sha256",
+                "readback_object_sha256",
+                "readback_sha256",
+            ] {
+                assert_eq!(replay[field], first[field], "replay {field}");
+            }
+            assert_eq!(
+                runtime
+                    .store
+                    .cas()
+                    .list_objects()
+                    .expect("CAS after replay")
+                    .len(),
+                after_low
+            );
+
+            let get_request = low_get_request(&first, &request);
+            let get = runtime
+                .low_quad_draft_durable_get(get_request)
+                .expect("V2 High to Low get");
+            assert_eq!(get["replayed"], false);
+            assert_eq!(get["runtime_write_performed"], false);
+            assert_eq!(get["persistent_user_data_touched"], false);
+            assert_eq!(get["link_id"], first["link_id"]);
+            assert_eq!(get["artifact_sha256"], first["artifact_sha256"]);
+            let record = runtime
+                .store
+                .get_low_quad_draft_durable(&project_id, "low-v2-live")
+                .expect("Low Store lookup")
+                .expect("Low durable record");
+            let low_hashes = vec![
+                record.source_high_artifact_object_sha256.clone(),
+                record.source_high_artifact_readback_object_sha256.clone(),
+                record.worker_result_object_sha256.clone(),
+                record.artifact_object_sha256.clone(),
+                record.readback_object_sha256.clone(),
+                record.link_object_sha256.clone(),
+            ];
+            (request, first, high, project_id, low_hashes)
+        };
+
+        let reopened = Runtime::open_with_cas(&database, &cas).expect("reopen Runtime");
+        let get_request = low_get_request(&first, &request);
+        let get = reopened
+            .low_quad_draft_durable_get(get_request)
+            .expect("V2 High to Low restart get");
+        assert_eq!(get["replayed"], false);
+        assert_eq!(get["runtime_write_performed"], false);
+        assert_eq!(get["persistent_user_data_touched"], false);
+        assert_eq!(get["link_id"], first["link_id"]);
+        assert_eq!(get["artifact_sha256"], first["artifact_sha256"]);
+
+        let high_record = reopened
+            .store
+            .get_authoring_mesh_v2_high_artifact_for_low(
+                &project_id,
+                high["high_artifact_id"].as_str().expect("High artifact id"),
+            )
+            .expect("High root lookup")
+            .expect("High artifact record");
+        let bridge_record = reopened
+            .store
+            .get_authoring_mesh_v2_high_bridge_by_id(&project_id, &high_record.bridge_id)
+            .expect("High bridge root lookup")
+            .expect("High bridge record");
+        let mut roots: Vec<String> = low_hashes;
+        roots.extend([
+            high_record.high_artifact_object_sha256,
+            high_record.high_artifact_readback_object_sha256,
+            high_record.receipt_object_sha256,
+            high_record.bridge_object_sha256,
+            high_record.source_binding_object_sha256,
+            high_record.revision_object_sha256,
+            high_record.materialized_program_object_sha256,
+            high_record.high_result_object_sha256,
+            high_record.high_readback_object_sha256,
+            bridge_record.materialized_artifact_object_sha256,
+            bridge_record.materialized_artifact_readback_object_sha256,
+        ]);
+        roots.sort();
+        roots.dedup();
+        let root_count = roots.len();
+        for hash in roots {
+            assert_eq!(
+                reopened
+                    .store
+                    .get_object(&hash)
+                    .expect("root object lookup")
+                    .expect("root object")
+                    .reachability,
+                "reachable",
+                "V2 High/Low ancestor root {hash}"
+            );
+        }
+        println!(
+            "WPN_HIGH_TO_LOW_LIVE_EVIDENCE={}",
+            json!({
+                "build_cohort_sha256": crate::build_cohort_sha256(),
+                "high_artifact_id": high["high_artifact_id"],
+                "high_artifact_sha256": high["high_artifact_sha256"],
+                "high_artifact_object_sha256": high["high_artifact_object_sha256"],
+                "high_artifact_readback_sha256": high["high_artifact_readback_sha256"],
+                "low_link_id": first["link_id"],
+                "low_artifact_sha256": first["artifact_sha256"],
+                "low_artifact_object_sha256": first["artifact_object_sha256"],
+                "prepare_status": "prepared",
+                "replay_status": "replayed",
+                "get_status": "found",
+                "restart_get_status": "found",
+                "root_count": root_count,
+                "quality_status": "structural_only",
+                "visual_status": "NOT_RUN",
+                "human_status": "NOT_RUN",
+                "engine_status": "NOT_RUN",
+                "commercial_quality": "NOT_PROVEN"
+            })
+        );
+        drop(reopened);
+        fs::remove_dir_all(root).expect("V2 High to Low test cleanup");
     }
 }

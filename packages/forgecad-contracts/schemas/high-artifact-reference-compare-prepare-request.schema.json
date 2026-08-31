@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/high-artifact-reference-compare-prepare-request.schema.json",
+  "title": "HighArtifactReferenceComparePrepareRequest@1",
+  "description": "Closed direct High Artifact visual comparison request. The High GLB is selected by its complete Store/CAS identity; it is never inferred from the latest Candidate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "high_artifact_id",
+    "high_artifact_sha256",
+    "high_artifact_object_sha256",
+    "high_artifact_readback_sha256",
+    "high_artifact_readback_object_sha256",
+    "high_artifact_receipt_sha256",
+    "high_artifact_receipt_object_sha256",
+    "high_bridge_id",
+    "high_bridge_sha256",
+    "high_bridge_object_sha256",
+    "revision_id",
+    "revision_sha256",
+    "revision_object_sha256",
+    "high_result_sha256",
+    "high_result_object_sha256",
+    "high_readback_sha256",
+    "high_readback_object_sha256",
+    "high_worker_algorithm_sha256",
+    "high_worker_build_cohort_sha256",
+    "reference_id",
+    "view_spec"
+  ],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/id"},
+    "high_artifact_id": {"$ref": "#/$defs/id"},
+    "high_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_object_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "high_artifact_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "high_bridge_id": {"$ref": "#/$defs/id"},
+    "high_bridge_sha256": {"$ref": "#/$defs/sha256"},
+    "high_bridge_object_sha256": {"$ref": "#/$defs/sha256"},
+    "revision_id": {"$ref": "#/$defs/id"},
+    "revision_sha256": {"$ref": "#/$defs/sha256"},
+    "revision_object_sha256": {"$ref": "#/$defs/sha256"},
+    "high_result_sha256": {"$ref": "#/$defs/sha256"},
+    "high_result_object_sha256": {"$ref": "#/$defs/sha256"},
+    "high_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "high_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "high_worker_algorithm_sha256": {"$ref": "#/$defs/sha256"},
+    "high_worker_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "view_spec": {"$ref": "https://forgecad.local/contracts/reference-view-spec.schema.json"},
+    "camera": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration-v2.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration-ref.schema.json"}
+      ]
+    },
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "view_id": {"$ref": "#/$defs/id"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -46,6 +46,46 @@ fn build_identity_retains_dedicated_entry_and_cohort() {
     assert!(
         identity["build_cohort_sha256"].is_null() || identity["build_cohort_sha256"].is_string()
     );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_execution_operation"],
+        "forgecad.production.authoring-mesh-v2-high-execute@1"
+    );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_execution_request_schema"],
+        "AuthoringMeshV2HighExecutionRequest@2"
+    );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_result_schema"],
+        "AuthoringMeshV2HighResult@2"
+    );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_artifact_materialize_entry"],
+        "--isolated-once-authoring-mesh-v2-high-artifact-materialize"
+    );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_artifact_materialize_operation"],
+        "forgecad.production.authoring-mesh-v2-high-artifact-materialize@1"
+    );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_artifact_materialize_request_schema"],
+        "AuthoringMeshV2HighArtifactMaterializeRequest@1"
+    );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_artifact_materialize_result_schema"],
+        "AuthoringMeshV2HighArtifactMaterializeResult@1"
+    );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_artifact_materialize_glb_kind"],
+        "authoring-mesh-v2-high-artifact-glb@1"
+    );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_artifact_materialize_readback_kind"],
+        "authoring-mesh-v2-high-artifact-readback@1"
+    );
+    assert_eq!(
+        identity["authoring_mesh_v2_high_algorithm_sha256"],
+        forgecad_high_worker::authoring_mesh_v2::algorithm_sha256()
+    );
 }
 
 #[test]
@@ -169,6 +209,18 @@ fn entrypoint_is_closed() {
     let output = run_worker(&["--isolated-once"], b"{}");
     assert_eq!(output.status.code(), Some(64));
     assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn v2_high_artifact_materialize_entry_is_closed_and_bounded() {
+    let output = run_worker(
+        &["--isolated-once-authoring-mesh-v2-high-artifact-materialize"],
+        br#"{}"#,
+    );
+    assert!(!output.status.success());
+    let response: Value = serde_json::from_slice(&output.stdout).expect("response JSON");
+    assert_eq!(response["ok"], false);
+    assert_eq!(response["error"]["code"], "WORKER_PROTOCOL");
 }
 
 fn glb_materialize_request() -> Value {

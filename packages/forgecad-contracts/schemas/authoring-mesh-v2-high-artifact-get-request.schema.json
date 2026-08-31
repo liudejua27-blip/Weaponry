@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-v2-high-artifact-get-request.schema.json",
+  "title": "AuthoringMeshV2HighArtifactGetRequest@1",
+  "description": "Closed Weaponry V2 High artifact contract. Runtime derives a strict GLB adapter from the verified High Bridge; the record binds source/materialized lineage and same-cohort Worker evidence. Structural artifact/readback proof is not visual, human, engine or commercial acceptance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "project_id",
+    "high_artifact_id",
+    "high_artifact_sha256",
+    "high_artifact_object_sha256",
+    "high_artifact_readback_sha256",
+    "high_artifact_readback_object_sha256",
+    "high_artifact_receipt_sha256",
+    "high_artifact_receipt_object_sha256",
+    "high_bridge_id",
+    "high_bridge_sha256",
+    "high_bridge_object_sha256",
+    "max_response_bytes",
+    "runtime_write_performed",
+    "persistent_user_data_touched",
+    "writer_policy",
+    "canonicalization_policy",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "AuthoringMeshV2HighArtifactGetRequest@1"
+    },
+    "operation": {
+      "const": "authoring_mesh_v2_high_artifact_get"
+    },
+    "project_id": {
+      "$ref": "#/$defs/id"
+    },
+    "high_artifact_id": {
+      "$ref": "#/$defs/id"
+    },
+    "high_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "high_artifact_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "high_artifact_readback_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "high_artifact_readback_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "high_artifact_receipt_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "high_artifact_receipt_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "high_bridge_id": {
+      "$ref": "#/$defs/id"
+    },
+    "high_bridge_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "high_bridge_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "max_response_bytes": {
+      "const": 1048576
+    },
+    "runtime_write_performed": {
+      "const": false
+    },
+    "persistent_user_data_touched": {
+      "const": false
+    },
+    "writer_policy": {
+      "const": "forgecad-runtime-only-state-writer@1"
+    },
+    "canonicalization_policy": {
+      "const": "canonical-json-sha256-excluding-input-sha256@1"
+    },
+    "input_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "revision_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
+    },
+    "nullable_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "part_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "source_node_id",
+        "material_zone_id",
+        "source_part_output_sha256",
+        "solid",
+        "triangle_count"
+      ],
+      "properties": {
+        "part_id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_node_id": {
+          "$ref": "#/$defs/id"
+        },
+        "material_zone_id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_part_output_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "solid": {
+          "type": "boolean"
+        },
+        "triangle_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        }
+      }
+    },
+    "strict_readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "glb_sha256",
+        "glb_object_sha256",
+        "source_artifact_id",
+        "source_artifact_sha256",
+        "part_ids",
+        "material_zone_ids",
+        "source_node_ids",
+        "part_bindings",
+        "base_primitive_count",
+        "detail_primitive_count",
+        "base_triangle_count",
+        "detail_triangle_count",
+        "triangle_count",
+        "byte_length",
+        "embedded_only",
+        "external_uri",
+        "scripts",
+        "validator_status",
+        "hard_gate_passed"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "AuthoringMeshV2HighArtifactReadback@1"
+        },
+        "glb_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "glb_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_artifact_id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_artifact_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "part_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "material_zone_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "source_node_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "part_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/part_binding"
+          }
+        },
+        "base_primitive_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "detail_primitive_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "base_triangle_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "detail_triangle_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000
+        },
+        "triangle_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "byte_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100663296
+        },
+        "embedded_only": {
+          "const": true
+        },
+        "external_uri": {
+          "const": false
+        },
+        "scripts": {
+          "const": false
+        },
+        "validator_status": {
+          "const": "passed"
+        },
+        "hard_gate_passed": {
+          "const": true
+        }
+      }
+    }
+  }
+}

@@ -25,12 +25,15 @@ NATIVE_WEAPONRY_DOCS = {
     "docs/WEAPONRY_DELETION_MANIFEST_20260829.md",
     "docs/WEAPONRY_DOCUMENTATION_COVERAGE_20260829.md",
     "docs/WEAPONRY_KNIFE_10_DAY_DELIVERY_PLAN.md",
+    "docs/WEAPONRY_KNIFE_REFERENCE_CONVERGENCE_DESIGN_20260830.md",
     "docs/WEAPONRY_MODULE_EVALUATION_20260830.md",
     "docs/WEAPONRY_ONE_MONTH_DELIVERY_PLAN.md",
     "docs/WEAPONRY_RUNTIME_FIVE_DOMAIN_REFACTOR_20260829.md",
     "docs/ADR/0030-weaponry-knife-ten-day-hybrid-dcc.md",
     "skills/weaponry-crossfire-agent-native-dcc/SKILL.md",
     "skills/weaponry-crossfire-agent-native-dcc/references/action-space-and-gates.md",
+    "skills/weaponry-crossfire-agent-native-dcc/references/dragonfang-benchmark-profile.md",
+    "skills/weaponry-crossfire-agent-native-dcc/references/knife-reference-convergence-loop.md",
 }
 
 

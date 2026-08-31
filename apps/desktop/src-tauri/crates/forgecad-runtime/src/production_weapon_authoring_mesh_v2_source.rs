@@ -11,7 +11,10 @@ use super::{
         AuthoringMeshV2EvaluatedBinding, AuthoringMeshV2GenesisInput, AuthoringMeshV2Revision,
     },
     authoring_mesh_v2_durable::persist_runtime_derived_source_genesis,
-    authoring_mesh_v2_geometry::primitive_box_source_genesis,
+    authoring_mesh_v2_geometry::{
+        authoring_mesh_source_genesis, primitive_box_source_genesis,
+        profile_extrude_source_genesis, AuthoringMeshV2SourceGenesis,
+    },
     canonical_json_hash, is_opaque_id, is_sha256, Runtime, RuntimeError,
 };
 use forgecad_contracts::{AuthoringMeshId, AuthoringMeshLineageId, AuthoringMeshV2SourceBinding};
@@ -81,6 +84,27 @@ fn sha<'a>(object: &'a Map<String, Value>, field: &str) -> Result<&'a str, Runti
         return Err(invalid(format!("{field} must be a SHA-256")));
     }
     Ok(value)
+}
+
+fn source_genesis(
+    node: &Value,
+    expected_node_id: &str,
+) -> Result<AuthoringMeshV2SourceGenesis, RuntimeError> {
+    match node.get("operator_id").and_then(Value::as_str) {
+        Some("forgecad.geometry.primitive@2") => {
+            primitive_box_source_genesis(node, expected_node_id)
+        }
+        Some("forgecad.geometry.profile-extrude@1") => {
+            profile_extrude_source_genesis(node, expected_node_id)
+        }
+        Some("forgecad.geometry.authoring-mesh@1") => {
+            authoring_mesh_source_genesis(node, expected_node_id)
+        }
+        Some(operator_id) => Err(invalid(format!(
+            "source operator {operator_id} is not enabled for AuthoringMeshV2 genesis"
+        ))),
+        None => Err(invalid("source operator is missing")),
+    }
 }
 
 pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, RuntimeError> {
@@ -212,7 +236,7 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
         .and_then(Value::as_bool)
         .ok_or_else(|| invalid("Part solid flag is invalid"))?;
 
-    let source = primitive_box_source_genesis(matching_nodes[0], source_node_id)?;
+    let source = source_genesis(matching_nodes[0], source_node_id)?;
     let artifact_id = candidate
         .prepared_object_id
         .clone()
@@ -321,7 +345,7 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
         "quality_status":"structural_source_bound_not_visually_evaluated",
         "limitations":[
             "REAL_CANDIDATE_SOURCE_BOUND",
-            "PRIMITIVE_BOX_GENESIS_ONLY",
+            "PROFILE_EXTRUDE_OR_PRIMITIVE_SOURCE",
             "NO_ART_EDIT_APPLIED",
             "NO_STAGE_ADVANCEMENT",
             "NO_VISUAL_QUALITY_CLAIM"
@@ -330,4 +354,38 @@ pub(crate) fn prepare(runtime: &Runtime, request: &Value) -> Result<Value, Runti
     });
     result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_dispatch_accepts_profile_extrude_and_rejects_unregistered_operator() {
+        let node = json!({
+            "node_id":"dragonfang-blade-body",
+            "operator_id":"forgecad.geometry.profile-extrude@1",
+            "inputs":[],
+            "parameters":{
+                "shape":"profile-extrude",
+                "profile":[[-1.0,-0.25],[1.0,-0.25],[0.4,0.4],[-0.2,0.2],[-1.0,0.4]],
+                "depth_m":0.12,
+                "position_m":[0.0,0.0,0.0],
+                "rotation_rad":[0.0,0.0,0.0]
+            }
+        });
+        let source = source_genesis(&node, "dragonfang-blade-body").expect("profile source");
+        assert_eq!(source.source_node_id, "dragonfang-blade-body");
+        assert_eq!(
+            source.source_operator_id,
+            "forgecad.geometry.profile-extrude@1"
+        );
+        assert_eq!(source.positions_m.len(), 10);
+
+        let mut unsupported = node;
+        unsupported["operator_id"] = json!("forgecad.geometry.boolean@1");
+        let error = source_genesis(&unsupported, "dragonfang-blade-body")
+            .expect_err("unregistered source operator must fail closed");
+        assert!(error.to_string().contains("not enabled"));
+    }
 }

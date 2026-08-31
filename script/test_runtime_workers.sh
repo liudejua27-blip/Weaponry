@@ -162,6 +162,65 @@ if [[ "$HARNESS_MODE" == "architecture-fast" ]]; then
   run_fast_step runtime-authoring-transaction \
     "$CARGO" cargo test --manifest-path "$MANIFEST" \
     -p forgecad-runtime --lib authoring_mesh_transaction --offline
+  run_fast_step store-knife-production-brief \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-store --lib weaponry_knife_production_brief --offline
+  run_fast_step runtime-knife-production-brief \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-runtime --lib weaponry_knife_production_brief --offline
+  run_fast_step store-knife-reference-intent \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-store --lib weaponry_knife_reference_intent --offline
+  run_fast_step runtime-knife-reference-intent \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-runtime --lib weaponry_knife_reference_intent --offline
+  run_fast_step store-knife-source-binding \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-store --lib weaponry_knife_source_binding --offline
+  run_fast_step runtime-knife-source-binding \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-runtime --lib weaponry_knife_source_binding --offline
+  run_fast_step store-knife-pass-state \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-store --lib weaponry_knife_pass_state --offline
+  run_fast_step runtime-authoring-mesh-v2-candidate-materializer \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-runtime --lib authoring_mesh_v2_candidate_materializer --offline
+  run_fast_step store-authoring-mesh-v2-high-bridge \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-store --lib authoring_mesh_v2_high_bridge --offline
+  run_fast_step runtime-authoring-mesh-v2-high-bridge \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-runtime --lib authoring_mesh_v2_high_bridge --offline
+  run_fast_step high-worker-unit-suite \
+    "$CARGO" cargo test --manifest-path "$PROJECT_ROOT/apps/high-worker/Cargo.toml" \
+    --lib --offline
+  run_fast_step runtime-authoring-mesh-v2-high-bridge-live \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-runtime --lib \
+    authoring_mesh_v2_high_bridge::tests::live_same_cohort_high_bridge_replays_gets_and_reopens_without_false_high_claims \
+    --offline -- --exact --nocapture
+  if rg -q 'High bridge live test requires FORGECAD_BUILD_COHORT_SHA256' "$FAST_LOG" \
+    || ! rg -q '^WPN_HIGH_BRIDGE_LIVE_EVIDENCE=' "$FAST_LOG"; then
+    printf '%s\n' "same-cohort fast harness refused missing/skipped High bridge live evidence" >&2
+    exit 1
+  fi
+  run_fast_step runtime-authoring-mesh-v2-high-artifact-live \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-runtime --lib \
+    authoring_mesh_v2_high_bridge::tests::live_same_cohort_high_artifact_replays_gets_and_reopens_with_strict_glb_readback \
+    --offline -- --exact --nocapture
+  if rg -q 'High artifact live test requires FORGECAD_BUILD_COHORT_SHA256' "$FAST_LOG" \
+    || ! rg -q '^WPN_HIGH_ARTIFACT_LIVE_EVIDENCE=' "$FAST_LOG"; then
+    printf '%s\n' "same-cohort fast harness refused missing/skipped High artifact live evidence" >&2
+    exit 1
+  fi
+  run_fast_step runtime-knife-pass-state \
+    "$CARGO" cargo test --manifest-path "$MANIFEST" \
+    -p forgecad-runtime --lib knife_pass_state --offline
+  run_fast_step geometry-worker-profile-extrude \
+    "$CARGO" cargo test --manifest-path "$PROJECT_ROOT/apps/geometry-worker/Cargo.toml" \
+    --lib profile_extrude --offline
   run_fast_step runtime-knife-curve-graph \
     "$CARGO" cargo test --manifest-path "$MANIFEST" \
     -p forgecad-runtime --lib knife_curve_modifier_graph --offline
@@ -213,6 +272,31 @@ summaries = re.findall(
     text,
 )
 steps = re.findall(r"^WPN_ARCH_FAST_STEP_RESULT=([^:]+):(PASS|FAIL)$", text, re.MULTILINE)
+high_live_rows = re.findall(r"^WPN_HIGH_BRIDGE_LIVE_EVIDENCE=(\{.*\})$", text, re.MULTILINE)
+if len(high_live_rows) != 1:
+    raise SystemExit("same-cohort fast receipt refused non-unique High bridge live evidence")
+high_live = json.loads(high_live_rows[0])
+if high_live.get("high_worker_build_cohort_sha256") != os.environ["BUILD_COHORT"]:
+    raise SystemExit("same-cohort fast receipt refused High bridge cohort drift")
+expected_high_live = {
+    "cas_object_delta": 3,
+    "prepare_status": "prepared",
+    "replay_status": "replayed",
+    "get_status": "found",
+    "restart_get_status": "found",
+    "replay_byte_exact": True,
+    "restart_hash_verified": True,
+    "high_structural_status": "PASS_SOURCE_STRUCTURAL",
+    "high_status": "NOT_RUN",
+    "quality_status": "structural_only",
+    "visual_status": "NOT_RUN",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "commercial_quality": "NOT_PROVEN",
+}
+for key, expected in expected_high_live.items():
+    if high_live.get(key) != expected:
+        raise SystemExit(f"same-cohort fast receipt refused High bridge evidence drift: {key}")
 receipt = {
     "schema_version": "WeaponryArchitectureFastGateReceipt@1",
     "task_id": "WPN-ARCH-BASELINE-FAST-003",
@@ -241,6 +325,7 @@ receipt = {
     "qualification_lane_status": "PRESERVED_NOT_EXECUTED_BY_FAST",
     "ignored_tests_executed_by_fast": 0,
     "ignored_tests_execution_claim": "NOT_PROVEN",
+    "high_bridge_live_evidence": high_live,
     "quality_claim": "architecture-regression-only; no visual or commercial promotion",
 }
 Path(os.environ["FAST_RECEIPT"]).write_text(

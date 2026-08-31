@@ -1,5 +1,13 @@
 # ForgeCAD MCP Runtime 合同
 
+> 2026-08-30 Knife Brief boundary：`weaponry_knife_production_brief_prepare/get` 归属默认
+> `reference_intake` façade。MCP 只消费 package-owned closed request Schema、执行 write opt-in/preflight
+> 与中央领域路由；Runtime 独占 ReferenceEvidence/CAS 三元组验证、canonical hash、successor freeze、
+> Store/CAS commit/replay/get。prepare 的 blocked intake 仍是成功持久化，但不是 authoring 授权；get
+> 严格只读。Brief resolved engine 还需解析 version/unit/axis 选择，texture 需解析 authoring 与 shipping 双值；
+> successor projection 允许 acceptance gate 状态随 resolution 更新，但 required gates/promotion policy 仍冻结。
+> 当前默认面为 11 façade / 127 active operations，compatibility 仍 131/95/226。
+
 > **Weaponry P0 override (2026-08-29):** 本文只有在与 `docs/WEAPONRY_CROSSFIRE_PRODUCT_CONSTITUTION.md` 和 ADR-0029 一致时才具有当前执行权。ForgeCAD 在本文中解释为 Weaponry 的 Rust Runtime lineage；当前唯一产品主线是由 Codex 生成、修改、验证并交付高质量穿越火线非功能性游戏武器。通用 3D、机器人和原创科幻示例仅作 fixture/历史能力，不得抢占本月主线。 本文中所有 2026-08-28 及更早的“当前”“下一原子”“唯一 `in_progress`”和工具/Schema 数量语句均按历史 cohort 解释，不得覆盖 `WPN-*` successor queue。
 
 > 2026-08-30 current public boundary：默认 Codex 只看到 11 个 Knife façade；其 125 个 active operation 全部在 MCP 层消费 package-owned closed request Schema，blocked=0，Runtime fallback=0。历史兼容面仅由显式 `forgecad-mcp-compat` 暴露，保持 131 read + 95 write = 226 raw tools。
@@ -460,4 +468,4 @@ MCP `2026-07-28` 是另一种协议时代：它移除了 `initialize`/`notificat
 
 MCP 规范与 Codex 已发布行为可能不同步。`FGC-MCP003` 已 pin 协议版本和配置基线，protocol adapter、认证 CLI 只读/负面回合和真实 Desktop handshake/read-only 回合已有证据；IDE、其他 MCP Client 与官方 transport conformance 仍按未来/非阻塞范围记录。不得把本地适配器或无模型回合 app-server 诊断扩大成未执行的宿主能力，也不得依赖已废弃 Roots/Sampling/Logging。
 
-<!-- forgecad-stage0: schemas=658 schema_set_sha256=29784beef684ae4334bfc2983f19fec25694c632ed11e0840bd12b0e9838f0f1 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=662 schema_set_sha256=202e080ec378ddb294eb9c880079dcec5c910b27a1c679034ca34c5a880dcec6 read_tools=131 write_tools=95 total_tools=226 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->

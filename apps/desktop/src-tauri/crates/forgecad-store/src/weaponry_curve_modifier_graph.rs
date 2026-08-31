@@ -7,10 +7,10 @@
 //! their registered metadata before atomically installing the SQLite binding.
 
 use super::{
-    CasObjectRecord, CasStore, Store, StoreError, canonical_json_bytes, canonical_json_hash,
-    is_opaque_id, is_sha256, mark_reachable_in_transaction,
+    canonical_json_bytes, canonical_json_hash, is_opaque_id, is_sha256,
+    mark_reachable_in_transaction, CasObjectRecord, CasStore, Store, StoreError,
 };
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

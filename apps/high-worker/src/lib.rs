@@ -20,8 +20,11 @@ pub mod glb;
 pub mod module;
 
 pub use glb::{
-    inspect_high_mesh_glb, lower_high_mesh_artifact, lower_high_mesh_artifact_bytes,
-    readback_high_mesh_glb, HighGlbArtifact, HighGlbError, HighGlbReadback,
+    inspect_high_mesh_glb, lower_authoring_mesh_v2_high_result,
+    lower_authoring_mesh_v2_high_result_with_cohort, lower_high_mesh_artifact,
+    lower_high_mesh_artifact_bytes, readback_authoring_mesh_v2_high_glb, readback_high_mesh_glb,
+    AuthoringMeshV2HighGlbArtifact, AuthoringMeshV2HighGlbReadback, HighGlbArtifact, HighGlbError,
+    HighGlbReadback,
 };
 
 pub const REQUEST_SCHEMA_VERSION: &str = "HighMeshWorkerRequest@1";
@@ -184,6 +187,10 @@ pub struct HighMeshPrimitive {
     pub primitive_id: String,
     pub kind: String,
     pub part_id: String,
+    /// Complete source-node lineage for one semantic Part.  Legacy artifacts
+    /// leave this empty and use the scalar compatibility field below.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_node_ids: Vec<String>,
     pub source_node_id: String,
     pub material_zone_id: String,
     pub source_element_lineage: Vec<String>,
@@ -1591,6 +1598,7 @@ fn evaluate(
             primitive_id,
             kind: "authoring_base".to_owned(),
             part_id: part.part_id.clone(),
+            source_node_ids: Vec::new(),
             source_node_id: part.source_node_id.clone(),
             material_zone_id: part.material_zone_id.clone(),
             source_element_lineage: stable_base_lineage(&validated),
@@ -1765,6 +1773,7 @@ fn build_support_patch(
             primitive_id: primitive_id.clone(),
             kind: "support_loop_patch".to_owned(),
             part_id: part.part_id.clone(),
+            source_node_ids: Vec::new(),
             source_node_id: node.node_id.clone(),
             material_zone_id: part.material_zone_id.clone(),
             source_element_lineage,
@@ -1832,6 +1841,7 @@ fn build_support_patch(
         primitive_id: primitive_id.clone(),
         kind: "support_loop_patch".to_owned(),
         part_id: part.part_id.clone(),
+        source_node_ids: Vec::new(),
         source_node_id: node.node_id.clone(),
         material_zone_id: part.material_zone_id.clone(),
         source_element_lineage,
@@ -1879,6 +1889,7 @@ fn build_crease_metadata(
         primitive_id: primitive_id.clone(),
         kind: "crease_metadata".to_owned(),
         part_id: part.part_id.clone(),
+        source_node_ids: Vec::new(),
         source_node_id: node.node_id.clone(),
         material_zone_id: part.material_zone_id.clone(),
         source_element_lineage: vec![format!("edge:{}", stable_edge.edge_id)],
@@ -1942,6 +1953,7 @@ fn build_floating_detail(
         primitive_id: primitive_id.clone(),
         kind: "floating_detail_box".to_owned(),
         part_id: part.part_id.clone(),
+        source_node_ids: Vec::new(),
         source_node_id: node.node_id.clone(),
         material_zone_id: part.material_zone_id.clone(),
         source_element_lineage: vec![format!("part:{}", part.part_id)],

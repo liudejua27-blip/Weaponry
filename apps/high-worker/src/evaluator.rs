@@ -6,7 +6,9 @@
 //! while the default subdivision route is a ForgeCAD-owned CPU Catmull-Clark
 //! evaluator with a deliberately small OpenSubdiv-compatible typed policy.
 //! AuthoringMesh V2 uses the explicit stitched variant so shared authored
-//! edges/vertices are evaluated once across the whole all-quad mesh.
+//! edges/vertices are evaluated once across the whole bounded manifold polygon
+//! mesh.  The polygon source is evaluated into quads; it is never treated as
+//! a replacement for the Runtime-owned authored topology.
 //! OpenSubdiv itself is never loaded implicitly: selecting that backend returns
 //! a typed unavailable error before any partial result is accepted.
 
@@ -24,7 +26,7 @@ pub const REQUEST_SCHEMA_VERSION: &str = "HighEvaluatorRequest@1";
 pub const RESULT_SCHEMA_VERSION: &str = "HighEvaluatorResult@1";
 pub const OPERATION: &str = "forgecad.production.high-evaluator@1";
 pub const SUBDIVISION_POLICY: &str = "opensubdiv-compatible-regular-quad-cpu@1";
-pub const STITCHED_SUBDIVISION_POLICY: &str = "forgecad-owned-cpu-catmull-clark-stitched-quad@1";
+pub const STITCHED_SUBDIVISION_POLICY: &str = "forgecad-owned-cpu-catmull-clark-stitched-polygon@2";
 pub const EVALUATOR_CONTRACT_SCHEMA_VERSION: &str = "NativeHighEvaluatorContract@1";
 
 const MAX_STEPS: usize = 16;
@@ -33,6 +35,7 @@ const MAX_CONTROL_POINTS: usize = 256;
 const MAX_STITCHED_CONTROL_POINTS: usize = 32_768;
 const MAX_STITCHED_FACES: usize = 32_768;
 const MAX_STITCHED_EDGES: usize = 65_536;
+const MAX_STITCHED_FACE_DEGREE: usize = 32;
 const MAX_OUTPUT_VERTICES: usize = 300_000;
 const MAX_OUTPUT_TRIANGLES: usize = 600_000;
 const MAX_COORDINATE_ABS_M: f32 = 100.0;
@@ -102,6 +105,8 @@ pub struct HighEvaluatorContract {
 pub struct HighEvaluatorPart {
     pub operand_id: String,
     pub part_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_node_ids: Vec<String>,
     pub source_node_id: String,
     pub material_zone_id: String,
     pub source_element_lineage: Vec<String>,
@@ -150,11 +155,13 @@ pub struct HighSubdivisionStep {
     pub max_triangles: usize,
 }
 
-/// A closed all-quad mesh input for the CPU stitched subdivision route.
-/// `source_vertex_ids` is position-aligned, `faces` is face-id-aligned, and
-/// each source edge binds an opaque stable edge ID to its endpoint indices.
-/// The worker derives adjacency from these bindings, so adjacent authored
-/// faces share one evaluated edge point and one evaluated vertex point.
+/// A bounded manifold polygon mesh input for the CPU stitched subdivision
+/// route. `source_vertex_ids` is position-aligned, `faces` is face-id-aligned,
+/// and each source edge binds an opaque stable edge ID to its endpoint
+/// indices. The worker derives adjacency from these bindings, so adjacent
+/// authored faces share one evaluated edge point and one evaluated vertex
+/// point. Every authored face must have degree 3..=32; the Catmull-Clark
+/// result is a quad mesh after one or more levels.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HighStitchedSubdivisionStep {
@@ -162,13 +169,18 @@ pub struct HighStitchedSubdivisionStep {
     pub backend: SubdivisionBackend,
     pub part_id: String,
     pub material_zone_id: String,
+    /// Complete source-node lineage for one semantic Part.  The scalar
+    /// compatibility fields remain authoritative for legacy single-node
+    /// inputs; composite Parts preserve this ordered set end to end.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_node_ids: Vec<String>,
     pub source_revision_id: String,
     pub source_revision_sha256: String,
     pub source_vertex_ids: Vec<String>,
     pub source_edges: Vec<HighStitchedEdgeBinding>,
     pub source_face_ids: Vec<String>,
     pub control_points: Vec<[f32; 3]>,
-    pub faces: Vec<[u32; 4]>,
+    pub faces: Vec<Vec<u32>>,
     pub subdivision_levels: usize,
     pub max_triangles: usize,
 }
@@ -216,6 +228,8 @@ pub struct HighEvaluatorStepResult {
 pub struct HighEvaluatedPart {
     pub output_part_id: String,
     pub part_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_node_ids: Vec<String>,
     pub source_node_id: String,
     pub material_zone_id: String,
     pub module_id: String,
@@ -373,6 +387,12 @@ fn validate_request(request: &HighEvaluatorRequest) -> Result<(), HighEvaluatorE
                     &step.source_revision_sha256,
                     "stitched_subdivision.source_revision_sha256",
                 )?;
+                if !step.source_node_ids.is_empty() {
+                    validate_unique_ids(
+                        &step.source_node_ids,
+                        "stitched_subdivision.source_node_id",
+                    )?;
+                }
                 validate_stitched_grid(step)?;
                 &step.step_id
             }
@@ -392,6 +412,15 @@ fn validate_part(part: &HighEvaluatorPart) -> Result<(), HighEvaluatorError> {
         (&part.material_zone_id, "material_zone_id"),
     ] {
         validate_id(value, label)?;
+    }
+    if !part.source_node_ids.is_empty()
+        && (part.source_node_ids.first() != Some(&part.source_node_id)
+            || part.source_node_ids.len() > 16)
+    {
+        return invalid("HIGH_EVALUATOR_SOURCE_NODE_SET_INVALID");
+    }
+    if !part.source_node_ids.is_empty() {
+        validate_unique_ids(&part.source_node_ids, "source_node_id")?;
     }
     if part.positions_m.len() < 3 || part.positions_m.len() > MAX_OUTPUT_VERTICES {
         return invalid("HIGH_EVALUATOR_SOURCE_VERTEX_BUDGET_INVALID");
@@ -478,10 +507,10 @@ fn validate_stitched_grid(step: &HighStitchedSubdivisionStep) -> Result<(), High
     if step.backend != SubdivisionBackend::CpuRegularQuad {
         return invalid("HIGH_EVALUATOR_STITCHED_BACKEND_UNAVAILABLE");
     }
-    if step.subdivision_levels > 2 || step.max_triangles == 0 {
+    if !(1..=2).contains(&step.subdivision_levels) || step.max_triangles == 0 {
         return invalid("HIGH_EVALUATOR_STITCHED_POLICY_INVALID");
     }
-    if step.control_points.len() < 4 || step.control_points.len() > MAX_STITCHED_CONTROL_POINTS {
+    if step.control_points.len() < 3 || step.control_points.len() > MAX_STITCHED_CONTROL_POINTS {
         return invalid("HIGH_EVALUATOR_STITCHED_CONTROL_POINT_BUDGET_INVALID");
     }
     if step.faces.is_empty() || step.faces.len() > MAX_STITCHED_FACES {
@@ -503,7 +532,23 @@ fn validate_stitched_grid(step: &HighStitchedSubdivisionStep) -> Result<(), High
         &step.source_face_ids,
         "stitched_subdivision.source_face_ids",
     )?;
+    for point in &step.control_points {
+        if point
+            .iter()
+            .any(|value| !value.is_finite() || value.abs() > MAX_COORDINATE_ABS_M)
+        {
+            return invalid("HIGH_EVALUATOR_STITCHED_NON_FINITE_CONTROL_POINT");
+        }
+    }
+
+    let faces = step
+        .faces
+        .iter()
+        .map(|face| face.iter().map(|index| *index as usize).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    let topology = build_subdivision_topology(&step.control_points, &faces)?;
     let mut edge_ids = BTreeSet::new();
+    let mut source_edge_keys = BTreeSet::new();
     for edge in &step.source_edges {
         validate_id(&edge.edge_id, "stitched_subdivision.edge_id")?;
         if !edge_ids.insert(edge.edge_id.clone()) {
@@ -517,63 +562,44 @@ fn validate_stitched_grid(step: &HighStitchedSubdivisionStep) -> Result<(), High
         {
             return invalid("HIGH_EVALUATOR_STITCHED_EDGE_ENDPOINT_INVALID");
         }
-    }
-    for point in &step.control_points {
-        if point
-            .iter()
-            .any(|value| !value.is_finite() || value.abs() > MAX_COORDINATE_ABS_M)
-        {
-            return invalid("HIGH_EVALUATOR_STITCHED_NON_FINITE_CONTROL_POINT");
+        let key = (
+            edge.vertex_indices[0].min(edge.vertex_indices[1]) as usize,
+            edge.vertex_indices[0].max(edge.vertex_indices[1]) as usize,
+        );
+        if !source_edge_keys.insert(key) {
+            return invalid("HIGH_EVALUATOR_STITCHED_DUPLICATE_EDGE_ENDPOINT");
         }
     }
-    let mut derived_edges = BTreeMap::<(usize, usize), usize>::new();
-    for face in &step.faces {
-        if face
-            .iter()
-            .any(|index| *index as usize >= step.control_points.len())
-            || face[0] == face[1]
-            || face[1] == face[2]
-            || face[2] == face[3]
-            || face[3] == face[0]
-        {
-            return invalid("HIGH_EVALUATOR_STITCHED_FACE_INVALID");
-        }
-        for (left, right) in [
-            (face[0] as usize, face[1] as usize),
-            (face[1] as usize, face[2] as usize),
-            (face[2] as usize, face[3] as usize),
-            (face[3] as usize, face[0] as usize),
-        ] {
-            let key = (left.min(right), left.max(right));
-            let count = derived_edges.entry(key).or_default();
-            *count += 1;
-            if *count > 2 {
-                return invalid("HIGH_EVALUATOR_STITCHED_NON_MANIFOLD");
-            }
-        }
-    }
-    if derived_edges.len() != step.source_edges.len()
-        || step.source_edges.iter().any(|edge| {
-            let key = (
-                edge.vertex_indices[0].min(edge.vertex_indices[1]) as usize,
-                edge.vertex_indices[0].max(edge.vertex_indices[1]) as usize,
-            );
-            !derived_edges.contains_key(&key)
-        })
-    {
+    let derived_edge_keys = topology
+        .edges
+        .iter()
+        .map(|edge| (edge.a.min(edge.b), edge.a.max(edge.b)))
+        .collect::<BTreeSet<_>>();
+    if source_edge_keys != derived_edge_keys {
         return invalid("HIGH_EVALUATOR_STITCHED_EDGE_BINDING_MISMATCH");
     }
-    let mut triangles = step.faces.len();
-    for _ in 0..step.subdivision_levels {
-        triangles = triangles.checked_mul(4).ok_or_else(|| {
+
+    // One input polygon of degree n becomes n quads after the first level;
+    // each later level multiplies the quad count by four.  The result is
+    // always triangulated as two triangles per generated quad.
+    let mut output_quads = step.faces.iter().try_fold(0usize, |sum, face| {
+        sum.checked_add(face.len()).ok_or_else(|| {
+            HighEvaluatorError("HIGH_EVALUATOR_STITCHED_TOPOLOGY_OVERFLOW".to_owned())
+        })
+    })?;
+    for _ in 1..step.subdivision_levels {
+        output_quads = output_quads.checked_mul(4).ok_or_else(|| {
             HighEvaluatorError("HIGH_EVALUATOR_STITCHED_TOPOLOGY_OVERFLOW".to_owned())
         })?;
     }
-    let triangles = triangles.checked_mul(2).ok_or_else(|| {
+    let output_triangles = output_quads.checked_mul(2).ok_or_else(|| {
         HighEvaluatorError("HIGH_EVALUATOR_STITCHED_TOPOLOGY_OVERFLOW".to_owned())
     })?;
-    if triangles > step.max_triangles {
+    if output_triangles > step.max_triangles {
         return invalid("HIGH_EVALUATOR_STITCHED_SUBDIVISION_BUDGET_EXCEEDED");
+    }
+    if output_triangles > MAX_OUTPUT_TRIANGLES {
+        return invalid("HIGH_EVALUATOR_STITCHED_OUTPUT_BUDGET_EXCEEDED");
     }
     Ok(())
 }
@@ -619,12 +645,14 @@ fn evaluate_once(
                     ));
                 }
                 let mesh = evaluate_manifold_boolean(left, right, step)?;
+                let source_node_ids = merge_source_node_ids(left, right)?;
                 let output = build_evaluated_part(
-                    &step.step_id,
                     &step.output_part_id,
                     &left.part_id,
+                    &format!("forgecad.high-evaluator.{}", step.step_id),
                     &left.material_zone_id,
                     MANIFOLD_MODULE_ID,
+                    &source_node_ids,
                     mesh,
                 )?;
                 enforce_output_budget(
@@ -655,6 +683,7 @@ fn evaluate_once(
                     HighEvaluatorPart {
                         operand_id: format!("output:{}", step.step_id),
                         part_id: output.part_id.clone(),
+                        source_node_ids: output.source_node_ids.clone(),
                         source_node_id: output.source_node_id.clone(),
                         material_zone_id: output.material_zone_id.clone(),
                         source_element_lineage: output.source_element_lineage.clone(),
@@ -678,12 +707,14 @@ fn evaluate_once(
                         HighEvaluatorError("HIGH_EVALUATOR_SUBDIVISION_PART_UNAVAILABLE".to_owned())
                     })?;
                 let mesh = evaluate_cpu_subdivision(step, source)?;
+                let source_node_ids = effective_source_node_ids(source)?;
                 let output = build_evaluated_part(
-                    &step.step_id,
                     &format!("subdivision:{}", step.step_id),
                     &step.part_id,
+                    &source.source_node_id,
                     &step.material_zone_id,
                     module_id,
+                    &source_node_ids,
                     mesh,
                 )?;
                 enforce_output_budget(
@@ -727,19 +758,22 @@ fn evaluate_once(
                     })?;
                 if source.material_zone_id != step.material_zone_id
                     || source.positions_m != step.control_points
-                    || source.source_node_id != step.source_revision_id
+                    || (!step.source_node_ids.is_empty()
+                        && step.source_node_ids != effective_source_node_ids(source)?)
                 {
                     return Err(HighEvaluatorError(
                         "HIGH_EVALUATOR_STITCHED_SOURCE_BINDING_MISMATCH".to_owned(),
                     ));
                 }
                 let mesh = evaluate_cpu_stitched_subdivision(step, source)?;
+                let source_node_ids = effective_source_node_ids(source)?;
                 let output = build_evaluated_part(
-                    &step.step_id,
                     &format!("stitched-subdivision:{}", step.step_id),
                     &step.part_id,
+                    &source.source_node_id,
                     &step.material_zone_id,
                     CPU_SUBDIVISION_MODULE_ID,
+                    &source_node_ids,
                     mesh,
                 )?;
                 enforce_output_budget(
@@ -761,8 +795,9 @@ fn evaluate_once(
                     error_code: None,
                     limitations: vec![
                         STITCHED_SUBDIVISION_POLICY.to_owned(),
-                        "shared-edge-and-shared-vertex-indexing@1".to_owned(),
-                        "all-quad-manifold-with-boundary-only@1".to_owned(),
+                        "shared-edge-and-shared-vertex-indexing@2".to_owned(),
+                        "manifold-polygon-3-to-32-with-boundary-only@2".to_owned(),
+                        "catmull-clark-output-quads@2".to_owned(),
                         "limit-surface-not-evaluated@1".to_owned(),
                         "creases-and-adaptive-subdivision-unsupported@1".to_owned(),
                         "runtime-candidate-not-created@1".to_owned(),
@@ -773,6 +808,7 @@ fn evaluate_once(
                     HighEvaluatorPart {
                         operand_id: format!("output:{}", step.step_id),
                         part_id: output.part_id.clone(),
+                        source_node_ids: output.source_node_ids.clone(),
                         source_node_id: output.source_node_id.clone(),
                         material_zone_id: output.material_zone_id.clone(),
                         source_element_lineage: output.source_element_lineage.clone(),
@@ -886,7 +922,7 @@ fn evaluate_cpu_subdivision(
             let b = a + 1;
             let d = a + step.u_points;
             let c = d + 1;
-            faces.push([a, b, c, d]);
+            faces.push(vec![a, b, c, d]);
         }
     }
     for _ in 0..step.subdivision_levels {
@@ -894,28 +930,7 @@ fn evaluate_cpu_subdivision(
         positions = next.0;
         faces = next.1;
     }
-    let mut indices = Vec::with_capacity(faces.len() * 2);
-    for face in faces {
-        let [a, b, c, d] = face;
-        if [a, b, c, d].iter().any(|index| *index >= positions.len()) {
-            return invalid("HIGH_EVALUATOR_SUBDIVISION_OUTPUT_INDEX_OUT_OF_RANGE");
-        }
-        let cross_a = cross(
-            subtract(positions[b], positions[a]),
-            subtract(positions[c], positions[a]),
-        );
-        let cross_b = cross(
-            subtract(positions[c], positions[a]),
-            subtract(positions[d], positions[a]),
-        );
-        if length(cross_a) <= 1.0e-8 || length(cross_b) <= 1.0e-8 {
-            return invalid("HIGH_EVALUATOR_SUBDIVISION_DEGENERATE_OUTPUT");
-        }
-        indices.extend([
-            [a as u32, b as u32, c as u32],
-            [a as u32, c as u32, d as u32],
-        ]);
-    }
+    let indices = triangulate_quad_faces(&positions, &faces)?;
     let mut lineage = source.source_element_lineage.clone();
     lineage.push(format!("subdivision-step:{}", step.step_id));
     lineage.sort();
@@ -932,15 +947,11 @@ fn evaluate_cpu_stitched_subdivision(
     step: &HighStitchedSubdivisionStep,
     source: &HighEvaluatorPart,
 ) -> Result<MeshOutput, HighEvaluatorError> {
-    let mut faces = Vec::with_capacity(step.faces.len());
-    for face in &step.faces {
-        faces.push([
-            face[0] as usize,
-            face[1] as usize,
-            face[2] as usize,
-            face[3] as usize,
-        ]);
-    }
+    let mut faces = step
+        .faces
+        .iter()
+        .map(|face| face.iter().map(|index| *index as usize).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
     validate_stitched_positions_and_faces(&step.control_points, &faces, &step.source_edges)?;
     let mut positions = step.control_points.clone();
     for _ in 0..step.subdivision_levels {
@@ -985,57 +996,253 @@ fn evaluate_cpu_stitched_subdivision(
 
 fn validate_stitched_positions_and_faces(
     positions: &[[f32; 3]],
-    faces: &[[usize; 4]],
+    faces: &[Vec<usize>],
     source_edges: &[HighStitchedEdgeBinding],
 ) -> Result<(), HighEvaluatorError> {
+    let topology = build_subdivision_topology(positions, faces)?;
+    let mut source_edge_keys = BTreeSet::new();
+    for edge in source_edges {
+        let key = (
+            edge.vertex_indices[0].min(edge.vertex_indices[1]) as usize,
+            edge.vertex_indices[0].max(edge.vertex_indices[1]) as usize,
+        );
+        if !source_edge_keys.insert(key) {
+            return invalid("HIGH_EVALUATOR_STITCHED_DUPLICATE_EDGE_ENDPOINT");
+        }
+    }
+    let derived_edge_keys = topology
+        .edges
+        .iter()
+        .map(|edge| (edge.a.min(edge.b), edge.a.max(edge.b)))
+        .collect::<BTreeSet<_>>();
+    if source_edge_keys != derived_edge_keys {
+        return invalid("HIGH_EVALUATOR_STITCHED_EDGE_BINDING_MISMATCH");
+    }
+    Ok(())
+}
+
+/// Build a deterministic manifold polygon adjacency graph.  The graph is
+/// rebuilt for every subdivision level so generated quads receive the same
+/// strict checks as the authored mixed polygon source.
+fn build_subdivision_topology(
+    positions: &[[f32; 3]],
+    faces: &[Vec<usize>],
+) -> Result<SubdivisionTopology, HighEvaluatorError> {
     if positions.is_empty() || faces.is_empty() {
         return invalid("HIGH_EVALUATOR_STITCHED_EMPTY_MESH");
     }
-    let mut derived_edges = BTreeMap::<(usize, usize), usize>::new();
-    for face in faces {
-        if face.iter().any(|index| *index >= positions.len())
-            || face[0] == face[1]
-            || face[1] == face[2]
-            || face[2] == face[3]
-            || face[3] == face[0]
-        {
-            return invalid("HIGH_EVALUATOR_STITCHED_FACE_INVALID");
+    let mut edge_lookup = BTreeMap::<(usize, usize), usize>::new();
+    let mut edges = Vec::<SubdivisionEdge>::new();
+    let mut vertex_edges = vec![Vec::<usize>::new(); positions.len()];
+    let mut vertex_faces = vec![Vec::<usize>::new(); positions.len()];
+    let mut face_edges = Vec::<Vec<usize>>::with_capacity(faces.len());
+    for (face_index, face) in faces.iter().enumerate() {
+        if !(3..=MAX_STITCHED_FACE_DEGREE).contains(&face.len()) {
+            return invalid("HIGH_EVALUATOR_STITCHED_FACE_DEGREE_INVALID");
         }
-        for (left, right) in [
-            (face[0], face[1]),
-            (face[1], face[2]),
-            (face[2], face[3]),
-            (face[3], face[0]),
-        ] {
+        if face.iter().any(|index| *index >= positions.len()) {
+            return invalid("HIGH_EVALUATOR_STITCHED_FACE_INDEX_OUT_OF_RANGE");
+        }
+        let unique_vertices = face.iter().copied().collect::<BTreeSet<_>>();
+        if unique_vertices.len() != face.len() {
+            return invalid("HIGH_EVALUATOR_STITCHED_FACE_REPEATED_VERTEX");
+        }
+        if face.iter().enumerate().any(|(corner, left)| {
+            let right = face[(corner + 1) % face.len()];
+            length(subtract(positions[*left], positions[right])) <= 1.0e-8
+        }) {
+            return invalid("HIGH_EVALUATOR_STITCHED_DEGENERATE_EDGE");
+        }
+        let polygon_area = (1..face.len() - 1)
+            .map(|corner| {
+                length(cross(
+                    subtract(positions[face[corner]], positions[face[0]]),
+                    subtract(positions[face[corner + 1]], positions[face[0]]),
+                )) * 0.5
+            })
+            .sum::<f32>();
+        if !polygon_area.is_finite() || polygon_area <= 1.0e-8 {
+            return invalid("HIGH_EVALUATOR_STITCHED_DEGENERATE_FACE");
+        }
+        for vertex in face {
+            vertex_faces[*vertex].push(face_index);
+        }
+        let mut edge_ids = Vec::with_capacity(face.len());
+        for corner in 0..face.len() {
+            let left = face[corner];
+            let right = face[(corner + 1) % face.len()];
             let key = (left.min(right), left.max(right));
-            let count = derived_edges.entry(key).or_default();
-            *count += 1;
-            if *count > 2 {
-                return invalid("HIGH_EVALUATOR_STITCHED_NON_MANIFOLD");
+            let edge_index = if let Some(existing) = edge_lookup.get(&key).copied() {
+                let edge = edges.get_mut(existing).expect("edge lookup synchronized");
+                if edge.faces.len() >= 2 {
+                    return invalid("HIGH_EVALUATOR_STITCHED_NON_MANIFOLD");
+                }
+                if edge.directions[0] == (left, right) {
+                    return invalid("HIGH_EVALUATOR_STITCHED_ORIENTATION_INVALID");
+                }
+                edge.faces.push(face_index);
+                edge.directions.push((left, right));
+                existing
+            } else {
+                if edges.len() == MAX_STITCHED_EDGES {
+                    return invalid("HIGH_EVALUATOR_STITCHED_EDGE_BUDGET_EXCEEDED");
+                }
+                let edge_index = edges.len();
+                edge_lookup.insert(key, edge_index);
+                edges.push(SubdivisionEdge {
+                    a: key.0,
+                    b: key.1,
+                    faces: vec![face_index],
+                    directions: vec![(left, right)],
+                });
+                edge_index
+            };
+            edge_ids.push(edge_index);
+            if !vertex_edges[left].contains(&edge_index) {
+                vertex_edges[left].push(edge_index);
+            }
+            if !vertex_edges[right].contains(&edge_index) {
+                vertex_edges[right].push(edge_index);
             }
         }
+        face_edges.push(edge_ids);
     }
-    if derived_edges.len() != source_edges.len()
-        || source_edges.iter().any(|edge| {
-            let key = (
-                edge.vertex_indices[0].min(edge.vertex_indices[1]) as usize,
-                edge.vertex_indices[0].max(edge.vertex_indices[1]) as usize,
-            );
-            !derived_edges.contains_key(&key)
-        })
-    {
-        return invalid("HIGH_EVALUATOR_STITCHED_EDGE_BINDING_MISMATCH");
+    if vertex_faces.iter().any(Vec::is_empty) {
+        return invalid("HIGH_EVALUATOR_STITCHED_ORPHAN_VERTEX");
+    }
+    for vertex_index in 0..positions.len() {
+        validate_vertex_fan(
+            vertex_index,
+            &vertex_edges[vertex_index],
+            &vertex_faces[vertex_index],
+            &edges,
+        )?;
+    }
+    Ok(SubdivisionTopology {
+        edges,
+        vertex_edges,
+        vertex_faces,
+        face_edges,
+    })
+}
+
+fn validate_vertex_fan(
+    vertex_index: usize,
+    incident_edges: &[usize],
+    incident_faces: &[usize],
+    edges: &[SubdivisionEdge],
+) -> Result<(), HighEvaluatorError> {
+    let boundary_edges = incident_edges
+        .iter()
+        .filter(|edge_index| edges[**edge_index].faces.len() == 1)
+        .count();
+    if boundary_edges > 2 {
+        return invalid("HIGH_EVALUATOR_STITCHED_BOUNDARY_NON_MANIFOLD");
+    }
+    let expected_edges = incident_faces.len() + usize::from(boundary_edges > 0);
+    if incident_edges.len() != expected_edges {
+        return invalid("HIGH_EVALUATOR_STITCHED_VERTEX_FAN_INVALID");
+    }
+    let incident_face_set = incident_faces.iter().copied().collect::<BTreeSet<_>>();
+    let mut adjacency = BTreeMap::<usize, BTreeSet<usize>>::new();
+    for face in incident_faces {
+        adjacency.entry(*face).or_default();
+    }
+    for edge_index in incident_edges {
+        let edge = &edges[*edge_index];
+        if edge.faces.len() == 2 {
+            if !incident_face_set.contains(&edge.faces[0])
+                || !incident_face_set.contains(&edge.faces[1])
+            {
+                return invalid("HIGH_EVALUATOR_STITCHED_VERTEX_FAN_EDGE_INVALID");
+            }
+            adjacency
+                .entry(edge.faces[0])
+                .or_default()
+                .insert(edge.faces[1]);
+            adjacency
+                .entry(edge.faces[1])
+                .or_default()
+                .insert(edge.faces[0]);
+        }
+    }
+    let connection_count = adjacency.values().map(BTreeSet::len).sum::<usize>() / 2;
+    let expected_connections = if boundary_edges == 0 {
+        incident_faces.len()
+    } else {
+        incident_faces.len().saturating_sub(1)
+    };
+    if connection_count != expected_connections {
+        return invalid("HIGH_EVALUATOR_STITCHED_VERTEX_FAN_DISCONNECTED");
+    }
+    if boundary_edges == 0 {
+        if adjacency.values().any(|neighbors| neighbors.len() != 2) {
+            return invalid("HIGH_EVALUATOR_STITCHED_VERTEX_FAN_NOT_CLOSED");
+        }
+    } else if incident_faces.len() == 1 {
+        if adjacency.values().any(|neighbors| !neighbors.is_empty()) {
+            return invalid("HIGH_EVALUATOR_STITCHED_VERTEX_FAN_BOUNDARY_INVALID");
+        }
+    } else {
+        let degree_one = adjacency
+            .values()
+            .filter(|neighbors| neighbors.len() == 1)
+            .count();
+        if degree_one != 2 || adjacency.values().any(|neighbors| neighbors.len() > 2) {
+            return invalid("HIGH_EVALUATOR_STITCHED_VERTEX_FAN_BOUNDARY_INVALID");
+        }
+    }
+    let start = incident_faces[0];
+    let mut visited = BTreeSet::new();
+    let mut stack = vec![start];
+    while let Some(face) = stack.pop() {
+        if !visited.insert(face) {
+            continue;
+        }
+        if let Some(neighbors) = adjacency.get(&face) {
+            stack.extend(neighbors.iter().copied());
+        }
+    }
+    if visited.len() != incident_faces.len() {
+        let _ = vertex_index;
+        return invalid("HIGH_EVALUATOR_STITCHED_VERTEX_FAN_ORPHAN");
+    }
+    Ok(())
+}
+
+fn validate_no_orphan_vertices(
+    positions: &[[f32; 3]],
+    faces: &[Vec<usize>],
+    context: &str,
+) -> Result<(), HighEvaluatorError> {
+    let mut used = vec![false; positions.len()];
+    for face in faces {
+        if face.len() != 4 {
+            return invalid("HIGH_EVALUATOR_SUBDIVISION_OUTPUT_NOT_QUAD");
+        }
+        for index in face {
+            if *index >= positions.len() {
+                return invalid("HIGH_EVALUATOR_SUBDIVISION_OUTPUT_INDEX_OUT_OF_RANGE");
+            }
+            used[*index] = true;
+        }
+    }
+    if used.iter().any(|is_used| !is_used) {
+        return invalid(&format!("{context}_ORPHAN_OUTPUT_VERTEX"));
     }
     Ok(())
 }
 
 fn triangulate_quad_faces(
     positions: &[[f32; 3]],
-    faces: &[[usize; 4]],
+    faces: &[Vec<usize>],
 ) -> Result<Vec<[u32; 3]>, HighEvaluatorError> {
     let mut indices = Vec::with_capacity(faces.len() * 2);
     for face in faces {
-        let [a, b, c, d] = *face;
+        if face.len() != 4 {
+            return invalid("HIGH_EVALUATOR_SUBDIVISION_OUTPUT_NOT_QUAD");
+        }
+        let [a, b, c, d] = [face[0], face[1], face[2], face[3]];
         if [a, b, c, d].iter().any(|index| *index >= positions.len()) {
             return invalid("HIGH_EVALUATOR_SUBDIVISION_OUTPUT_INDEX_OUT_OF_RANGE");
         }
@@ -1079,13 +1286,13 @@ fn stitched_evaluator_contract() -> HighEvaluatorContract {
     HighEvaluatorContract {
         schema_version: EVALUATOR_CONTRACT_SCHEMA_VERSION.to_owned(),
         policy: STITCHED_SUBDIVISION_POLICY.to_owned(),
-        topology: "all-quad-manifold-with-boundary@1".to_owned(),
-        continuity: "shared-edge-and-shared-vertex-indexing@1".to_owned(),
-        boundary_policy: "smooth-boundary-two-edge-rule@1".to_owned(),
+        topology: "manifold-polygon-degree-3-to-32-with-boundary@2".to_owned(),
+        continuity: "shared-edge-and-shared-vertex-indexing@2".to_owned(),
+        boundary_policy: "smooth-manifold-boundary-two-edge-vertex-fan@2".to_owned(),
         crease_policy: "creases-rejected-no-sharpness-input@1".to_owned(),
         adaptive_policy: "uniform-levels-only@1".to_owned(),
-        source_binding: "position-aligned-vertex-edge-face-stable-ids@1".to_owned(),
-        provenance: "source-vertex-edge-face-lineage-plus-step-id@1".to_owned(),
+        source_binding: "position-aligned-vertex-edge-face-stable-ids@2".to_owned(),
+        provenance: "source-vertex-edge-face-lineage-plus-step-id@2".to_owned(),
         deterministic_replay: "canonical-json-double-evaluation@1".to_owned(),
         non_destructive: true,
         max_subdivision_levels: 2,
@@ -1097,75 +1304,35 @@ struct SubdivisionEdge {
     a: usize,
     b: usize,
     faces: Vec<usize>,
+    directions: Vec<(usize, usize)>,
+}
+
+#[derive(Debug, Clone)]
+struct SubdivisionTopology {
+    edges: Vec<SubdivisionEdge>,
+    vertex_edges: Vec<Vec<usize>>,
+    vertex_faces: Vec<Vec<usize>>,
+    face_edges: Vec<Vec<usize>>,
 }
 
 fn catmull_clark_step(
     positions: &[[f32; 3]],
-    faces: &[[usize; 4]],
-) -> Result<(Vec<[f32; 3]>, Vec<[usize; 4]>), HighEvaluatorError> {
-    if positions.is_empty() || faces.is_empty() {
-        return invalid("HIGH_EVALUATOR_SUBDIVISION_EMPTY_MESH");
-    }
-    let mut edge_lookup = BTreeMap::<(usize, usize), usize>::new();
-    let mut edges = Vec::<SubdivisionEdge>::new();
-    let mut vertex_edges = vec![Vec::<usize>::new(); positions.len()];
-    let mut vertex_faces = vec![Vec::<usize>::new(); positions.len()];
-    let mut face_edges = Vec::<[usize; 4]>::with_capacity(faces.len());
-    for (face_index, face) in faces.iter().enumerate() {
-        if face.iter().any(|index| *index >= positions.len()) {
-            return invalid("HIGH_EVALUATOR_SUBDIVISION_FACE_INDEX_OUT_OF_RANGE");
-        }
-        if face[0] == face[1] || face[1] == face[2] || face[2] == face[3] || face[3] == face[0] {
-            return invalid("HIGH_EVALUATOR_SUBDIVISION_REPEATED_EDGE_VERTEX");
-        }
-        for vertex in face {
-            vertex_faces[*vertex].push(face_index);
-        }
-        let pairs = [
-            (face[0], face[1]),
-            (face[1], face[2]),
-            (face[2], face[3]),
-            (face[3], face[0]),
-        ];
-        let mut edge_ids = [0usize; 4];
-        for (slot, (left, right)) in pairs.into_iter().enumerate() {
-            let key = (left.min(right), left.max(right));
-            let edge_index = if let Some(existing) = edge_lookup.get(&key).copied() {
-                let edge = edges.get_mut(existing).expect("edge lookup synchronized");
-                if edge.faces.len() >= 2 {
-                    return invalid("HIGH_EVALUATOR_SUBDIVISION_NON_MANIFOLD");
-                }
-                edge.faces.push(face_index);
-                existing
-            } else {
-                let edge_index = edges.len();
-                edge_lookup.insert(key, edge_index);
-                edges.push(SubdivisionEdge {
-                    a: key.0,
-                    b: key.1,
-                    faces: vec![face_index],
-                });
-                edge_index
-            };
-            edge_ids[slot] = edge_index;
-            if !vertex_edges[left].contains(&edge_index) {
-                vertex_edges[left].push(edge_index);
-            }
-            if !vertex_edges[right].contains(&edge_index) {
-                vertex_edges[right].push(edge_index);
-            }
-        }
-        face_edges.push(edge_ids);
-    }
+    faces: &[Vec<usize>],
+) -> Result<(Vec<[f32; 3]>, Vec<Vec<usize>>), HighEvaluatorError> {
+    let topology = build_subdivision_topology(positions, faces)?;
+    let edges = topology.edges;
+    let vertex_edges = topology.vertex_edges;
+    let vertex_faces = topology.vertex_faces;
+    let face_edges = topology.face_edges;
     let face_points = faces
         .iter()
         .map(|face| {
             scale(
-                add(
-                    add(positions[face[0]], positions[face[1]]),
-                    add(positions[face[2]], positions[face[3]]),
-                ),
-                0.25,
+                face.iter()
+                    .copied()
+                    .map(|index| positions[index])
+                    .fold([0.0; 3], add_many),
+                1.0 / face.len() as f32,
             )
         })
         .collect::<Vec<_>>();
@@ -1186,8 +1353,26 @@ fn catmull_clark_step(
             }
         })
         .collect::<Vec<_>>();
-    let mut next_positions =
-        Vec::with_capacity(positions.len() + edge_points.len() + face_points.len());
+    let next_vertex_count = positions
+        .len()
+        .checked_add(edge_points.len())
+        .and_then(|count| count.checked_add(face_points.len()))
+        .ok_or_else(|| {
+            HighEvaluatorError("HIGH_EVALUATOR_SUBDIVISION_TOPOLOGY_OVERFLOW".to_owned())
+        })?;
+    let next_face_count = faces.iter().try_fold(0usize, |sum, face| {
+        sum.checked_add(face.len()).ok_or_else(|| {
+            HighEvaluatorError("HIGH_EVALUATOR_SUBDIVISION_TOPOLOGY_OVERFLOW".to_owned())
+        })
+    })?;
+    if next_vertex_count > MAX_OUTPUT_VERTICES
+        || next_face_count
+            .checked_mul(2)
+            .is_none_or(|triangles| triangles > MAX_OUTPUT_TRIANGLES)
+    {
+        return invalid("HIGH_EVALUATOR_SUBDIVISION_OUTPUT_BUDGET_EXCEEDED");
+    }
+    let mut next_positions = Vec::with_capacity(next_vertex_count);
     for (vertex_index, position) in positions.iter().copied().enumerate() {
         let boundary_edges = vertex_edges[vertex_index]
             .iter()
@@ -1258,46 +1443,31 @@ fn catmull_clark_step(
     next_positions.extend(edge_points);
     let face_offset = next_positions.len();
     next_positions.extend(face_points);
-    let mut next_faces = Vec::with_capacity(faces.len() * 4);
+    let mut next_faces = Vec::with_capacity(faces.iter().map(Vec::len).sum());
     for (face_index, face) in faces.iter().enumerate() {
-        let [edge_ab, edge_bc, edge_cd, edge_da] = face_edges[face_index];
         let face_point = face_offset + face_index;
-        next_faces.extend([
-            [
-                face[0],
-                edge_offset + edge_ab,
+        for corner_index in 0..face.len() {
+            let edge_next = face_edges[face_index][corner_index];
+            let edge_prev = face_edges[face_index][(corner_index + face.len() - 1) % face.len()];
+            next_faces.push(vec![
+                face[corner_index],
+                edge_offset + edge_next,
                 face_point,
-                edge_offset + edge_da,
-            ],
-            [
-                face[1],
-                edge_offset + edge_bc,
-                face_point,
-                edge_offset + edge_ab,
-            ],
-            [
-                face[2],
-                edge_offset + edge_cd,
-                face_point,
-                edge_offset + edge_bc,
-            ],
-            [
-                face[3],
-                edge_offset + edge_da,
-                face_point,
-                edge_offset + edge_cd,
-            ],
-        ]);
+                edge_offset + edge_prev,
+            ]);
+        }
     }
+    validate_no_orphan_vertices(&next_positions, &next_faces, "HIGH_EVALUATOR_SUBDIVISION")?;
     Ok((next_positions, next_faces))
 }
 
 fn build_evaluated_part(
-    step_id: &str,
     output_part_id: &str,
     part_id: &str,
+    source_node_id: &str,
     material_zone_id: &str,
     module_id: &str,
+    source_node_ids: &[String],
     mesh: MeshOutput,
 ) -> Result<HighEvaluatedPart, HighEvaluatorError> {
     validate_id(output_part_id, "output_part_id")?;
@@ -1315,7 +1485,8 @@ fn build_evaluated_part(
     Ok(HighEvaluatedPart {
         output_part_id: output_part_id.to_owned(),
         part_id: part_id.to_owned(),
-        source_node_id: format!("forgecad.high-evaluator.{step_id}"),
+        source_node_ids: source_node_ids.to_vec(),
+        source_node_id: source_node_id.to_owned(),
         material_zone_id: material_zone_id.to_owned(),
         module_id: module_id.to_owned(),
         source_operand_ids: mesh.source_operand_ids,
@@ -1323,6 +1494,32 @@ fn build_evaluated_part(
         positions_m: mesh.positions,
         indices: mesh.indices,
     })
+}
+
+fn effective_source_node_ids(part: &HighEvaluatorPart) -> Result<Vec<String>, HighEvaluatorError> {
+    let values = if part.source_node_ids.is_empty() {
+        vec![part.source_node_id.clone()]
+    } else {
+        part.source_node_ids.clone()
+    };
+    if values.is_empty() || values[0] != part.source_node_id {
+        return invalid("HIGH_EVALUATOR_SOURCE_NODE_SET_INVALID");
+    }
+    validate_unique_ids(&values, "source_node_id")?;
+    Ok(values)
+}
+
+fn merge_source_node_ids(
+    left: &HighEvaluatorPart,
+    right: &HighEvaluatorPart,
+) -> Result<Vec<String>, HighEvaluatorError> {
+    let mut values = effective_source_node_ids(left)?;
+    for value in effective_source_node_ids(right)? {
+        if !values.contains(&value) {
+            values.push(value);
+        }
+    }
+    Ok(values)
 }
 
 fn enforce_output_budget(
@@ -1386,6 +1583,10 @@ fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
+fn add_many(sum: [f32; 3], value: [f32; 3]) -> [f32; 3] {
+    add(sum, value)
+}
+
 fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
@@ -1416,6 +1617,7 @@ mod tests {
             parts: vec![HighEvaluatorPart {
                 operand_id: "receiver".to_owned(),
                 part_id: "receiver".to_owned(),
+                source_node_ids: vec!["receiver-source".to_owned()],
                 source_node_id: "receiver-source".to_owned(),
                 material_zone_id: "zone-metal".to_owned(),
                 source_element_lineage: vec!["part:receiver".to_owned()],
@@ -1466,6 +1668,93 @@ mod tests {
         request
     }
 
+    fn mixed_polygon_request() -> HighEvaluatorRequest {
+        let source_mesh = HighEvaluatorSourceMesh {
+            schema_version: "HighEvaluatorSourceMesh@1".to_owned(),
+            parts: vec![HighEvaluatorPart {
+                operand_id: "mixed-source".to_owned(),
+                part_id: "mixed-part".to_owned(),
+                source_node_ids: vec!["mixed-node".to_owned()],
+                source_node_id: "mixed-node".to_owned(),
+                material_zone_id: "mixed-zone".to_owned(),
+                source_element_lineage: vec!["mixed-source-lineage".to_owned()],
+                positions_m: vec![
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [1.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 2.0, 0.0],
+                ],
+                indices: vec![[0, 1, 2], [0, 2, 3], [3, 2, 4]],
+            }],
+        };
+        let mut request = HighEvaluatorRequest {
+            schema_version: REQUEST_SCHEMA_VERSION.to_owned(),
+            operation: OPERATION.to_owned(),
+            source_mesh: source_mesh.clone(),
+            source_mesh_sha256: sha256_value(&serde_json::to_value(&source_mesh).unwrap()).unwrap(),
+            steps: vec![HighEvaluatorStep::StitchedSubdivision(
+                HighStitchedSubdivisionStep {
+                    step_id: "mixed-stitched-1".to_owned(),
+                    backend: SubdivisionBackend::CpuRegularQuad,
+                    part_id: "mixed-part".to_owned(),
+                    material_zone_id: "mixed-zone".to_owned(),
+                    source_node_ids: vec!["mixed-node".to_owned()],
+                    source_revision_id: "mixed-node".to_owned(),
+                    source_revision_sha256: "a".repeat(64),
+                    source_vertex_ids: vec![
+                        "v0".to_owned(),
+                        "v1".to_owned(),
+                        "v2".to_owned(),
+                        "v3".to_owned(),
+                        "v4".to_owned(),
+                    ],
+                    source_edges: vec![
+                        HighStitchedEdgeBinding {
+                            edge_id: "e01".to_owned(),
+                            vertex_indices: [0, 1],
+                        },
+                        HighStitchedEdgeBinding {
+                            edge_id: "e12".to_owned(),
+                            vertex_indices: [1, 2],
+                        },
+                        HighStitchedEdgeBinding {
+                            edge_id: "e23".to_owned(),
+                            vertex_indices: [2, 3],
+                        },
+                        HighStitchedEdgeBinding {
+                            edge_id: "e30".to_owned(),
+                            vertex_indices: [3, 0],
+                        },
+                        HighStitchedEdgeBinding {
+                            edge_id: "e24".to_owned(),
+                            vertex_indices: [2, 4],
+                        },
+                        HighStitchedEdgeBinding {
+                            edge_id: "e43".to_owned(),
+                            vertex_indices: [4, 3],
+                        },
+                    ],
+                    source_face_ids: vec!["f-quad".to_owned(), "f-tri".to_owned()],
+                    control_points: source_mesh.parts[0].positions_m.clone(),
+                    faces: vec![vec![0, 1, 2, 3], vec![3, 2, 4]],
+                    subdivision_levels: 1,
+                    max_triangles: 32,
+                },
+            )],
+            budgets: HighEvaluatorBudgets {
+                max_steps: 4,
+                max_output_vertices: 1024,
+                max_output_triangles: 2048,
+            },
+            canonical_sha256: String::new(),
+        };
+        let mut preimage = serde_json::to_value(&request).unwrap();
+        preimage["canonical_sha256"] = Value::String(String::new());
+        request.canonical_sha256 = sha256_value(&preimage).unwrap();
+        request
+    }
+
     #[test]
     fn cpu_subdivision_is_deterministic_and_non_destructive() {
         let request = request(SubdivisionBackend::CpuRegularQuad);
@@ -1496,5 +1785,133 @@ mod tests {
         let error = evaluate(&request(SubdivisionBackend::Opensubdiv))
             .expect_err("OpenSubdiv must be unavailable");
         assert_eq!(error.0, "OPENSUBDIV_NOT_VENDORED_OR_LINKED");
+    }
+
+    #[test]
+    fn stitched_mixed_tri_quad_is_deterministic_and_has_no_orphans() {
+        let request = mixed_polygon_request();
+        let first = evaluate(&request).expect("mixed polygon evaluation");
+        let second = evaluate(&request).expect("mixed polygon replay");
+        assert_eq!(first, second);
+        let output = &first.evaluated_parts[0];
+        assert_eq!(output.source_node_id, "mixed-node");
+        assert_eq!(output.positions_m.len(), 13);
+        assert_eq!(output.indices.len(), 14);
+        let used = output
+            .indices
+            .iter()
+            .flat_map(|triangle| triangle.iter().copied())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(used.len(), output.positions_m.len());
+        assert_eq!(first.evaluator_contract.policy, STITCHED_SUBDIVISION_POLICY);
+        assert_eq!(
+            first.evaluator_contract.topology,
+            "manifold-polygon-degree-3-to-32-with-boundary@2"
+        );
+        assert!(first.non_destructive);
+        assert_eq!(first.visual_status, "NOT_RUN");
+        assert_eq!(first.human_status, "NOT_RUN");
+        assert_eq!(first.quality_status, "structural_only");
+    }
+
+    #[test]
+    fn stitched_mixed_tri_quad_two_levels_respects_quad_expansion_budget() {
+        let mut request = mixed_polygon_request();
+        if let HighEvaluatorStep::StitchedSubdivision(step) = &mut request.steps[0] {
+            step.subdivision_levels = 2;
+            step.max_triangles = 56;
+        }
+        let mut preimage = serde_json::to_value(&request).unwrap();
+        preimage["canonical_sha256"] = Value::String(String::new());
+        request.canonical_sha256 = sha256_value(&preimage).unwrap();
+        let result = evaluate(&request).expect("two-level mixed polygon evaluation");
+        let output = &result.evaluated_parts[0];
+        assert_eq!(output.indices.len(), 56);
+        assert!(
+            output
+                .indices
+                .iter()
+                .flat_map(|triangle| triangle.iter().copied())
+                .collect::<BTreeSet<_>>()
+                .len()
+                == output.positions_m.len()
+        );
+    }
+
+    #[test]
+    fn stitched_polygon_rejects_budget_and_degenerate_edges() {
+        let mut budget = mixed_polygon_request();
+        if let HighEvaluatorStep::StitchedSubdivision(step) = &mut budget.steps[0] {
+            step.max_triangles = 13;
+        }
+        let mut preimage = serde_json::to_value(&budget).unwrap();
+        preimage["canonical_sha256"] = Value::String(String::new());
+        budget.canonical_sha256 = sha256_value(&preimage).unwrap();
+        let error = evaluate(&budget).expect_err("triangle budget must fail closed");
+        assert!(error.0.contains("BUDGET_EXCEEDED"), "{}", error.0);
+
+        let mut degenerate = mixed_polygon_request();
+        degenerate.source_mesh.parts[0].positions_m[1] = [0.0, 0.0, 0.0];
+        if let HighEvaluatorStep::StitchedSubdivision(step) = &mut degenerate.steps[0] {
+            step.control_points[1] = [0.0, 0.0, 0.0];
+        }
+        degenerate.source_mesh_sha256 =
+            sha256_value(&serde_json::to_value(&degenerate.source_mesh).unwrap()).unwrap();
+        let mut preimage = serde_json::to_value(&degenerate).unwrap();
+        preimage["canonical_sha256"] = Value::String(String::new());
+        degenerate.canonical_sha256 = sha256_value(&preimage).unwrap();
+        let error = evaluate(&degenerate).expect_err("degenerate edge must fail closed");
+        assert!(error.0.contains("DEGENERATE"), "{}", error.0);
+
+        let mut boundary = mixed_polygon_request();
+        if let HighEvaluatorStep::StitchedSubdivision(step) = &mut boundary.steps[0] {
+            step.source_face_ids.push("f-boundary".to_owned());
+            step.faces.push(vec![0, 4, 2]);
+            step.source_edges.extend([
+                HighStitchedEdgeBinding {
+                    edge_id: "e04".to_owned(),
+                    vertex_indices: [0, 4],
+                },
+                HighStitchedEdgeBinding {
+                    edge_id: "e02".to_owned(),
+                    vertex_indices: [0, 2],
+                },
+            ]);
+        }
+        let mut preimage = serde_json::to_value(&boundary).unwrap();
+        preimage["canonical_sha256"] = Value::String(String::new());
+        boundary.canonical_sha256 = sha256_value(&preimage).unwrap();
+        let error = evaluate(&boundary).expect_err("boundary fan must fail closed");
+        assert!(error.0.contains("BOUNDARY_NON_MANIFOLD"), "{}", error.0);
+    }
+
+    #[test]
+    fn stitched_polygon_rejects_non_manifold_and_orphan_source() {
+        let mut non_manifold = mixed_polygon_request();
+        if let HighEvaluatorStep::StitchedSubdivision(step) = &mut non_manifold.steps[0] {
+            step.source_face_ids.push("f-extra".to_owned());
+            step.faces.push(vec![2, 3, 0]);
+        }
+        let mut preimage = serde_json::to_value(&non_manifold).unwrap();
+        preimage["canonical_sha256"] = Value::String(String::new());
+        non_manifold.canonical_sha256 = sha256_value(&preimage).unwrap();
+        let error = evaluate(&non_manifold).expect_err("third edge incidence must fail closed");
+        assert!(error.0.contains("NON_MANIFOLD"), "{}", error.0);
+
+        let mut orphan = mixed_polygon_request();
+        orphan.source_mesh.parts[0]
+            .positions_m
+            .push([2.0, 2.0, 0.0]);
+        if let HighEvaluatorStep::StitchedSubdivision(step) = &mut orphan.steps[0] {
+            step.source_vertex_ids.push("v5".to_owned());
+            step.control_points.push([2.0, 2.0, 0.0]);
+        }
+        orphan.source_mesh_sha256 =
+            sha256_value(&serde_json::to_value(&orphan.source_mesh).unwrap()).unwrap();
+        let mut preimage = serde_json::to_value(&orphan).unwrap();
+        preimage["canonical_sha256"] = Value::String(String::new());
+        orphan.canonical_sha256 = sha256_value(&preimage).unwrap();
+        let error = evaluate(&orphan).expect_err("orphan source vertex must fail closed");
+        assert!(error.0.contains("ORPHAN_VERTEX"), "{}", error.0);
     }
 }

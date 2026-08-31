@@ -1,0 +1,691 @@
+{
+  "schema_version": "WeaponryKnifeProductionBrief@1",
+  "brief_id": "dragonfang-kukri-brief-resolved-001",
+  "project_id": "weaponry-knife-reference-cohort",
+  "parent_brief_id": "dragonfang-kukri-brief",
+  "parent_brief_sha256": "27c8893f4ff982ff90ad62b21df18e00b30db691b8d9d169ddb8cbff2235d514",
+  "freeze_policy": "immutable-successor-preserve-source-claims@1",
+  "subject": "crossfire-knife",
+  "asset_identity": {
+    "working_asset_id": "dragonfang-kukri",
+    "category": "kukri",
+    "functional_scope": "nonfunctional-fps-game-visual",
+    "source_labels": [
+      "Kukri-Beast",
+      "尼泊尔-屠龙",
+      "Dragonfang Kukri"
+    ],
+    "identity_claims": [
+      {
+        "claim_id": "identity-image-en",
+        "source_kind": "image-panel",
+        "label": "Kukri-Beast",
+        "evidence_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+        "confidence": "high"
+      },
+      {
+        "claim_id": "identity-image-cn",
+        "source_kind": "image-panel",
+        "label": "尼泊尔-屠龙",
+        "evidence_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+        "confidence": "high"
+      },
+      {
+        "claim_id": "identity-text-en",
+        "source_kind": "text-brief",
+        "label": "Dragonfang Kukri",
+        "evidence_sha256": "7e7c7087e47e121b2ef3808176dcbbda066550ea75ecd18d5895b16171d122e8",
+        "confidence": "medium"
+      }
+    ],
+    "name_status": "resolved",
+    "selected_label": "尼泊尔-屠龙"
+  },
+  "authorization": {
+    "status": "user-confirmed",
+    "rights_scope": [
+      "commercial-use",
+      "noncommercial-use",
+      "in-game-display",
+      "promotional-media",
+      "ui-and-marketing",
+      "internal-training",
+      "derivative-editing",
+      "format-conversion",
+      "single-project-use",
+      "multi-project-use"
+    ],
+    "restrictions": [
+      "illegal-content",
+      "political-content",
+      "religious-content"
+    ],
+    "territory": "worldwide",
+    "term": "perpetual",
+    "revocation": "irrevocable",
+    "sublicense": "internal",
+    "source_reference_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+    "evidence_status": "source-asserted-not-runtime-bound",
+    "user_confirmation_required": false
+  },
+  "reference_coverage": {
+    "source_reference_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+    "source_dimensions": {
+      "width": 1536,
+      "height": 1024
+    },
+    "required_views": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "front-three-quarter",
+      "rear-three-quarter",
+      "top",
+      "bottom",
+      "fps-hold",
+      "fps-inspect"
+    ],
+    "supplied_views": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "rear-three-quarter",
+      "fps-hold"
+    ],
+    "missing_views": [
+      "front-three-quarter",
+      "top",
+      "bottom",
+      "fps-inspect"
+    ],
+    "detail_views": [
+      "blade-detail",
+      "guard-detail",
+      "handle-detail",
+      "engraving-detail",
+      "wear-detail"
+    ],
+    "coverage_status": "partial",
+    "hq_360_status": "BLOCKED_REFERENCE_COVERAGE",
+    "camera_status": "unknown"
+  },
+  "silhouette_priorities": [
+    {
+      "rank": 1,
+      "focus": "kukri-core-silhouette",
+      "source_status": "observed"
+    },
+    {
+      "rank": 2,
+      "focus": "dragon-head-guard",
+      "source_status": "observed"
+    },
+    {
+      "rank": 3,
+      "focus": "blade-proportion",
+      "source_status": "observed"
+    },
+    {
+      "rank": 4,
+      "focus": "dragon-relief",
+      "source_status": "observed"
+    },
+    {
+      "rank": 5,
+      "focus": "pbr-material",
+      "source_status": "inferred"
+    },
+    {
+      "rank": 6,
+      "focus": "controlled-wear",
+      "source_status": "observed"
+    },
+    {
+      "rank": 7,
+      "focus": "micro-detail",
+      "source_status": "inferred"
+    }
+  ],
+  "parts": [
+    {
+      "part_id": "blade",
+      "role": "blade",
+      "parent_id": null,
+      "material_zone_ids": [
+        "dark-red-blade",
+        "antique-gold-ornament"
+      ],
+      "source_status": "observed",
+      "fps_priority": "hero"
+    },
+    {
+      "part_id": "cutting-edge",
+      "role": "cutting-edge",
+      "parent_id": "blade",
+      "material_zone_ids": [
+        "silver-cutting-edge"
+      ],
+      "source_status": "observed",
+      "fps_priority": "hero"
+    },
+    {
+      "part_id": "blade-body",
+      "role": "blade-body",
+      "parent_id": "blade",
+      "material_zone_ids": [
+        "dark-red-blade"
+      ],
+      "source_status": "observed",
+      "fps_priority": "hero"
+    },
+    {
+      "part_id": "dragon-relief",
+      "role": "relief",
+      "parent_id": "blade",
+      "material_zone_ids": [
+        "antique-gold-ornament"
+      ],
+      "source_status": "observed",
+      "fps_priority": "hero"
+    },
+    {
+      "part_id": "guard-dragon-head",
+      "role": "guard",
+      "parent_id": null,
+      "material_zone_ids": [
+        "antique-gold-ornament",
+        "ruby-gem"
+      ],
+      "source_status": "observed",
+      "fps_priority": "hero"
+    },
+    {
+      "part_id": "dragon-eye-left",
+      "role": "gem",
+      "parent_id": "guard-dragon-head",
+      "material_zone_ids": [
+        "ruby-gem"
+      ],
+      "source_status": "observed",
+      "fps_priority": "detail"
+    },
+    {
+      "part_id": "dragon-eye-right",
+      "role": "gem",
+      "parent_id": "guard-dragon-head",
+      "material_zone_ids": [
+        "ruby-gem"
+      ],
+      "source_status": "inferred",
+      "fps_priority": "detail"
+    },
+    {
+      "part_id": "grip",
+      "role": "grip",
+      "parent_id": null,
+      "material_zone_ids": [
+        "black-grip",
+        "antique-gold-ornament"
+      ],
+      "source_status": "observed",
+      "fps_priority": "hero"
+    },
+    {
+      "part_id": "grip-fastener",
+      "role": "fastener",
+      "parent_id": "grip",
+      "material_zone_ids": [
+        "antique-gold-ornament",
+        "ruby-gem"
+      ],
+      "source_status": "observed",
+      "fps_priority": "support"
+    },
+    {
+      "part_id": "gem",
+      "role": "gem",
+      "parent_id": "grip",
+      "material_zone_ids": [
+        "ruby-gem"
+      ],
+      "source_status": "observed",
+      "fps_priority": "detail"
+    },
+    {
+      "part_id": "pommel",
+      "role": "pommel",
+      "parent_id": "grip",
+      "material_zone_ids": [
+        "antique-gold-ornament"
+      ],
+      "source_status": "observed",
+      "fps_priority": "support"
+    }
+  ],
+  "material_zones": [
+    {
+      "zone_id": "dark-red-blade",
+      "zone_role": "metal",
+      "surface_language": "dark red metallic blade body with oxidation and controlled variation",
+      "channels": [
+        "base-color",
+        "normal",
+        "roughness",
+        "metallic",
+        "ao"
+      ],
+      "target_share_percent": 40,
+      "roughness_range": {
+        "min": 0.35,
+        "max": 0.55
+      },
+      "emissive_allowed": false,
+      "source_status": "observed"
+    },
+    {
+      "zone_id": "antique-gold-ornament",
+      "zone_role": "metal",
+      "surface_language": "antique gold raised dragon ornament with worn edges and dark cavities",
+      "channels": [
+        "base-color",
+        "normal",
+        "roughness",
+        "metallic",
+        "ao"
+      ],
+      "target_share_percent": 30,
+      "roughness_range": {
+        "min": 0.28,
+        "max": 0.45
+      },
+      "emissive_allowed": false,
+      "source_status": "observed"
+    },
+    {
+      "zone_id": "black-grip",
+      "zone_role": "grip",
+      "surface_language": "black leather or high-friction composite grip with restrained wear",
+      "channels": [
+        "base-color",
+        "normal",
+        "roughness",
+        "metallic",
+        "ao"
+      ],
+      "target_share_percent": 20,
+      "roughness_range": {
+        "min": 0.35,
+        "max": 0.7
+      },
+      "emissive_allowed": false,
+      "source_status": "observed"
+    },
+    {
+      "zone_id": "silver-cutting-edge",
+      "zone_role": "metal",
+      "surface_language": "exposed silver-gray sharpened cutting edge with fine marks",
+      "channels": [
+        "base-color",
+        "normal",
+        "roughness",
+        "metallic",
+        "ao"
+      ],
+      "target_share_percent": 8,
+      "roughness_range": {
+        "min": 0.2,
+        "max": 0.35
+      },
+      "emissive_allowed": false,
+      "source_status": "observed"
+    },
+    {
+      "zone_id": "ruby-gem",
+      "zone_role": "gem",
+      "surface_language": "deep red ruby insert with restrained translucent highlight",
+      "channels": [
+        "base-color",
+        "normal",
+        "roughness",
+        "metallic",
+        "ao",
+        "emissive"
+      ],
+      "target_share_percent": 2,
+      "roughness_range": {
+        "min": 0.15,
+        "max": 0.4
+      },
+      "emissive_allowed": true,
+      "source_status": "observed"
+    }
+  ],
+  "surface_constraints": {
+    "hero_budget": {
+      "status": "resolved",
+      "resolved_min_triangles": 25000,
+      "resolved_max_triangles": 45000,
+      "claims": [
+        {
+          "claim_id": "hero-image-exact-7836",
+          "source_kind": "image-panel",
+          "value_kind": "exact",
+          "min_triangles": 7836,
+          "max_triangles": 7836,
+          "evidence_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+          "confidence": "high"
+        },
+        {
+          "claim_id": "hero-text-range-25k-45k",
+          "source_kind": "text-brief",
+          "value_kind": "range",
+          "min_triangles": 25000,
+          "max_triangles": 45000,
+          "evidence_sha256": "7e7c7087e47e121b2ef3808176dcbbda066550ea75ecd18d5895b16171d122e8",
+          "confidence": "high"
+        },
+        {
+          "claim_id": "hero-text-fallback-15k-30k",
+          "source_kind": "text-brief",
+          "value_kind": "range",
+          "min_triangles": 15000,
+          "max_triangles": 30000,
+          "evidence_sha256": "7e7c7087e47e121b2ef3808176dcbbda066550ea75ecd18d5895b16171d122e8",
+          "confidence": "medium"
+        }
+      ],
+      "blocks": []
+    },
+    "lod_levels": [
+      {
+        "level_id": "lod0",
+        "target_percent": 100
+      },
+      {
+        "level_id": "lod1",
+        "target_percent": 50
+      },
+      {
+        "level_id": "lod2",
+        "target_percent": 25
+      },
+      {
+        "level_id": "lod3",
+        "target_percent": 12.5
+      }
+    ],
+    "texture_policy": {
+      "resolution_status": "resolved",
+      "resolved_width": 4096,
+      "resolved_height": 4096,
+      "shipping_width": 2048,
+      "shipping_height": 2048,
+      "resolution_claims": [
+        {
+          "claim_id": "texture-image-2048",
+          "source_kind": "image-panel",
+          "width": 2048,
+          "height": 2048,
+          "usage": "unspecified",
+          "evidence_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+          "confidence": "high"
+        },
+        {
+          "claim_id": "texture-text-hero-4096",
+          "source_kind": "text-brief",
+          "width": 4096,
+          "height": 4096,
+          "usage": "hero",
+          "evidence_sha256": "7e7c7087e47e121b2ef3808176dcbbda066550ea75ecd18d5895b16171d122e8",
+          "confidence": "high"
+        },
+        {
+          "claim_id": "texture-text-production-2048",
+          "source_kind": "text-brief",
+          "width": 2048,
+          "height": 2048,
+          "usage": "production",
+          "evidence_sha256": "7e7c7087e47e121b2ef3808176dcbbda066550ea75ecd18d5895b16171d122e8",
+          "confidence": "high"
+        }
+      ],
+      "udim_tile_max": 2,
+      "material_slot_count": 2,
+      "layout": [
+        "blade",
+        "handle-guard"
+      ],
+      "channels": [
+        "base-color",
+        "normal",
+        "roughness",
+        "metallic",
+        "ao",
+        "emissive"
+      ]
+    },
+    "topology_policy": {
+      "non_manifold_allowed": false,
+      "duplicate_faces_allowed": false,
+      "floating_vertices_allowed": false,
+      "edge_highlight_policy": "profile-relative-bounded",
+      "low_editable_required": true,
+      "hidden_fallback_allowed": false
+    }
+  },
+  "presentation_constraints": {
+    "hand_side": "right",
+    "grip_region": "lower-right",
+    "blade_direction": "upper-left",
+    "inspect_focus_order": [
+      "dragon-eye-left",
+      "guard-dragon-head",
+      "dragon-relief",
+      "cutting-edge"
+    ],
+    "socket_ids": [
+      "weapon-root",
+      "grip-socket",
+      "blade-tip",
+      "blade-base",
+      "fx-dragon-eye"
+    ],
+    "animation_clips": [
+      "idle",
+      "light-attack",
+      "heavy-attack",
+      "inspect",
+      "draw-sheath"
+    ],
+    "lighting_modes": [
+      "studio-key-fill-rim",
+      "neutral"
+    ]
+  },
+  "engine_constraints": {
+    "profile_status": "resolved",
+    "preferred_engine": "unreal",
+    "preferred_engine_version": "5.6-or-later",
+    "target_claims": [
+      {
+        "claim_id": "engine-image-ambiguous-532",
+        "engine_family": "unreal",
+        "version_requirement": "5.3.2",
+        "source_kind": "image-panel",
+        "evidence_sha256": "932c5ec407249678f69d1a9d61daa8f59177bf54766695e30ec3d2bbef00bf7e",
+        "confidence": "ambiguous"
+      },
+      {
+        "claim_id": "engine-text-unreal-56",
+        "engine_family": "unreal",
+        "version_requirement": "5.6-or-later",
+        "source_kind": "text-brief",
+        "evidence_sha256": "7e7c7087e47e121b2ef3808176dcbbda066550ea75ecd18d5895b16171d122e8",
+        "confidence": "high"
+      },
+      {
+        "claim_id": "engine-text-unity-6",
+        "engine_family": "unity",
+        "version_requirement": "6-or-later",
+        "source_kind": "text-brief",
+        "evidence_sha256": "7e7c7087e47e121b2ef3808176dcbbda066550ea75ecd18d5895b16171d122e8",
+        "confidence": "high"
+      }
+    ],
+    "export_formats": [
+      "glb",
+      "fbx"
+    ],
+    "optional_export_formats": [
+      "usd"
+    ],
+    "unit_status": "resolved",
+    "unit_options": [
+      "meter",
+      "centimeter"
+    ],
+    "selected_unit": "centimeter",
+    "axis_status": "resolved",
+    "selected_axis_profile": "unreal-z-up-x-forward-right-handed",
+    "pivot_policy": "runtime-profile-required",
+    "validation_requirements": [
+      "clean-project-import",
+      "save-reimport",
+      "restart-readback",
+      "mesh-material-tangent-lod-socket-check"
+    ]
+  },
+  "source_conflicts": [
+    {
+      "conflict_id": "conflict-identity-label",
+      "kind": "identity-label",
+      "observed_claim_ids": [
+        "identity-image-en",
+        "identity-image-cn",
+        "identity-text-en"
+      ],
+      "resolution_status": "resolved",
+      "blocking": false
+    },
+    {
+      "conflict_id": "conflict-hero-triangle-budget",
+      "kind": "hero-triangle-budget",
+      "observed_claim_ids": [
+        "hero-image-exact-7836",
+        "hero-text-range-25k-45k",
+        "hero-text-fallback-15k-30k"
+      ],
+      "resolution_status": "resolved",
+      "blocking": false
+    },
+    {
+      "conflict_id": "conflict-texture-resolution",
+      "kind": "texture-resolution",
+      "observed_claim_ids": [
+        "texture-image-2048",
+        "texture-text-hero-4096",
+        "texture-text-production-2048"
+      ],
+      "resolution_status": "resolved",
+      "blocking": false
+    },
+    {
+      "conflict_id": "conflict-engine-profile",
+      "kind": "engine-profile",
+      "observed_claim_ids": [
+        "engine-image-ambiguous-532",
+        "engine-text-unreal-56",
+        "engine-text-unity-6"
+      ],
+      "resolution_status": "resolved",
+      "blocking": false
+    }
+  ],
+  "acceptance_constraints": {
+    "status": "blocked",
+    "required_gates": [
+      "K0_AUTH_REFERENCE",
+      "K1_AUTHORING",
+      "K2_FORM",
+      "K3_GRAPH_HIGH",
+      "K4_LOW",
+      "K5_HERO_UV",
+      "K6_CAGE_BAKE",
+      "K7_MATERIAL",
+      "K8_FPS_LOD",
+      "K9_ENGINE",
+      "K10_HUMAN_EXPORT"
+    ],
+    "gate_statuses": [
+      {
+        "gate_id": "K0_AUTH_REFERENCE",
+        "status": "blocked"
+      },
+      {
+        "gate_id": "K1_AUTHORING",
+        "status": "not-run"
+      },
+      {
+        "gate_id": "K2_FORM",
+        "status": "not-run"
+      },
+      {
+        "gate_id": "K3_GRAPH_HIGH",
+        "status": "not-run"
+      },
+      {
+        "gate_id": "K4_LOW",
+        "status": "not-run"
+      },
+      {
+        "gate_id": "K5_HERO_UV",
+        "status": "not-run"
+      },
+      {
+        "gate_id": "K6_CAGE_BAKE",
+        "status": "not-run"
+      },
+      {
+        "gate_id": "K7_MATERIAL",
+        "status": "not-run"
+      },
+      {
+        "gate_id": "K8_FPS_LOD",
+        "status": "not-run"
+      },
+      {
+        "gate_id": "K9_ENGINE",
+        "status": "blocked"
+      },
+      {
+        "gate_id": "K10_HUMAN_EXPORT",
+        "status": "blocked"
+      }
+    ],
+    "blocking_reasons": [
+      "authorization-not-runtime-bound",
+      "missing-reference-views",
+      "engine-validation-not-run",
+      "independent-human-review-missing"
+    ],
+    "promotion_labels": [
+      "AUTHORING_RUNTIME_PASS",
+      "GAME_READY_SURFACE_PASS",
+      "VISUAL_REFERENCE_PASS",
+      "HUMAN_ARTIST_ACCEPTED",
+      "ENGINE_VALIDATED",
+      "PACKAGED",
+      "RELEASED"
+    ],
+    "runtime_sole_writer": true,
+    "prototype_not_truth": true,
+    "human_artist_required": true,
+    "user_approval_required": true,
+    "confirm_export_requires_all_gates": true
+  },
+  "canonicalization_policy": "canonical-json-sha256-excluding-canonical-sha256@1",
+  "canonical_sha256": "c6f2d42fa6dc7c06ab6f0548ae007f36974c58e16f7f8380622d9df6654e739b",
+  "created_at": "2026-08-30T00:00:00Z"
+}

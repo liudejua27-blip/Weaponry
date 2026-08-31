@@ -7,16 +7,17 @@
 //! never replaces the structural Curve/ModifierGraph record or AuthoringMesh.
 
 use super::{
-    CasObjectRecord, CasStore, Store, StoreError, WEAPONRY_CURVE_MODIFIER_GRAPH_JSON_MIME,
-    WEAPONRY_CURVE_SET_OBJECT_KIND, WEAPONRY_DEPENDENCY_GRAPH_OBJECT_KIND,
-    WEAPONRY_MODIFIER_GRAPH_OBJECT_KIND, WEAPONRY_RECOMPUTE_PLAN_OBJECT_KIND,
-    WEAPONRY_SAMPLE_SET_OBJECT_KIND, canonical_json_bytes, canonical_json_hash, is_opaque_id,
-    is_sha256, mark_reachable_in_transaction,
+    canonical_json_bytes, canonical_json_hash, is_opaque_id, is_sha256,
+    mark_reachable_in_transaction, CasObjectRecord, CasStore, Store, StoreError,
+    WEAPONRY_CURVE_MODIFIER_GRAPH_JSON_MIME, WEAPONRY_CURVE_SET_OBJECT_KIND,
+    WEAPONRY_DEPENDENCY_GRAPH_OBJECT_KIND, WEAPONRY_MODIFIER_GRAPH_OBJECT_KIND,
+    WEAPONRY_RECOMPUTE_PLAN_OBJECT_KIND, WEAPONRY_SAMPLE_SET_OBJECT_KIND,
 };
 use forgecad_core::weaponry_dcc::{
-    EvaluatedMeshGeometry, EvaluatedMeshIdentity, EvaluatedMeshLink, Sha256Hash,
+    EvaluatedMeshGeometry, EvaluatedMeshIdentity, EvaluatedMeshLink, KnifeBladeLanguageMesh,
+    Sha256Hash,
 };
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -408,30 +409,65 @@ fn validate_typed_payload(
                         "evaluated mesh semantic_sha256 is missing or malformed",
                     )
                 })?;
-            let mesh: EvaluatedMeshGeometry = serde_json::from_slice(bytes).map_err(|error| {
-                contract(
-                    "WEAPONRY_CURVE_EVALUATED_MESH_CORE_PAYLOAD_INVALID",
-                    format!("evaluated mesh is not typed Core geometry: {error}"),
-                )
-            })?;
-            let typed_value = serde_json::to_value(&mesh).map_err(|error| {
-                StoreError::InvalidData(format!("evaluated mesh serialization failed: {error}"))
-            })?;
-            if !same_json_shape(&typed_value, value) {
-                return Err(contract(
-                    "WEAPONRY_CURVE_EVALUATED_MESH_CORE_PAYLOAD_INVALID",
-                    "evaluated mesh payload has fields outside the Core type",
-                ));
-            }
-            mesh.validate().map_err(|error| {
-                contract(
-                    "WEAPONRY_CURVE_EVALUATED_MESH_CORE_PAYLOAD_INVALID",
-                    format!("evaluated mesh failed Core validation: {error}"),
-                )
-            })?;
-            if expected_semantic_sha256
-                .is_some_and(|expected| expected != mesh.semantic_hash().as_str())
-                || declared != mesh.semantic_hash().as_str()
+            // V1 and V2 intentionally share one CAS kind because both are
+            // disposable evaluations of the same structural Curve graph.
+            // Their closed Core payloads remain disjoint: V2 owns `parts`,
+            // while V1 owns the earlier two-rail ribbon shape.
+            let semantic = if value.get("parts").is_some() {
+                let mesh: KnifeBladeLanguageMesh =
+                    serde_json::from_slice(bytes).map_err(|error| {
+                        contract(
+                            "WEAPONRY_CURVE_EVALUATED_MESH_CORE_PAYLOAD_INVALID",
+                            format!("evaluated mesh is not typed V2 blade geometry: {error}"),
+                        )
+                    })?;
+                let typed_value = serde_json::to_value(&mesh).map_err(|error| {
+                    StoreError::InvalidData(format!(
+                        "V2 evaluated mesh serialization failed: {error}"
+                    ))
+                })?;
+                if !same_json_shape(&typed_value, value) {
+                    return Err(contract(
+                        "WEAPONRY_CURVE_EVALUATED_MESH_CORE_PAYLOAD_INVALID",
+                        "V2 evaluated mesh payload has fields outside the Core type",
+                    ));
+                }
+                mesh.validate().map_err(|error| {
+                    contract(
+                        "WEAPONRY_CURVE_EVALUATED_MESH_CORE_PAYLOAD_INVALID",
+                        format!("V2 evaluated mesh failed Core validation: {error}"),
+                    )
+                })?;
+                mesh.semantic_hash().as_str().to_owned()
+            } else {
+                let mesh: EvaluatedMeshGeometry =
+                    serde_json::from_slice(bytes).map_err(|error| {
+                        contract(
+                            "WEAPONRY_CURVE_EVALUATED_MESH_CORE_PAYLOAD_INVALID",
+                            format!("evaluated mesh is not typed V1 Core geometry: {error}"),
+                        )
+                    })?;
+                let typed_value = serde_json::to_value(&mesh).map_err(|error| {
+                    StoreError::InvalidData(format!(
+                        "V1 evaluated mesh serialization failed: {error}"
+                    ))
+                })?;
+                if !same_json_shape(&typed_value, value) {
+                    return Err(contract(
+                        "WEAPONRY_CURVE_EVALUATED_MESH_CORE_PAYLOAD_INVALID",
+                        "V1 evaluated mesh payload has fields outside the Core type",
+                    ));
+                }
+                mesh.validate().map_err(|error| {
+                    contract(
+                        "WEAPONRY_CURVE_EVALUATED_MESH_CORE_PAYLOAD_INVALID",
+                        format!("V1 evaluated mesh failed Core validation: {error}"),
+                    )
+                })?;
+                mesh.semantic_hash().as_str().to_owned()
+            };
+            if expected_semantic_sha256.is_some_and(|expected| expected != semantic)
+                || declared != semantic
             {
                 return Err(contract(
                     "WEAPONRY_CURVE_EVALUATED_MESH_CAS_SEMANTIC_MISMATCH",

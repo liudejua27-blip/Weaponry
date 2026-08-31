@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weaponry-knife-production-brief.schema.json",
+  "title": "WeaponryKnifeProductionBrief",
+  "description": "A closed, hash-bound, reusable production brief for a non-functional knife visual asset. It carries no image bytes, local path, contact, signature, trademark artwork, or executable instruction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "brief_id", "project_id", "parent_brief_id", "parent_brief_sha256", "freeze_policy", "subject", "asset_identity", "authorization", "reference_coverage", "silhouette_priorities", "parts", "material_zones", "surface_constraints", "presentation_constraints", "engine_constraints", "source_conflicts", "acceptance_constraints", "canonicalization_policy", "canonical_sha256", "created_at"],
+  "properties": {
+    "schema_version": {"const": "WeaponryKnifeProductionBrief@1"},
+    "brief_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "parent_brief_id": {"$ref": "#/$defs/nullable_identifier"},
+    "parent_brief_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "freeze_policy": {"enum": ["initial-intake-no-parent@1", "immutable-successor-preserve-source-claims@1"]},
+    "subject": {"enum": ["knife", "crossfire-knife", "original-control-knife"]},
+    "asset_identity": {"$ref": "#/$defs/asset_identity"},
+    "authorization": {"$ref": "#/$defs/authorization"},
+    "reference_coverage": {"$ref": "#/$defs/reference_coverage"},
+    "silhouette_priorities": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/silhouette_priority"}},
+    "parts": {"type": "array", "minItems": 1, "maxItems": 128, "uniqueItems": true, "items": {"$ref": "#/$defs/part"}},
+    "material_zones": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/material_zone"}},
+    "surface_constraints": {"$ref": "#/$defs/surface_constraints"},
+    "presentation_constraints": {"$ref": "#/$defs/presentation_constraints"},
+    "engine_constraints": {"$ref": "#/$defs/engine_constraints"},
+    "source_conflicts": {"type": "array", "minItems": 0, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/source_conflict"}},
+    "acceptance_constraints": {"$ref": "#/$defs/acceptance_constraints"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "allOf": [
+    {"if": {"properties": {"freeze_policy": {"const": "initial-intake-no-parent@1"}}, "required": ["freeze_policy"]}, "then": {"properties": {"parent_brief_id": {"const": null}, "parent_brief_sha256": {"const": null}}}},
+    {"if": {"properties": {"freeze_policy": {"const": "immutable-successor-preserve-source-claims@1"}}, "required": ["freeze_policy"]}, "then": {"properties": {"parent_brief_id": {"$ref": "#/$defs/identifier"}, "parent_brief_sha256": {"$ref": "#/$defs/sha256"}}}}
+  ],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"},
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {"anyOf": [
+        {"pattern": "^[/\\\\]"},
+        {"pattern": "^[A-Za-z]:[/\\\\]"},
+        {"pattern": "(^|[/\\\\])\\.\\.?([/\\\\]|$)"},
+        {"pattern": "^(file|data|https?|ftp)://"},
+        {"pattern": "[Bb][Ll][Ee][Nn][Dd][Ee][Rr]\\s+--[Pp][Yy][Tt][Hh][Oo][Nn]\\b"},
+        {"pattern": "[Pp][Ll][Uu][Gg][Ii][Nn]|[Aa][Dd][Dd](?:-?[Oo][Nn])?\\b"},
+        {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+        {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+        {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+        {"pattern": "[Bb][Ee][Aa][Rr][Ee][Rr]\\s+"},
+        {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+      ]}
+    },
+    "nullable_safe_text": {"type": ["string", "null"], "pattern": "^[^\\r\\n]{1,512}$"},
+    "nullable_identifier": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},
+    "asset_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["working_asset_id", "category", "functional_scope", "source_labels", "identity_claims", "name_status", "selected_label"],
+      "properties": {
+        "working_asset_id": {"$ref": "#/$defs/identifier"},
+        "category": {"enum": ["knife", "kukri", "fixed-blade-knife", "original-control-knife"]},
+        "functional_scope": {"const": "nonfunctional-fps-game-visual"},
+        "source_labels": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/safe_text"}},
+        "identity_claims": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/identity_claim"}},
+        "name_status": {"enum": ["resolved", "unresolved", "not-applicable"]},
+        "selected_label": {"$ref": "#/$defs/nullable_safe_text"}
+      },
+      "allOf": [
+        {"if": {"properties": {"name_status": {"const": "resolved"}}, "required": ["name_status"]}, "then": {"properties": {"selected_label": {"$ref": "#/$defs/safe_text"}}}},
+        {"if": {"properties": {"name_status": {"const": "unresolved"}}, "required": ["name_status"]}, "then": {"properties": {"source_labels": {"minItems": 2}, "selected_label": {"const": null}}}},
+        {"if": {"properties": {"name_status": {"const": "not-applicable"}}, "required": ["name_status"]}, "then": {"properties": {"selected_label": {"const": null}}}}
+      ]
+    },
+    "identity_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "source_kind", "label", "evidence_sha256", "confidence"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/identifier"},
+        "source_kind": {"enum": ["image-panel", "text-brief", "author", "benchmark"]},
+        "label": {"$ref": "#/$defs/safe_text"},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "confidence": {"enum": ["high", "medium", "ambiguous"]}
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "rights_scope", "restrictions", "territory", "term", "revocation", "sublicense", "source_reference_sha256", "evidence_status", "user_confirmation_required"],
+      "properties": {
+        "status": {"enum": ["source-asserted", "user-confirmed", "unavailable", "conflicted"]},
+        "rights_scope": {"type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": {"enum": ["commercial-use", "noncommercial-use", "in-game-display", "promotional-media", "ui-and-marketing", "internal-training", "derivative-editing", "format-conversion", "single-project-use", "multi-project-use"]}},
+        "restrictions": {"type": "array", "minItems": 0, "maxItems": 8, "uniqueItems": true, "items": {"enum": ["illegal-content", "political-content", "religious-content"]}},
+        "territory": {"enum": ["worldwide", "project-scoped", "unknown"]},
+        "term": {"enum": ["perpetual", "time-limited", "unknown"]},
+        "revocation": {"enum": ["irrevocable", "revocable", "unknown"]},
+        "sublicense": {"enum": ["internal", "none", "unknown"]},
+        "source_reference_sha256": {"$ref": "#/$defs/sha256"},
+        "evidence_status": {"enum": ["source-asserted-not-runtime-bound", "runtime-bound", "unavailable"]},
+        "user_confirmation_required": {"type": "boolean"}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "user-confirmed"}}, "required": ["status"]}, "then": {"properties": {"user_confirmation_required": {"const": false}}}},
+        {"if": {"properties": {"status": {"enum": ["source-asserted", "unavailable", "conflicted"]}}, "required": ["status"]}, "then": {"properties": {"user_confirmation_required": {"const": true}}}}
+      ]
+    },
+    "view_kind": {"enum": ["front", "back", "left", "right", "front-three-quarter", "rear-three-quarter", "top", "bottom", "fps-hold", "fps-inspect"]},
+    "detail_kind": {"enum": ["blade-detail", "guard-detail", "handle-detail", "engraving-detail", "wear-detail"]},
+    "reference_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_reference_sha256", "source_dimensions", "required_views", "supplied_views", "missing_views", "detail_views", "coverage_status", "hq_360_status", "camera_status"],
+      "properties": {
+        "source_reference_sha256": {"$ref": "#/$defs/sha256"},
+        "source_dimensions": {"$ref": "#/$defs/dimensions"},
+        "required_views": {"type": "array", "minItems": 1, "maxItems": 10, "uniqueItems": true, "items": {"$ref": "#/$defs/view_kind"}},
+        "supplied_views": {"type": "array", "minItems": 0, "maxItems": 10, "uniqueItems": true, "items": {"$ref": "#/$defs/view_kind"}},
+        "missing_views": {"type": "array", "minItems": 0, "maxItems": 10, "uniqueItems": true, "items": {"$ref": "#/$defs/view_kind"}},
+        "detail_views": {"type": "array", "minItems": 0, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/detail_kind"}},
+        "coverage_status": {"enum": ["complete", "partial", "blocked"]},
+        "hq_360_status": {"enum": ["eligible", "BLOCKED_REFERENCE_COVERAGE"]},
+        "camera_status": {"enum": ["observed", "inferred", "unknown"]}
+      },
+      "allOf": [
+        {"if": {"properties": {"coverage_status": {"const": "complete"}}, "required": ["coverage_status"]}, "then": {"properties": {"missing_views": {"const": []}, "hq_360_status": {"const": "eligible"}}}},
+        {"if": {"properties": {"coverage_status": {"enum": ["partial", "blocked"]}}, "required": ["coverage_status"]}, "then": {"properties": {"missing_views": {"minItems": 1}, "hq_360_status": {"const": "BLOCKED_REFERENCE_COVERAGE"}}}}
+      ]
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {"width": {"type": "integer", "minimum": 1, "maximum": 16384}, "height": {"type": "integer", "minimum": 1, "maximum": 16384}}
+    },
+    "silhouette_priority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rank", "focus", "source_status"],
+      "properties": {"rank": {"type": "integer", "minimum": 1, "maximum": 16}, "focus": {"$ref": "#/$defs/identifier"}, "source_status": {"enum": ["observed", "inferred", "unknown"]}}
+    },
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_id", "role", "parent_id", "material_zone_ids", "source_status", "fps_priority"],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "role": {"enum": ["blade", "cutting-edge", "blade-body", "relief", "guard", "gem", "grip", "fastener", "pommel", "handle", "component", "other"]},
+        "parent_id": {"$ref": "#/$defs/nullable_identifier"},
+        "material_zone_ids": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "source_status": {"enum": ["observed", "inferred", "unknown"]},
+        "fps_priority": {"enum": ["hero", "support", "detail"]}
+      }
+    },
+    "material_zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zone_id", "zone_role", "surface_language", "channels", "target_share_percent", "roughness_range", "emissive_allowed", "source_status"],
+      "properties": {
+        "zone_id": {"$ref": "#/$defs/identifier"},
+        "zone_role": {"enum": ["metal", "coating", "grip", "gem", "wood", "composite", "other"]},
+        "surface_language": {"$ref": "#/$defs/safe_text"},
+        "channels": {"type": "array", "minItems": 1, "maxItems": 7, "uniqueItems": true, "items": {"enum": ["base-color", "normal", "roughness", "metallic", "ao", "emissive", "clearcoat"]}},
+        "target_share_percent": {"type": "number", "minimum": 0, "maximum": 100},
+        "roughness_range": {"$ref": "#/$defs/range"},
+        "emissive_allowed": {"type": "boolean"},
+        "source_status": {"enum": ["observed", "inferred", "unknown"]}
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {"min": {"type": "number", "minimum": 0, "maximum": 1}, "max": {"type": "number", "minimum": 0, "maximum": 1}}
+    },
+    "surface_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hero_budget", "lod_levels", "texture_policy", "topology_policy"],
+      "properties": {
+        "hero_budget": {"$ref": "#/$defs/hero_budget"},
+        "lod_levels": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/lod_level"}},
+        "texture_policy": {"$ref": "#/$defs/texture_policy"},
+        "topology_policy": {"$ref": "#/$defs/topology_policy"}
+      }
+    },
+    "lod_level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level_id", "target_percent"],
+      "properties": {"level_id": {"$ref": "#/$defs/identifier"}, "target_percent": {"type": "number", "minimum": 0, "maximum": 100}}
+    },
+    "hero_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "resolved_min_triangles", "resolved_max_triangles", "claims", "blocks"],
+      "properties": {
+        "status": {"enum": ["resolved", "conflicted", "not-run"]},
+        "resolved_min_triangles": {"type": ["integer", "null"], "minimum": 1, "maximum": 1000000},
+        "resolved_max_triangles": {"type": ["integer", "null"], "minimum": 1, "maximum": 1000000},
+        "claims": {"type": "array", "minItems": 0, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/triangle_claim"}},
+        "blocks": {"type": "array", "minItems": 0, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "resolved"}}, "required": ["status"]}, "then": {"properties": {"resolved_min_triangles": {"type": "integer"}, "resolved_max_triangles": {"type": "integer"}, "claims": {"minItems": 1}, "blocks": {"const": []}}}},
+        {"if": {"properties": {"status": {"const": "conflicted"}}, "required": ["status"]}, "then": {"properties": {"resolved_min_triangles": {"const": null}, "resolved_max_triangles": {"const": null}, "claims": {"minItems": 2}, "blocks": {"minItems": 1}}}},
+        {"if": {"properties": {"status": {"const": "not-run"}}, "required": ["status"]}, "then": {"properties": {"resolved_min_triangles": {"const": null}, "resolved_max_triangles": {"const": null}}}}
+      ]
+    },
+    "triangle_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "source_kind", "value_kind", "min_triangles", "max_triangles", "evidence_sha256", "confidence"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/identifier"},
+        "source_kind": {"enum": ["image-panel", "text-brief", "author", "benchmark"]},
+        "value_kind": {"enum": ["exact", "range"]},
+        "min_triangles": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "max_triangles": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "confidence": {"enum": ["high", "medium", "ambiguous"]}
+      }
+    },
+    "texture_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resolution_status", "resolved_width", "resolved_height", "shipping_width", "shipping_height", "resolution_claims", "udim_tile_max", "material_slot_count", "layout", "channels"],
+      "properties": {
+        "resolution_status": {"enum": ["resolved", "conflicted", "not-run"]},
+        "resolved_width": {"type": ["integer", "null"], "minimum": 1, "maximum": 16384, "description": "Resolved authoring-master width."},
+        "resolved_height": {"type": ["integer", "null"], "minimum": 1, "maximum": 16384, "description": "Resolved authoring-master height."},
+        "shipping_width": {"type": ["integer", "null"], "minimum": 1, "maximum": 16384, "description": "Resolved shipping texture width; must match a retained production claim."},
+        "shipping_height": {"type": ["integer", "null"], "minimum": 1, "maximum": 16384, "description": "Resolved shipping texture height; must match a retained production claim."},
+        "resolution_claims": {"type": "array", "minItems": 0, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/resolution_claim"}},
+        "udim_tile_max": {"type": "integer", "minimum": 0, "maximum": 16},
+        "material_slot_count": {"type": "integer", "minimum": 1, "maximum": 32},
+        "layout": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "channels": {"type": "array", "minItems": 1, "maxItems": 7, "uniqueItems": true, "items": {"enum": ["base-color", "normal", "roughness", "metallic", "ao", "emissive", "clearcoat"]}}
+      },
+      "allOf": [
+        {"if": {"properties": {"resolution_status": {"const": "resolved"}}, "required": ["resolution_status"]}, "then": {"properties": {"resolved_width": {"type": "integer"}, "resolved_height": {"type": "integer"}, "shipping_width": {"type": "integer"}, "shipping_height": {"type": "integer"}, "resolution_claims": {"minItems": 1}}}},
+        {"if": {"properties": {"resolution_status": {"const": "conflicted"}}, "required": ["resolution_status"]}, "then": {"properties": {"resolved_width": {"const": null}, "resolved_height": {"const": null}, "shipping_width": {"const": null}, "shipping_height": {"const": null}, "resolution_claims": {"minItems": 2}}}},
+        {"if": {"properties": {"resolution_status": {"const": "not-run"}}, "required": ["resolution_status"]}, "then": {"properties": {"resolved_width": {"const": null}, "resolved_height": {"const": null}, "shipping_width": {"const": null}, "shipping_height": {"const": null}}}}
+      ]
+    },
+    "resolution_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "source_kind", "width", "height", "usage", "evidence_sha256", "confidence"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/identifier"},
+        "source_kind": {"enum": ["image-panel", "text-brief", "author", "benchmark"]},
+        "width": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "height": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "usage": {"enum": ["hero", "production", "unspecified"]},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "confidence": {"enum": ["high", "medium", "ambiguous"]}
+      }
+    },
+    "topology_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["non_manifold_allowed", "duplicate_faces_allowed", "floating_vertices_allowed", "edge_highlight_policy", "low_editable_required", "hidden_fallback_allowed"],
+      "properties": {
+        "non_manifold_allowed": {"const": false},
+        "duplicate_faces_allowed": {"const": false},
+        "floating_vertices_allowed": {"const": false},
+        "edge_highlight_policy": {"enum": ["screen-space-controlled", "profile-relative-bounded", "not-specified"]},
+        "low_editable_required": {"const": true},
+        "hidden_fallback_allowed": {"const": false}
+      }
+    },
+    "presentation_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hand_side", "grip_region", "blade_direction", "inspect_focus_order", "socket_ids", "animation_clips", "lighting_modes"],
+      "properties": {
+        "hand_side": {"enum": ["left", "right", "ambidextrous", "unknown"]},
+        "grip_region": {"enum": ["lower-left", "lower-right", "center", "unknown"]},
+        "blade_direction": {"enum": ["upper-left", "upper-right", "horizontal", "vertical", "unknown"]},
+        "inspect_focus_order": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "socket_ids": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "animation_clips": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "lighting_modes": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    },
+    "engine_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_status", "preferred_engine", "preferred_engine_version", "target_claims", "export_formats", "optional_export_formats", "unit_status", "unit_options", "selected_unit", "axis_status", "selected_axis_profile", "pivot_policy", "validation_requirements"],
+      "properties": {
+        "profile_status": {"enum": ["resolved", "conflicted", "not-run"]},
+        "preferred_engine": {"type": ["string", "null"], "enum": ["unreal", "unity", "godot", "custom", null]},
+        "preferred_engine_version": {"$ref": "#/$defs/nullable_safe_text", "description": "Resolved target engine version selection; this brief field does not imply live engine validation."},
+        "target_claims": {"type": "array", "minItems": 0, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/engine_claim"}},
+        "export_formats": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"enum": ["glb", "fbx", "usd", "gltf", "obj"]}},
+        "optional_export_formats": {"type": "array", "minItems": 0, "maxItems": 8, "uniqueItems": true, "items": {"enum": ["glb", "fbx", "usd", "gltf", "obj"]}},
+        "unit_status": {"enum": ["resolved", "unresolved", "not-run"]},
+        "unit_options": {"type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": {"enum": ["meter", "centimeter", "engine-default", "normalized"]}},
+        "selected_unit": {"type": ["string", "null"], "enum": ["meter", "centimeter", "engine-default", "normalized", null], "description": "Resolved target/export unit; Runtime canonical internal units remain meters."},
+        "axis_status": {"enum": ["resolved", "unresolved", "not-run"]},
+        "selected_axis_profile": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$", "description": "Resolved target coordinate profile; this field does not imply live engine validation."},
+        "pivot_policy": {"$ref": "#/$defs/identifier"},
+        "validation_requirements": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      },
+      "allOf": [
+        {"if": {"properties": {"profile_status": {"const": "resolved"}}, "required": ["profile_status"]}, "then": {"properties": {"preferred_engine": {"type": "string"}, "preferred_engine_version": {"$ref": "#/$defs/safe_text"}, "target_claims": {"minItems": 1}, "selected_unit": {"type": "string"}, "selected_axis_profile": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"}}}},
+        {"if": {"properties": {"profile_status": {"const": "conflicted"}}, "required": ["profile_status"]}, "then": {"properties": {"preferred_engine": {"const": null}, "preferred_engine_version": {"const": null}, "target_claims": {"minItems": 2}, "selected_unit": {"const": null}, "selected_axis_profile": {"const": null}}}},
+        {"if": {"properties": {"profile_status": {"const": "not-run"}}, "required": ["profile_status"]}, "then": {"properties": {"preferred_engine": {"const": null}, "preferred_engine_version": {"const": null}, "selected_unit": {"const": null}, "selected_axis_profile": {"const": null}}}}
+      ]
+    },
+    "engine_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "engine_family", "version_requirement", "source_kind", "evidence_sha256", "confidence"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/identifier"},
+        "engine_family": {"enum": ["unreal", "unity", "godot", "custom"]},
+        "version_requirement": {"$ref": "#/$defs/safe_text"},
+        "source_kind": {"enum": ["image-panel", "text-brief", "author", "benchmark"]},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "confidence": {"enum": ["high", "medium", "ambiguous"]}
+      }
+    },
+    "source_conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conflict_id", "kind", "observed_claim_ids", "resolution_status", "blocking"],
+      "properties": {
+        "conflict_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"$ref": "#/$defs/identifier"},
+        "observed_claim_ids": {"type": "array", "minItems": 2, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "resolution_status": {"enum": ["resolved", "unresolved"]},
+        "blocking": {"type": "boolean"}
+      },
+      "allOf": [
+        {"if": {"properties": {"resolution_status": {"const": "unresolved"}}, "required": ["resolution_status"]}, "then": {"properties": {"blocking": {"const": true}}}},
+        {"if": {"properties": {"resolution_status": {"const": "resolved"}}, "required": ["resolution_status"]}, "then": {"properties": {"blocking": {"const": false}}}}
+      ]
+    },
+    "acceptance_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "required_gates", "gate_statuses", "blocking_reasons", "promotion_labels", "runtime_sole_writer", "prototype_not_truth", "human_artist_required", "user_approval_required", "confirm_export_requires_all_gates"],
+      "properties": {
+        "status": {"enum": ["ready", "blocked", "not-run"]},
+        "required_gates": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "gate_statuses": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/gate_status"}},
+        "blocking_reasons": {"type": "array", "minItems": 0, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "promotion_labels": {"type": "array", "minItems": 0, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "runtime_sole_writer": {"const": true},
+        "prototype_not_truth": {"const": true},
+        "human_artist_required": {"const": true},
+        "user_approval_required": {"const": true},
+        "confirm_export_requires_all_gates": {"const": true}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "blocked"}}, "required": ["status"]}, "then": {"properties": {"blocking_reasons": {"minItems": 1}}}},
+        {"if": {"properties": {"status": {"const": "ready"}}, "required": ["status"]}, "then": {"properties": {"blocking_reasons": {"const": []}}}}
+      ]
+    },
+    "gate_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate_id", "status"],
+      "properties": {"gate_id": {"$ref": "#/$defs/identifier"}, "status": {"enum": ["not-run", "blocked", "pass", "fail"]}}
+    }
+  }
+}

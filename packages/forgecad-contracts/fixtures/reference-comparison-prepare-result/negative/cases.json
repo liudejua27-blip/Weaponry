@@ -1,0 +1,12 @@
+{
+  "schema_version": "ReferenceComparisonResultNegativeFixtures@1",
+  "cases": [
+    {"id": "extra-root-field", "mutation": "add unexpected top-level property"},
+    {"id": "missing-render-set", "mutation": "delete required render_set"},
+    {"id": "camera-schema-drift", "mutation": "change CameraCalibration@1 to incomplete @2"},
+    {"id": "render-set-missing-view-id", "mutation": "delete RenderSet@2 view_id"},
+    {"id": "comparison-status-drift", "mutation": "use status outside ReferenceComparisonReport@1 enum"},
+    {"id": "quality-report-extra-field", "mutation": "add an open-field probe to QualityReport@2"},
+    {"id": "hash-format-drift", "mutation": "replace camera object SHA-256 with malformed text"}
+  ]
+}

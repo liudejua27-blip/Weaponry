@@ -1,0 +1,23 @@
+{
+  "schema_version": "KnifeReferenceIntentBundle@1",
+  "intent_bundle_id": "unsafe",
+  "project_id": "weaponry-dragonfang",
+  "brief_binding": {
+    "brief_schema_version": "WeaponryKnifeProductionBrief@1",
+    "brief_id": "brief",
+    "brief_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "brief_object_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "authoring_eligibility": "ELIGIBLE",
+    "authorization_binding_status": "runtime-bound"
+  },
+  "reference_binding": {
+    "reference_id": "reference",
+    "reference_object_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "reference_evidence_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "binding_status": "runtime-bound"
+  },
+  "route": "reference-projection",
+  "exactness": "image-only",
+  "unknowns": [{"unknown_id": "u", "topic": "other", "view": null, "description": "safe", "impact": "blocking", "resolution_status": "open"}],
+  "path": "/tmp/not-allowed"
+}

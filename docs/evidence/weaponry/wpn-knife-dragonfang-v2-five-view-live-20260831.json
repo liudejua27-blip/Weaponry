@@ -1,0 +1,1734 @@
+{
+  "authoring_mesh_id": "amv2-mesh-b032060235fd3cd98ad1ffb6b60990a8721fde7d5cc3dfef",
+  "authoring_mesh_lineage_id": "amv2-lineage-b032060235fd3cd98ad1ffb6b60990a8721fde7d5cc3dfef",
+  "authoring_mesh_revision_sha256": "407dd3d0733a7e53f25348810b82a407e8fee62649bbe2c8f7132a08711c4354",
+  "blockout_artifact_readback_sha256": "f8e58340714d6f0dac5407e75c9dd91c497283ea4d6c4db99eaa24ddd435c0ff",
+  "blockout_candidate_id": "candidate-a51b968e18634529ab0a400b87c9f816",
+  "blockout_candidate_state_sha256": "8bbf4ef71278b347c86742d77eabfce4047e6b6f3c413fa4fc1dcb37e0ec96d7",
+  "blockout_geometry_program_sha256": "dfbe44eccc930e67b62979a1975578e0df54b43e9e9477b85ecb413cd60d280d",
+  "blockout_quality_status": "structural_only",
+  "build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+  "candidate_confirmed": false,
+  "canonical_sha256": "0d4cf33827689c995a4ac603c75cd3319644256243fead11fe08bb616bbf821e",
+  "contact_or_signature_recorded": false,
+  "correction_pass": {
+    "baseline_evaluated_mesh_sha256": "a63edf50f394a59ab37064a9a0e5341853d12d8373b130e3f545d2159f3f00e8",
+    "baseline_high_artifact_id": "dragonfang-high-glb-artifact-baseline",
+    "baseline_high_artifact_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+    "baseline_materialized_candidate_id": "candidate-7fb1947ca3274500b8381debb4fb6699",
+    "baseline_view_status": {
+      "bottom": "QUALITY_TARGET_NOT_MET",
+      "front": "QUALITY_TARGET_NOT_MET",
+      "left": "QUALITY_TARGET_NOT_MET",
+      "right": "QUALITY_TARGET_NOT_MET",
+      "top": "QUALITY_TARGET_NOT_MET"
+    },
+    "changed_part_ids": [
+      "blade-body",
+      "cutting-edge"
+    ],
+    "compare_count": 10,
+    "corrected_candidate_id": "candidate-cbf53dd5b4bc4aadb069be5fe123d065",
+    "corrected_evaluated_mesh_sha256": "8287d34b02176657e7d63c63f046bca20cd2475c36134f5d6fd906d32f9afb2e",
+    "corrected_high_artifact_id": "dragonfang-high-glb-artifact-v2-correction",
+    "corrected_high_artifact_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+    "correction_mode": "dual-curve-four-section-re-evaluation@1",
+    "correction_view_status": {
+      "bottom": "QUALITY_TARGET_NOT_MET",
+      "front": "QUALITY_TARGET_NOT_MET",
+      "left": "QUALITY_TARGET_NOT_MET",
+      "right": "QUALITY_TARGET_NOT_MET",
+      "top": "QUALITY_TARGET_NOT_MET"
+    },
+    "engine_status": "NOT_RUN",
+    "fixed_view_ids": [
+      "view-front",
+      "view-top",
+      "view-bottom",
+      "view-left",
+      "view-right"
+    ],
+    "frozen_scope": [
+      "dragon-relief",
+      "guard",
+      "grip",
+      "materials"
+    ],
+    "human_review_status": "NOT_RUN",
+    "pass_state_status": "NOT_RUN_V2_DIRECT_HIGH_COMPARE",
+    "visual_quality_promotion": "NOT_PROMOTED"
+  },
+  "exact_replay": "PASS_NOT_TOUCHED",
+  "export_performed": false,
+  "fixed_reference_views": {
+    "view-bottom": {
+      "canonical_sha256": "ca91b2c84dc4bf2d02181df78d0b5e12bbdaf88b8266abaad998788e3396ad85",
+      "image": {
+        "crop": {
+          "height": 0.146484375,
+          "width": 0.3873697916666667,
+          "x": 0.6022135416666666,
+          "y": 0.21484375
+        },
+        "height": 1024,
+        "rotation_degrees": 0.0,
+        "width": 1536
+      },
+      "landmarks": [],
+      "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+      "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+      "regions": [
+        {
+          "confidence": 1.0,
+          "height": 0.146484375,
+          "region_id": "dragonfang-bottom-panel",
+          "visibility": "observed",
+          "width": 0.3873697916666667,
+          "x": 0.6022135416666666,
+          "y": 0.21484375
+        }
+      ],
+      "schema_version": "ReferenceViewSpec@1",
+      "source_view": "bottom",
+      "view_id": "view-bottom"
+    },
+    "view-front": {
+      "canonical_sha256": "d89ad301dc98e7bd56a1299c9c243e1ff295516ccac0d5c5639d3cdc51adff8f",
+      "image": {
+        "crop": {
+          "height": 0.17578125,
+          "width": 0.5729166666666666,
+          "x": 0.009765625,
+          "y": 0.01953125
+        },
+        "height": 1024,
+        "rotation_degrees": 0.0,
+        "width": 1536
+      },
+      "landmarks": [],
+      "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+      "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+      "regions": [
+        {
+          "confidence": 1.0,
+          "height": 0.17578125,
+          "region_id": "dragonfang-front-panel",
+          "visibility": "observed",
+          "width": 0.5729166666666666,
+          "x": 0.009765625,
+          "y": 0.01953125
+        }
+      ],
+      "schema_version": "ReferenceViewSpec@1",
+      "source_view": "front",
+      "view_id": "view-front"
+    },
+    "view-left": {
+      "canonical_sha256": "e92c94a00b03a6c9b2adae702ae67427253e370fc007675f67031aadf096149e",
+      "image": {
+        "crop": {
+          "height": 0.09765625,
+          "width": 0.4850260416666667,
+          "x": 0.009765625,
+          "y": 0.3857421875
+        },
+        "height": 1024,
+        "rotation_degrees": 0.0,
+        "width": 1536
+      },
+      "landmarks": [],
+      "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+      "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+      "regions": [
+        {
+          "confidence": 1.0,
+          "height": 0.09765625,
+          "region_id": "dragonfang-left-panel",
+          "visibility": "observed",
+          "width": 0.4850260416666667,
+          "x": 0.009765625,
+          "y": 0.3857421875
+        }
+      ],
+      "schema_version": "ReferenceViewSpec@1",
+      "source_view": "left",
+      "view_id": "view-left"
+    },
+    "view-right": {
+      "canonical_sha256": "69ee1c3b21a686b74bb30112c1b8b6dc8c5fadaf58b1122d6eb9d36b73c16444",
+      "image": {
+        "crop": {
+          "height": 0.1025390625,
+          "width": 0.4850260416666667,
+          "x": 0.009765625,
+          "y": 0.4931640625
+        },
+        "height": 1024,
+        "rotation_degrees": 0.0,
+        "width": 1536
+      },
+      "landmarks": [],
+      "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+      "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+      "regions": [
+        {
+          "confidence": 1.0,
+          "height": 0.1025390625,
+          "region_id": "dragonfang-right-panel",
+          "visibility": "observed",
+          "width": 0.4850260416666667,
+          "x": 0.009765625,
+          "y": 0.4931640625
+        }
+      ],
+      "schema_version": "ReferenceViewSpec@1",
+      "source_view": "right",
+      "view_id": "view-right"
+    },
+    "view-top": {
+      "canonical_sha256": "fe94f889ffc9154afcdb8271383482dc09793afca3ed4bd81c72a104c3bf59e1",
+      "image": {
+        "crop": {
+          "height": 0.146484375,
+          "width": 0.3873697916666667,
+          "x": 0.6022135416666666,
+          "y": 0.0341796875
+        },
+        "height": 1024,
+        "rotation_degrees": 0.0,
+        "width": 1536
+      },
+      "landmarks": [],
+      "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+      "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+      "regions": [
+        {
+          "confidence": 1.0,
+          "height": 0.146484375,
+          "region_id": "dragonfang-top-panel",
+          "visibility": "observed",
+          "width": 0.3873697916666667,
+          "x": 0.6022135416666666,
+          "y": 0.0341796875
+        }
+      ],
+      "schema_version": "ReferenceViewSpec@1",
+      "source_view": "top",
+      "view_id": "view-top"
+    }
+  },
+  "high_artifact_runs": {
+    "baseline": {
+      "aov_readback": {
+        "ao": "6a00c911088ddd0bfba2fba3df35df1be0e7e3407ab784aeb70cad44b5adba3e",
+        "beauty": "4aa8f79a2baac085171040bbb1c1770ce7f3530749b8604de6eb2ef8c9eeb62b",
+        "depth": "5a28d55044fe85d557bfb5ed2f7ae7503ab25981f7e9a672a8677e7b44b21d1d",
+        "material-id": "d473d8cbef5e820a1a75eb6d2e01ef77562aa4a02dbd3b81abe033a27b6ce80c",
+        "normal": "215c8a50fcc946b247ffae519df71d43f7c13244ed250c520b46d1f6184562b5",
+        "part-id": "5a068ac9b902678ea1b52db21d02975d5d723b37819fd62d065c4ca28776f505",
+        "silhouette": "69a8dcbedacaf52289bef6bdc28db65d5dbdd8aded79fede4b4e2c65939f0c2f",
+        "uv-stretch": "19ca7854373ccdf5c06e5ca0573b87058e277efa18768e73b1479df45ee806ac",
+        "wireframe": "4c00cd060928d1e8b64c025f86a416bd9efb84142fd1867728e1e616434351ff"
+      },
+      "bridge": {
+        "bridge_id": "dragonfang-high-bridge-baseline",
+        "bridge_object_sha256": "e7a18b62f83c1e65278200591c3158eb02ca557e4bf1473a3bf22a5c26fefe0a",
+        "bridge_sha256": "3e0df7097a76fa093cd50c7bba2e3d81310ea01573e9b734b438e9bfc056532a",
+        "high_readback_object_sha256": "f6f953683d4f023eb07c7e09ce35208116e43ad363675e0b377ee990e20271b1",
+        "high_readback_sha256": "d46a56efad876657f6debdef158ea37bdff3ff7393e0f7482c4f9da5d658a822",
+        "high_result_object_sha256": "354bde29a3578a0ed4e6de5f0b360091a2cc7a0386a1be9ca54aa22d422494c1",
+        "high_result_sha256": "9f3a81f2b4089367055dc67f5b3c241981bd4d064464b51f4c19d7e2e01a2623"
+      },
+      "bridge_get": "PASS_FOUND",
+      "bridge_replay": "PASS_NOT_TOUCHED",
+      "bridge_request_input_sha256": "b30ba7ccb24a9b1d3bf41f355132ba93c60cefb62a6af54e74fdd2198f4c309a",
+      "candidate_id": "candidate-7fb1947ca3274500b8381debb4fb6699",
+      "candidate_state_sha256": "bda01dd027428711dd988583cf50e1a7a79164757be014d0905f6b6b1aeac6b3",
+      "compare": {
+        "aov_pass_sha256": {
+          "ao": "6a00c911088ddd0bfba2fba3df35df1be0e7e3407ab784aeb70cad44b5adba3e",
+          "beauty": "4aa8f79a2baac085171040bbb1c1770ce7f3530749b8604de6eb2ef8c9eeb62b",
+          "depth": "5a28d55044fe85d557bfb5ed2f7ae7503ab25981f7e9a672a8677e7b44b21d1d",
+          "material-id": "d473d8cbef5e820a1a75eb6d2e01ef77562aa4a02dbd3b81abe033a27b6ce80c",
+          "normal": "215c8a50fcc946b247ffae519df71d43f7c13244ed250c520b46d1f6184562b5",
+          "part-id": "5a068ac9b902678ea1b52db21d02975d5d723b37819fd62d065c4ca28776f505",
+          "silhouette": "69a8dcbedacaf52289bef6bdc28db65d5dbdd8aded79fede4b4e2c65939f0c2f",
+          "uv-stretch": "19ca7854373ccdf5c06e5ca0573b87058e277efa18768e73b1479df45ee806ac",
+          "wireframe": "4c00cd060928d1e8b64c025f86a416bd9efb84142fd1867728e1e616434351ff"
+        },
+        "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+        "camera_hash": "401340c86151db4d6a18a5635b63d49bba6d20a10aa9aa61967d1db514ec3458",
+        "camera_object_sha256": "b4d9ea99e906596e0e9ba0c3d8ae2536333b57e3dbfafeaf161b7a36fbee1c4c",
+        "comparison_status": "QUALITY_TARGET_NOT_MET",
+        "metrics": {
+          "bbox_edge_error": 0.3046875,
+          "boundary_f1_4px": 0.106436566018,
+          "centroid_error": 0.025044847612,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "silhouette_iou": 0.305011075354
+        },
+        "quality_status": "QUALITY_TARGET_NOT_MET",
+        "reference_comparison_id": "high-comparison-698375ad7876655cab0e55b803801596",
+        "reference_comparison_object_sha256": "fb41b1c0288c2a3c5999f0d67a73fc6a1ed5dd0a635f6651b4bafb3928db0e81",
+        "reference_comparison_sha256": "08730d60b29b0d92bf0b07a0bd37a78780e85c33bf1bfb46108b94c839cbed5e",
+        "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+        "render_set_id": null,
+        "render_set_object_sha256": "698375ad7876655cab0e55b803801596cf5384ddacd2293c2811e9b189992c91",
+        "render_set_sha256": "6b5dd19da157f2939c6e8fba42d0e299a44490ec05d996c9408ccbe0ea8a142a",
+        "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+        "view_id": "view-front"
+      },
+      "compare_request": {
+        "high_artifact_id": "dragonfang-high-glb-artifact-baseline",
+        "high_artifact_object_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+        "high_artifact_readback_object_sha256": "016097c1776cfa3290bf64d9e6e5dc3c2a36e6b0bb6adbf267ff43bdc945d82f",
+        "high_artifact_readback_sha256": "8116d099b13f4c73e4f2ade501a49020e43127aca90692d8079278453df9c77b",
+        "high_artifact_receipt_object_sha256": "949817869b7205ee506f32ff2a77a41971be14fc2adc064c5fb4e4da76bd522a",
+        "high_artifact_receipt_sha256": "1ad41b53d8eff79e92a4b653e476ae43c3e2e3af4c06632a400cf98f94412f95",
+        "high_artifact_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+        "high_bridge_id": "dragonfang-high-bridge-baseline",
+        "high_bridge_object_sha256": "e7a18b62f83c1e65278200591c3158eb02ca557e4bf1473a3bf22a5c26fefe0a",
+        "high_bridge_sha256": "3e0df7097a76fa093cd50c7bba2e3d81310ea01573e9b734b438e9bfc056532a",
+        "high_readback_object_sha256": "f6f953683d4f023eb07c7e09ce35208116e43ad363675e0b377ee990e20271b1",
+        "high_readback_sha256": "d46a56efad876657f6debdef158ea37bdff3ff7393e0f7482c4f9da5d658a822",
+        "high_result_object_sha256": "354bde29a3578a0ed4e6de5f0b360091a2cc7a0386a1be9ca54aa22d422494c1",
+        "high_result_sha256": "9f3a81f2b4089367055dc67f5b3c241981bd4d064464b51f4c19d7e2e01a2623",
+        "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+        "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+        "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+        "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+        "revision_id": "amrev-f03f1d66caa3dbf55c39fb31ea63392b63558b441f8587da420647ff",
+        "revision_object_sha256": "de72c2b7e39947fa466b34dd66f90eae464a162d5754fb6f4d0607d58a1d781d",
+        "revision_sha256": "407dd3d0733a7e53f25348810b82a407e8fee62649bbe2c8f7132a08711c4354",
+        "view_spec": {
+          "canonical_sha256": "d89ad301dc98e7bd56a1299c9c243e1ff295516ccac0d5c5639d3cdc51adff8f",
+          "image": {
+            "crop": {
+              "height": 0.17578125,
+              "width": 0.5729166666666666,
+              "x": 0.009765625,
+              "y": 0.01953125
+            },
+            "height": 1024,
+            "rotation_degrees": 0.0,
+            "width": 1536
+          },
+          "landmarks": [],
+          "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+          "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+          "regions": [
+            {
+              "confidence": 1.0,
+              "height": 0.17578125,
+              "region_id": "dragonfang-front-panel",
+              "visibility": "observed",
+              "width": 0.5729166666666666,
+              "x": 0.009765625,
+              "y": 0.01953125
+            }
+          ],
+          "schema_version": "ReferenceViewSpec@1",
+          "source_view": "front",
+          "view_id": "view-front"
+        }
+      },
+      "fixed_view_comparisons": {
+        "bottom": {
+          "aov_readback": {
+            "ao": "7b2d2282bdba641721cb2c13f2b3a525569745202c68f6996e660e4ddeb843a7",
+            "beauty": "a9aa8cd50087e8ec3278ee9f76be00c9a867bc10852b5bd5a36b193aca253332",
+            "depth": "7ff3f904903de7b2a0204df7633f2d02073ac68113bf5f9e99475c2cf6e7fade",
+            "material-id": "efa5fd34ec485d1a90f100b1b72792bf306edbcb88208bb03ddbc12cde6d5c3e",
+            "normal": "eb9a4fb5a50523d186e2f6dda8eec4ae7b4db75d38bc42b7b5f2e7153c3de093",
+            "part-id": "20833aa79efdf82fc44fdb83217e793158255421d388a84c16b8865b8dfeb026",
+            "silhouette": "f029856cb53835e31b0acba8257e2caf93238aa1de89eb5d6161d03a025db990",
+            "uv-stretch": "5291ee32f3ccbb9ac50a598abcf6331927d201145b322dadf17679759b825899",
+            "wireframe": "108ce4e266c0d74e8ed49f45ab31550f1b9c34c8ba1aad93ead82b3db681cfbe"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "7b2d2282bdba641721cb2c13f2b3a525569745202c68f6996e660e4ddeb843a7",
+              "beauty": "a9aa8cd50087e8ec3278ee9f76be00c9a867bc10852b5bd5a36b193aca253332",
+              "depth": "7ff3f904903de7b2a0204df7633f2d02073ac68113bf5f9e99475c2cf6e7fade",
+              "material-id": "efa5fd34ec485d1a90f100b1b72792bf306edbcb88208bb03ddbc12cde6d5c3e",
+              "normal": "eb9a4fb5a50523d186e2f6dda8eec4ae7b4db75d38bc42b7b5f2e7153c3de093",
+              "part-id": "20833aa79efdf82fc44fdb83217e793158255421d388a84c16b8865b8dfeb026",
+              "silhouette": "f029856cb53835e31b0acba8257e2caf93238aa1de89eb5d6161d03a025db990",
+              "uv-stretch": "5291ee32f3ccbb9ac50a598abcf6331927d201145b322dadf17679759b825899",
+              "wireframe": "108ce4e266c0d74e8ed49f45ab31550f1b9c34c8ba1aad93ead82b3db681cfbe"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "69346fb699e4353753f02db61dca406a5a594b7b6d73e973d2183c9891fb287f",
+            "camera_object_sha256": "334df417b671051edf18811c048d788b2712c701f5f5cc23a95aad36994cd688",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.30078125,
+              "boundary_f1_4px": 0.171663286525,
+              "centroid_error": 0.089670383035,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.023423843375
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-53d39fc0b35505b5e301f84160d78f23",
+            "reference_comparison_object_sha256": "3ea3cfe19f43ae27c54406172e867744e0fad521dc40a07e866e7dc8cd2b2142",
+            "reference_comparison_sha256": "e0200b6df84994344f2d0d1bfbcc54e2d84c02ae19a41c33d3bd3ce2beaa6800",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "53d39fc0b35505b5e301f84160d78f233c6625f538a82ccee2c4c05b4264202e",
+            "render_set_sha256": "147ae298f332e2185b84588d4185fbca12d44ddaa40d11a3b645ba3358a0ca6f",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-bottom"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-baseline",
+            "high_artifact_object_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_artifact_readback_object_sha256": "016097c1776cfa3290bf64d9e6e5dc3c2a36e6b0bb6adbf267ff43bdc945d82f",
+            "high_artifact_readback_sha256": "8116d099b13f4c73e4f2ade501a49020e43127aca90692d8079278453df9c77b",
+            "high_artifact_receipt_object_sha256": "949817869b7205ee506f32ff2a77a41971be14fc2adc064c5fb4e4da76bd522a",
+            "high_artifact_receipt_sha256": "1ad41b53d8eff79e92a4b653e476ae43c3e2e3af4c06632a400cf98f94412f95",
+            "high_artifact_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_bridge_id": "dragonfang-high-bridge-baseline",
+            "high_bridge_object_sha256": "e7a18b62f83c1e65278200591c3158eb02ca557e4bf1473a3bf22a5c26fefe0a",
+            "high_bridge_sha256": "3e0df7097a76fa093cd50c7bba2e3d81310ea01573e9b734b438e9bfc056532a",
+            "high_readback_object_sha256": "f6f953683d4f023eb07c7e09ce35208116e43ad363675e0b377ee990e20271b1",
+            "high_readback_sha256": "d46a56efad876657f6debdef158ea37bdff3ff7393e0f7482c4f9da5d658a822",
+            "high_result_object_sha256": "354bde29a3578a0ed4e6de5f0b360091a2cc7a0386a1be9ca54aa22d422494c1",
+            "high_result_sha256": "9f3a81f2b4089367055dc67f5b3c241981bd4d064464b51f4c19d7e2e01a2623",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-f03f1d66caa3dbf55c39fb31ea63392b63558b441f8587da420647ff",
+            "revision_object_sha256": "de72c2b7e39947fa466b34dd66f90eae464a162d5754fb6f4d0607d58a1d781d",
+            "revision_sha256": "407dd3d0733a7e53f25348810b82a407e8fee62649bbe2c8f7132a08711c4354",
+            "view_spec": {
+              "canonical_sha256": "ca91b2c84dc4bf2d02181df78d0b5e12bbdaf88b8266abaad998788e3396ad85",
+              "image": {
+                "crop": {
+                  "height": 0.146484375,
+                  "width": 0.3873697916666667,
+                  "x": 0.6022135416666666,
+                  "y": 0.21484375
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.146484375,
+                  "region_id": "dragonfang-bottom-panel",
+                  "visibility": "observed",
+                  "width": 0.3873697916666667,
+                  "x": 0.6022135416666666,
+                  "y": 0.21484375
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "bottom",
+              "view_id": "view-bottom"
+            }
+          }
+        },
+        "front": {
+          "aov_readback": {
+            "ao": "6a00c911088ddd0bfba2fba3df35df1be0e7e3407ab784aeb70cad44b5adba3e",
+            "beauty": "4aa8f79a2baac085171040bbb1c1770ce7f3530749b8604de6eb2ef8c9eeb62b",
+            "depth": "5a28d55044fe85d557bfb5ed2f7ae7503ab25981f7e9a672a8677e7b44b21d1d",
+            "material-id": "d473d8cbef5e820a1a75eb6d2e01ef77562aa4a02dbd3b81abe033a27b6ce80c",
+            "normal": "215c8a50fcc946b247ffae519df71d43f7c13244ed250c520b46d1f6184562b5",
+            "part-id": "5a068ac9b902678ea1b52db21d02975d5d723b37819fd62d065c4ca28776f505",
+            "silhouette": "69a8dcbedacaf52289bef6bdc28db65d5dbdd8aded79fede4b4e2c65939f0c2f",
+            "uv-stretch": "19ca7854373ccdf5c06e5ca0573b87058e277efa18768e73b1479df45ee806ac",
+            "wireframe": "4c00cd060928d1e8b64c025f86a416bd9efb84142fd1867728e1e616434351ff"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "6a00c911088ddd0bfba2fba3df35df1be0e7e3407ab784aeb70cad44b5adba3e",
+              "beauty": "4aa8f79a2baac085171040bbb1c1770ce7f3530749b8604de6eb2ef8c9eeb62b",
+              "depth": "5a28d55044fe85d557bfb5ed2f7ae7503ab25981f7e9a672a8677e7b44b21d1d",
+              "material-id": "d473d8cbef5e820a1a75eb6d2e01ef77562aa4a02dbd3b81abe033a27b6ce80c",
+              "normal": "215c8a50fcc946b247ffae519df71d43f7c13244ed250c520b46d1f6184562b5",
+              "part-id": "5a068ac9b902678ea1b52db21d02975d5d723b37819fd62d065c4ca28776f505",
+              "silhouette": "69a8dcbedacaf52289bef6bdc28db65d5dbdd8aded79fede4b4e2c65939f0c2f",
+              "uv-stretch": "19ca7854373ccdf5c06e5ca0573b87058e277efa18768e73b1479df45ee806ac",
+              "wireframe": "4c00cd060928d1e8b64c025f86a416bd9efb84142fd1867728e1e616434351ff"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "401340c86151db4d6a18a5635b63d49bba6d20a10aa9aa61967d1db514ec3458",
+            "camera_object_sha256": "b4d9ea99e906596e0e9ba0c3d8ae2536333b57e3dbfafeaf161b7a36fbee1c4c",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.3046875,
+              "boundary_f1_4px": 0.106436566018,
+              "centroid_error": 0.025044847612,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.305011075354
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-698375ad7876655cab0e55b803801596",
+            "reference_comparison_object_sha256": "fb41b1c0288c2a3c5999f0d67a73fc6a1ed5dd0a635f6651b4bafb3928db0e81",
+            "reference_comparison_sha256": "08730d60b29b0d92bf0b07a0bd37a78780e85c33bf1bfb46108b94c839cbed5e",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "698375ad7876655cab0e55b803801596cf5384ddacd2293c2811e9b189992c91",
+            "render_set_sha256": "6b5dd19da157f2939c6e8fba42d0e299a44490ec05d996c9408ccbe0ea8a142a",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-front"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-baseline",
+            "high_artifact_object_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_artifact_readback_object_sha256": "016097c1776cfa3290bf64d9e6e5dc3c2a36e6b0bb6adbf267ff43bdc945d82f",
+            "high_artifact_readback_sha256": "8116d099b13f4c73e4f2ade501a49020e43127aca90692d8079278453df9c77b",
+            "high_artifact_receipt_object_sha256": "949817869b7205ee506f32ff2a77a41971be14fc2adc064c5fb4e4da76bd522a",
+            "high_artifact_receipt_sha256": "1ad41b53d8eff79e92a4b653e476ae43c3e2e3af4c06632a400cf98f94412f95",
+            "high_artifact_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_bridge_id": "dragonfang-high-bridge-baseline",
+            "high_bridge_object_sha256": "e7a18b62f83c1e65278200591c3158eb02ca557e4bf1473a3bf22a5c26fefe0a",
+            "high_bridge_sha256": "3e0df7097a76fa093cd50c7bba2e3d81310ea01573e9b734b438e9bfc056532a",
+            "high_readback_object_sha256": "f6f953683d4f023eb07c7e09ce35208116e43ad363675e0b377ee990e20271b1",
+            "high_readback_sha256": "d46a56efad876657f6debdef158ea37bdff3ff7393e0f7482c4f9da5d658a822",
+            "high_result_object_sha256": "354bde29a3578a0ed4e6de5f0b360091a2cc7a0386a1be9ca54aa22d422494c1",
+            "high_result_sha256": "9f3a81f2b4089367055dc67f5b3c241981bd4d064464b51f4c19d7e2e01a2623",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-f03f1d66caa3dbf55c39fb31ea63392b63558b441f8587da420647ff",
+            "revision_object_sha256": "de72c2b7e39947fa466b34dd66f90eae464a162d5754fb6f4d0607d58a1d781d",
+            "revision_sha256": "407dd3d0733a7e53f25348810b82a407e8fee62649bbe2c8f7132a08711c4354",
+            "view_spec": {
+              "canonical_sha256": "d89ad301dc98e7bd56a1299c9c243e1ff295516ccac0d5c5639d3cdc51adff8f",
+              "image": {
+                "crop": {
+                  "height": 0.17578125,
+                  "width": 0.5729166666666666,
+                  "x": 0.009765625,
+                  "y": 0.01953125
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.17578125,
+                  "region_id": "dragonfang-front-panel",
+                  "visibility": "observed",
+                  "width": 0.5729166666666666,
+                  "x": 0.009765625,
+                  "y": 0.01953125
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "front",
+              "view_id": "view-front"
+            }
+          }
+        },
+        "left": {
+          "aov_readback": {
+            "ao": "65efca2740ce11b8be236c65321fd189116ec4e671d91d50d9a566422c80605d",
+            "beauty": "a66e3f9337297ca2fc4d8435eb34b81e0a8bad470b2695ade3d95f331534cc3c",
+            "depth": "0c4f4839c12daa2572c6fd38469d79ce7480c26d32a35db81c14492e590be2de",
+            "material-id": "5a7557cd9f98976cc943fe527a941b3b197eb5dbdb69aab38d5576165f947080",
+            "normal": "d7f4de57c9880065a6f9b0855fad27364889e4bce151845be3394f23b0a8a33a",
+            "part-id": "ab345b12e32d6f91f8136dea43dad4b52f42adf3ee4d4eea1389562d78ee46f1",
+            "silhouette": "73c1f1a7231a4b7476d10c4bdd892505fa11114d074d8d0121dcaadfd07aec05",
+            "uv-stretch": "3e7ae20e66dbc0721ffc99ae0b2856b968ea65f2dee440d6f72827dd2193987c",
+            "wireframe": "623ad340db41d39744270457db0a4430266970772162f45c683cb3343de81e0b"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "65efca2740ce11b8be236c65321fd189116ec4e671d91d50d9a566422c80605d",
+              "beauty": "a66e3f9337297ca2fc4d8435eb34b81e0a8bad470b2695ade3d95f331534cc3c",
+              "depth": "0c4f4839c12daa2572c6fd38469d79ce7480c26d32a35db81c14492e590be2de",
+              "material-id": "5a7557cd9f98976cc943fe527a941b3b197eb5dbdb69aab38d5576165f947080",
+              "normal": "d7f4de57c9880065a6f9b0855fad27364889e4bce151845be3394f23b0a8a33a",
+              "part-id": "ab345b12e32d6f91f8136dea43dad4b52f42adf3ee4d4eea1389562d78ee46f1",
+              "silhouette": "73c1f1a7231a4b7476d10c4bdd892505fa11114d074d8d0121dcaadfd07aec05",
+              "uv-stretch": "3e7ae20e66dbc0721ffc99ae0b2856b968ea65f2dee440d6f72827dd2193987c",
+              "wireframe": "623ad340db41d39744270457db0a4430266970772162f45c683cb3343de81e0b"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "d5850a762a6be7eaedcb863e48e90bf0c318f7427888c31d7a28ba5b21290e38",
+            "camera_object_sha256": "11a821c82c63d6662dcd6f599e2fb26b54542d5ff0638518b59fa6120e412907",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.490234375,
+              "boundary_f1_4px": 0.036561133925,
+              "centroid_error": 0.054493269119,
+              "critical_region_min_iou": 0.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.005544432466
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-995915d277d25203577c5e920f6d748e",
+            "reference_comparison_object_sha256": "e05b8e38e76eb32df11ad1d1915f7818ec41b2b00fd818a03cb310a1ae7bf737",
+            "reference_comparison_sha256": "9f93b729efecc86557610a37346f644ba6280dc2949298bb6eb75f5878f221ff",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "995915d277d25203577c5e920f6d748eb550bc8a7cccd2a17460f4228ea76a5e",
+            "render_set_sha256": "986594b3891fc3cb639784b1c1e17166a1f866686d20fd1b7bbbeaac574f2c7b",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-left"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-baseline",
+            "high_artifact_object_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_artifact_readback_object_sha256": "016097c1776cfa3290bf64d9e6e5dc3c2a36e6b0bb6adbf267ff43bdc945d82f",
+            "high_artifact_readback_sha256": "8116d099b13f4c73e4f2ade501a49020e43127aca90692d8079278453df9c77b",
+            "high_artifact_receipt_object_sha256": "949817869b7205ee506f32ff2a77a41971be14fc2adc064c5fb4e4da76bd522a",
+            "high_artifact_receipt_sha256": "1ad41b53d8eff79e92a4b653e476ae43c3e2e3af4c06632a400cf98f94412f95",
+            "high_artifact_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_bridge_id": "dragonfang-high-bridge-baseline",
+            "high_bridge_object_sha256": "e7a18b62f83c1e65278200591c3158eb02ca557e4bf1473a3bf22a5c26fefe0a",
+            "high_bridge_sha256": "3e0df7097a76fa093cd50c7bba2e3d81310ea01573e9b734b438e9bfc056532a",
+            "high_readback_object_sha256": "f6f953683d4f023eb07c7e09ce35208116e43ad363675e0b377ee990e20271b1",
+            "high_readback_sha256": "d46a56efad876657f6debdef158ea37bdff3ff7393e0f7482c4f9da5d658a822",
+            "high_result_object_sha256": "354bde29a3578a0ed4e6de5f0b360091a2cc7a0386a1be9ca54aa22d422494c1",
+            "high_result_sha256": "9f3a81f2b4089367055dc67f5b3c241981bd4d064464b51f4c19d7e2e01a2623",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-f03f1d66caa3dbf55c39fb31ea63392b63558b441f8587da420647ff",
+            "revision_object_sha256": "de72c2b7e39947fa466b34dd66f90eae464a162d5754fb6f4d0607d58a1d781d",
+            "revision_sha256": "407dd3d0733a7e53f25348810b82a407e8fee62649bbe2c8f7132a08711c4354",
+            "view_spec": {
+              "canonical_sha256": "e92c94a00b03a6c9b2adae702ae67427253e370fc007675f67031aadf096149e",
+              "image": {
+                "crop": {
+                  "height": 0.09765625,
+                  "width": 0.4850260416666667,
+                  "x": 0.009765625,
+                  "y": 0.3857421875
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.09765625,
+                  "region_id": "dragonfang-left-panel",
+                  "visibility": "observed",
+                  "width": 0.4850260416666667,
+                  "x": 0.009765625,
+                  "y": 0.3857421875
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "left",
+              "view_id": "view-left"
+            }
+          }
+        },
+        "right": {
+          "aov_readback": {
+            "ao": "4a1f2cc16d5e0eebfeec5e34683828b436bade9955c46f573057a26555f7b365",
+            "beauty": "8e7b001fe192bdd6c988320b1e65fa6fcee8464143f917e7d1abe137aa4ce8e1",
+            "depth": "4c5a09c7effc154a4dcc2a1d9f6ec41b318138415ac9809a5fa1bd6f451d94c9",
+            "material-id": "7677de9060fe533250093f1c41e192f7314bd7ccefdb364fd12875e5c368fafb",
+            "normal": "62453d381ea57acbcb9b7d71a73ed0e12b173cf191aa3e4f59a556623815c704",
+            "part-id": "6b127e3df5cff4f6d611f14c0ca44f8a53851044734c32fefe0a7a92feef6e5b",
+            "silhouette": "74c51dd25c63249ca845ae5bce8feb47e6bf3a9f31e14fedb6448c73ca02a100",
+            "uv-stretch": "3751d7306c8148bcabfab5c67dd48fb38334e4c0ae877eb14f5b8b081b617a4b",
+            "wireframe": "41745c7867aebf09c24610bfcee2f73b7764b0641dce784db85064a1dc09aa54"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "4a1f2cc16d5e0eebfeec5e34683828b436bade9955c46f573057a26555f7b365",
+              "beauty": "8e7b001fe192bdd6c988320b1e65fa6fcee8464143f917e7d1abe137aa4ce8e1",
+              "depth": "4c5a09c7effc154a4dcc2a1d9f6ec41b318138415ac9809a5fa1bd6f451d94c9",
+              "material-id": "7677de9060fe533250093f1c41e192f7314bd7ccefdb364fd12875e5c368fafb",
+              "normal": "62453d381ea57acbcb9b7d71a73ed0e12b173cf191aa3e4f59a556623815c704",
+              "part-id": "6b127e3df5cff4f6d611f14c0ca44f8a53851044734c32fefe0a7a92feef6e5b",
+              "silhouette": "74c51dd25c63249ca845ae5bce8feb47e6bf3a9f31e14fedb6448c73ca02a100",
+              "uv-stretch": "3751d7306c8148bcabfab5c67dd48fb38334e4c0ae877eb14f5b8b081b617a4b",
+              "wireframe": "41745c7867aebf09c24610bfcee2f73b7764b0641dce784db85064a1dc09aa54"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "53a6869032e12b066dbb01713d674f8b2c561a476117e70a34f923c2250768a5",
+            "camera_object_sha256": "c93f04bed1d9f28fa9907739531579cf082041d0740002e0e409d6baa94bffa7",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.490234375,
+              "boundary_f1_4px": 0.034553466254,
+              "centroid_error": 0.090959376623,
+              "critical_region_min_iou": 0.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.005349327282
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-86c06973e05f3c9c28eb78e809f9cf5b",
+            "reference_comparison_object_sha256": "01b2234a5a7dd5bc3f57c93eeb5b04ee12f3edb93f04d4fae5703d93113df0de",
+            "reference_comparison_sha256": "56b406e904fc902286e2bb70594422d237fa61570f34a0e75135697b1acd4e94",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "86c06973e05f3c9c28eb78e809f9cf5bec0ea27ef4faf2c1fe1c592cecea2741",
+            "render_set_sha256": "1bb64849dd74784c1e76302e2114032ee971d651bfc4ec47c111d326cebb58ff",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-right"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-baseline",
+            "high_artifact_object_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_artifact_readback_object_sha256": "016097c1776cfa3290bf64d9e6e5dc3c2a36e6b0bb6adbf267ff43bdc945d82f",
+            "high_artifact_readback_sha256": "8116d099b13f4c73e4f2ade501a49020e43127aca90692d8079278453df9c77b",
+            "high_artifact_receipt_object_sha256": "949817869b7205ee506f32ff2a77a41971be14fc2adc064c5fb4e4da76bd522a",
+            "high_artifact_receipt_sha256": "1ad41b53d8eff79e92a4b653e476ae43c3e2e3af4c06632a400cf98f94412f95",
+            "high_artifact_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_bridge_id": "dragonfang-high-bridge-baseline",
+            "high_bridge_object_sha256": "e7a18b62f83c1e65278200591c3158eb02ca557e4bf1473a3bf22a5c26fefe0a",
+            "high_bridge_sha256": "3e0df7097a76fa093cd50c7bba2e3d81310ea01573e9b734b438e9bfc056532a",
+            "high_readback_object_sha256": "f6f953683d4f023eb07c7e09ce35208116e43ad363675e0b377ee990e20271b1",
+            "high_readback_sha256": "d46a56efad876657f6debdef158ea37bdff3ff7393e0f7482c4f9da5d658a822",
+            "high_result_object_sha256": "354bde29a3578a0ed4e6de5f0b360091a2cc7a0386a1be9ca54aa22d422494c1",
+            "high_result_sha256": "9f3a81f2b4089367055dc67f5b3c241981bd4d064464b51f4c19d7e2e01a2623",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-f03f1d66caa3dbf55c39fb31ea63392b63558b441f8587da420647ff",
+            "revision_object_sha256": "de72c2b7e39947fa466b34dd66f90eae464a162d5754fb6f4d0607d58a1d781d",
+            "revision_sha256": "407dd3d0733a7e53f25348810b82a407e8fee62649bbe2c8f7132a08711c4354",
+            "view_spec": {
+              "canonical_sha256": "69ee1c3b21a686b74bb30112c1b8b6dc8c5fadaf58b1122d6eb9d36b73c16444",
+              "image": {
+                "crop": {
+                  "height": 0.1025390625,
+                  "width": 0.4850260416666667,
+                  "x": 0.009765625,
+                  "y": 0.4931640625
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.1025390625,
+                  "region_id": "dragonfang-right-panel",
+                  "visibility": "observed",
+                  "width": 0.4850260416666667,
+                  "x": 0.009765625,
+                  "y": 0.4931640625
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "right",
+              "view_id": "view-right"
+            }
+          }
+        },
+        "top": {
+          "aov_readback": {
+            "ao": "ee945f851b0403ded358d2f1022b40268e26669d66ac7bb6f5c5d4992424b0dc",
+            "beauty": "f4310f58e8fe50592cd7e7c5f3cf12c26962651a59a78b7d841b9ebb1abbb2ed",
+            "depth": "02017cc65adf900e18fe655bc67bc15ab3f29e9bbffc588e56bfcc5dbbe4732e",
+            "material-id": "6c89449d443dca7e34a1a1af941b28c143ee9d4e7804d5186b6bc0cf49da24b3",
+            "normal": "178978167fa6824c9414bd7c4a044329bab42cd6f272885a5fb0c477164ece74",
+            "part-id": "7fb4ed1a98b57879765e5cc0e43e1ff2165b5713aa718e45404e8f4e3dcb0d85",
+            "silhouette": "1575126adbe39885b9d7245052d82423fec746eee8886f084d009bba62a33f9c",
+            "uv-stretch": "5b92e753ec6194b7813c22534dac55f7cdae8cc66251015cd06a1708721d7ccd",
+            "wireframe": "da9d3ee7787f7535a14512c4231b78cd4a7649a7ee1882bdff37e8b1eed26400"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "ee945f851b0403ded358d2f1022b40268e26669d66ac7bb6f5c5d4992424b0dc",
+              "beauty": "f4310f58e8fe50592cd7e7c5f3cf12c26962651a59a78b7d841b9ebb1abbb2ed",
+              "depth": "02017cc65adf900e18fe655bc67bc15ab3f29e9bbffc588e56bfcc5dbbe4732e",
+              "material-id": "6c89449d443dca7e34a1a1af941b28c143ee9d4e7804d5186b6bc0cf49da24b3",
+              "normal": "178978167fa6824c9414bd7c4a044329bab42cd6f272885a5fb0c477164ece74",
+              "part-id": "7fb4ed1a98b57879765e5cc0e43e1ff2165b5713aa718e45404e8f4e3dcb0d85",
+              "silhouette": "1575126adbe39885b9d7245052d82423fec746eee8886f084d009bba62a33f9c",
+              "uv-stretch": "5b92e753ec6194b7813c22534dac55f7cdae8cc66251015cd06a1708721d7ccd",
+              "wireframe": "da9d3ee7787f7535a14512c4231b78cd4a7649a7ee1882bdff37e8b1eed26400"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "9c309e872c4ec2aa47853d7f75757cc86deab7cc41c5b1a2376a72e96e61c943",
+            "camera_object_sha256": "ac4b15a22c8c97905da1be3ca952af72212b140ac2d95fdca5f5a737d73a7903",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.30078125,
+              "boundary_f1_4px": 0.354123665353,
+              "centroid_error": 0.017849723979,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.089666053116
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-7bbc5f0d64c9ce8da4562122ef41a10f",
+            "reference_comparison_object_sha256": "447998082bba77390fdba9cc3bd145db2b423650089fcde036ce364dbc05ff43",
+            "reference_comparison_sha256": "b22fcd3e6cccef60eaed5a1c687159c2d84d3f85fd21dc3d923f839a993b8000",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "7bbc5f0d64c9ce8da4562122ef41a10fbbfe07b2294f98f1b3dafa302e22256c",
+            "render_set_sha256": "95949e3966199908ebbea6d06a485e754b4ffd3153164bf38cbb3ea9d3833314",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-top"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-baseline",
+            "high_artifact_object_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_artifact_readback_object_sha256": "016097c1776cfa3290bf64d9e6e5dc3c2a36e6b0bb6adbf267ff43bdc945d82f",
+            "high_artifact_readback_sha256": "8116d099b13f4c73e4f2ade501a49020e43127aca90692d8079278453df9c77b",
+            "high_artifact_receipt_object_sha256": "949817869b7205ee506f32ff2a77a41971be14fc2adc064c5fb4e4da76bd522a",
+            "high_artifact_receipt_sha256": "1ad41b53d8eff79e92a4b653e476ae43c3e2e3af4c06632a400cf98f94412f95",
+            "high_artifact_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+            "high_bridge_id": "dragonfang-high-bridge-baseline",
+            "high_bridge_object_sha256": "e7a18b62f83c1e65278200591c3158eb02ca557e4bf1473a3bf22a5c26fefe0a",
+            "high_bridge_sha256": "3e0df7097a76fa093cd50c7bba2e3d81310ea01573e9b734b438e9bfc056532a",
+            "high_readback_object_sha256": "f6f953683d4f023eb07c7e09ce35208116e43ad363675e0b377ee990e20271b1",
+            "high_readback_sha256": "d46a56efad876657f6debdef158ea37bdff3ff7393e0f7482c4f9da5d658a822",
+            "high_result_object_sha256": "354bde29a3578a0ed4e6de5f0b360091a2cc7a0386a1be9ca54aa22d422494c1",
+            "high_result_sha256": "9f3a81f2b4089367055dc67f5b3c241981bd4d064464b51f4c19d7e2e01a2623",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-f03f1d66caa3dbf55c39fb31ea63392b63558b441f8587da420647ff",
+            "revision_object_sha256": "de72c2b7e39947fa466b34dd66f90eae464a162d5754fb6f4d0607d58a1d781d",
+            "revision_sha256": "407dd3d0733a7e53f25348810b82a407e8fee62649bbe2c8f7132a08711c4354",
+            "view_spec": {
+              "canonical_sha256": "fe94f889ffc9154afcdb8271383482dc09793afca3ed4bd81c72a104c3bf59e1",
+              "image": {
+                "crop": {
+                  "height": 0.146484375,
+                  "width": 0.3873697916666667,
+                  "x": 0.6022135416666666,
+                  "y": 0.0341796875
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.146484375,
+                  "region_id": "dragonfang-top-panel",
+                  "visibility": "observed",
+                  "width": 0.3873697916666667,
+                  "x": 0.6022135416666666,
+                  "y": 0.0341796875
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "top",
+              "view_id": "view-top"
+            }
+          }
+        }
+      },
+      "fixed_view_count": 5,
+      "geometry_observation_sha256": "6feb869663de570dfd8833719e9d411eff2214147b2107cae6c248808ab9fab1",
+      "high_artifact": {
+        "high_artifact_id": "dragonfang-high-glb-artifact-baseline",
+        "high_artifact_object_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+        "high_artifact_readback_object_sha256": "016097c1776cfa3290bf64d9e6e5dc3c2a36e6b0bb6adbf267ff43bdc945d82f",
+        "high_artifact_readback_schema_version": "AuthoringMeshV2HighArtifactStoreReadback@1",
+        "high_artifact_readback_sha256": "8116d099b13f4c73e4f2ade501a49020e43127aca90692d8079278453df9c77b",
+        "high_artifact_receipt_object_sha256": "949817869b7205ee506f32ff2a77a41971be14fc2adc064c5fb4e4da76bd522a",
+        "high_artifact_receipt_sha256": "1ad41b53d8eff79e92a4b653e476ae43c3e2e3af4c06632a400cf98f94412f95",
+        "high_artifact_sha256": "72e6cbf701acf29a472c03d37c6fe9459f5ec847bd3d443cc58f6c3617f3e6e3",
+        "high_artifact_size_bytes": 191484,
+        "material_zone_ids": [
+          "dark-red-blade",
+          "silver-cutting-edge"
+        ],
+        "part_ids": [
+          "blade-body",
+          "cutting-edge"
+        ],
+        "part_inventory_sha256": "e3f7a18c8975ed91b74447b87015fcfaf0f9558d9f8dae20d4e19320b9161d51",
+        "quality_status": "structural_only",
+        "visual_status": "NOT_RUN"
+      },
+      "high_artifact_get": "PASS_FOUND",
+      "high_artifact_replay": "PASS_NOT_TOUCHED",
+      "materialized_artifact_sha256": "daa88111dc83324783425d62b223424e7953987ba4557fcf05482bfff121c22a",
+      "materialized_program_sha256": "601f3745a7c70afb4b6224c956344f69486dba38205551c4fae8f55da3ed0eba",
+      "visual_quality_promotion": "NOT_PROMOTED",
+      "visual_status": "QUALITY_TARGET_NOT_MET"
+    },
+    "correction": {
+      "aov_readback": {
+        "ao": "7ac112666d4c14f7b1aa18debe5638bf3cd2dfa45c37eb5a1c90266cab5bd1f3",
+        "beauty": "bbb7741a63eec330ed8783485dba445e2dc29ee8a5420ffb4c79d0aa390bf0e1",
+        "depth": "da10f39d70d98166269ab335d6849ff44ad1bbcf70cadd7ac59b3de60f7b6a0d",
+        "material-id": "2f7a173eddc347af2a1defb8396b2d4a9b7d2e5118b47520b3fbe5b3894b20f0",
+        "normal": "cc47f23676376974c8c2d5b08aa869db608e768b3428ab986e89de4b2a3d55ce",
+        "part-id": "d1b172c28a6a3c21da99104159d0177c4ea16c3c4e2e92c2fe1645997ff0908c",
+        "silhouette": "9d6a9fee2e38fedcc495172d884dc38a684ab0ffca5da69fa5833d25d9fe6603",
+        "uv-stretch": "0d5eabc873d3f4a634dec7e40a027965eed9798d9704e5aade4424c950b3f0db",
+        "wireframe": "564066b218f22ab9829794adf0a1e76fda449fa7d4cb0aee3e78bc2b10cae495"
+      },
+      "bridge": {
+        "bridge_id": "dragonfang-high-bridge-v2-correction",
+        "bridge_object_sha256": "97d5912bf25b99511ec62ce36d78bf5ba23459a9ced163a6bc3a58e34a75a8af",
+        "bridge_sha256": "be77f8dde5ba91fde0797d16b5b7a2cb6a79a4ec4d0d44f52c5cee6ef344ebea",
+        "high_readback_object_sha256": "98e7f7210c5f6462859f9e9a6733b233b9582ca76411d67e4491433765ffbc38",
+        "high_readback_sha256": "80ea9f2feeaaa561ec53b43672126fe4deb73c02466f4402ce233ef5e3874744",
+        "high_result_object_sha256": "fe75b71b41f04d7ca9fc6b0ba935cab37bdf89f9e472d1fd00a1e0d2c89e20be",
+        "high_result_sha256": "6ef75aff9c12d3319c77cd2df97b080afa73e05961098a9cbd72c14ffdf19b96"
+      },
+      "bridge_get": "PASS_FOUND",
+      "bridge_replay": "PASS_NOT_TOUCHED",
+      "bridge_request_input_sha256": "98f13e2c07e517af17a1ef287034903940290c805095cc6de053b5785f75d9c6",
+      "candidate_id": "candidate-cbf53dd5b4bc4aadb069be5fe123d065",
+      "candidate_state_sha256": "449af9506b02355005076cad3eec6eccd811d110542900884d2091851959beeb",
+      "compare": {
+        "aov_pass_sha256": {
+          "ao": "7ac112666d4c14f7b1aa18debe5638bf3cd2dfa45c37eb5a1c90266cab5bd1f3",
+          "beauty": "bbb7741a63eec330ed8783485dba445e2dc29ee8a5420ffb4c79d0aa390bf0e1",
+          "depth": "da10f39d70d98166269ab335d6849ff44ad1bbcf70cadd7ac59b3de60f7b6a0d",
+          "material-id": "2f7a173eddc347af2a1defb8396b2d4a9b7d2e5118b47520b3fbe5b3894b20f0",
+          "normal": "cc47f23676376974c8c2d5b08aa869db608e768b3428ab986e89de4b2a3d55ce",
+          "part-id": "d1b172c28a6a3c21da99104159d0177c4ea16c3c4e2e92c2fe1645997ff0908c",
+          "silhouette": "9d6a9fee2e38fedcc495172d884dc38a684ab0ffca5da69fa5833d25d9fe6603",
+          "uv-stretch": "0d5eabc873d3f4a634dec7e40a027965eed9798d9704e5aade4424c950b3f0db",
+          "wireframe": "564066b218f22ab9829794adf0a1e76fda449fa7d4cb0aee3e78bc2b10cae495"
+        },
+        "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+        "camera_hash": "401340c86151db4d6a18a5635b63d49bba6d20a10aa9aa61967d1db514ec3458",
+        "camera_object_sha256": "b4d9ea99e906596e0e9ba0c3d8ae2536333b57e3dbfafeaf161b7a36fbee1c4c",
+        "comparison_status": "QUALITY_TARGET_NOT_MET",
+        "metrics": {
+          "bbox_edge_error": 0.306640625,
+          "boundary_f1_4px": 0.119022293135,
+          "centroid_error": 0.031104722173,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "silhouette_iou": 0.345463446475
+        },
+        "quality_status": "QUALITY_TARGET_NOT_MET",
+        "reference_comparison_id": "high-comparison-d229b3dc4ad17587d825540adb4114e5",
+        "reference_comparison_object_sha256": "cd366f81c087132ea1da8e596456ee643158a83b720c86c78e7bf60a575bb133",
+        "reference_comparison_sha256": "1db849fea47d9bec5c4fed43d568354c26fcbffc29d9ede5825be48818db5e47",
+        "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+        "render_set_id": null,
+        "render_set_object_sha256": "d229b3dc4ad17587d825540adb4114e5eaf8b79eb70191d63fec879e7e79542f",
+        "render_set_sha256": "70d68952ca562bd7e6e5fcc0d80e5c5661078b5e682723effff25b8df886a103",
+        "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+        "view_id": "view-front"
+      },
+      "compare_request": {
+        "high_artifact_id": "dragonfang-high-glb-artifact-v2-correction",
+        "high_artifact_object_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+        "high_artifact_readback_object_sha256": "0f88fa5bfc1c459797dc2907c9f097cb804cdfa65ac1c81f69105be1cca0ad62",
+        "high_artifact_readback_sha256": "74549917391f46f577842363d8f5d81d40ede346c84b282804df1fb4a933f350",
+        "high_artifact_receipt_object_sha256": "b79f80e76600e9980cd92e0443cbb1d41c6b56d9dca0296477ea7b35fbd8bc26",
+        "high_artifact_receipt_sha256": "0cf9d7a8cdac25d05ddb178aa02742163c2ec0d20b415cbda1512ef3db04dc0b",
+        "high_artifact_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+        "high_bridge_id": "dragonfang-high-bridge-v2-correction",
+        "high_bridge_object_sha256": "97d5912bf25b99511ec62ce36d78bf5ba23459a9ced163a6bc3a58e34a75a8af",
+        "high_bridge_sha256": "be77f8dde5ba91fde0797d16b5b7a2cb6a79a4ec4d0d44f52c5cee6ef344ebea",
+        "high_readback_object_sha256": "98e7f7210c5f6462859f9e9a6733b233b9582ca76411d67e4491433765ffbc38",
+        "high_readback_sha256": "80ea9f2feeaaa561ec53b43672126fe4deb73c02466f4402ce233ef5e3874744",
+        "high_result_object_sha256": "fe75b71b41f04d7ca9fc6b0ba935cab37bdf89f9e472d1fd00a1e0d2c89e20be",
+        "high_result_sha256": "6ef75aff9c12d3319c77cd2df97b080afa73e05961098a9cbd72c14ffdf19b96",
+        "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+        "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+        "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+        "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+        "revision_id": "amrev-e3385c04bb87e49c97b2700adf27812972cd851698749e66141aa2c5",
+        "revision_object_sha256": "428360165c29db8e4a03f7b9b47bc244eadac57868ca45035ba74a6f449c7e75",
+        "revision_sha256": "54836a5b98f7b0657c7c819af6079f4b32ae402a953ed8fa844136307cc8b86e",
+        "view_spec": {
+          "canonical_sha256": "d89ad301dc98e7bd56a1299c9c243e1ff295516ccac0d5c5639d3cdc51adff8f",
+          "image": {
+            "crop": {
+              "height": 0.17578125,
+              "width": 0.5729166666666666,
+              "x": 0.009765625,
+              "y": 0.01953125
+            },
+            "height": 1024,
+            "rotation_degrees": 0.0,
+            "width": 1536
+          },
+          "landmarks": [],
+          "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+          "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+          "regions": [
+            {
+              "confidence": 1.0,
+              "height": 0.17578125,
+              "region_id": "dragonfang-front-panel",
+              "visibility": "observed",
+              "width": 0.5729166666666666,
+              "x": 0.009765625,
+              "y": 0.01953125
+            }
+          ],
+          "schema_version": "ReferenceViewSpec@1",
+          "source_view": "front",
+          "view_id": "view-front"
+        }
+      },
+      "fixed_view_comparisons": {
+        "bottom": {
+          "aov_readback": {
+            "ao": "ce7fca54a2de13dadea4d9f1c3027691b1273564da36140e7e42d3c6cb12f04e",
+            "beauty": "78746bf794da4a50ee2d3658081bbf723d7dc4a8d8b609bc91fe0a1f9fd7d47a",
+            "depth": "2d6eb39b7e578259c88a922c906dad6059429d844f17f23c3263d6041cae4665",
+            "material-id": "6571f6332b516439ba17040604b0f5cb9659ad6b4d360d2fac65de70954d261b",
+            "normal": "5b4604296017f6f4a633e595ce9c4b1b636421ef1f50174ce15d675e4b2295cc",
+            "part-id": "3d48f91989d319c3b2d74909b6b05604d517021204ebb70fd77055838e680d89",
+            "silhouette": "b49d5ec9468516b2fe3b6b4107cdd6b2842da9bf2233c01a41ec909e40bc9587",
+            "uv-stretch": "8a9fbdb166e8a12425b27d46a5e1ef3958ec6097c41078199993bfe955cb45e1",
+            "wireframe": "6bcaebdd738fd2443db0e91b263c207f8f0a3c7d932f4ddf404e28e347f16c30"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "ce7fca54a2de13dadea4d9f1c3027691b1273564da36140e7e42d3c6cb12f04e",
+              "beauty": "78746bf794da4a50ee2d3658081bbf723d7dc4a8d8b609bc91fe0a1f9fd7d47a",
+              "depth": "2d6eb39b7e578259c88a922c906dad6059429d844f17f23c3263d6041cae4665",
+              "material-id": "6571f6332b516439ba17040604b0f5cb9659ad6b4d360d2fac65de70954d261b",
+              "normal": "5b4604296017f6f4a633e595ce9c4b1b636421ef1f50174ce15d675e4b2295cc",
+              "part-id": "3d48f91989d319c3b2d74909b6b05604d517021204ebb70fd77055838e680d89",
+              "silhouette": "b49d5ec9468516b2fe3b6b4107cdd6b2842da9bf2233c01a41ec909e40bc9587",
+              "uv-stretch": "8a9fbdb166e8a12425b27d46a5e1ef3958ec6097c41078199993bfe955cb45e1",
+              "wireframe": "6bcaebdd738fd2443db0e91b263c207f8f0a3c7d932f4ddf404e28e347f16c30"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "69346fb699e4353753f02db61dca406a5a594b7b6d73e973d2183c9891fb287f",
+            "camera_object_sha256": "334df417b671051edf18811c048d788b2712c701f5f5cc23a95aad36994cd688",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.302734375,
+              "boundary_f1_4px": 0.170342326259,
+              "centroid_error": 0.090206002403,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.023090379009
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-8df076979d2ad6e40fe7112849595b98",
+            "reference_comparison_object_sha256": "25aa70fc83d81b71982f12b9dca2707a452a2b97c33d717f2ec93d3eb9068a58",
+            "reference_comparison_sha256": "3e2a89b453b80d8c5d52df16b9ea2597976c68259eb181a12e1b0473e1ee1599",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "8df076979d2ad6e40fe7112849595b98ce2dca54ef0176c660d5e09b3979de88",
+            "render_set_sha256": "3b1c58f4a5a1cf1423ab5373db58f72c56a40ef364af3ce3616d2006ac1b85f8",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-bottom"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-v2-correction",
+            "high_artifact_object_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_artifact_readback_object_sha256": "0f88fa5bfc1c459797dc2907c9f097cb804cdfa65ac1c81f69105be1cca0ad62",
+            "high_artifact_readback_sha256": "74549917391f46f577842363d8f5d81d40ede346c84b282804df1fb4a933f350",
+            "high_artifact_receipt_object_sha256": "b79f80e76600e9980cd92e0443cbb1d41c6b56d9dca0296477ea7b35fbd8bc26",
+            "high_artifact_receipt_sha256": "0cf9d7a8cdac25d05ddb178aa02742163c2ec0d20b415cbda1512ef3db04dc0b",
+            "high_artifact_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_bridge_id": "dragonfang-high-bridge-v2-correction",
+            "high_bridge_object_sha256": "97d5912bf25b99511ec62ce36d78bf5ba23459a9ced163a6bc3a58e34a75a8af",
+            "high_bridge_sha256": "be77f8dde5ba91fde0797d16b5b7a2cb6a79a4ec4d0d44f52c5cee6ef344ebea",
+            "high_readback_object_sha256": "98e7f7210c5f6462859f9e9a6733b233b9582ca76411d67e4491433765ffbc38",
+            "high_readback_sha256": "80ea9f2feeaaa561ec53b43672126fe4deb73c02466f4402ce233ef5e3874744",
+            "high_result_object_sha256": "fe75b71b41f04d7ca9fc6b0ba935cab37bdf89f9e472d1fd00a1e0d2c89e20be",
+            "high_result_sha256": "6ef75aff9c12d3319c77cd2df97b080afa73e05961098a9cbd72c14ffdf19b96",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-e3385c04bb87e49c97b2700adf27812972cd851698749e66141aa2c5",
+            "revision_object_sha256": "428360165c29db8e4a03f7b9b47bc244eadac57868ca45035ba74a6f449c7e75",
+            "revision_sha256": "54836a5b98f7b0657c7c819af6079f4b32ae402a953ed8fa844136307cc8b86e",
+            "view_spec": {
+              "canonical_sha256": "ca91b2c84dc4bf2d02181df78d0b5e12bbdaf88b8266abaad998788e3396ad85",
+              "image": {
+                "crop": {
+                  "height": 0.146484375,
+                  "width": 0.3873697916666667,
+                  "x": 0.6022135416666666,
+                  "y": 0.21484375
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.146484375,
+                  "region_id": "dragonfang-bottom-panel",
+                  "visibility": "observed",
+                  "width": 0.3873697916666667,
+                  "x": 0.6022135416666666,
+                  "y": 0.21484375
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "bottom",
+              "view_id": "view-bottom"
+            }
+          }
+        },
+        "front": {
+          "aov_readback": {
+            "ao": "7ac112666d4c14f7b1aa18debe5638bf3cd2dfa45c37eb5a1c90266cab5bd1f3",
+            "beauty": "bbb7741a63eec330ed8783485dba445e2dc29ee8a5420ffb4c79d0aa390bf0e1",
+            "depth": "da10f39d70d98166269ab335d6849ff44ad1bbcf70cadd7ac59b3de60f7b6a0d",
+            "material-id": "2f7a173eddc347af2a1defb8396b2d4a9b7d2e5118b47520b3fbe5b3894b20f0",
+            "normal": "cc47f23676376974c8c2d5b08aa869db608e768b3428ab986e89de4b2a3d55ce",
+            "part-id": "d1b172c28a6a3c21da99104159d0177c4ea16c3c4e2e92c2fe1645997ff0908c",
+            "silhouette": "9d6a9fee2e38fedcc495172d884dc38a684ab0ffca5da69fa5833d25d9fe6603",
+            "uv-stretch": "0d5eabc873d3f4a634dec7e40a027965eed9798d9704e5aade4424c950b3f0db",
+            "wireframe": "564066b218f22ab9829794adf0a1e76fda449fa7d4cb0aee3e78bc2b10cae495"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "7ac112666d4c14f7b1aa18debe5638bf3cd2dfa45c37eb5a1c90266cab5bd1f3",
+              "beauty": "bbb7741a63eec330ed8783485dba445e2dc29ee8a5420ffb4c79d0aa390bf0e1",
+              "depth": "da10f39d70d98166269ab335d6849ff44ad1bbcf70cadd7ac59b3de60f7b6a0d",
+              "material-id": "2f7a173eddc347af2a1defb8396b2d4a9b7d2e5118b47520b3fbe5b3894b20f0",
+              "normal": "cc47f23676376974c8c2d5b08aa869db608e768b3428ab986e89de4b2a3d55ce",
+              "part-id": "d1b172c28a6a3c21da99104159d0177c4ea16c3c4e2e92c2fe1645997ff0908c",
+              "silhouette": "9d6a9fee2e38fedcc495172d884dc38a684ab0ffca5da69fa5833d25d9fe6603",
+              "uv-stretch": "0d5eabc873d3f4a634dec7e40a027965eed9798d9704e5aade4424c950b3f0db",
+              "wireframe": "564066b218f22ab9829794adf0a1e76fda449fa7d4cb0aee3e78bc2b10cae495"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "401340c86151db4d6a18a5635b63d49bba6d20a10aa9aa61967d1db514ec3458",
+            "camera_object_sha256": "b4d9ea99e906596e0e9ba0c3d8ae2536333b57e3dbfafeaf161b7a36fbee1c4c",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.306640625,
+              "boundary_f1_4px": 0.119022293135,
+              "centroid_error": 0.031104722173,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.345463446475
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-d229b3dc4ad17587d825540adb4114e5",
+            "reference_comparison_object_sha256": "cd366f81c087132ea1da8e596456ee643158a83b720c86c78e7bf60a575bb133",
+            "reference_comparison_sha256": "1db849fea47d9bec5c4fed43d568354c26fcbffc29d9ede5825be48818db5e47",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "d229b3dc4ad17587d825540adb4114e5eaf8b79eb70191d63fec879e7e79542f",
+            "render_set_sha256": "70d68952ca562bd7e6e5fcc0d80e5c5661078b5e682723effff25b8df886a103",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-front"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-v2-correction",
+            "high_artifact_object_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_artifact_readback_object_sha256": "0f88fa5bfc1c459797dc2907c9f097cb804cdfa65ac1c81f69105be1cca0ad62",
+            "high_artifact_readback_sha256": "74549917391f46f577842363d8f5d81d40ede346c84b282804df1fb4a933f350",
+            "high_artifact_receipt_object_sha256": "b79f80e76600e9980cd92e0443cbb1d41c6b56d9dca0296477ea7b35fbd8bc26",
+            "high_artifact_receipt_sha256": "0cf9d7a8cdac25d05ddb178aa02742163c2ec0d20b415cbda1512ef3db04dc0b",
+            "high_artifact_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_bridge_id": "dragonfang-high-bridge-v2-correction",
+            "high_bridge_object_sha256": "97d5912bf25b99511ec62ce36d78bf5ba23459a9ced163a6bc3a58e34a75a8af",
+            "high_bridge_sha256": "be77f8dde5ba91fde0797d16b5b7a2cb6a79a4ec4d0d44f52c5cee6ef344ebea",
+            "high_readback_object_sha256": "98e7f7210c5f6462859f9e9a6733b233b9582ca76411d67e4491433765ffbc38",
+            "high_readback_sha256": "80ea9f2feeaaa561ec53b43672126fe4deb73c02466f4402ce233ef5e3874744",
+            "high_result_object_sha256": "fe75b71b41f04d7ca9fc6b0ba935cab37bdf89f9e472d1fd00a1e0d2c89e20be",
+            "high_result_sha256": "6ef75aff9c12d3319c77cd2df97b080afa73e05961098a9cbd72c14ffdf19b96",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-e3385c04bb87e49c97b2700adf27812972cd851698749e66141aa2c5",
+            "revision_object_sha256": "428360165c29db8e4a03f7b9b47bc244eadac57868ca45035ba74a6f449c7e75",
+            "revision_sha256": "54836a5b98f7b0657c7c819af6079f4b32ae402a953ed8fa844136307cc8b86e",
+            "view_spec": {
+              "canonical_sha256": "d89ad301dc98e7bd56a1299c9c243e1ff295516ccac0d5c5639d3cdc51adff8f",
+              "image": {
+                "crop": {
+                  "height": 0.17578125,
+                  "width": 0.5729166666666666,
+                  "x": 0.009765625,
+                  "y": 0.01953125
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.17578125,
+                  "region_id": "dragonfang-front-panel",
+                  "visibility": "observed",
+                  "width": 0.5729166666666666,
+                  "x": 0.009765625,
+                  "y": 0.01953125
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "front",
+              "view_id": "view-front"
+            }
+          }
+        },
+        "left": {
+          "aov_readback": {
+            "ao": "b44601907340273aa62af973a5778a5508ac4162fb09a1d3edf90062eebc7f1d",
+            "beauty": "453dd5cafcfe3c472cb2551b0dc333201de7dc35edb57954dd68d08000ce6bc6",
+            "depth": "c9c56e716e45f95d6b3abf6f83a73c2b6b868cbe53739a19be038d6c6780b736",
+            "material-id": "db747839cacace25aac8421f3da7aa48643ee4541b58de35a677369297b28d2c",
+            "normal": "5f8e08962f51d1d0033b43a717ab01d83c8dfb6ef444b2ea01a7d9961a6f9309",
+            "part-id": "049d015ba3992e711b3784a4a3d5f91e9dec3471f4064a1ce1fd2f85030872b2",
+            "silhouette": "2bb59d7e4918a3141005527694bd8c75b5b2fcdccb77c89ccc85b72efaa7d3a9",
+            "uv-stretch": "95e6244cb02b9ef67531d013faa1f3f3b64e86df53b90e4179143c10085090e1",
+            "wireframe": "98565f6e52e65c8d9f5be38e30cf3631ca7e8932ea55fa1e6d453fef76ad3718"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "b44601907340273aa62af973a5778a5508ac4162fb09a1d3edf90062eebc7f1d",
+              "beauty": "453dd5cafcfe3c472cb2551b0dc333201de7dc35edb57954dd68d08000ce6bc6",
+              "depth": "c9c56e716e45f95d6b3abf6f83a73c2b6b868cbe53739a19be038d6c6780b736",
+              "material-id": "db747839cacace25aac8421f3da7aa48643ee4541b58de35a677369297b28d2c",
+              "normal": "5f8e08962f51d1d0033b43a717ab01d83c8dfb6ef444b2ea01a7d9961a6f9309",
+              "part-id": "049d015ba3992e711b3784a4a3d5f91e9dec3471f4064a1ce1fd2f85030872b2",
+              "silhouette": "2bb59d7e4918a3141005527694bd8c75b5b2fcdccb77c89ccc85b72efaa7d3a9",
+              "uv-stretch": "95e6244cb02b9ef67531d013faa1f3f3b64e86df53b90e4179143c10085090e1",
+              "wireframe": "98565f6e52e65c8d9f5be38e30cf3631ca7e8932ea55fa1e6d453fef76ad3718"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "d5850a762a6be7eaedcb863e48e90bf0c318f7427888c31d7a28ba5b21290e38",
+            "camera_object_sha256": "11a821c82c63d6662dcd6f599e2fb26b54542d5ff0638518b59fa6120e412907",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.490234375,
+              "boundary_f1_4px": 0.036339697169,
+              "centroid_error": 0.055027611313,
+              "critical_region_min_iou": 0.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.005680073687
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-f2e2ed7e7ff030feaecc20647ad746da",
+            "reference_comparison_object_sha256": "f4920c2557c49930c65a35a7ceec69f009a316c99a291f4d511650803db5f7f6",
+            "reference_comparison_sha256": "488749068e7a54b420670f14c890893604e8fd3a18cbc9a8bd9f320df0fa26a3",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "f2e2ed7e7ff030feaecc20647ad746dafe1d4dec00524fc3e5d74d8ee651a46b",
+            "render_set_sha256": "96e6a7ef9aba18b05c6072332e4fc36e5ed56868f5638b71e7d8ca2cdfdcc041",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-left"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-v2-correction",
+            "high_artifact_object_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_artifact_readback_object_sha256": "0f88fa5bfc1c459797dc2907c9f097cb804cdfa65ac1c81f69105be1cca0ad62",
+            "high_artifact_readback_sha256": "74549917391f46f577842363d8f5d81d40ede346c84b282804df1fb4a933f350",
+            "high_artifact_receipt_object_sha256": "b79f80e76600e9980cd92e0443cbb1d41c6b56d9dca0296477ea7b35fbd8bc26",
+            "high_artifact_receipt_sha256": "0cf9d7a8cdac25d05ddb178aa02742163c2ec0d20b415cbda1512ef3db04dc0b",
+            "high_artifact_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_bridge_id": "dragonfang-high-bridge-v2-correction",
+            "high_bridge_object_sha256": "97d5912bf25b99511ec62ce36d78bf5ba23459a9ced163a6bc3a58e34a75a8af",
+            "high_bridge_sha256": "be77f8dde5ba91fde0797d16b5b7a2cb6a79a4ec4d0d44f52c5cee6ef344ebea",
+            "high_readback_object_sha256": "98e7f7210c5f6462859f9e9a6733b233b9582ca76411d67e4491433765ffbc38",
+            "high_readback_sha256": "80ea9f2feeaaa561ec53b43672126fe4deb73c02466f4402ce233ef5e3874744",
+            "high_result_object_sha256": "fe75b71b41f04d7ca9fc6b0ba935cab37bdf89f9e472d1fd00a1e0d2c89e20be",
+            "high_result_sha256": "6ef75aff9c12d3319c77cd2df97b080afa73e05961098a9cbd72c14ffdf19b96",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-e3385c04bb87e49c97b2700adf27812972cd851698749e66141aa2c5",
+            "revision_object_sha256": "428360165c29db8e4a03f7b9b47bc244eadac57868ca45035ba74a6f449c7e75",
+            "revision_sha256": "54836a5b98f7b0657c7c819af6079f4b32ae402a953ed8fa844136307cc8b86e",
+            "view_spec": {
+              "canonical_sha256": "e92c94a00b03a6c9b2adae702ae67427253e370fc007675f67031aadf096149e",
+              "image": {
+                "crop": {
+                  "height": 0.09765625,
+                  "width": 0.4850260416666667,
+                  "x": 0.009765625,
+                  "y": 0.3857421875
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.09765625,
+                  "region_id": "dragonfang-left-panel",
+                  "visibility": "observed",
+                  "width": 0.4850260416666667,
+                  "x": 0.009765625,
+                  "y": 0.3857421875
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "left",
+              "view_id": "view-left"
+            }
+          }
+        },
+        "right": {
+          "aov_readback": {
+            "ao": "445829d45cd31752a1f9a29136697bbf7457d7c0118cb9b60d63c96b7752ebfe",
+            "beauty": "4b60f759e1b9da2c5a85945c86d7ef0a11e4b146c3064ba0fb37c8697b69a915",
+            "depth": "7e7e48286239e2216f4f6f4330d27710ff2364aa7a7a43a8e0c0828116fc79bc",
+            "material-id": "140e0f6de657081e22db05e95ae5005e1ed98df5518ecf08e0767fe276453951",
+            "normal": "5f6dbad847a2ee01dc78228a9357d3f5988d32a0e1249f4c5b9ab264f753693a",
+            "part-id": "4bcd59a6af17c884b4a30d916bc9d3dcf02a33922432ee4715bb8169a7f8337e",
+            "silhouette": "f16f9fc74b77d46cd89250308a5ab833c573f842fd0dbc9d2cff6ae3490e6242",
+            "uv-stretch": "0e2294d23d6de4f4be5825d0ae951f552b9916e2fba5c0157c7415ecf1c6b790",
+            "wireframe": "16cd32095d84cb51d4576e2080798cbe8c308acfcb2d204f5136a006b6e8fdab"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "445829d45cd31752a1f9a29136697bbf7457d7c0118cb9b60d63c96b7752ebfe",
+              "beauty": "4b60f759e1b9da2c5a85945c86d7ef0a11e4b146c3064ba0fb37c8697b69a915",
+              "depth": "7e7e48286239e2216f4f6f4330d27710ff2364aa7a7a43a8e0c0828116fc79bc",
+              "material-id": "140e0f6de657081e22db05e95ae5005e1ed98df5518ecf08e0767fe276453951",
+              "normal": "5f6dbad847a2ee01dc78228a9357d3f5988d32a0e1249f4c5b9ab264f753693a",
+              "part-id": "4bcd59a6af17c884b4a30d916bc9d3dcf02a33922432ee4715bb8169a7f8337e",
+              "silhouette": "f16f9fc74b77d46cd89250308a5ab833c573f842fd0dbc9d2cff6ae3490e6242",
+              "uv-stretch": "0e2294d23d6de4f4be5825d0ae951f552b9916e2fba5c0157c7415ecf1c6b790",
+              "wireframe": "16cd32095d84cb51d4576e2080798cbe8c308acfcb2d204f5136a006b6e8fdab"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "53a6869032e12b066dbb01713d674f8b2c561a476117e70a34f923c2250768a5",
+            "camera_object_sha256": "c93f04bed1d9f28fa9907739531579cf082041d0740002e0e409d6baa94bffa7",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.490234375,
+              "boundary_f1_4px": 0.035789155194,
+              "centroid_error": 0.091191344885,
+              "critical_region_min_iou": 0.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.005493617709
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-a3a0fe560ffd38f2c2b2226ab3fc2099",
+            "reference_comparison_object_sha256": "9a4448e16500ce74f7cda11d62df16e33690c9dad2a0a4590d3aba67a3e81c49",
+            "reference_comparison_sha256": "aaa96fca6278875d727c85bdd596811e0d5d602d04e72422d4d12b47103a2e99",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "a3a0fe560ffd38f2c2b2226ab3fc20995c45e3435cdbe90c5a69f8660a4f53af",
+            "render_set_sha256": "62caeac476b2941f298412d560caf914a52f0b92bdfe930a94f2279cf38077b7",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-right"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-v2-correction",
+            "high_artifact_object_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_artifact_readback_object_sha256": "0f88fa5bfc1c459797dc2907c9f097cb804cdfa65ac1c81f69105be1cca0ad62",
+            "high_artifact_readback_sha256": "74549917391f46f577842363d8f5d81d40ede346c84b282804df1fb4a933f350",
+            "high_artifact_receipt_object_sha256": "b79f80e76600e9980cd92e0443cbb1d41c6b56d9dca0296477ea7b35fbd8bc26",
+            "high_artifact_receipt_sha256": "0cf9d7a8cdac25d05ddb178aa02742163c2ec0d20b415cbda1512ef3db04dc0b",
+            "high_artifact_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_bridge_id": "dragonfang-high-bridge-v2-correction",
+            "high_bridge_object_sha256": "97d5912bf25b99511ec62ce36d78bf5ba23459a9ced163a6bc3a58e34a75a8af",
+            "high_bridge_sha256": "be77f8dde5ba91fde0797d16b5b7a2cb6a79a4ec4d0d44f52c5cee6ef344ebea",
+            "high_readback_object_sha256": "98e7f7210c5f6462859f9e9a6733b233b9582ca76411d67e4491433765ffbc38",
+            "high_readback_sha256": "80ea9f2feeaaa561ec53b43672126fe4deb73c02466f4402ce233ef5e3874744",
+            "high_result_object_sha256": "fe75b71b41f04d7ca9fc6b0ba935cab37bdf89f9e472d1fd00a1e0d2c89e20be",
+            "high_result_sha256": "6ef75aff9c12d3319c77cd2df97b080afa73e05961098a9cbd72c14ffdf19b96",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-e3385c04bb87e49c97b2700adf27812972cd851698749e66141aa2c5",
+            "revision_object_sha256": "428360165c29db8e4a03f7b9b47bc244eadac57868ca45035ba74a6f449c7e75",
+            "revision_sha256": "54836a5b98f7b0657c7c819af6079f4b32ae402a953ed8fa844136307cc8b86e",
+            "view_spec": {
+              "canonical_sha256": "69ee1c3b21a686b74bb30112c1b8b6dc8c5fadaf58b1122d6eb9d36b73c16444",
+              "image": {
+                "crop": {
+                  "height": 0.1025390625,
+                  "width": 0.4850260416666667,
+                  "x": 0.009765625,
+                  "y": 0.4931640625
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.1025390625,
+                  "region_id": "dragonfang-right-panel",
+                  "visibility": "observed",
+                  "width": 0.4850260416666667,
+                  "x": 0.009765625,
+                  "y": 0.4931640625
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "right",
+              "view_id": "view-right"
+            }
+          }
+        },
+        "top": {
+          "aov_readback": {
+            "ao": "fbda95efa3a68caa629fa4ecd9a1c9c0a9b30fb563f93bb732ca573327f0fab0",
+            "beauty": "d001a79fdae28b839896cb997afdba178d3d73122b0de240bf74d1b78df8a494",
+            "depth": "41f8c1d340096f2f808dd2a9a19d7901e583aee04d2581df0b549670ce534e0b",
+            "material-id": "4584eb1b62e5a88ec4ecbe1f03f6cfce1af50c6527338a17ddea998e2af58a1f",
+            "normal": "6925e98c24323568c148016bc184ebd358ce3c93c26eb8c06bc3327d33ef300c",
+            "part-id": "d0e4f67ad185f8eb752158d37aefe9aef0d75e7d6e39ca5bddd817703dc476e9",
+            "silhouette": "c4e2b58945dae41984bac9951c9e5c13c1c2d6150aae52f250597d7b2bed78ce",
+            "uv-stretch": "07b5fab55f2033adb7d8d6d0dd8e0de0ecf3753c18b638ae27b966751055bbe1",
+            "wireframe": "88777b6bdbfe81946235b55048777b1cd5c1cea4b273c2a1ccaeb419103200be"
+          },
+          "compare": {
+            "aov_pass_sha256": {
+              "ao": "fbda95efa3a68caa629fa4ecd9a1c9c0a9b30fb563f93bb732ca573327f0fab0",
+              "beauty": "d001a79fdae28b839896cb997afdba178d3d73122b0de240bf74d1b78df8a494",
+              "depth": "41f8c1d340096f2f808dd2a9a19d7901e583aee04d2581df0b549670ce534e0b",
+              "material-id": "4584eb1b62e5a88ec4ecbe1f03f6cfce1af50c6527338a17ddea998e2af58a1f",
+              "normal": "6925e98c24323568c148016bc184ebd358ce3c93c26eb8c06bc3327d33ef300c",
+              "part-id": "d0e4f67ad185f8eb752158d37aefe9aef0d75e7d6e39ca5bddd817703dc476e9",
+              "silhouette": "c4e2b58945dae41984bac9951c9e5c13c1c2d6150aae52f250597d7b2bed78ce",
+              "uv-stretch": "07b5fab55f2033adb7d8d6d0dd8e0de0ecf3753c18b638ae27b966751055bbe1",
+              "wireframe": "88777b6bdbfe81946235b55048777b1cd5c1cea4b273c2a1ccaeb419103200be"
+            },
+            "benchmark_eligibility": "DIRECT_HIGH_ARTIFACT_COMPARE",
+            "camera_hash": "9c309e872c4ec2aa47853d7f75757cc86deab7cc41c5b1a2376a72e96e61c943",
+            "camera_object_sha256": "ac4b15a22c8c97905da1be3ca952af72212b140ac2d95fdca5f5a737d73a7903",
+            "comparison_status": "QUALITY_TARGET_NOT_MET",
+            "metrics": {
+              "bbox_edge_error": 0.302734375,
+              "boundary_f1_4px": 0.360233387281,
+              "centroid_error": 0.017398501585,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "silhouette_iou": 0.08870755462
+            },
+            "quality_status": "QUALITY_TARGET_NOT_MET",
+            "reference_comparison_id": "high-comparison-845913a90a558d78145a70e4adb2c6f5",
+            "reference_comparison_object_sha256": "a1a52fa127bc246dcc1513412d98361b55d276d093d48bde53fce232a187d20e",
+            "reference_comparison_sha256": "4da21e1bd04c4edc76a356840b12f93532b193c5e329bf93543dd0aba5354b4c",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "render_set_id": null,
+            "render_set_object_sha256": "845913a90a558d78145a70e4adb2c6f5fd89bbdc8a3daef0f354a19caae1d87a",
+            "render_set_sha256": "c7e3de13a09dfca72e8357c86745105029f44534f0989af1de97e9170f96e93d",
+            "render_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "view_id": "view-top"
+          },
+          "compare_request": {
+            "high_artifact_id": "dragonfang-high-glb-artifact-v2-correction",
+            "high_artifact_object_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_artifact_readback_object_sha256": "0f88fa5bfc1c459797dc2907c9f097cb804cdfa65ac1c81f69105be1cca0ad62",
+            "high_artifact_readback_sha256": "74549917391f46f577842363d8f5d81d40ede346c84b282804df1fb4a933f350",
+            "high_artifact_receipt_object_sha256": "b79f80e76600e9980cd92e0443cbb1d41c6b56d9dca0296477ea7b35fbd8bc26",
+            "high_artifact_receipt_sha256": "0cf9d7a8cdac25d05ddb178aa02742163c2ec0d20b415cbda1512ef3db04dc0b",
+            "high_artifact_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+            "high_bridge_id": "dragonfang-high-bridge-v2-correction",
+            "high_bridge_object_sha256": "97d5912bf25b99511ec62ce36d78bf5ba23459a9ced163a6bc3a58e34a75a8af",
+            "high_bridge_sha256": "be77f8dde5ba91fde0797d16b5b7a2cb6a79a4ec4d0d44f52c5cee6ef344ebea",
+            "high_readback_object_sha256": "98e7f7210c5f6462859f9e9a6733b233b9582ca76411d67e4491433765ffbc38",
+            "high_readback_sha256": "80ea9f2feeaaa561ec53b43672126fe4deb73c02466f4402ce233ef5e3874744",
+            "high_result_object_sha256": "fe75b71b41f04d7ca9fc6b0ba935cab37bdf89f9e472d1fd00a1e0d2c89e20be",
+            "high_result_sha256": "6ef75aff9c12d3319c77cd2df97b080afa73e05961098a9cbd72c14ffdf19b96",
+            "high_worker_algorithm_sha256": "91db7cc3f90cc6ad45474244f9c618bed168385682b34e31052bbf5d4b326b24",
+            "high_worker_build_cohort_sha256": "6533cf17b4a05cd5b9862693b66bd6f62fad6f6263a670c5596f75bcb4129340",
+            "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+            "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+            "revision_id": "amrev-e3385c04bb87e49c97b2700adf27812972cd851698749e66141aa2c5",
+            "revision_object_sha256": "428360165c29db8e4a03f7b9b47bc244eadac57868ca45035ba74a6f449c7e75",
+            "revision_sha256": "54836a5b98f7b0657c7c819af6079f4b32ae402a953ed8fa844136307cc8b86e",
+            "view_spec": {
+              "canonical_sha256": "fe94f889ffc9154afcdb8271383482dc09793afca3ed4bd81c72a104c3bf59e1",
+              "image": {
+                "crop": {
+                  "height": 0.146484375,
+                  "width": 0.3873697916666667,
+                  "x": 0.6022135416666666,
+                  "y": 0.0341796875
+                },
+                "height": 1024,
+                "rotation_degrees": 0.0,
+                "width": 1536
+              },
+              "landmarks": [],
+              "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+              "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+              "regions": [
+                {
+                  "confidence": 1.0,
+                  "height": 0.146484375,
+                  "region_id": "dragonfang-top-panel",
+                  "visibility": "observed",
+                  "width": 0.3873697916666667,
+                  "x": 0.6022135416666666,
+                  "y": 0.0341796875
+                }
+              ],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "top",
+              "view_id": "view-top"
+            }
+          }
+        }
+      },
+      "fixed_view_count": 5,
+      "geometry_observation_sha256": "4bdfd9d79dca4df98a5eec5cd6da0c8956ddffe4ef499e2bb7f0da7c9121b69e",
+      "high_artifact": {
+        "high_artifact_id": "dragonfang-high-glb-artifact-v2-correction",
+        "high_artifact_object_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+        "high_artifact_readback_object_sha256": "0f88fa5bfc1c459797dc2907c9f097cb804cdfa65ac1c81f69105be1cca0ad62",
+        "high_artifact_readback_schema_version": "AuthoringMeshV2HighArtifactStoreReadback@1",
+        "high_artifact_readback_sha256": "74549917391f46f577842363d8f5d81d40ede346c84b282804df1fb4a933f350",
+        "high_artifact_receipt_object_sha256": "b79f80e76600e9980cd92e0443cbb1d41c6b56d9dca0296477ea7b35fbd8bc26",
+        "high_artifact_receipt_sha256": "0cf9d7a8cdac25d05ddb178aa02742163c2ec0d20b415cbda1512ef3db04dc0b",
+        "high_artifact_sha256": "7bfc0c36371f4b0a6062dc68d3cc9e85e675ed4d60046e23e2b9ac6caeb7e7d4",
+        "high_artifact_size_bytes": 191484,
+        "material_zone_ids": [
+          "dark-red-blade",
+          "silver-cutting-edge"
+        ],
+        "part_ids": [
+          "blade-body",
+          "cutting-edge"
+        ],
+        "part_inventory_sha256": "e4822a55d8781133ef7e18c5b74d2e66f2addbcb5518f23f2d8ef3d2de19b54b",
+        "quality_status": "structural_only",
+        "visual_status": "NOT_RUN"
+      },
+      "high_artifact_get": "PASS_FOUND",
+      "high_artifact_replay": "PASS_NOT_TOUCHED",
+      "materialized_artifact_sha256": "8629b242c00d68f07ec529dc26f9d9a64012a81534d735309193bbc1c3786277",
+      "materialized_program_sha256": "24b882328f9e9adc1bfb5f671211100f9f7983efe54ff8dae224ee62ddd609aa",
+      "visual_quality_promotion": "NOT_PROMOTED",
+      "visual_status": "QUALITY_TARGET_NOT_MET"
+    }
+  },
+  "high_entry_status": "HIGH_ARTIFACT_CREATED_FIXED_VIEW_EVALUATED_STRUCTURAL_ONLY",
+  "high_mesh_created": true,
+  "high_stage_unlocked": false,
+  "hq_360_status": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review_status": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "intent_bundle_id": "dragonfang-reference-intent-001",
+  "intent_bundle_object_sha256": "47ceaa087b21bd2398ff53a4c21dffcdc99010b3dcc2ef93cf55ddd670357858",
+  "intent_bundle_sha256": "dd08a10e012fc0175a13407bba93472ac9bfd4f036983a5eddff152e849dfbad",
+  "intent_exact_replay": "PASS_NOT_TOUCHED",
+  "intent_restart_readback": "PASS_EXACT_HASH",
+  "intent_visual_contract": {
+    "correction_policy": {
+      "baseline_preserved": true,
+      "max_iterations_per_pass": 3,
+      "max_iterations_total": 6,
+      "one_changed_scope_per_iteration": true
+    },
+    "detail_ids": [
+      "blade-thickness-taper",
+      "controlled-edge-wear",
+      "cutting-edge-bevel",
+      "dragon-engraving",
+      "dragon-relief-scale-flow",
+      "gold-spine-armor",
+      "grip-curvature",
+      "grip-fasteners-3-to-5",
+      "grip-gold-border",
+      "grip-segment-breaks",
+      "guard-dragon-muzzle",
+      "guard-eye-setting",
+      "guard-horns",
+      "guard-jaw-choil-negative-space",
+      "kukri-belly-contour",
+      "kukri-spine-contour",
+      "kukri-tip-sweep",
+      "pommel-hook"
+    ],
+    "detail_inventory_count": 18,
+    "fixed_view_ids": [
+      "view-front",
+      "view-orbit-a",
+      "view-orbit-b",
+      "view-fps-inspect"
+    ],
+    "hq_360_status": null,
+    "orbit_view_ids": [
+      "view-orbit-a",
+      "view-orbit-b"
+    ]
+  },
+  "materialization_exact_replay": "PASS_NOT_TOUCHED",
+  "materialization_mode": "source_binding_part_replacement",
+  "materialization_preserved_part_ids": [
+    "cutting-edge"
+  ],
+  "materialization_replacement_node_id": "authoring-mesh-v2-22b491ffc56237e2f7a16ba7888af506",
+  "materialization_representation_plan_sha256": "d0aec9f5a3155cc70d833b4681d89a922949b6369e87e0c2f2bfd77435f9f4a7",
+  "materialization_restart_readback": "PASS_EXACT_HASH",
+  "materialized_artifact_readback_sha256": "da5c07ed678e4656eda0a852cae46352cbabeeef416c51d2d8a83bf048396dd5",
+  "materialized_artifact_sha256": "daa88111dc83324783425d62b223424e7953987ba4557fcf05482bfff121c22a",
+  "materialized_candidate_id": "candidate-7fb1947ca3274500b8381debb4fb6699",
+  "materialized_candidate_state_sha256": "bda01dd027428711dd988583cf50e1a7a79164757be014d0905f6b6b1aeac6b3",
+  "materialized_geometry_program_sha256": "601f3745a7c70afb4b6224c956344f69486dba38205551c4fae8f55da3ed0eba",
+  "missing_reference_views": [
+    "front-three-quarter",
+    "rear-three-quarter",
+    "fps-inspect"
+  ],
+  "parent_authoring_eligibility": "BLOCKED",
+  "parent_brief_id": "dragonfang-kukri-brief",
+  "parent_brief_object_sha256": "a1fd8b115dcea8eb1cc551ac2bafd24ed20ae2eeda1ad856b0e28da459c35039",
+  "parent_brief_sha256": "ebc1516307ab22d16d6a64b31517943be4d13d6c21025355c6ec45dd7775c0c8",
+  "persistent_user_data_scope": "isolated-local-runtime-only",
+  "production_stage_advanced": false,
+  "project_id": "project-d0d62bcc61394881828e183ebedd9413",
+  "quality_status": "QUALITY_TARGET_NOT_MET",
+  "reference_dimensions": {
+    "height": 1024,
+    "width": 1536
+  },
+  "reference_evidence_sha256": "4a1606a7477c0188bd1bfad2c1225207064a71bae5da69011abc6720c656f5c1",
+  "reference_id": "reference-17cdce0b71624b6f98479f616b8de7ec",
+  "reference_object_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+  "reference_profile": "generated-multiview",
+  "reference_source_assessment": {
+    "cross_view_consistency": "micro-drift-unknown",
+    "kind": "generated-multiview-design-sheet",
+    "missing_views": [
+      "front-three-quarter",
+      "rear-three-quarter",
+      "fps-inspect"
+    ],
+    "supplemental_panels": [
+      "guard-bottom",
+      "pommel"
+    ],
+    "supplied_views": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "top",
+      "bottom",
+      "fps-hold"
+    ],
+    "surface_micro_detail_status": "design-intent-not-exact-geometry"
+  },
+  "restart_readback": "PASS_EXACT_HASH",
+  "schema_version": "WeaponryKnifeHighArtifactVisualLiveReceipt@1",
+  "source_binding_exact_replay": "PASS_NOT_TOUCHED",
+  "source_binding_id": "dragonfang-source-binding-183ebedd9413",
+  "source_binding_object_sha256": "080fec40da05d64ca5ce981240629a3ae766ba14888ddbf44944bcbea64b5f74",
+  "source_binding_restart_readback": "PASS_EXACT_HASH",
+  "source_binding_sha256": "1f6dff234a2d243ebee746421ac7cd70123223fd60f3d91a0a4e594cb0cedbf1",
+  "source_path_recorded": false,
+  "status": "LIVE_HIGH_ARTIFACT_FIXED_VIEW_CAPTURED_QUALITY_TARGET_NOT_MET",
+  "successor_authoring_eligibility": "ELIGIBLE",
+  "successor_authorization_binding_status": "runtime-bound",
+  "successor_brief_id": "dragonfang-kukri-brief-resolved-001",
+  "successor_brief_object_sha256": "fbc5275080aa3ef511d5ea37b0e98f36fde159102919b24aedc73c804331c8f6",
+  "successor_brief_sha256": "d98fc123e28734575b3790eeb9d63339b6ecaf88f604caa1bfd25dc1879c3bd1",
+  "task_id": "WPN-KNIFE-CORRECTION-PASS-001",
+  "unreal_5_6_status": "NOT_RUN",
+  "v2_blade_language": {
+    "correction": {
+      "evaluated_mesh_sha256": "8287d34b02176657e7d63c63f046bca20cd2475c36134f5d6fd906d32f9afb2e",
+      "evaluation_request_input_sha256": "519a02212b45baa6ec3dcd254fd45830d8edd2a1c46e14b70dce4c6987fdbd24",
+      "fixed_review_views": [
+        "front",
+        "top",
+        "bottom",
+        "left",
+        "right"
+      ],
+      "materialization_program_sha256": "1f835e8c6ec610665fdd5a9d849d68d26d692d3a2f4ca771b7db0ff5a512cc98",
+      "preserved_part_ids": [
+        "cutting-edge"
+      ],
+      "scope": [
+        "blade-body",
+        "cutting-edge"
+      ],
+      "structural_request_input_sha256": "de4c36f191659d9c474d9f782c51a95d8df1837691adc5d190c8d3fae9ac4744"
+    },
+    "curve_set_semantic_sha256": "d572d395dbacbfaa71da0297432929159970d7bf762ce5a919b0065a4279e5fc",
+    "evaluated_mesh_sha256": "a63edf50f394a59ab37064a9a0e5341853d12d8373b130e3f545d2159f3f00e8",
+    "evaluation_plan_sha256": "20560fe8ac88ae2ea8e73e76c7be832424189b0cdd1fbb1425b61e2b48693cfc",
+    "evaluation_request_input_sha256": "d6f4b1cb5e5ba45abdbdb86c07329c4538026c427fb1bb17129cedd30ebed5ec",
+    "fixed_constraint_views": [
+      "front",
+      "top",
+      "bottom",
+      "left",
+      "right"
+    ],
+    "frozen_scope": [
+      "dragon-relief",
+      "guard",
+      "grip",
+      "materials"
+    ],
+    "materialization_program_sha256": "dfbe44eccc930e67b62979a1975578e0df54b43e9e9477b85ecb413cd60d280d",
+    "modifier_graph_semantic_sha256": "e3d6dbc6d03d99a26d8093e10701156f893f0ad9ac154336fb0ea52392b01e5d",
+    "public_part_ids": [
+      "blade-body",
+      "cutting-edge"
+    ],
+    "structural_request_input_sha256": "c8590e98b1405b9ec25f9bb6863900913fcc197e7df4a585223445e082dbfd97"
+  },
+  "version_created": false,
+  "visual_review_status": "QUALITY_TARGET_NOT_MET"
+}
