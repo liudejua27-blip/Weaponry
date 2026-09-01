@@ -1,0 +1,100 @@
+{
+  "schema_version": "WeaponryThreeJsKnifeStudioLiveReceipt@1",
+  "task_id": "WPN-THREE-STUDIO-PERSIST-004",
+  "successor_of": "WPN-THREE-PROCEDURAL-READINESS-003",
+  "recorded_date": "2026-09-01",
+  "asset_id": "Dragonfang Kukri",
+  "display_name": "尼泊尔-屠龙",
+  "status": "PASS_RUNTIME_STORE_CAS_WORKER_STRUCTURAL_ONLY",
+  "historical_receipts_mutated": false,
+  "truth_boundary": {
+    "design_program": "KnifeSceneProgram@1",
+    "runtime_writer": "forgecad-runtime",
+    "store_records": [
+      "WeaponryThreeJsDesignStoreRecord@1",
+      "WeaponryThreeJsExecutionStoreRecord@1"
+    ],
+    "cas_persistence": true,
+    "visual_status": "NOT_RUN",
+    "human_status": "NOT_RUN",
+    "commercial_status": "NOT_RUN",
+    "high_status": "NOT_RUN",
+    "low_status": "NOT_RUN",
+    "uv_status": "NOT_RUN",
+    "bake_status": "NOT_RUN",
+    "material_status": "NOT_RUN",
+    "unreal_5_6_status": "NOT_RUN"
+  },
+  "program": {
+    "program_semantic_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+    "program_cas_object_sha256": "8eced459ec61684788d4bed2b8ea88d5d8ed54c9524a9608852bcd59a738446d",
+    "design_id": "three-design-24b4f6e558f59c825daf1127cb5751a79204e44b",
+    "canonicalization": "Runtime-owned canonical KnifeSceneProgram bytes; semantic hash and CAS object hash are recorded separately"
+  },
+  "lifecycle": {
+    "prepare": "PASS",
+    "exact_replay": "PASS_NOT_TOUCHED",
+    "runtime_reopen": "PASS",
+    "get_after_reopen": "PASS_EXACT_HASH",
+    "replay_worker_invoked": false,
+    "persistent_user_data_touched": true,
+    "idempotency_scope": "same canonical program and design identity only"
+  },
+  "worker": {
+    "worker_kind": "fixed typed internal Three.js worker",
+    "actions": {
+      "build": "PASS",
+      "preview": "PASS_MANIFEST_ONLY",
+      "export": "PASS"
+    },
+    "runtime_invocation": "fixed checked-in worker entrypoint; caller cannot supply script, module, URL or filesystem path",
+    "renderer_invoked": false,
+    "preview_view_count": 8,
+    "preview_views": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "real_png_or_aov_generated": false
+  },
+  "glb_artifact": {
+    "artifact_semantic_sha256": "540be799be965746d29fe79d044ef3d5667f8692bc7705252b9012d7bf25cbe6",
+    "artifact_cas_object_sha256": "540be799be965746d29fe79d044ef3d5667f8692bc7705252b9012d7bf25cbe6",
+    "byte_length": 901372,
+    "triangle_count": 4598,
+    "part_count": 13,
+    "build_export_hash_equal": true,
+    "readback": "PASS_RUNTIME_INDEPENDENT_GLB_V2_STRUCTURE_AND_PART_LINEAGE",
+    "inspector": "glTF magic, version 2, exact JSON/BIN chunks, THREE.GLTFExporter r185, one scene, 13 meshes, POSITION primitives, and exact knife-part to mesh binding",
+    "delivery_class": "procedural_draft_structural_artifact",
+    "commercial_asset": false
+  },
+  "scope": {
+    "included": [
+      "closed KnifeSceneProgram persistence",
+      "Runtime-owned Store/CAS record",
+      "same-key exact replay",
+      "Runtime reopen and exact get",
+      "typed build/preview/export dispatch",
+      "Runtime-independent GLB v2 structure and Part-to-mesh lineage readback"
+    ],
+    "not_included": [
+      "real fixed-view rendering",
+      "PNG or AOV capture",
+      "reference comparison",
+      "visual review or human approval",
+      "High-to-Low retopology",
+      "UV unwrap or bake",
+      "material result or texture authoring",
+      "Unreal 5.6 import validation",
+      "FPS animation and collision",
+      "commercial delivery acceptance"
+    ]
+  },
+  "conclusion": "Runtime/Store/CAS persistence, fixed typed Worker build/preview/export, and an independent Runtime GLB v2 structure/Part-lineage inspection are proven for Dragonfang r7. Preview is an eight-view manifest only because renderer_invoked=false; no visual, High/Low/UV/Bake, material, engine, human or commercial promotion follows."
+}

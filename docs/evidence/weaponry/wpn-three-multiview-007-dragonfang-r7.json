@@ -1,0 +1,104 @@
+{
+  "schema_version": "WeaponryThreeJsKnifeMultiViewReviewEvidence@1",
+  "task_id": "WPN-THREE-MULTIVIEW-007",
+  "recorded_date": "2026-09-01",
+  "asset_id": "Dragonfang Kukri",
+  "display_name": "尼泊尔-屠龙",
+  "status": "PASS_NON_DEGENERATE_VOLUME_REFINEMENT_REQUIRED",
+  "skill_route": "img2threejs-multi-angle-review@1",
+  "source": {
+    "program_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+    "program_object_sha256": "8eced459ec61684788d4bed2b8ea88d5d8ed54c9524a9608852bcd59a738446d",
+    "preview_runtime_sha256": "d3c2101e22c034d340361828c7a65b928917888e780d296713ede50711d92796",
+    "preview_dependency_lock_sha256": "df43fa1e8751ac40561bfa76eb6bc082d232a5b61366e95109522b0eb03d02b7",
+    "preview_worker_cohort_sha256": "92f8d4ca303851e9eead9cd337f5bf6821980fd76eb8026d617d744b0c7f5044",
+    "worker_result_sha256": "ce2ea661551e075748230fe9d6cd4f746d2256bb1fe5eba122e23aa31baf832c"
+  },
+  "capture": {
+    "renderer_invoked": true,
+    "fixed_view_count": 8,
+    "aov_count": 48,
+    "persisted_review_views": [
+      "FRONT",
+      "BACK",
+      "REAR_THREE_QUARTER",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT"
+    ],
+    "aov_manifest_path": "packages/weaponry-threejs/evidence/rendered-r7-fixed-views/manifest.json",
+    "aov_manifest_sha256": "2f024e4853fcefd4ff11cbfbd6258732653716a636adea7ebbc403758f5205c4",
+    "beauty_sheet_path": "packages/weaponry-threejs/evidence/rendered-r7-fixed-views/r7-multiview-beauty-sheet.png",
+    "beauty_sheet_sha256": "a6ef0182df7d4c9a99080f348437931146def75c79c2c52f8eda5e97f9f808dc"
+  },
+  "deterministic_multi_angle_gate": {
+    "reference_view": "FRONT",
+    "collapse_ratio": 0.15,
+    "reference_area_fraction": 0.07773590087890625,
+    "angles": [
+      {
+        "view_id": "BACK",
+        "area_fraction": 0.07775115966796875,
+        "ratio_to_front": 1.0001962901167927,
+        "degenerate": false
+      },
+      {
+        "view_id": "REAR_THREE_QUARTER",
+        "area_fraction": 0.06806564331054688,
+        "ratio_to_front": 0.8756011384826774,
+        "degenerate": false
+      }
+    ],
+    "degenerate": false,
+    "scope": "Only BACK and REAR_THREE_QUARTER are valid orbit-collapse checks. Thin profile and longitudinal end views are intentionally excluded from the generic collapse threshold."
+  },
+  "direct_alpha_occupancy": {
+    "method": "exact-white-pixel-fraction-over-512x512-alpha-silhouette@1",
+    "FRONT": 0.0767822265625,
+    "BACK": 0.07675933837890625,
+    "REAR_THREE_QUARTER": 0.06729888916015625,
+    "TOP": 0.027736663818359375,
+    "BOTTOM": 0.02776336669921875,
+    "LEFT": 0.010112762451171875,
+    "RIGHT": 0.010135650634765625
+  },
+  "camera_semantics": {
+    "coordinate_convention": "weapon-front-z-up-right-handed@1",
+    "FRONT": "+Z broadside",
+    "BACK": "-Z broadside",
+    "TOP": "+Y edge profile",
+    "BOTTOM": "-Y edge profile",
+    "LEFT": "-X pommel-end longitudinal view",
+    "RIGHT": "+X tip-end longitudinal view",
+    "finding": "The supplied presentation sheet labels LEFT and RIGHT as long edge-profile images, while the fixed rig uses mathematically conventional -X/+X longitudinal end views. Reference labels therefore cannot be passed directly as Runtime view IDs."
+  },
+  "agent_visual_review": {
+    "decision": "refine-spec",
+    "reason": "The mesh has non-zero volume and survives broadside orbit checks, but the reference-view label to fixed-camera-axis mapping is under-specified. A typed reference_view_kind to render_view_id mapping is required before multi-view likeness scores are valid.",
+    "observed_strengths": [
+      "The broad blade curvature remains readable in FRONT, BACK and REAR_THREE_QUARTER.",
+      "TOP and BOTTOM expose a real, non-zero blade and handle thickness.",
+      "LEFT and RIGHT provide distinct pommel-end and tip-end evidence rather than duplicated broadside captures."
+    ],
+    "observed_defects": [
+      "The guard, dragon relief and grip remain visibly primitive and do not match the commercial reference.",
+      "BACK and REAR_THREE_QUARTER lighting leave most blade surface information nearly black.",
+      "The current fixed view labels are not acceptance-equivalent to the supplier sheet labels.",
+      "No calibrated TOP, BOTTOM or edge-profile reference comparison has been persisted."
+    ]
+  },
+  "truth_boundary": {
+    "multi_angle_volume_status": "PASS_NON_DEGENERATE",
+    "reference_likeness_status": "MEASURED_FRONT_ONLY_NOT_APPROVED",
+    "visual_status": "NOT_RUN_CALIBRATED_GATE",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "commercial_status": "NOT_RUN",
+    "parent_retained": true,
+    "geometry_modified": false,
+    "candidate_created": false,
+    "version_created": false,
+    "export_performed": false
+  }
+}

@@ -25,7 +25,11 @@ const ARCHIVE_MAGIC: &[u8; 8] = b"FCBNDL01";
 const MAX_ARCHIVE_FILES: usize = 1_024;
 // Declarative file contents remain capped at 3 MiB. The serialized envelope
 // additionally carries one bounded path and two length fields per file.
-const MAX_ARCHIVE_BYTES: usize = 3 * 1024 * 1024;
+// The active knife profile now embeds the package-owned Three.js Studio
+// contracts alongside the existing schema set. Keep a hard compile-time
+// ceiling, but size it for the current closed contract archive rather than
+// rejecting a valid package for a few kilobytes of schema growth.
+const MAX_ARCHIVE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_ARCHIVE_ENVELOPE_BYTES: usize =
     12 + MAX_ARCHIVE_BYTES + MAX_ARCHIVE_FILES * (2 + 512 + 4);
 const MAX_ARTIFACT_BYTES: usize = 256 * 1024;

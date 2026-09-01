@@ -1,0 +1,115 @@
+{
+  "schema_version": "WeaponryThreeJsReferenceViewMapping@1",
+  "mapping_id": "dragonfang-r8-reference-view-mapping-001",
+  "asset_id": "Dragonfang Kukri",
+  "coordinate_convention": "weapon-front-z-up-right-handed@1",
+  "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+  "program_sha256": "0c495db1c8ff2c0079cd5dafc3270eaafa9eae0ae1d0f41b6099d65db8ec51e1",
+  "aov_manifest_sha256": "ee86d240b0cfdeee5ec28d730d232e58bd20b48e61168db18d21e103cd83dcf2",
+  "preview_worker_cohort_sha256": "92f8d4ca303851e9eead9cd337f5bf6821980fd76eb8026d617d744b0c7f5044",
+  "mappings": [
+    {
+      "reference_view_kind": "front",
+      "reference_semantics": "sheet broadside front",
+      "render_view_id": "FRONT",
+      "camera_axis": "+Z broadside",
+      "handedness_transform": "mirror-render-x-to-reference@1",
+      "independent_direction": true,
+      "comparison_eligible": true,
+      "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104"
+    },
+    {
+      "reference_view_kind": "back",
+      "reference_semantics": "sheet opposite broadside",
+      "render_view_id": "BACK",
+      "camera_axis": "-Z broadside",
+      "handedness_transform": "mirror-render-x-to-reference@1",
+      "independent_direction": true,
+      "comparison_eligible": true,
+      "camera_sha256": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193"
+    },
+    {
+      "reference_view_kind": "top",
+      "reference_semantics": "sheet upper edge profile",
+      "render_view_id": "TOP",
+      "camera_axis": "+Y edge-profile",
+      "handedness_transform": "none",
+      "independent_direction": true,
+      "comparison_eligible": true,
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f"
+    },
+    {
+      "reference_view_kind": "bottom",
+      "reference_semantics": "sheet lower edge profile",
+      "render_view_id": "BOTTOM",
+      "camera_axis": "-Y edge-profile",
+      "handedness_transform": "mirror-render-x-to-reference@1",
+      "independent_direction": true,
+      "comparison_eligible": true,
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28"
+    },
+    {
+      "reference_view_kind": "left",
+      "reference_semantics": "sheet-labelled long upper edge profile, not world -X",
+      "render_view_id": "TOP",
+      "camera_axis": "+Y edge-profile",
+      "handedness_transform": "none",
+      "independent_direction": false,
+      "comparison_eligible": true,
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f"
+    },
+    {
+      "reference_view_kind": "right",
+      "reference_semantics": "sheet-labelled long lower edge profile, not world +X",
+      "render_view_id": "BOTTOM",
+      "camera_axis": "-Y edge-profile",
+      "handedness_transform": "none",
+      "independent_direction": false,
+      "comparison_eligible": true,
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28"
+    },
+    {
+      "reference_view_kind": "guard-bottom",
+      "reference_semantics": "component detail view",
+      "render_view_id": null,
+      "camera_axis": null,
+      "handedness_transform": null,
+      "independent_direction": false,
+      "comparison_eligible": false,
+      "required_route": "component-isolation-camera",
+      "camera_sha256": null
+    },
+    {
+      "reference_view_kind": "pommel",
+      "reference_semantics": "component detail view",
+      "render_view_id": null,
+      "camera_axis": null,
+      "handedness_transform": null,
+      "independent_direction": false,
+      "comparison_eligible": false,
+      "required_route": "component-isolation-camera",
+      "camera_sha256": null
+    },
+    {
+      "reference_view_kind": "fps-hold",
+      "reference_semantics": "presentation and hand-pose view",
+      "render_view_id": null,
+      "camera_axis": null,
+      "handedness_transform": null,
+      "independent_direction": false,
+      "comparison_eligible": false,
+      "required_route": "fps-presentation-camera",
+      "camera_sha256": null
+    }
+  ],
+  "independent_global_direction_count": 4,
+  "reference_coverage_status": "PARTIAL_VISIBLE_VIEW_ONLY",
+  "likeness_policy": "score only mapped global views; aliases do not increase independent-view coverage",
+  "geometry_modified": false,
+  "candidate_created": false,
+  "visual_status": "NOT_APPROVED",
+  "human_status": "NOT_RUN",
+  "commercial_status": "NOT_RUN",
+  "canonical_sha256": "dbdf2986c4e50ccd2597b641cb1bb7922a78dd4a1e0e64c717f3afa0a4c8d9e3",
+  "camera_binding_policy": "program-bound-fixed-camera-sha256@1"
+}

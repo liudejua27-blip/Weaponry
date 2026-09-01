@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weaponry-threejs-knife-design-execute-request.schema.json",
+  "title": "WeaponryThreeJsKnifeDesignExecuteRequest@1",
+  "description": "Closed request for the fixed Three.js knife Worker. No caller script, module, URL or path is accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "operation", "action", "project_id", "design_id", "program_sha256", "program_object_sha256", "idempotency_key", "max_response_bytes", "runtime_write_performed", "writer_policy", "canonicalization_policy", "input_sha256"],
+  "properties": {
+    "schema_version": {"const": "WeaponryThreeJsKnifeDesignExecuteRequest@1"},
+    "operation": {"const": "weaponry_threejs_knife_design_execute"},
+    "action": {"enum": ["build", "preview", "export"]},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "design_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "program_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "program_object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

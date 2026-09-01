@@ -218,6 +218,15 @@ fn result_schema_file_for_operation(operation: &str) -> Option<&'static str> {
         "production_knife_uv_bake_v2_prepare" | "production_knife_uv_bake_v2_get" => {
             Some("production-knife-uv-bake-v2-result.schema.json")
         }
+        "weaponry_threejs_knife_design_prepare" | "weaponry_threejs_knife_design_get" => {
+            Some("weaponry-threejs-knife-design-result.schema.json")
+        }
+        "weaponry_threejs_knife_design_execute" => {
+            Some("weaponry-threejs-knife-design-execution-result.schema.json")
+        }
+        "weaponry_threejs_knife_comparison_prepare" | "weaponry_threejs_knife_comparison_get" => {
+            Some("weaponry-threejs-knife-comparison-result.schema.json")
+        }
         _ => None,
     }
 }
@@ -473,6 +482,46 @@ const EMBEDDED_SCHEMA_DOCUMENTS: &[(&str, &str)] = &[
     (
         "production-knife-uv-bake-v2-result.schema.json",
         embedded_schema!("production-knife-uv-bake-v2-result.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-scene-program.schema.json",
+        embedded_schema!("weaponry-threejs-knife-scene-program.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-design-get-request.schema.json",
+        embedded_schema!("weaponry-threejs-knife-design-get-request.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-design-prepare-request.schema.json",
+        embedded_schema!("weaponry-threejs-knife-design-prepare-request.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-design-result.schema.json",
+        embedded_schema!("weaponry-threejs-knife-design-result.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-comparison-prepare-request.schema.json",
+        embedded_schema!("weaponry-threejs-knife-comparison-prepare-request.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-comparison-get-request.schema.json",
+        embedded_schema!("weaponry-threejs-knife-comparison-get-request.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-comparison-result.schema.json",
+        embedded_schema!("weaponry-threejs-knife-comparison-result.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-design-execute-request.schema.json",
+        embedded_schema!("weaponry-threejs-knife-design-execute-request.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-design-execution-result.schema.json",
+        embedded_schema!("weaponry-threejs-knife-design-execution-result.schema.json"),
+    ),
+    (
+        "weaponry-threejs-knife-preview-receipt.schema.json",
+        embedded_schema!("weaponry-threejs-knife-preview-receipt.schema.json"),
     ),
     (
         "mechanical-animation-clip-get-request.schema.json",
@@ -1666,7 +1715,7 @@ fn matches_pattern(pattern: &str, value: &str) -> bool {
         "^[^\\u0000-\\u001f\\u007f]*$" => !value
             .chars()
             .any(|character| character <= '\u{001f}' || character == '\u{007f}'),
-        "^[0-9a-f]{64}$" => {
+        "^[0-9a-f]{64}$" | "^[a-f0-9]{64}$" => {
             value.len() == 64
                 && value
                     .bytes()
@@ -1678,6 +1727,40 @@ fn matches_pattern(pattern: &str, value: &str) -> bool {
                     .bytes()
                     .next()
                     .is_some_and(|byte| byte.is_ascii_alphanumeric())
+        }
+        "^[A-Za-z][A-Za-z0-9_.-]{0,63}$" | "^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$" => {
+            !value.is_empty()
+                && value.len() <= 64
+                && value
+                    .bytes()
+                    .next()
+                    .is_some_and(|byte| byte.is_ascii_alphabetic())
+                && value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+        }
+        "^[A-Za-z][A-Za-z0-9_.-]{0,127}$" => {
+            !value.is_empty()
+                && value.len() <= 128
+                && value
+                    .bytes()
+                    .next()
+                    .is_some_and(|byte| byte.is_ascii_alphabetic())
+                && value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+        }
+        "^(?:[a-f0-9]{64})?$" => {
+            value.is_empty()
+                || (value.len() == 64
+                    && value
+                        .bytes()
+                        .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+        }
+        "^#[A-Fa-f0-9]{6}$" => {
+            value.len() == 7
+                && value.starts_with('#')
+                && value[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
         }
         "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$" => {
             !value.is_empty()

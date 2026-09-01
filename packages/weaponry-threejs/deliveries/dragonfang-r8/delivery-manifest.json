@@ -1,0 +1,211 @@
+{
+  "schema_version": "WeaponryThreeJsKnifeDelivery@1",
+  "task_id": "WPN-THREE-R8-PACKAGE-DELIVERY-014",
+  "asset_id": "Dragonfang Kukri",
+  "asset_version": "r8",
+  "delivery_kind": "threejs-action-ready-glb@1",
+  "acceptance_basis": "USER_ACCEPTED_APPROXIMATION",
+  "geometry_policy": "r8-vertex-index-material-buffers-frozen-delivery-hierarchy-added@1",
+  "program": {
+    "path": "knife-scene-program-r8.json",
+    "semantic_sha256": "0c495db1c8ff2c0079cd5dafc3270eaafa9eae0ae1d0f41b6099d65db8ec51e1",
+    "object_sha256": "5c7d6e4bf10cc00df5085d93c1f96429fc4f3dc70185bf0f1e11d2d933e8893a",
+    "file_sha256": "da4fc90c64ef1f554b8426b222b911fecdc8fd68d1f53c4ec7e23e315d878478"
+  },
+  "source_glb": {
+    "path": "provenance/dragonfang-kukri-r8-source.glb",
+    "sha256": "cfe9055ad025f80afeb62a12a882ea8cc856ba1ca68b30ba4523c0cdcd73d10d",
+    "bytes": 901380
+  },
+  "delivery_glb": {
+    "path": "dragonfang-kukri-r8-action-ready.glb",
+    "sha256": "ec6fbbfa929d885d00eb9d6092006a550541f77e0a2a7100325e1cb99afeb344",
+    "bytes": 907104,
+    "triangles": 4598,
+    "draw_calls": 13,
+    "deterministic_fingerprint": "c7286cc81efc34a6",
+    "geometry_buffers_modified": false,
+    "hierarchy_modified": true
+  },
+  "action_runtime": {
+    "schema_version": "WeaponryThreeJsKnifeActionRuntime@1",
+    "controller_schema_version": "WeaponryThreeJsKnifeDeliveryController@1",
+    "part_ids": [
+      "blade-body",
+      "cutting-edge",
+      "fastener-grip-a",
+      "fastener-grip-b",
+      "fastener-grip-c",
+      "fastener-grip-d",
+      "gem-guard-eye",
+      "gem-pommel",
+      "grip",
+      "guard",
+      "pommel",
+      "relief-dragon-belly",
+      "relief-dragon-spine"
+    ],
+    "pivot_ids": [
+      "pivot-blade-body",
+      "pivot-cutting-edge",
+      "pivot-fastener-grip-a",
+      "pivot-fastener-grip-b",
+      "pivot-fastener-grip-c",
+      "pivot-fastener-grip-d",
+      "pivot-gem-guard-eye",
+      "pivot-gem-pommel",
+      "pivot-grip",
+      "pivot-guard",
+      "pivot-pommel",
+      "pivot-relief-dragon-belly",
+      "pivot-relief-dragon-spine"
+    ],
+    "socket_ids": [
+      "socket-blade-tip",
+      "socket-guard",
+      "socket-grip"
+    ],
+    "pick_policy": "nearest-ancestor-part-id@1",
+    "explode_policy": "stable-pivot-vector@1",
+    "collider_intents": [
+      {
+        "collider_id": "collider-blade",
+        "shape": "box-intent@1",
+        "part_ids": [
+          "blade-body",
+          "cutting-edge",
+          "relief-dragon-belly",
+          "relief-dragon-spine"
+        ],
+        "center": [
+          0,
+          0.011441677808761597,
+          0.019500000417232516
+        ],
+        "half_extents": [
+          1,
+          0.23340749740600586,
+          0.059499999523162844
+        ]
+      },
+      {
+        "collider_id": "collider-handle",
+        "shape": "box-intent@1",
+        "part_ids": [
+          "fastener-grip-a",
+          "fastener-grip-b",
+          "fastener-grip-c",
+          "fastener-grip-d",
+          "gem-guard-eye",
+          "gem-pommel",
+          "grip",
+          "guard",
+          "pommel"
+        ],
+        "center": [
+          -1.5016895632445812,
+          -0.03198100924491881,
+          0
+        ],
+        "half_extents": [
+          0.6383104340732098,
+          0.400116024017334,
+          0.1564227193593979
+        ]
+      }
+    ],
+    "destruction_groups": [
+      {
+        "group_id": "blade-assembly",
+        "part_ids": [
+          "blade-body",
+          "cutting-edge",
+          "relief-dragon-belly",
+          "relief-dragon-spine"
+        ]
+      },
+      {
+        "group_id": "handle-assembly",
+        "part_ids": [
+          "fastener-grip-a",
+          "fastener-grip-b",
+          "fastener-grip-c",
+          "fastener-grip-d",
+          "gem-guard-eye",
+          "gem-pommel",
+          "grip",
+          "guard",
+          "pommel"
+        ]
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "load-knife-delivery.mjs",
+      "sha256": "798a2b29f3827f10591a2519ceed777f45fbba31069b0b8975387b3e05251cee"
+    },
+    {
+      "path": "load-knife-delivery.standalone.mjs",
+      "sha256": "089e236d87609a56402e4608b4f386f8e6da3d86db0a2446b3ec8de51aee232a"
+    },
+    {
+      "path": "README.md",
+      "sha256": "3506dc49c4fd50579e72cf747c2cc94eff9e1d45bb76fd75eff671523f99a779"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "sha256": "80851ca92d7490d6a0b6f48ec99b78c3e422a3786b7428f1143fb186482087d6"
+    },
+    {
+      "path": "evidence/runtime-cas-live.receipt.json",
+      "sha256": "957d40c1c0767b3c80afbd6a4b3e13a9729067d0c889fb97daaeaac531d60d78"
+    }
+  ],
+  "fixed_view_evidence": {
+    "path": "evidence/fixed-views",
+    "tree_sha256": "7ec92a18522bf6e9726b2a9e2c149d576e87955477114ee3bccaf938237bb5c9",
+    "file_count": 50,
+    "manifest_sha256": "ee86d240b0cfdeee5ec28d730d232e58bd20b48e61168db18d21e103cd83dcf2",
+    "manifest_canonical_sha256": "3b8af505bbb2f7e6f29bb53bcd972770ba7441433e554c0b571e0d3a4ceb28c8",
+    "view_count": 8,
+    "aov_count": 48,
+    "preview_worker_cohort_sha256": "92f8d4ca303851e9eead9cd337f5bf6821980fd76eb8026d617d744b0c7f5044"
+  },
+  "reference_view_mapping": {
+    "file_sha256": "fb80ab389bda86201a09a1aae30ec27809661d594f58b843c4456954edb7f10d",
+    "canonical_sha256": "dbdf2986c4e50ccd2597b641cb1bb7922a78dd4a1e0e64c717f3afa0a4c8d9e3"
+  },
+  "comparison": {
+    "file_sha256": "86d66504f822be710b1dad9eb640a520e70633102c7d4e061c4070ccbcba68ff",
+    "canonical_sha256": "0a4a38758cd9a6dc7d20776fe87503d0a1d3fd9956b30a2352332cf5bfd1a10c",
+    "comparison_status": "MEASURED_NOT_APPROVED",
+    "agent_decision": "refine-spec"
+  },
+  "runtime_cas_persistence": {
+    "status": "PASS_RUNTIME_STORE_CAS_ACTION_READY_DELIVERY",
+    "receipt_path": "evidence/runtime-cas-live.receipt.json",
+    "receipt_file_sha256": "957d40c1c0767b3c80afbd6a4b3e13a9729067d0c889fb97daaeaac531d60d78",
+    "receipt_canonical_sha256": "a43d1074c3898e552601937e5b81818dba54ce5eb027edce89a0aeaf003545f4",
+    "build_cohort_sha256": "16bfe5a4ab7d90a93fa996f9878774f12240cc6bfa5b1021a5c54eeb723aa386",
+    "execution_id": "three-exec-4ac70bdb70c8355474d903276e3fe72b755d067a",
+    "worker_result_sha256": "7130d8f167072c792ede42b2c519a36dceb9183f9587956685dc7728a2b0759a",
+    "worker_result_object_sha256": "f6d978aeb36433b4b5293cc78528cf8fcaae93f05594ea12d4895e4fbc64b82a",
+    "glb_sha256": "ec6fbbfa929d885d00eb9d6092006a550541f77e0a2a7100325e1cb99afeb344",
+    "glb_object_sha256": "ec6fbbfa929d885d00eb9d6092006a550541f77e0a2a7100325e1cb99afeb344",
+    "exact_replay_status": "PASS_NOT_TOUCHED",
+    "runtime_reopen_get_status": "PASS_FOUND_EXACT_HASH"
+  },
+  "dependency_lock": {
+    "three_version": "0.185.1",
+    "standalone_loader_sha256": "089e236d87609a56402e4608b4f386f8e6da3d86db0a2446b3ec8de51aee232a",
+    "three_license_sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc",
+    "img2threejs_revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+    "img2threejs_license_sha256": "4595055948a67e91177115c57e154804046878e77ff223de22accc880012827a"
+  },
+  "visual_status": "NOT_APPROVED",
+  "human_status": "NOT_RUN",
+  "engine_status": "NOT_RUN",
+  "commercial_status": "NOT_RUN",
+  "canonical_sha256": "3e2a7b9dd2b1d662b1af1bab83d62ff211b957038a24cec8cb27922134f3bb63"
+}

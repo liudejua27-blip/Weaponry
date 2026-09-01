@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "knife-layered-material.schema.json",
+  "title": "KnifeLayeredMaterialSpec@1",
+  "description": "Closed first-party, texture-free material vocabulary for nonfunctional Three.js knife assets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "material_zone_id", "vocabulary", "controls"],
+  "properties": {
+    "schema_version": { "const": "KnifeLayeredMaterialSpec@1" },
+    "material_zone_id": { "$ref": "#/$defs/id" },
+    "vocabulary": {
+      "enum": ["red-lacquer-metal", "antique-gold", "black-wrapped-grip", "ruby-emissive"]
+    },
+    "controls": { "$ref": "#/$defs/controls" }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$"
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["curvature", "edge_wear", "engraving_mask", "scale_repeat"],
+      "properties": {
+        "curvature": { "type": "number", "minimum": 0, "maximum": 1 },
+        "edge_wear": { "type": "number", "minimum": 0, "maximum": 1 },
+        "engraving_mask": { "type": "number", "minimum": 0, "maximum": 1 },
+        "scale_repeat": {
+          "type": "array",
+          "prefixItems": [
+            { "type": "number", "minimum": 0.25, "maximum": 16 },
+            { "type": "number", "minimum": 0.25, "maximum": 16 }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    }
+  }
+}

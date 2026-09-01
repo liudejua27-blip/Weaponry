@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Weaponry Three.js 刀类动态目标工作台",
+    "locale": "zh-CN",
+    "output": "docs/architecture/weaponry-threejs-quality-workbench.html",
+    "quality_profile": "showcase",
+    "viewBox": [1360, 720],
+    "views": [
+      { "id": "truth", "label": "Truth and bounded search", "focus": ["knowledge", "ledger", "search", "program"], "note": "知识先验与目标账本分离；ledger 绑定 program、scope、frozen Parts、metric IDs 与预算。" },
+      { "id": "language", "label": "Modeling language", "focus": ["program", "kernels", "compiler"], "note": "双曲线、沿程截面、语义装配、浮雕与材质场编译为可重建 Three.js / GLB。" },
+      { "id": "objective", "label": "Objective loop", "focus": ["blade-metrics", "assembly-metrics", "views", "reference", "adapter", "objective-fn", "decision"], "note": "数学结构指标与可选参考指标汇总；ObjectiveFunction@2 只能给出 REVIEW_ONLY 决策。" },
+      { "id": "readiness", "label": "Procedural Draft readiness", "focus": ["program", "compiler", "views", "decision", "readiness"], "note": "exact baseline/candidate/GLB bytes 重放；只证明 THREEJS_DESIGN_READY，不证明视觉或商业质量。" },
+      { "id": "authority", "label": "Authority boundary", "focus": ["readiness", "persistence", "approval"], "note": "本地 workbench 不写永久真值；Runtime/Store/CAS 与人审仍是后续边界。" }
+    ]
+  },
+  "components": [
+    { "id": "codex", "type": "external", "label": "Codex", "sublabel": "intent · hypothesis", "pos": [10, 25], "size": [120, 64] },
+    { "id": "knowledge", "type": "database", "label": "KnifeKnowledge@1", "sublabel": "design priors", "pos": [154, 25], "size": [160, 64] },
+    { "id": "ledger", "type": "database", "label": "ObjectiveLedger@1", "sublabel": "append-only metric IDs", "tag": "IMMUTABLE", "pos": [338, 25], "size": [170, 64] },
+    { "id": "search", "type": "backend", "label": "Bounded search", "sublabel": "one scope · seeded", "tag": "MAX 32", "pos": [532, 25], "size": [150, 64] },
+    { "id": "program", "type": "backend", "label": "KnifeSceneProgram@1", "sublabel": "editable native successor", "pos": [706, 25], "size": [180, 64] },
+    { "id": "kernels", "type": "backend", "label": "Knife geometry kernels", "sublabel": "blade · loft · relief · surface", "pos": [910, 25], "size": [180, 64] },
+    { "id": "compiler", "type": "backend", "label": "Three.js compiler / GLB", "sublabel": "derived · strict readback", "pos": [1114, 25], "size": [180, 64] },
+    { "id": "views", "type": "frontend", "label": "Fixed 8-view / AOV", "sublabel": "optional observability", "tag": "NOT APPROVAL", "pos": [1114, 135], "size": [180, 64] },
+    { "id": "compat", "type": "backend", "label": "img2threejs compatibility", "sublabel": "7/7 + 4/4 import", "tag": "STRUCTURAL PARITY", "pos": [532, 135], "size": [200, 64] },
+    { "id": "blade-metrics", "type": "backend", "label": "Blade intrinsic evaluator", "sublabel": "G1 · sections · taper · extrema", "tag": "NO RENDER", "pos": [706, 245], "size": [190, 64] },
+    { "id": "assembly-metrics", "type": "backend", "label": "Assembly intrinsic evaluator", "sublabel": "ratios · joins · materials · budget", "tag": "NO RENDER", "pos": [914, 245], "size": [200, 64] },
+    { "id": "reference", "type": "external", "label": "Optional reference metrics", "sublabel": "mask · boundary · landmarks", "tag": "MAY BE N/C", "pos": [1134, 245], "size": [200, 64] },
+    { "id": "adapter", "type": "backend", "label": "Metric Adapter@1 / @2", "sublabel": "v1 stable · v2 intrinsic", "pos": [914, 365], "size": [200, 64] },
+    { "id": "objective-fn", "type": "backend", "label": "ObjectiveFunction@2", "sublabel": "Pareto + regression gates", "pos": [914, 455], "size": [200, 64] },
+    { "id": "decision", "type": "backend", "label": "Parent retained / successor", "sublabel": "REVIEW_ONLY_SELECTION", "tag": "QUALITY NOT_RUN", "pos": [914, 545], "size": [200, 70] },
+    { "id": "readiness", "type": "backend", "label": "Procedural Draft readiness", "sublabel": "exact baseline · GLB readback", "tag": "DESIGN READY", "pos": [1142, 545], "size": [190, 70] },
+    { "id": "persistence", "type": "security", "label": "Runtime / Store / CAS", "sublabel": "durable truth pending", "tag": "NOT IMPLEMENTED", "pos": [919, 645], "size": [190, 55] },
+    { "id": "approval", "type": "external", "label": "Human / commercial approval", "sublabel": "higher-tier gate", "tag": "NOT RUN", "pos": [1134, 645], "size": [200, 55] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "In-process Three.js knife workbench", "wraps": ["knowledge", "ledger", "search", "program", "kernels", "compiler", "views", "compat", "blade-metrics", "assembly-metrics", "reference", "adapter", "objective-fn", "decision", "readiness"], "pad": 20 },
+    { "kind": "security-group", "label": "Permanent authority — pending", "wraps": ["persistence", "approval"], "pad": 18 }
+  ],
+  "connections": [
+    { "id": "codex-knowledge", "from": "codex", "to": "knowledge", "variant": "emphasis" },
+    { "id": "knowledge-ledger", "from": "knowledge", "to": "ledger" },
+    { "id": "ledger-search", "from": "ledger", "to": "search", "variant": "emphasis" },
+    { "id": "search-program", "from": "search", "to": "program", "variant": "emphasis" },
+    { "id": "program-kernels", "from": "program", "to": "kernels" },
+    { "id": "kernels-compiler", "from": "kernels", "to": "compiler" },
+    { "id": "compiler-views", "from": "compiler", "to": "views", "variant": "emphasis" },
+    { "id": "compat-program", "from": "compat", "to": "program", "fromSide": "right", "toSide": "bottom", "variant": "dashed" },
+    { "id": "program-blade-metrics", "from": "program", "to": "blade-metrics", "fromSide": "bottom", "toSide": "top" },
+    { "id": "compiler-assembly-metrics", "from": "compiler", "to": "assembly-metrics", "fromSide": "bottom", "toSide": "top" },
+    { "id": "views-reference", "from": "views", "to": "reference", "fromSide": "bottom", "toSide": "right", "variant": "dashed" },
+    { "id": "blade-adapter", "from": "blade-metrics", "to": "adapter", "fromSide": "bottom", "toSide": "left", "variant": "emphasis" },
+    { "id": "assembly-adapter", "from": "assembly-metrics", "to": "adapter", "fromSide": "bottom", "toSide": "top", "variant": "emphasis" },
+    { "id": "reference-adapter", "from": "reference", "to": "adapter", "fromSide": "bottom", "toSide": "right", "variant": "dashed" },
+    { "id": "adapter-objective", "from": "adapter", "to": "objective-fn", "fromSide": "bottom", "toSide": "top", "variant": "emphasis" },
+    { "id": "objective-decision", "from": "objective-fn", "to": "decision", "fromSide": "bottom", "toSide": "top", "variant": "emphasis" },
+    { "id": "decision-readiness", "from": "decision", "to": "readiness", "variant": "emphasis" },
+    { "id": "readiness-persistence", "from": "readiness", "to": "persistence", "fromSide": "bottom", "toSide": "top", "variant": "dashed" },
+    { "id": "persistence-approval", "from": "persistence", "to": "approval", "variant": "dashed" }
+  ]
+}

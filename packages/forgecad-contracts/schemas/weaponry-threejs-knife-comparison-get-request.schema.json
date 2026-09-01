@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weaponry-threejs-knife-comparison-get-request.schema.json",
+  "title": "WeaponryThreeJsKnifeComparisonGetRequest@1",
+  "description": "Closed read-only exact lookup for a deterministic FRONT comparison. Runtime fixes all rendering and metric policy fields.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "comparison_id", "comparison_sha256",
+    "comparison_object_sha256", "preview_execution_id", "preview_program_sha256",
+    "preview_program_object_sha256", "preview_worker_cohort_sha256", "preview_receipt_sha256",
+    "preview_receipt_object_sha256", "preview_aov_sha256", "preview_aov_object_sha256",
+    "reference_id", "reference_object_sha256", "reference_evidence_sha256", "view_id",
+    "reference_crop", "semantic_part_ids", "editable_part_ids", "frozen_part_ids",
+    "max_response_bytes", "runtime_write_performed", "persistent_user_data_touched",
+    "writer_policy", "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponryThreeJsKnifeComparisonGetRequest@1"},
+    "operation": {"const": "weaponry_threejs_knife_comparison_get"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "comparison_id": {"$ref": "#/$defs/id"},
+    "comparison_sha256": {"$ref": "#/$defs/sha256"},
+    "comparison_object_sha256": {"$ref": "#/$defs/sha256"},
+    "preview_execution_id": {"$ref": "#/$defs/id"},
+    "preview_program_sha256": {"$ref": "#/$defs/sha256"},
+    "preview_program_object_sha256": {"$ref": "#/$defs/sha256"},
+    "preview_worker_cohort_sha256": {"$ref": "#/$defs/sha256"},
+    "preview_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "preview_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "preview_aov_sha256": {"$ref": "#/$defs/sha256"},
+    "preview_aov_object_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_object_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "view_id": {"const": "FRONT"},
+    "reference_crop": {"$ref": "#/$defs/reference_crop"},
+    "semantic_part_ids": {"$ref": "#/$defs/semantic_part_ids"},
+    "editable_part_ids": {"const": ["blade-body", "cutting-edge"]},
+    "frozen_part_ids": {"$ref": "#/$defs/frozen_part_ids"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "reference_crop": {
+      "type": "object", "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": {"const": 10}, "y": {"const": 20},
+        "width": {"const": 650}, "height": {"const": 200}
+      }
+    },
+    "semantic_part_ids": {
+      "type": "object", "additionalProperties": false,
+      "required": ["blade-body", "cutting-edge"],
+      "properties": {"blade-body": {"const": 1}, "cutting-edge": {"const": 2}}
+    },
+    "frozen_part_ids": {
+      "type": "array", "minItems": 11, "maxItems": 11,
+      "prefixItems": [
+        {"const": "fastener-grip-a"}, {"const": "fastener-grip-b"},
+        {"const": "fastener-grip-c"}, {"const": "fastener-grip-d"},
+        {"const": "gem-guard-eye"}, {"const": "gem-pommel"}, {"const": "grip"},
+        {"const": "guard"}, {"const": "pommel"},
+        {"const": "relief-dragon-belly"}, {"const": "relief-dragon-spine"}
+      ],
+      "items": false
+    }
+  }
+}

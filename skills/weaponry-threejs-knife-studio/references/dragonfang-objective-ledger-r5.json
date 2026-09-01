@@ -1,0 +1,51 @@
+{
+  "schema_version": "KnifeObjectiveLedger@1",
+  "ledger_id": "dragonfang-attachment-relief-ledger",
+  "revision": 5,
+  "parent_ledger_sha256": "b6c7f2b497c96ab46731a19d2be5f79b388eca336d0172bb4ed56615df99e0bf",
+  "program_sha256": "f7750c5e532d514e19d17d6f89dcd03a0fca7ed3f6d27642b4c0c3ed5835a47b",
+  "baseline_candidate_sha256": "8c8b851e574ffd750011c30b06db296a108dc208588c0c66c2eb9bf7c0fd9311",
+  "stage": "structural",
+  "allowed_scope": [
+    "guard",
+    "pommel",
+    "relief-dragon-spine",
+    "relief-dragon-belly"
+  ],
+  "frozen_parts": [
+    "blade-body",
+    "cutting-edge",
+    "grip",
+    "fastener-grip-a",
+    "fastener-grip-b",
+    "fastener-grip-c",
+    "fastener-grip-d",
+    "gem-guard-eye",
+    "gem-pommel"
+  ],
+  "hypothesis": "A bounded search over dragon-jaw loft scale, horn sweep, pommel-hook continuity, and relief-curve width can improve attachment readability without changing the blade, grip, fasteners, gems, camera, or material program.",
+  "objective_metrics": [
+    "negative-space-error",
+    "part-id-coverage",
+    "material-id-coverage",
+    "fps-occupancy"
+  ],
+  "regression_limits": [
+    "silhouette-iou",
+    "boundary-f1",
+    "tip-landmark-error",
+    "belly-depth-error",
+    "thickness-continuity",
+    "normal-continuity"
+  ],
+  "candidate_budget": 8,
+  "minimum_improvement": 0.005,
+  "plateau_limit": 2,
+  "evidence_sha256": [
+    "07c53fddd486ad8e755c369be9750e4d60f7f6141fd4c639a85cae8c57f31d53",
+    "2da938cf21d33aaf0e3539c2bb03a447d066f75431d254565c4f5d7c52a5f992",
+    "cc660ed39f4013cdf56b8edc924f90951f533eb940f1c2ec98a7bf84776ece8d"
+  ],
+  "status": "active",
+  "canonical_sha256": "bb2b5227203490ee863cc9baff38c72e4cbdc1061c49c8d91365d195b82e5955"
+}

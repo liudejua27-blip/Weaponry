@@ -52,6 +52,19 @@ pub(crate) fn invoke(
         "knife_reference_intent_bundle_get" => runtime.knife_reference_intent_bundle_get(payload),
         "knife_source_binding_prepare" => runtime.knife_source_binding_prepare(payload),
         "knife_source_binding_get" => runtime.knife_source_binding_get(payload),
+        "weaponry_threejs_knife_design_prepare" => {
+            runtime.weaponry_threejs_knife_design_prepare(payload)
+        }
+        "weaponry_threejs_knife_design_get" => runtime.weaponry_threejs_knife_design_get(payload),
+        "weaponry_threejs_knife_design_execute" => {
+            runtime.weaponry_threejs_knife_design_execute(payload)
+        }
+        "weaponry_threejs_knife_comparison_prepare" => {
+            runtime.weaponry_threejs_knife_comparison_prepare(payload)
+        }
+        "weaponry_threejs_knife_comparison_get" => {
+            runtime.weaponry_threejs_knife_comparison_get(payload)
+        }
         _ => runtime.dispatch_ipc(operation, payload),
     }
 }

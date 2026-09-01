@@ -1,0 +1,88 @@
+{
+  "schema_version": "WeaponryThreeJsImg2ThreeJsBaselineReceipt@1",
+  "task_id": "WPN-THREE-BENCH-001",
+  "benchmark_only": true,
+  "status": "PASS_STRUCTURAL_BASELINE",
+  "quality_status": "NOT_RUN",
+  "visual_superiority": "NOT_COMPUTED",
+  "upstream_execution_scope": "isolated-temporary-benchmark-only",
+  "upstream_generator_executed": true,
+  "product_runtime_execution": false,
+  "network_used": false,
+  "dependencies_installed": false,
+  "source": {
+    "project": "img2threejs",
+    "revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+    "tree": "0ee3c2a6d781407808df98b33174539842f85fcc",
+    "tree_manifest_sha256": "bf4b35eb5b468a77ae6d8a24fc2e4b7a42fa27ad87c2afacd32bf635e069d91e",
+    "tracked_file_count": 337,
+    "tracked_blob_bytes": 4126550,
+    "generator_sha256": "b090d5258a8009570ef24d6de2b84651c8bcc5e7c8b065905e47755f63acdbbb",
+    "validator_sha256": "734b9c502df3f0e711e13cc0ae0f4da7a7dada611d52dcf4a162b7148419efde",
+    "requirements_sha256": "ba54ff109c11e499749a42fd6a4e4eb5b1055073a57df55d606c9f243befbeb4"
+  },
+  "input": {
+    "spec_path": "benchmark/dragonfang-like-objects-sculpt-spec.json",
+    "spec_sha256": "d2b61601e8d25ccc19f6cb39c0241f26dfcfd4adcaa185d74599c1ad49cfb4fa",
+    "schema_version": "2.1",
+    "target_name": "Dragonfang Like Baseline",
+    "component_count": 7,
+    "material_count": 4
+  },
+  "generation": {
+    "generator": "forge/stage3_build/generate_threejs_factory.py",
+    "mode": "allow-nonstrict-test-fixture",
+    "normal_validation": "PASS",
+    "normal_validation_warning_count": 29,
+    "strict_quality": "BYPASSED_FOR_FIXTURE",
+    "factory_sha256": "525e9c5d87b996adec26ca426c85c22941796d270badd0a9fb7beeb6a388511a",
+    "factory_bytes": 59662
+  },
+  "execution": {
+    "mode": "isolated-generated-factory-node-smoke",
+    "node_version": "v22.23.2",
+    "mesh_count": 7,
+    "triangles": 1049,
+    "parts": [
+      {
+        "id": "blade",
+        "primitive": "ground-blade",
+        "triangles": 89
+      },
+      {
+        "id": "guard-dragon-head",
+        "primitive": "extrude",
+        "triangles": 12
+      },
+      {
+        "id": "grip",
+        "primitive": "curve-sweep",
+        "triangles": 260
+      },
+      {
+        "id": "pommel",
+        "primitive": "sphere",
+        "triangles": 288
+      },
+      {
+        "id": "grip-fastener",
+        "primitive": "cylinder",
+        "triangles": 100
+      },
+      {
+        "id": "dragon-eye",
+        "primitive": "sphere",
+        "triangles": 288
+      },
+      {
+        "id": "blade-relief",
+        "primitive": "extrude",
+        "triangles": 12
+      }
+    ],
+    "network_used": false,
+    "dependencies_installed": false,
+    "product_runtime_invoked": false,
+    "runtime_store_cas_write": false
+  }
+}

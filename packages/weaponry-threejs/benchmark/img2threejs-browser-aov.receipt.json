@@ -1,0 +1,1702 @@
+{
+  "schema_version": "WeaponryThreeJsImg2ThreeJsBrowserAovReceipt@1",
+  "task_id": "WPN-THREE-UPSTREAM-AOV-002",
+  "benchmark_only": true,
+  "status": "PASS_BROWSER_AOV_MANIFEST",
+  "quality_status": "NOT_RUN",
+  "visual_superiority": "NOT_COMPUTED",
+  "upstream_execution_scope": "isolated-temporary-benchmark-only",
+  "upstream_generator_executed": true,
+  "browser_renderer_invoked": true,
+  "product_runtime_execution": false,
+  "runtime_store_cas_write": false,
+  "network_used": false,
+  "dependencies_installed": false,
+  "source": {
+    "project": "img2threejs",
+    "revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+    "tree": "0ee3c2a6d781407808df98b33174539842f85fcc",
+    "tree_manifest_sha256": "bf4b35eb5b468a77ae6d8a24fc2e4b7a42fa27ad87c2afacd32bf635e069d91e",
+    "tracked_file_count": 337,
+    "tracked_blob_bytes": 4126550,
+    "generator_sha256": "b090d5258a8009570ef24d6de2b84651c8bcc5e7c8b065905e47755f63acdbbb",
+    "validator_sha256": "734b9c502df3f0e711e13cc0ae0f4da7a7dada611d52dcf4a162b7148419efde",
+    "requirements_sha256": "ba54ff109c11e499749a42fd6a4e4eb5b1055073a57df55d606c9f243befbeb4"
+  },
+  "input": {
+    "spec_path": "benchmark/dragonfang-like-objects-sculpt-spec.json",
+    "spec_sha256": "d2b61601e8d25ccc19f6cb39c0241f26dfcfd4adcaa185d74599c1ad49cfb4fa",
+    "schema_version": "2.1",
+    "target_name": "Dragonfang Like Baseline",
+    "component_count": 7,
+    "material_count": 4
+  },
+  "adapter": {
+    "module": "benchmark/img2threejs-compiled-scene-adapter.ts",
+    "schema_version": "WeaponryThreeJsUpstreamCompiledScene@1",
+    "deterministic_fingerprint": "1fff9ce8ce2da73d",
+    "mesh_count": 7,
+    "triangle_count": 1049,
+    "assembly_part_count": 6,
+    "assembly_status": "COMPILED",
+    "part_ids": [
+      "blade",
+      "guard-dragon-head",
+      "grip",
+      "pommel",
+      "grip-fastener",
+      "dragon-eye",
+      "blade-relief"
+    ],
+    "material_zone_ids": [
+      "blade-red",
+      "grip-black",
+      "ornament-gold",
+      "ruby-accent"
+    ],
+    "parts": [
+      {
+        "part_id": "blade",
+        "material_zone_id": "blade-red",
+        "surface_role": "blade-body",
+        "assembly_primitive": null,
+        "triangles": 89,
+        "parent_bound": true
+      },
+      {
+        "part_id": "guard-dragon-head",
+        "material_zone_id": "ornament-gold",
+        "surface_role": "guard",
+        "assembly_primitive": "guard",
+        "triangles": 12,
+        "parent_bound": true
+      },
+      {
+        "part_id": "grip",
+        "material_zone_id": "grip-black",
+        "surface_role": "grip",
+        "assembly_primitive": "grip",
+        "triangles": 260,
+        "parent_bound": true
+      },
+      {
+        "part_id": "pommel",
+        "material_zone_id": "ornament-gold",
+        "surface_role": "pommel",
+        "assembly_primitive": "pommel",
+        "triangles": 288,
+        "parent_bound": true
+      },
+      {
+        "part_id": "grip-fastener",
+        "material_zone_id": "ornament-gold",
+        "surface_role": "fastener",
+        "assembly_primitive": "fastener",
+        "triangles": 100,
+        "parent_bound": true
+      },
+      {
+        "part_id": "dragon-eye",
+        "material_zone_id": "ruby-accent",
+        "surface_role": "gem",
+        "assembly_primitive": "gem",
+        "triangles": 288,
+        "parent_bound": true
+      },
+      {
+        "part_id": "blade-relief",
+        "material_zone_id": "ornament-gold",
+        "surface_role": "relief",
+        "assembly_primitive": "relief",
+        "triangles": 12,
+        "parent_bound": true
+      }
+    ],
+    "adapter_sha256": "53b95ef11dc154a4a4668c3f9d795d1f5f87923a3cd5c558fe98a15f49e92996"
+  },
+  "capture_source": {
+    "files": {
+      "src/knife-browser-capture.ts": "454470819be8244476ed7d553c354883779689f7e906a68cdc1cd66b6a4ed794",
+      "src/knife-view-evaluation.ts": "36dd6177cb401cce1fffdef09ac709327266bd6dcc05e81301851a1dd78422a2",
+      "src/knife-scene-compiler.ts": "9c536e72b240a754b421c8ca6d021bf361315fae871982979f1d175207abbd12",
+      "src/knife-scene-program.ts": "810b249a2b95d75e044a2fe4d42cbd3fb44e95d465b77b4a02d51174953cb3d3",
+      "src/knife-assembly-compiler.ts": "93355c5d75408fe94c6722635e9a2f76f9c5da8bc2ed9ae1d45854ffc6fd027a"
+    },
+    "route": "existing-captureKnifeAovs@1",
+    "source_runtime_typecheck": "NOT_RUN_CURRENT_WORKTREE_HAS_UNFINISHED_CALIBRATION_SYMBOLS"
+  },
+  "entry": {
+    "scene_template_sha256": "2f93c0ec3e5ddebc5f2644231b2dae598a62aedfdccc1e4a6484dff72dcb5d19",
+    "aov_template_sha256": "63a95dec08b783b0a25421105cb58aa50a3efb123c707a7806d28f10c6fc4754",
+    "contract_sha256": "54c99102df05433a8c1bf2d7997954d675d21b3589fda684ef3911f48154961f",
+    "factory_sha256": "525e9c5d87b996adec26ca426c85c22941796d270badd0a9fb7beeb6a388511a",
+    "factory_persisted": false
+  },
+  "rig": {
+    "schema_version": "WeaponryThreeJsCaptureManifest@1",
+    "rig_id": "knife-fixed-eight-view@1",
+    "rig_fingerprint": "3fa0202473e3352b",
+    "frame_width": 256,
+    "frame_height": 256,
+    "margin": 0.08,
+    "view_ids": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "view_count": 8,
+    "camera_bindings": [
+      {
+        "view_id": "FRONT",
+        "projection": "orthographic",
+        "camera_fingerprint": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+        "matrix_world": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          3.5,
+          1
+        ],
+        "matrix_world_inverse": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "BACK",
+        "projection": "orthographic",
+        "camera_fingerprint": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193",
+        "matrix_world": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          0,
+          0,
+          0,
+          -3.5,
+          1
+        ],
+        "matrix_world_inverse": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          0,
+          0,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "TOP",
+        "projection": "orthographic",
+        "camera_fingerprint": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f",
+        "matrix_world": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          -2.220446049250313e-16,
+          1,
+          0,
+          0,
+          1,
+          2.220446049250313e-16,
+          0,
+          0,
+          3.5,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          -2.220446049250313e-16,
+          1,
+          0,
+          0,
+          1,
+          2.220446049250313e-16,
+          0,
+          0,
+          7.771561172376096e-16,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "BOTTOM",
+        "projection": "orthographic",
+        "camera_fingerprint": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28",
+        "matrix_world": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          2.220446049250313e-16,
+          1,
+          0,
+          0,
+          -1,
+          2.220446049250313e-16,
+          0,
+          0,
+          -3.5,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          2.220446049250313e-16,
+          -1,
+          0,
+          0,
+          1,
+          2.220446049250313e-16,
+          0,
+          0,
+          7.771561172376096e-16,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "LEFT",
+        "projection": "orthographic",
+        "camera_fingerprint": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d",
+        "matrix_world": [
+          2.220446049250313e-16,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          -1,
+          0,
+          2.220446049250313e-16,
+          0,
+          -3.5,
+          0,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          2.220446049250313e-16,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          2.220446049250313e-16,
+          0,
+          7.771561172376096e-16,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "RIGHT",
+        "projection": "orthographic",
+        "camera_fingerprint": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d",
+        "matrix_world": [
+          2.220446049250313e-16,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          2.220446049250313e-16,
+          0,
+          3.5,
+          0,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          2.220446049250313e-16,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          -1,
+          0,
+          2.220446049250313e-16,
+          0,
+          -7.771561172376096e-16,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "REAR_THREE_QUARTER",
+        "projection": "orthographic",
+        "camera_fingerprint": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d",
+        "matrix_world": [
+          -0.7633862853691145,
+          0,
+          -0.6459422414661737,
+          0,
+          -0.20664183803662936,
+          0.9474487435671547,
+          0.24421308131601654,
+          0,
+          0.6119971650940779,
+          0.3199076090264498,
+          -0.723269376929365,
+          0,
+          2.2,
+          1.15,
+          -2.6,
+          1
+        ],
+        "matrix_world_inverse": [
+          -0.7633862853691146,
+          -0.20664183803662936,
+          0.6119971650940779,
+          0,
+          -8.32667268468867e-17,
+          0.9474487435671548,
+          0.3199076090264498,
+          0,
+          -0.6459422414661734,
+          0.24421308131601657,
+          -0.723269376929365,
+          0,
+          1.43119075209042e-15,
+          -2.8033652553918487e-16,
+          -3.5947878936037374,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "FPS_HOLD",
+        "projection": "perspective",
+        "camera_fingerprint": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489",
+        "matrix_world": [
+          0.9979400560503333,
+          4.336808689942018e-19,
+          0.06415328931752144,
+          0,
+          -0.004561364805252512,
+          0.9974691192463851,
+          0.07095456363726128,
+          0,
+          -0.06399092499230664,
+          -0.0711010277692296,
+          0.9954143887692142,
+          0,
+          0,
+          -0.2,
+          2.8,
+          1
+        ],
+        "matrix_world_inverse": [
+          0.9979400560503333,
+          -0.004561364805252512,
+          -0.06399092499230664,
+          0,
+          0,
+          0.9974691192463851,
+          -0.0711010277692296,
+          0,
+          0.06415328931752146,
+          0.07095456363726128,
+          0.9954143887692142,
+          0,
+          -0.17962921008906005,
+          0.0008210456649454525,
+          -2.8013804941076454,
+          1
+        ],
+        "projection_matrix": [
+          3.077683537175254,
+          0,
+          0,
+          0,
+          0,
+          3.077683537175254,
+          0,
+          0,
+          0,
+          0,
+          -1.005012531328321,
+          -1,
+          0,
+          0,
+          -0.10025062656641605,
+          0
+        ]
+      }
+    ]
+  },
+  "capture": {
+    "renderer": "browser-webgl@1",
+    "capture_mode": "browser-canvas-to-png@1",
+    "renderer_invoked": true,
+    "render_status": "RENDERED",
+    "quality_status": "RENDERED_NOT_APPROVED",
+    "manifest": {
+      "schema_version": "WeaponryThreeJsCaptureManifest@1",
+      "manifest_id": "img2threejs-upstream-aov-baseline",
+      "rig_id": "knife-fixed-eight-view@1",
+      "rig_fingerprint": "3fa0202473e3352b",
+      "rig_margin": 0.08,
+      "program_fingerprint": "1fff9ce8ce2da73d",
+      "scene_fingerprint": "fe15aa3aacb157bbdf9b6fb468cc793a0cb59587ab7cef0623626b8bae40c6eb",
+      "frame_width": 256,
+      "frame_height": 256,
+      "view_ids": [
+        "FRONT",
+        "BACK",
+        "TOP",
+        "BOTTOM",
+        "LEFT",
+        "RIGHT",
+        "REAR_THREE_QUARTER",
+        "FPS_HOLD"
+      ],
+      "aov_ids": [
+        "beauty",
+        "silhouette",
+        "depth",
+        "normal",
+        "part-id",
+        "material-id",
+        "wireframe"
+      ],
+      "views": [
+        {
+          "view_id": "FRONT",
+          "camera": {
+            "view_id": "FRONT",
+            "projection": "orthographic",
+            "matrix_world": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              3.5,
+              1
+            ],
+            "matrix_world_inverse": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              -3.5,
+              1
+            ],
+            "projection_matrix": [
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "ad0840099c1cbdb4f00578fb0975b88acfa5ead951514f099f09d6cce57d141b",
+              "png_size_bytes": 11776
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "bc01bd482318abc7e2623c54a4da49084902bdca953f2d12a1d08613f9ccdbeb",
+              "png_size_bytes": 3678
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "4d1f7c1229f86601830e3abf0f69c4ae17e9cf3e529908c2197f703b227774c0",
+              "png_size_bytes": 3681
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "3dfee062239703ab10b0da71ca32bc8e25a00792011a0a2be96a46ecd4efce23",
+              "png_size_bytes": 5286
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "b13a7b8c8f12ebeb731df1ff2e7757582a222b128c783d83ed2a0a64be3c9e0a",
+              "png_size_bytes": 3387
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "9dd3ec36ea330199ba153b89f7530258c49877f5190307e472015345a24730b5",
+              "png_size_bytes": 3340
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "12523f69eb018d48144f19f238db2fb2eb384716d5a0a13ed4c3c444f3340cbc",
+              "png_size_bytes": 5988
+            }
+          ]
+        },
+        {
+          "view_id": "BACK",
+          "camera": {
+            "view_id": "BACK",
+            "projection": "orthographic",
+            "matrix_world": [
+              -1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              -1,
+              0,
+              0,
+              0,
+              -3.5,
+              1
+            ],
+            "matrix_world_inverse": [
+              -1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              -1,
+              0,
+              0,
+              0,
+              -3.5,
+              1
+            ],
+            "projection_matrix": [
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "b92cb5c39bb5a8855b8ede5c05f8aba1a9bbeb86a4aa7c708bba9e63564459c5",
+              "png_size_bytes": 4141
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "dece7bceb6d64c2320c966c559281a2963fe0f0753fb3354b3f8e9b5de711430",
+              "png_size_bytes": 3636
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "088d4427744ce80ad552b04ad415770422d6218477596a1a9eb3a95ce554145e",
+              "png_size_bytes": 3671
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "6dcf57d514d0b60342842f7fe0d4a8f5e58293f1865f2a0874ddee8abad134aa",
+              "png_size_bytes": 5210
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "c02dae6c081f3213602e265ef8279c74c56509ca10d15ec9069d21ab214efbcc",
+              "png_size_bytes": 3232
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "82bce6c0b0cdd77cef2cdaf5dce7017273e77d640c8a9b6bca84bf92e6dfad93",
+              "png_size_bytes": 3248
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "814899afe570a1827aa6b798b936305b2cf4e3732e67d5ecddc84f2a623d4fc6",
+              "png_size_bytes": 6001
+            }
+          ]
+        },
+        {
+          "view_id": "TOP",
+          "camera": {
+            "view_id": "TOP",
+            "projection": "orthographic",
+            "matrix_world": [
+              -1,
+              0,
+              0,
+              0,
+              0,
+              -2.220446049250313e-16,
+              1,
+              0,
+              0,
+              1,
+              2.220446049250313e-16,
+              0,
+              0,
+              3.5,
+              0,
+              1
+            ],
+            "matrix_world_inverse": [
+              -1,
+              0,
+              0,
+              0,
+              0,
+              -2.220446049250313e-16,
+              1,
+              0,
+              0,
+              1,
+              2.220446049250313e-16,
+              0,
+              0,
+              7.771561172376096e-16,
+              -3.5,
+              1
+            ],
+            "projection_matrix": [
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "0577b063340fb9c8207b0ed50939a8bebab42322d1499e4eb72bae69e6aec610",
+              "png_size_bytes": 5037
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "c79341ea4baac837506958653e0917c5ace18738b9efaa6ae70b2b80ccfc5c0f",
+              "png_size_bytes": 2665
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "cbfab930cd385f12119b8ba4fcaccad220f14f730615fda5379fab42d4d9a126",
+              "png_size_bytes": 2735
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "f15440e6c442c70416161f6c417f01ee581a264d758cefd0b243396e18fbc892",
+              "png_size_bytes": 3855
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "b1413924a7bc79e088a96d806cd79b4fc4d2f0883d4fa565f95222ff293c57a8",
+              "png_size_bytes": 2645
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "ce83dc93fa03c7bf03b81027fb1d0716ba0aad2a1e6ed2d5fa040172b63be0d1",
+              "png_size_bytes": 2614
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "5d07ee54342599d70a926513b70d74e68489fb31deaaae2c56629180850a3ef9",
+              "png_size_bytes": 3151
+            }
+          ]
+        },
+        {
+          "view_id": "BOTTOM",
+          "camera": {
+            "view_id": "BOTTOM",
+            "projection": "orthographic",
+            "matrix_world": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              2.220446049250313e-16,
+              1,
+              0,
+              0,
+              -1,
+              2.220446049250313e-16,
+              0,
+              0,
+              -3.5,
+              0,
+              1
+            ],
+            "matrix_world_inverse": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              2.220446049250313e-16,
+              -1,
+              0,
+              0,
+              1,
+              2.220446049250313e-16,
+              0,
+              0,
+              7.771561172376096e-16,
+              -3.5,
+              1
+            ],
+            "projection_matrix": [
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "39fafa71cf3c355c9d1e6812c656675bf7447abbd8c452f41f08897d3983f654",
+              "png_size_bytes": 4031
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "147098fa2714fd18ec1aaa3639419e94809d82093ea99bf95b147060f63a8a25",
+              "png_size_bytes": 2659
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "e99ed9d08414e72605009287c5508083e80f758336ec8995db8c408f206eb104",
+              "png_size_bytes": 2731
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "fb1c559fe610cb053d5e4ba2d3c8d04bd6a4b3b0834bce74707dff1630b0473c",
+              "png_size_bytes": 4309
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "35688aefa20fea084112d5a0c22b4c05558042ccd28f022c9ef61e488f90b01a",
+              "png_size_bytes": 2642
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "c52463e81cdde03d333e31fae500c6e3d63dfb57bbb15cc920606278cea59684",
+              "png_size_bytes": 2636
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "60f10d395030f2dd973ac8e4a9d49a1a6bcdd98222dfa09ffc2322fc7ab078a2",
+              "png_size_bytes": 3145
+            }
+          ]
+        },
+        {
+          "view_id": "LEFT",
+          "camera": {
+            "view_id": "LEFT",
+            "projection": "orthographic",
+            "matrix_world": [
+              2.220446049250313e-16,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              -1,
+              0,
+              2.220446049250313e-16,
+              0,
+              -3.5,
+              0,
+              0,
+              1
+            ],
+            "matrix_world_inverse": [
+              2.220446049250313e-16,
+              0,
+              -1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0,
+              2.220446049250313e-16,
+              0,
+              7.771561172376096e-16,
+              0,
+              -3.5,
+              1
+            ],
+            "projection_matrix": [
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "400fde293c7aecf62cd22cb3e1e720471f696edee791fe1fcbf27582ae20ec4d",
+              "png_size_bytes": 3229
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "40a5db586cce33cc3c85b4c7d289248bca693add83a378f14402417055726a58",
+              "png_size_bytes": 2568
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "bcb7d4102cd6cb8bda3f5f1d3cd53689a872ff7b0f523cd539a6f31d4d65bbef",
+              "png_size_bytes": 2735
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "5719d38dbcf170ce88e56c893587f60598c9f7887a171b8935d5087b94a292da",
+              "png_size_bytes": 3172
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "778cfa693276fd8ee10493210f7b9b3e95b431ed88ac2133a669ae7a434f1719",
+              "png_size_bytes": 2587
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "39b644629e6a71f557181b640b0b91ef35319d3ec183a07b2ac2ce54aac6defc",
+              "png_size_bytes": 2543
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "e8779c8a7298c7e11bbf84f3a73eecae108ad151877b4281f9caaaf23f53b86b",
+              "png_size_bytes": 2692
+            }
+          ]
+        },
+        {
+          "view_id": "RIGHT",
+          "camera": {
+            "view_id": "RIGHT",
+            "projection": "orthographic",
+            "matrix_world": [
+              2.220446049250313e-16,
+              0,
+              -1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0,
+              2.220446049250313e-16,
+              0,
+              3.5,
+              0,
+              0,
+              1
+            ],
+            "matrix_world_inverse": [
+              2.220446049250313e-16,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              -1,
+              0,
+              2.220446049250313e-16,
+              0,
+              -7.771561172376096e-16,
+              0,
+              -3.5,
+              1
+            ],
+            "projection_matrix": [
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "ba857a4d849a6a4bd1ed95aab30a27d3c4b2d79e2fa95d74908ebd98cd96cb56",
+              "png_size_bytes": 3311
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "a1767bc08aaffcda3e7e88cba7e538c9b627637498c05622fcb9f83b0bccf71e",
+              "png_size_bytes": 2568
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "6ba617a6d3ff049d095124442169af764cf25b271a810679319129c1168262f4",
+              "png_size_bytes": 2819
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "ad6cdaebe9e4565aec28622532568a605431eafd0b772ad0b833b8ac8b4a9db1",
+              "png_size_bytes": 3198
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "d8b7721ea7da38237fad5f51b05c820b47e23299ac59a1e2ca9573c31d77fa1f",
+              "png_size_bytes": 2577
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "d76ba744e6cf0cefa62bca1a89e4f154e729855f7a20aa878917f8ad7167da04",
+              "png_size_bytes": 2541
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "9dec27e307b2963bda210a0bcda4d03f3719c34aa090d8c37cbaf9cb0baf433c",
+              "png_size_bytes": 2704
+            }
+          ]
+        },
+        {
+          "view_id": "REAR_THREE_QUARTER",
+          "camera": {
+            "view_id": "REAR_THREE_QUARTER",
+            "projection": "orthographic",
+            "matrix_world": [
+              -0.7633862853691145,
+              0,
+              -0.6459422414661737,
+              0,
+              -0.20664183803662936,
+              0.9474487435671547,
+              0.24421308131601654,
+              0,
+              0.6119971650940779,
+              0.3199076090264498,
+              -0.723269376929365,
+              0,
+              2.2,
+              1.15,
+              -2.6,
+              1
+            ],
+            "matrix_world_inverse": [
+              -0.7633862853691146,
+              -0.20664183803662936,
+              0.6119971650940779,
+              0,
+              -8.32667268468867e-17,
+              0.9474487435671548,
+              0.3199076090264498,
+              0,
+              -0.6459422414661734,
+              0.24421308131601657,
+              -0.723269376929365,
+              0,
+              1.43119075209042e-15,
+              -2.8033652553918487e-16,
+              -3.5947878936037374,
+              1
+            ],
+            "projection_matrix": [
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              0.6157635467980296,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "ce67931f366be73bc8fda1c5c483c590ca4e6b4135b3d35247840f7a7f0dc5d2",
+              "png_size_bytes": 5164
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "ae3da931253d31a0f448ad7ab844996e7f05a068aaddb9e58c7a54a4890c3236",
+              "png_size_bytes": 3547
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "5ea78f76c76e66718bd93dbd12870196e74e1da4eda4aa69a80212321f7a28b3",
+              "png_size_bytes": 4017
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "4c952e2d00744472f47f387b5308883bac1a1640bba5c7a5e82574af2b2f93d1",
+              "png_size_bytes": 6216
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "300f71b73c23902595dad874706f6cc2d0ed1ef99e81cdc9278fb71be78a4447",
+              "png_size_bytes": 3310
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "71e533e26970c6f22bf95e90991a8f68c5b8f40ba83c99d36a4c4677e3500abe",
+              "png_size_bytes": 3321
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "92b7178f86d03ff4733eca8dd0cbef57c7f31f097135d62d1faca778ef0ad9f1",
+              "png_size_bytes": 5622
+            }
+          ]
+        },
+        {
+          "view_id": "FPS_HOLD",
+          "camera": {
+            "view_id": "FPS_HOLD",
+            "projection": "perspective",
+            "matrix_world": [
+              0.9979400560503333,
+              4.336808689942018e-19,
+              0.06415328931752144,
+              0,
+              -0.004561364805252512,
+              0.9974691192463851,
+              0.07095456363726128,
+              0,
+              -0.06399092499230664,
+              -0.0711010277692296,
+              0.9954143887692142,
+              0,
+              0,
+              -0.2,
+              2.8,
+              1
+            ],
+            "matrix_world_inverse": [
+              0.9979400560503333,
+              -0.004561364805252512,
+              -0.06399092499230664,
+              0,
+              0,
+              0.9974691192463851,
+              -0.0711010277692296,
+              0,
+              0.06415328931752146,
+              0.07095456363726128,
+              0.9954143887692142,
+              0,
+              -0.17962921008906005,
+              0.0008210456649454525,
+              -2.8013804941076454,
+              1
+            ],
+            "projection_matrix": [
+              3.077683537175254,
+              0,
+              0,
+              0,
+              0,
+              3.077683537175254,
+              0,
+              0,
+              0,
+              0,
+              -1.005012531328321,
+              -1,
+              0,
+              0,
+              -0.10025062656641605,
+              0
+            ],
+            "camera_fingerprint": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "1f2d4a468ed936a247023762fd90189b0c245bc226eca0c214016d6e01075105",
+              "png_size_bytes": 26308
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "bdddf7e033ec41e92b405dc3ad23cc8899873e0a7101435a63197d9487fc0c11",
+              "png_size_bytes": 4089
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "be726fe7745c8a8d6e0a16445278080b465c70ee9c53885c6d6fe62565b376ad",
+              "png_size_bytes": 4042
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "dd5a623c831565c63c3a524b69c60f7d3a7ca8a7dc98f24c73de33e145f64236",
+              "png_size_bytes": 6471
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "ba9392d5132e657c010cc2994d78843fb1848fca9fd73280c52f91c07d06a2eb",
+              "png_size_bytes": 3552
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "b0c8bf5ba6419ac1a8e1127ca7c250c7121958212ae6f8f9a80d995bb7e5bb95",
+              "png_size_bytes": 3547
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 256,
+              "height": 256,
+              "png_sha256": "09767f620d7754218950f68a63c5730f1e1a3da1f52cdb0e5dcc592fcfbc14e4",
+              "png_size_bytes": 9087
+            }
+          ]
+        }
+      ],
+      "renderer": "browser-webgl@1",
+      "capture_mode": "browser-canvas-to-png@1",
+      "renderer_invoked": true,
+      "render_status": "RENDERED",
+      "quality_status": "RENDERED_NOT_APPROVED",
+      "visual_status": "NOT_RUN",
+      "human_status": "NOT_RUN",
+      "engine_status": "NOT_RUN",
+      "commercial_status": "NOT_RUN",
+      "canonical_sha256": "f506617979b4f2de29cf09d2ec497b76cf620c8a67e3a12edd4e331e18c8b723"
+    },
+    "receipt": {
+      "schema_version": "WeaponryThreeJsBrowserCaptureReceipt@1",
+      "manifest_sha256": "f506617979b4f2de29cf09d2ec497b76cf620c8a67e3a12edd4e331e18c8b723",
+      "manifest_id": "img2threejs-upstream-aov-baseline",
+      "rig_fingerprint": "3fa0202473e3352b",
+      "rig_margin": 0.08,
+      "program_fingerprint": "1fff9ce8ce2da73d",
+      "scene_fingerprint": "fe15aa3aacb157bbdf9b6fb468cc793a0cb59587ab7cef0623626b8bae40c6eb",
+      "expected_view_count": 8,
+      "captured_view_count": 8,
+      "expected_aov_count_per_view": 7,
+      "captured_aov_count": 56,
+      "missing_capture_count": 0,
+      "renderer_invoked": true,
+      "render_status": "RENDERED",
+      "quality_status": "RENDERED_NOT_APPROVED",
+      "visual_status": "NOT_RUN",
+      "human_status": "NOT_RUN",
+      "engine_status": "NOT_RUN",
+      "commercial_status": "NOT_RUN",
+      "canonical_sha256": "b4936d574d1944b483ff4a90517d26e0cc293ef28c6bfe09b1dd76a3f6ea834b"
+    },
+    "sink_png_count": 56,
+    "sink_png_total_bytes": 238667,
+    "png_artifacts_persisted": false
+  },
+  "reference_calibration": {
+    "status": "NOT_RUN",
+    "reason": "The closed fixture has no authorized FRONT reference bytes or reference part-ID binding; the fixed rig was reused without refitting.",
+    "minimum_gap": "Provide an authorized FRONT reference plus explicit focus_part_ids and a valid baseline calibration receipt before any reference comparison.",
+    "superiority": "NOT_COMPUTED"
+  },
+  "browser": {
+    "status": "PASS_BROWSER_AOV_CAPTURE",
+    "engine": "Playwright Chromium",
+    "vite_version": "vite/7.3.6 darwin-arm64 node-v22.23.2",
+    "static_network_policy": "local-static-bundle-only@1",
+    "external_network_used": false,
+    "dependencies_installed": false,
+    "bundle": {
+      "file_count": 2,
+      "bytes": 609212,
+      "sha256": "f86e660ff007d4ca0fcb3cf7d9411e32afd074d1b99c1432fd30045dacfc5d4b",
+      "files": [
+        {
+          "path": "assets/index-D6GVZUK9.js",
+          "bytes": 608990,
+          "sha256": "e78f4cff4162f949511f13d92dc6aa853ca10263557298770fb86b79da2fc3f0"
+        },
+        {
+          "path": "index.html",
+          "bytes": 222,
+          "sha256": "0839f353694bc21399cc6a4753f7e561b096387dca56301d612aa01598811330"
+        }
+      ],
+      "persisted": false
+    }
+  },
+  "quality": {
+    "quality_status": "NOT_RUN",
+    "visual_status": "NOT_RUN",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "commercial_status": "NOT_RUN",
+    "visual_superiority": "NOT_COMPUTED"
+  }
+}

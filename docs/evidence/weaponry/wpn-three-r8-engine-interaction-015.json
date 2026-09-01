@@ -1,0 +1,100 @@
+{
+  "schema_version": "WeaponryThreeJsEngineInteractionReceipt@1",
+  "task_id": "WPN-THREE-R8-ENGINE-INTERACTION-015",
+  "recorded_at": "2026-09-01",
+  "status": "PASS_THREEJS_BROWSER_ENGINE_INTERACTION_PROTOTYPE",
+  "asset": {
+    "asset_id": "Dragonfang Kukri",
+    "asset_version": "r8",
+    "delivery_manifest_file_sha256": "063d278151e5d51d1650095784d36b2f621d3ec87aeed2225fdb7e89bd3c88c9",
+    "delivery_manifest_canonical_sha256": "3e2a7b9dd2b1d662b1af1bab83d62ff211b957038a24cec8cb27922134f3bb63",
+    "delivery_glb_sha256": "ec6fbbfa929d885d00eb9d6092006a550541f77e0a2a7100325e1cb99afeb344",
+    "delivery_glb_bytes": 907104,
+    "triangles": 4598,
+    "parts": 13,
+    "geometry_modified": false,
+    "materials_modified": false
+  },
+  "engine": {
+    "schema_version": "WeaponryThreeJsVanillaEngine@1",
+    "source_content_set_sha256": "d954101fa4c2060bcb6928e5d073d9b66847713fa7489190e76bed7f0c36208c",
+    "three_version": "0.185.1",
+    "glb_input_policy": "caller-owned-bytes-only",
+    "browser_glb_sha256_verified": true,
+    "simulation_state_ownership": "external-immutable-snapshot",
+    "presentation_mode": "PRESENTATION_ONLY_NO_SKELETON",
+    "collider_status": "INTENT_ONLY",
+    "collider_proxy_count": 2,
+    "physics_body_created": false
+  },
+  "build": {
+    "package_typecheck": "PASS",
+    "engine_demo_typecheck": "PASS",
+    "vite_production_build": "PASS",
+    "runtime_asset_packaging": "PASS_MANIFEST_AND_GLB_EMITTED",
+    "full_workspace_test": "NOT_RUN_BY_SCOPE"
+  },
+  "browser_validation": {
+    "runtime_status": "ready",
+    "console_errors": 0,
+    "camera_modes_exercised": [
+      "orbit",
+      "inspect",
+      "fps"
+    ],
+    "heavy_action": {
+      "intermediate_state": "heavy",
+      "intermediate_progress": 0.25634615384615245,
+      "settled_state": "idle",
+      "settled_progress": 0
+    },
+    "inspect_toggle": "PASS_INSPECT_TO_IDLE",
+    "part_visibility": "PASS_13_TO_12_TO_13",
+    "part_picking": [
+      "blade-body",
+      "grip"
+    ],
+    "explode_values_exercised": [
+      0,
+      0.35,
+      0.6
+    ],
+    "resize": {
+      "window": [
+        1024,
+        768
+      ],
+      "canvas": [
+        558,
+        720
+      ],
+      "status": "PASS"
+    },
+    "webgl_context_loss_restore": {
+      "extension": "WEBGL_lose_context",
+      "lost_observed": true,
+      "restored_observed": true,
+      "recovery_count": 1,
+      "final_status": "ready"
+    }
+  },
+  "visual_evidence": {
+    "path": "docs/evidence/weaponry/wpn-three-r8-engine-interaction-015.png",
+    "sha256": "5f0584b591e871ea095dc3a1203b8470cd381bfd1f7fadf19fc54b845e22d1e1",
+    "width": 1440,
+    "height": 900,
+    "selected_part_id": "blade-body",
+    "explode_amount": 0.35,
+    "camera_mode": "orbit"
+  },
+  "claim_boundaries": {
+    "threejs_browser_interaction": "PASS",
+    "formal_animation_clips": "NOT_IMPLEMENTED",
+    "skeletal_animation": "NOT_IMPLEMENTED",
+    "physics_collision": "NOT_IMPLEMENTED_INTENT_ONLY",
+    "unreal_5_6_import": "NOT_RUN",
+    "visual_quality": "NOT_APPROVED",
+    "human_art_review": "NOT_RUN",
+    "commercial_acceptance": "NOT_RUN"
+  }
+}

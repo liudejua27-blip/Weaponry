@@ -266,11 +266,7 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
             false,
             "surface_pipeline",
         ),
-        (
-            "production_knife_uv_bake_v2_get",
-            true,
-            "surface_pipeline",
-        ),
+        ("production_knife_uv_bake_v2_get", true, "surface_pipeline"),
         (
             "production_knife_uv_bake_v2_prepare",
             false,
@@ -294,6 +290,31 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
         ),
         ("knife_pass_state_get", true, "quality_review"),
         ("knife_pass_state_prepare", false, "quality_review"),
+        (
+            "weaponry_threejs_knife_design_get",
+            true,
+            "authoring_transaction",
+        ),
+        (
+            "weaponry_threejs_knife_design_prepare",
+            false,
+            "authoring_transaction",
+        ),
+        (
+            "weaponry_threejs_knife_design_execute",
+            false,
+            "authoring_transaction",
+        ),
+        (
+            "weaponry_threejs_knife_comparison_get",
+            true,
+            "authoring_transaction",
+        ),
+        (
+            "weaponry_threejs_knife_comparison_prepare",
+            false,
+            "authoring_transaction",
+        ),
     ];
     if native.len() != expected.len() {
         return Err(
@@ -387,6 +408,21 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
                 "knife_source_binding_prepare" => "KnifeSourceBindingPrepareRequest@1",
                 "knife_pass_state_get" => "KnifePassStateGetRequest@1",
                 "knife_pass_state_prepare" => "KnifePassStatePrepareRequest@1",
+                "weaponry_threejs_knife_design_get" => {
+                    "WeaponryThreeJsKnifeDesignGetRequest@1"
+                }
+                "weaponry_threejs_knife_design_prepare" => {
+                    "WeaponryThreeJsKnifeDesignPrepareRequest@1"
+                }
+                "weaponry_threejs_knife_design_execute" => {
+                    "WeaponryThreeJsKnifeDesignExecuteRequest@1"
+                }
+                "weaponry_threejs_knife_comparison_get" => {
+                    "WeaponryThreeJsKnifeComparisonGetRequest@1"
+                }
+                "weaponry_threejs_knife_comparison_prepare" => {
+                    "WeaponryThreeJsKnifeComparisonPrepareRequest@1"
+                }
                 _ => unreachable!("native operation set is closed above"),
             };
             let expected_result_schema = match operation {
@@ -430,6 +466,17 @@ fn parse_native_specs() -> Result<Vec<NativeSpec>, String> {
                 }
                 "knife_pass_state_get" | "knife_pass_state_prepare" => {
                     "KnifePassStateResult@1"
+                }
+                "weaponry_threejs_knife_design_get"
+                | "weaponry_threejs_knife_design_prepare" => {
+                    "WeaponryThreeJsKnifeDesignResult@1"
+                }
+                "weaponry_threejs_knife_design_execute" => {
+                    "WeaponryThreeJsKnifeDesignExecutionResult@1"
+                }
+                "weaponry_threejs_knife_comparison_get"
+                | "weaponry_threejs_knife_comparison_prepare" => {
+                    "WeaponryThreeJsKnifeComparisonResult@1"
                 }
                 _ => unreachable!("native operation set is closed above"),
             };
@@ -603,6 +650,9 @@ fn facade_tools(compatibility_tools: &[Value]) -> Result<Vec<Value>, String> {
                         .starts_with("production_knife_uv_bake_v2_")
                     || native.operation == "high_artifact_reference_compare_prepare"
                     || native.operation == "production_weapon_authoring_mesh_v2_source_prepare"
+                    || native
+                        .operation
+                        .starts_with("weaponry_threejs_knife_design_")
                 {
                     Some(crate::active_schema::advertised_schema(&native.operation)?)
                 } else if crate::knife_curve_modifier_graph_tools::is_tool(&native.operation) {
@@ -989,9 +1039,9 @@ mod tests {
         );
         assert_eq!(summary["compatibility_manifest_sha256"], Value::Null);
         assert_eq!(summary["compatibility_requires_explicit_profile"], true);
-        assert_eq!(summary["active_operation_count"], 140);
-        assert_eq!(summary["closed_request_schema_count"], 140);
-        assert_eq!(summary["executable_operation_count"], 140);
+        assert_eq!(summary["active_operation_count"], 143);
+        assert_eq!(summary["closed_request_schema_count"], 143);
+        assert_eq!(summary["executable_operation_count"], 143);
         assert_eq!(summary["schema_blocked_request_count"], 0);
         assert_eq!(summary["runtime_validated_request_schema_count"], 0);
         assert_eq!(summary["request_schema_closure_status"], "COMPLETE");
@@ -1009,7 +1059,7 @@ mod tests {
             .flat_map(|spec| spec.operations.iter().cloned())
             .collect::<BTreeSet<_>>();
         operations.extend(native.into_iter().map(|spec| spec.operation));
-        assert_eq!(operations.len(), 140);
+        assert_eq!(operations.len(), 143);
 
         for operation in operations {
             assert!(
@@ -1033,6 +1083,9 @@ mod tests {
         assert!(is_write_operation("knife_reference_intent_bundle_prepare"));
         assert!(!is_write_operation("knife_source_binding_get"));
         assert!(is_write_operation("knife_source_binding_prepare"));
+        assert!(!is_write_operation("weaponry_threejs_knife_design_get"));
+        assert!(is_write_operation("weaponry_threejs_knife_design_prepare"));
+        assert!(is_write_operation("weaponry_threejs_knife_design_execute"));
         assert!(!is_write_operation("weaponry_knife_production_brief_get"));
         assert!(is_write_operation(
             "weaponry_knife_production_brief_prepare"

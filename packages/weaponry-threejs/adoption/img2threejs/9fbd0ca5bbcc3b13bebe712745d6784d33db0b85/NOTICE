@@ -1,0 +1,27 @@
+Weaponry Three.js Knife Studio — img2threejs compatibility baseline
+
+This directory records an isolated, pinned-source adoption candidate for:
+  img2threejs
+  https://github.com/img2threejs/img2threejs
+  revision: 9fbd0ca5bbcc3b13bebe712745d6784d33db0b85
+
+The upstream revision is licensed under Apache-2.0. The upstream checkout has no
+NOTICE file at this revision (absent-at-frozen-revision); this NOTICE provides the repository attribution and
+boundary record. The complete Apache text is reproduced in LICENSES/Apache-2.0.txt.
+
+No upstream source tree, generated THREE.Group, fixture, model, texture, optional
+integration, dependency lockfile, browser session, or runtime binary is bundled
+under this directory. A fixed maintenance script can restore all tracked files
+to an external isolation cache and verify the commit/tree/file hashes. The cache
+is not product truth and must not be read or executed by the Runtime.
+
+The first-party product adapter now admits only a bounded static ground-blade
+ObjectSculptSpec projection into KnifeSceneProgram data; no upstream program is
+executed. Callers provide only typed in-memory data; no caller path, URL, shell, TypeScript,
+environment variable, secret, network access, SQLite/CAS write, or automatic
+candidate confirmation is permitted. Upstream Python/Node/browser scripts remain
+reference material until separately gated workers exist.
+
+Optional upstream integrations are intentionally excluded from product adoption:
+integrations/**, scripts/**, assets/**, skills/**, and all unreviewed forge Python
+execution. Their package manifests and lockfiles are inventory evidence only.

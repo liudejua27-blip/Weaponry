@@ -1,0 +1,51 @@
+{
+  "schema_version": "KnifeObjectiveLedger@1",
+  "ledger_id": "dragonfang-blade-r8-ledger",
+  "revision": 7,
+  "parent_ledger_sha256": "8a9b91857e95b6682721004c56fadde6da0ce2999a945330ef0f8121ce5c41c9",
+  "program_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+  "baseline_candidate_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+  "stage": "form",
+  "allowed_scope": [
+    "blade-body",
+    "cutting-edge"
+  ],
+  "frozen_parts": [
+    "guard",
+    "grip",
+    "pommel",
+    "fastener-grip-a",
+    "fastener-grip-b",
+    "fastener-grip-c",
+    "fastener-grip-d",
+    "gem-guard-eye",
+    "gem-pommel",
+    "relief-dragon-spine",
+    "relief-dragon-belly"
+  ],
+  "hypothesis": "A single bounded rail and section refinement can reduce the oversized leaf silhouette, converge the tip, and reduce belly depth without changing assembly, reliefs, materials, presentation, or budgets.",
+  "objective_metrics": [
+    "silhouette-iou",
+    "boundary-f1",
+    "symmetric-chamfer",
+    "p95-contour-distance",
+    "tip-landmark-error",
+    "belly-depth-error"
+  ],
+  "regression_limits": [
+    "thickness-continuity",
+    "part-id-coverage",
+    "material-id-coverage",
+    "negative-space-error",
+    "fps-occupancy"
+  ],
+  "candidate_budget": 1,
+  "minimum_improvement": 0.001,
+  "plateau_limit": 2,
+  "evidence_sha256": [
+    "4f8fef7b6a95b0dec23ae4ce300f7754962c7232c28784b3821a8c74dd556a0f",
+    "d471982953841212d5b90906f9fb5627a6bd9593d754353f3f476c8702da57d2"
+  ],
+  "status": "active",
+  "canonical_sha256": "2f71f65f4a0be121b47f1ce149d389cc1ca3ccf49e65e9814f208f23243c9635"
+}

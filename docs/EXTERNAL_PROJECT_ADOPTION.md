@@ -9,7 +9,8 @@
 
 采用优先级只按穿越火线武器生产缺口排序：robust Boolean/mesh repair、Subdivision、UV/pack、
 Cage/Bake/ray diagnostics、tangent/normal、texture compression、glTF/FBX/engine validation。
-Blender/BlenderMCP/img2threejs 继续 reference-only；BlenderTools 只借鉴交付纪律。任何库进入
+Blender/BlenderMCP 继续 reference-only；img2threejs 仅在 ADR-0031 独立 Three.js 路线作为
+固定源码兼容基线，不是 Runtime dependency；BlenderTools 只借鉴交付纪律。任何库进入
 Runtime 前仍需冻结 revision、许可证/SBOM、determinism/resource/adversarial Benchmark 和退出方案。
 
 > 2026-08-27 foundation materialization 不改变第三方采用状态。Pichuliru、WRAD 与 Lightning 固定哈希母版只作为已审计 importer 输入；进入产品后的权威结果是 Runtime-owned Part-bounded `AuthoringMesh@2` 与其 CAS/SQLite lineage，而不是上游 GLB、Blender 状态或外部仓库。三份母版结构物化/replay/restart 已通过，但复合 FPS package、艺术拓扑、High→Low→UV→Bake、视觉/真人/引擎门仍未证明。
@@ -22,8 +23,14 @@ Runtime 前仍需冻结 revision、许可证/SBOM、determinism/resource/adversa
 
 > 2026-08-26 用户授权：允许为本商业武器路线复制、下载、研究并在许可证允许范围内使用开源项目。列入本账本的候选可直接进入隔离 adoption cache 做冻结/许可证/SBOM/benchmark，无需逐仓再次请求；但只有窄范围 `accepted` receipt 才能进入 product Worker/lockfile/package，下载或编译本身不改变产品状态。
 
-版本：2026-08-29
-状态：商业游戏武器质量研究已收口为采用队列，但没有新增产品依赖。固定 `mikktspace@0.3.0` 与 MCP010D 固定 revision Manifold C API 仍是仅有的 accepted third-party product slices。xatlas、Khronos Validator、OpenSubdiv、QuadriFlow、Embree、MaterialX、OpenImageIO、OpenColorIO 与 meshoptimizer 仍未进入产品真值。Native High 是 ForgeCAD 自有实现，其 source durable/MCP receipt 不属于第三方采用；proposal 保持 `registered=false`，不构成 active capability 或 High Gate。
+版本：2026-08-31
+状态：ADR-0031 已接受 pinned `img2threejs@9fbd0ca5bbcc3b13bebe712745d6784d33db0b85`
+作为独立 Three.js Knife Studio 路线的 Apache-2.0 上游基线；LICENSE/NOTICE/SBOM/provenance、
+隔离源码恢复与 bounded 静态 adapter 已通过。pinned validator/generator 现仅在一次性临时目录的
+离线 benchmark 中按固定 fixture 执行，7 meshes/1,049 tris 与重复 receipt hash 已验证，strict quality
+仍为 `BYPASSED_FOR_FIXTURE`。上游 executable/runtime dependency 仍未采用，不会进入当前 binary；
+Three.js 包只接收封闭的内存数据。Rust 商业 DCC 路线的 accepted
+third-party product slices 仍只有固定 `mikktspace@0.3.0` 与 Manifold Worker slice。
 
 ## 1. 采用规则
 
@@ -71,7 +78,7 @@ Native High 的 ForgeCAD-owned `HighMeshArtifact@1` 与 `NativeHighDurable*` 不
 | [Basis Universal](https://github.com/BinomialLLC/basis_universal) / [KTX-Software](https://github.com/KhronosGroup/KTX-Software) | KTX2/ETC1S/UASTC 纹理交付 | component-specific；Basis Universal Apache-2.0，KTX 仓含需单独审计的第三方/特殊文件 | benchmark-first；not adopted | color 通常 ETC1S，normal/MR 等 data 优先 UASTC；固定 encoder/thread/profile，保存 source/decoded/compressed 三类 hash |
 | [UVAtlas](https://github.com/microsoft/UVAtlas) | UV 算法参考 | MIT；upstream archived/legacy | reference-only | 不作为新产品依赖；仅算法/fixture 参考 |
 | [OpenMesh](https://www.graphics.rwth-aachen.de/software/openmesh/) | half-edge 数据结构参考/benchmark | BSD-3-Clause | reference-only / benchmark | ForgeCAD 自有 Rust canonical kernel；不得把 handle/property 当 durable ID |
-| [img2threejs](https://github.com/img2threejs/img2threejs) | 分阶段 image → typed spec → procedural review 的工作流思想 | Apache-2.0 | approved-for-evaluation / first-party reimplementation | MCP006；仅学习 staged passes、detail inventory、per-region confidence 和 side-by-side review；不安装其 Python/TypeScript skill，不把 Three.js/JS 作为 Runtime 真值 |
+| [img2threejs](https://github.com/img2threejs/img2threejs) | ObjectSculptSpec、程序化 Three.js factory、分阶段生成、浏览器比较与 CS2 刀类基线 | Apache-2.0 | **accepted source baseline / isolated generator benchmark**（仅 ADR-0031 独立 Three.js 路线；不是 Runtime dependency） | `WPN-THREE-ADOPT-001`；commit、LICENSE/NOTICE/SBOM/provenance、隔离恢复与 bounded import 已闭合；pinned validator/generator 仅在临时目录离线跑固定 fixture，禁止网络/安装/Runtime 写入；generated THREE.Group/GLB 仍是可重建派生资产 |
 | Blender / Blender headless | Modifier/Depsgraph/PBR/UV/Bake/AOV 的 reference/security/license 研究 | Blender `GPL-2.0-or-later` | **reference-only / unavailable-for-product**（ADR-0028 已降级为非产品研究） | 不执行、不打包、不改 lockfile/Runtime allowlist；只将公开方法重写为 ForgeCAD 自有 Schema/Rust Worker |
 | Substance Designer/Painter | 材质层、通道语义、烘焙和贴图 authoring workflow 参考 | 商业软件/产品资产许可另审 | **reference-only / unavailable-for-product** | 不执行、不打包、不接入 SDK/插件/工程 graph；只把方法重写为 ForgeCAD `MaterialLayerGraph`/AssetPack/PBR typed contracts |
 
@@ -80,6 +87,16 @@ Native High 的 ForgeCAD-owned `HighMeshArtifact@1` 与 `NativeHighDurable*` 不
 Blender 的产品身份固定为 `reference-only / unavailable-for-product`。没有 Blender binary、Python bundle、`.blend`、lockfile、package、active Skill 或 Runtime allowlist 进入产品；相关 capability projection 必须保持 `unavailable`。ADR-0028 只保留历史威胁模型与许可证研究，不再是未来产品 Tool/Worker 的晋级入口。
 
 ### 2.1 img2threejs 研究快照（2026-08-12）
+
+2026-08-31 decision successor：ADR-0031 改变的是独立 Three.js Knife Studio 路线，
+不是 Rust 商业 DCC 路线。新路线完整接受 pinned upstream 的 ObjectSculptSpec、stage machinery、
+factory generator、browser renderer 和 CS2 knife route 作为兼容基线；随后统一归一化为
+Weaponry-owned `KnifeSceneProgram@1` 和 `KnifeObjectiveLedger@1`。当前已固定并验证可恢复的上游
+源码快照，完成 license/SBOM/provenance 和 bounded 静态 adapter。2026-09-01 起只允许 benchmark
+runner 从本机 git object 恢复 pinned commit，在临时目录离线执行固定 validator/generator，并用仓库
+既有 Three.js 依赖验证派生工厂；该运行已得到 7 meshes/1,049 tris、确定性 receipt，但 strict quality
+明确绕过。它没有升级为运行时依赖；后续只有独立 worker 的输入/输出、资源和确定性 Gate 闭合后，
+才可讨论执行型采用，源码基线或一次 benchmark 本身不授予该状态。
 
 2026-08-30 successor：已对 upstream `main@9fbd0ca5bbcc3b13bebe712745d6784d33db0b85`
 进行新的只读静态审计，冻结文件 hash 与 Apache-2.0 receipt 至

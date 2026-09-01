@@ -39,7 +39,9 @@
         "Resources/forgecad-runtime": "target/release/forgecad-runtime",
         "Resources/forgecad-mcp": "target/release/forgecad-mcp",
         "Resources/forgecad-geometry-worker": "target/release/forgecad-geometry-worker",
-        "Resources/forgecad-render-worker": "target/release/forgecad-render-worker"
+        "Resources/forgecad-render-worker": "target/release/forgecad-render-worker",
+        "Resources/weaponry-threejs-worker": "target/weaponry-threejs-worker",
+        "Resources/weaponry-blender-worker": "target/weaponry-blender-worker"
       }
     }
   }

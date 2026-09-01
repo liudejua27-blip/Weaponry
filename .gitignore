@@ -16,6 +16,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .playwright-cli/
+.img2threejs/
 output/playwright/
 output/evaluations/
 output/m108-visual-benchmark/
@@ -35,5 +36,6 @@ apps/desktop/src-tauri/target/
 apps/geometry-worker/target/
 apps/render-worker/target/
 apps/render-core/target/
+apps/blender-worker/target/
 .forgecad-target/
 output/packaged-macos-alpha/

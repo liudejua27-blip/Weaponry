@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-IGNORED_PARTS = {"node_modules", "output", ".forgecad-target"}
+IGNORED_PARTS = {"node_modules", "output", "target", ".forgecad-target"}
 CURRENT_MARKERS = (
     "Weaponry P0 override (2026-08-29)",
     "Status: reference-only historical document (2026-08-29)",
@@ -16,6 +16,8 @@ CURRENT_MARKERS = (
     "Status: superseded / no current execution authority (2026-08-29)",
 )
 NATIVE_WEAPONRY_DOCS = {
+    "apps/blender-worker/GPL-SOURCE-OFFER.md",
+    "apps/blender-worker/README.md",
     "docs/AUTHORITATIVE_STATE.md",
     "docs/CODEX_HANDOFF.md",
     "docs/DOCUMENTATION_MAP.md",
@@ -30,10 +32,21 @@ NATIVE_WEAPONRY_DOCS = {
     "docs/WEAPONRY_ONE_MONTH_DELIVERY_PLAN.md",
     "docs/WEAPONRY_RUNTIME_FIVE_DOMAIN_REFACTOR_20260829.md",
     "docs/ADR/0030-weaponry-knife-ten-day-hybrid-dcc.md",
+    "docs/ADR/0031-weaponry-threejs-quality-workbench.md",
+    "packages/weaponry-threejs/adoption/img2threejs/9fbd0ca5bbcc3b13bebe712745d6784d33db0b85/README.md",
+    "packages/weaponry-threejs/deliveries/dragonfang-r8/README.md",
+    "packages/weaponry-threejs/deliveries/dragonfang-r8/THIRD_PARTY_NOTICES.md",
+    "packages/weaponry-threejs/THIRD_PARTY_NOTICES.md",
     "skills/weaponry-crossfire-agent-native-dcc/SKILL.md",
     "skills/weaponry-crossfire-agent-native-dcc/references/action-space-and-gates.md",
     "skills/weaponry-crossfire-agent-native-dcc/references/dragonfang-benchmark-profile.md",
+    "skills/weaponry-crossfire-agent-native-dcc/references/dragonfang-multiview-inventory.md",
     "skills/weaponry-crossfire-agent-native-dcc/references/knife-reference-convergence-loop.md",
+    "skills/weaponry-threejs-knife-studio/SKILL.md",
+    "skills/weaponry-threejs-knife-studio/references/architecture-and-truth.md",
+    "skills/weaponry-threejs-knife-studio/references/knife-design-language.md",
+    "skills/weaponry-threejs-knife-studio/references/objective-and-quality.md",
+    "skills/weaponry-threejs-knife-studio/references/research-to-design-prior.md",
 }
 
 

@@ -84,9 +84,11 @@ APPLE_SIGNING_IDENTITY="<approved signing identity>" \
 
 该命令会先构建 release `forgecad-runtime` 与 `forgecad-mcp`，再运行 Tauri app bundle。仓库内 `npm run desktop:tauri-build` 通过 `script/with_rust_toolchain.sh` 固定 Cargo 查找；签名失败、notarization 未运行或 packaged Desktop 3D E2E 未验收时，状态必须分别记录为 BLOCKED/NOT_RUN。MCP010A 的开发 App 激活证据不替代 MCP013 正式发布门。
 
-## 4. Blender/DCC 排除边界
+## 4. Blender/DCC 隔离边界
 
-Blender、Substance、Maya、BlenderMCP、`.blend`、`bpy`、Python addon 与任意 DCC sidecar 不进入 ForgeCAD P0/P1 发布包，也不是 fallback。对应 capability 必须保持 `unavailable/reference-only`。研究可用于 clean-room 问题定义和隔离 benchmark，但不能把 DCC 二进制、脚本、工程状态或输出升级为 Runtime 真值。High、Low、UV、Cage/Bake、Surface、LOD、Render 与 Validator 必须由 ForgeCAD-owned fixed typed Worker 随同一签名 cohort 分发。
+Knife-first successor 允许把固定 Blender LTS 作为应用内离线 sidecar 分发，使用户不需要另行安装 Blender。它只能由 ForgeCAD-owned Rust launcher 以 factory-startup、disabled-autoexec、单线程和 closed typed job 启动；caller 不得传入 Python、路径、URL、环境变量或任意 add-on。`.blend`、`bpy` 对象和 Blender 会话不成为 Runtime 真值，输出必须经 Runtime 独立回读、hash、Store/CAS 绑定后才可持久化。
+
+当前 macOS arm64 development resource 固定 Blender 5.2.1 LTS/build `9e2066aef7ef`。它尚缺 GPL corresponding source、正式 source-offer/legal review、first-party Worker license assertion、产品签名和正式 distribution artifact，因此状态必须保持 `DEVELOPMENT_STAGED_NOT_RELEASE_ELIGIBLE`；release 构建对此 fail closed。Substance、Maya、BlenderMCP、任意 Python addon 和 caller-supplied DCC 仍不进入发布包。
 
 ## 5. 安装/升级
 

@@ -1,0 +1,107 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "name": "weaponry-threejs-img2threejs-adoption",
+  "documentNamespace": "https://forgecad.local/sbom/weaponry-threejs/img2threejs/9fbd0ca5bbcc3b13bebe712745d6784d33db0b85/adoption",
+  "creationInfo": {
+    "created": "2026-08-31T00:00:00Z",
+    "creators": [
+      "Tool: weaponry-threejs-adoption@0.1.0"
+    ],
+    "licenseListVersion": "3.27"
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-WeaponryThreeJSAdoption",
+      "name": "weaponry-threejs-img2threejs-adoption-metadata",
+      "versionInfo": "0.1.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": true,
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "licenseDeclared": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "copyrightText": "Copyright 2026 ForgeCAD contributors",
+      "comment": "Metadata, verifier and isolated-cache maintenance tooling only; no upstream executable source is bundled."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-img2threejs-source",
+      "name": "img2threejs",
+      "versionInfo": "git-9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+      "downloadLocation": "https://github.com/img2threejs/img2threejs",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Copyright 2026 hoainho",
+      "comment": "Complete source is restoreable into an external isolation cache; it is not a product dependency or vendored source tree."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-img2threejs-optional-integrations",
+      "name": "img2threejs optional integrations",
+      "versionInfo": "git-9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "comment": "Optional GLB/vision/browser integrations and their transitive lockfiles are explicitly excluded from the accepted product adapter."
+    }
+  ],
+  "files": [
+    {
+      "SPDXID": "SPDXRef-File-LocalApacheLicense",
+      "fileName": "LICENSES/Apache-2.0.txt",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksum": "4595055948a67e91177115c57e154804046878e77ff223de22accc880012827a"
+        }
+      ],
+      "licenseConcluded": "Apache-2.0",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-File-LocalFirstPartyNotice",
+      "fileName": "LICENSES/ForgeCAD-FIRST-PARTY.txt",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksum": "49f82378a300f6ba3ecfacfa5bf79fc2db51ed31730fc10eb74371333853cdbb"
+        }
+      ],
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "copyrightText": "Copyright 2026 ForgeCAD contributors"
+    }
+  ],
+  "hasExtractedLicensingInfos": [
+    {
+      "licenseId": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "name": "ForgeCAD First-Party",
+      "extractedText": "First-party adoption metadata and validation tooling owned by the Weaponry repository.",
+      "crossRefs": [
+        "https://forgecad.local/licenses/ForgeCAD-FIRST-PARTY"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-WeaponryThreeJSAdoption"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-WeaponryThreeJSAdoption",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-LocalApacheLicense"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-WeaponryThreeJSAdoption",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-LocalFirstPartyNotice"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-WeaponryThreeJSAdoption",
+      "relationshipType": "DOCUMENTATION_OF",
+      "relatedSpdxElement": "SPDXRef-Package-img2threejs-source"
+    }
+  ]
+}

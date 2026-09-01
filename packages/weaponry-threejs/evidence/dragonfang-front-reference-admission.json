@@ -1,0 +1,22 @@
+{
+  "schema_version": "WeaponryThreeJsReferenceAdmission@1",
+  "asset_id": "dragonfang-kukri",
+  "viewpoint": "FRONT",
+  "source_sheet_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+  "crop_rect_xywh": [
+    10,
+    20,
+    900,
+    200
+  ],
+  "crop_sha256": "bb8e3393c4504ced283d83179b85c874b851403ab8883f4d918f597108d7394b",
+  "width": 900,
+  "height": 200,
+  "foreground_coverage": 0.3567,
+  "largest_component_fraction": 0.9804,
+  "perceptual_hash_u64": "18209435288888586288",
+  "admission_status": "ADMITTED",
+  "whole_sheet_admission_status": "REJECTED_FRAGMENTED_MULTI_PANEL",
+  "whole_sheet_largest_component_fraction": 0.1719,
+  "quality_boundary": "This admits the FRONT crop for bounded silhouette and visible-region comparison only; it does not admit the whole multi-panel sheet as one camera image or establish hidden geometry, PBR truth or commercial quality."
+}

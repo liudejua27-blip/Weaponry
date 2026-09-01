@@ -1,0 +1,25 @@
+{
+  "schema_version": "KnifeObjectiveLedger@1",
+  "ledger_id": "dragonfang-assembly-browser-ledger",
+  "revision": 4,
+  "parent_ledger_sha256": "f376a6bef455885527cea1c9a05666cf45ffed68a7a05244caa566cb099ad5b9",
+  "program_sha256": "f7750c5e532d514e19d17d6f89dcd03a0fca7ed3f6d27642b4c0c3ed5835a47b",
+  "baseline_candidate_sha256": "9e015f07939fdf59fd75437ac2fca33c238cd6ee23260a157107a5e866eca0da",
+  "stage": "structural",
+  "allowed_scope": ["guard", "grip", "pommel", "ornament"],
+  "frozen_parts": ["blade-body", "cutting-edge"],
+  "hypothesis": "Replacing primitive assembly blocks with a dragon guard, curved segmented grip, hooked pommel, stable fasteners, gems, and bounded reliefs will improve negative-space and semantic ownership while preserving the accepted blade program.",
+  "objective_metrics": ["negative-space-error", "part-id-coverage", "material-id-coverage", "fps-occupancy"],
+  "regression_limits": ["silhouette-iou", "boundary-f1", "tip-landmark-error", "thickness-continuity", "normal-continuity"],
+  "candidate_budget": 4,
+  "minimum_improvement": 0.005,
+  "plateau_limit": 2,
+  "evidence_sha256": [
+    "f376a6bef455885527cea1c9a05666cf45ffed68a7a05244caa566cb099ad5b9",
+    "dd2fab307a1a32fc663cbc5ab172549f962e0d50bb28180db6df57871159f6f9",
+    "9e015f07939fdf59fd75437ac2fca33c238cd6ee23260a157107a5e866eca0da",
+    "56f49808f80513f0dfa5ae86fd7199766c48487d77055ec7d18361075e662111"
+  ],
+  "status": "active",
+  "canonical_sha256": "b6c7f2b497c96ab46731a19d2be5f79b388eca336d0172bb4ed56615df99e0bf"
+}

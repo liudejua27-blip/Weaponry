@@ -1,0 +1,46 @@
+WPN-THREE-EVAL-001 report
+
+Scope
+-----
+Added a closed typed fixed-view data plane under packages/weaponry-threejs.
+The canonical KnifeFixedEightViewRig@1 contains exactly these ordered views:
+
+  FRONT, BACK, TOP, BOTTOM, LEFT, RIGHT, REAR_THREE_QUARTER, FPS_HOLD
+
+Each view has a deterministic camera descriptor. The first seven use a fixed
+orthographic projection and FPS_HOLD uses a fixed perspective projection. The
+CPU helper remains renderer-independent; the sibling browser route now invokes
+THREE.WebGLRenderer with the same fixed rig and records the live camera matrices.
+
+Projection and mask API
+-----------------------
+- createKnifeViewRig / createKnifeViewCamera
+- projectKnifeScene
+- rasterizeKnifeMask (also exported as generateKnifeMask)
+- evaluateKnifeView / evaluateKnifeRig
+
+Projection produces deterministic pixel coordinates, NDC depth, clip visibility,
+stable part/material indexes, and a WeaponryThreeJsProjectionReceipt@1.
+Mask generation is a bounded CPU triangle rasterizer with depth ordering and no
+anti-aliasing. It produces binary pixels, part/material index buffers, depth,
+and a WeaponryThreeJsMaskReceipt@1. Per-view and eight-view structural receipts
+keep renderer_invoked=false and quality_status=NOT_RUN.
+
+Verification
+------------
+  npm --workspace @wushen/weaponry-threejs run typecheck
+  npm --workspace @wushen/weaponry-threejs run smoke
+  git diff --check
+
+Observed smoke data: frame 128x96, all eight view IDs in canonical order,
+stable rig fingerprint a794ccb2d41f88e7, and stable eight-view evaluation
+fingerprint b0d5c44847b38692 on the current fixture. The current fixture also
+contains the bounded guard/grip/pommel assembly; coverage values are raw
+software-mask measurements only and are not visual metrics or acceptance.
+
+Deliberate non-claims
+---------------------
+The browser sibling has now produced an 8-view x 7-AOV render set and a closed
+hash receipt. This CPU data-plane slice still does not grant reference
+comparison, objective convergence, human review, engine validation,
+Runtime/CAS write, or quality PASS.

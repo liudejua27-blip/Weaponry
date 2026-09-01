@@ -25,6 +25,50 @@ mod weaponry_knife_production_brief;
 mod weaponry_knife_reference_intent;
 mod weaponry_knife_source_binding;
 mod weaponry_knife_uv_bake_v2;
+mod weaponry_blender_durable;
+mod weaponry_threejs_design;
+mod weaponry_threejs_comparison;
+pub use weaponry_blender_durable::{
+    weaponry_blender_artifact_set_sha256,
+    weaponry_blender_execution_record_canonical_sha256,
+    WeaponryBlenderArtifactRef,
+    WeaponryBlenderExecutionCasBundle,
+    WeaponryBlenderExecutionCommit,
+    WeaponryBlenderExecutionStoreRecord,
+    WeaponryBlenderPackageIdentity,
+    WeaponryBlenderWorkerArtifactRef,
+    WeaponryBlenderWorkerExecutionCasBundle,
+    WeaponryBlenderWorkerExecutionCommit,
+    WeaponryBlenderWorkerExecutionStoreRecord,
+    WeaponryBlenderWorkerPackageIdentity,
+    WEAPONRY_BLENDER_AO_MAP_KIND,
+    WEAPONRY_BLENDER_EXECUTION_GLB_MIME,
+    WEAPONRY_BLENDER_EXECUTION_JSON_MIME,
+    WEAPONRY_BLENDER_EXECUTION_MATERIALIZATION_STATUS,
+    WEAPONRY_BLENDER_EXECUTION_OPERATION,
+    WEAPONRY_BLENDER_EXECUTION_PNG_MIME,
+    WEAPONRY_BLENDER_EXECUTION_RECORD_SCHEMA,
+    WEAPONRY_BLENDER_EXECUTION_RECORD_SCHEMA_VERSION,
+    WEAPONRY_BLENDER_EXECUTION_SCHEMA_VERSION,
+    WEAPONRY_BLENDER_EXECUTION_STATUS,
+    WEAPONRY_BLENDER_HIGH_GLB_KIND,
+    WEAPONRY_BLENDER_LOW_GLB_KIND,
+    WEAPONRY_BLENDER_MAX_ARTIFACTS,
+    WEAPONRY_BLENDER_MAX_GLB_BYTES,
+    WEAPONRY_BLENDER_MAX_IDEMPOTENCY_BYTES,
+    WEAPONRY_BLENDER_MAX_JSON_BYTES,
+    WEAPONRY_BLENDER_MAX_MAP_BYTES,
+    WEAPONRY_BLENDER_MAX_ROOTS,
+    WEAPONRY_BLENDER_NORMAL_MAP_KIND,
+    WEAPONRY_BLENDER_RECEIPT_KIND,
+    WEAPONRY_BLENDER_RECEIPT_SCHEMA,
+    WEAPONRY_BLENDER_WORKER_IDENTITY_KIND,
+    WEAPONRY_BLENDER_WORKER_IDENTITY_SCHEMA,
+    WEAPONRY_BLENDER_WORKER_MANIFEST_KIND,
+    WEAPONRY_BLENDER_WORKER_MANIFEST_SCHEMA,
+    WEAPONRY_BLENDER_WORKER_RESULT_KIND,
+    WEAPONRY_BLENDER_WORKER_RESULT_SCHEMA,
+};
 pub use authoring_mesh_v2_high_artifact::{
     AuthoringMeshV2HighArtifactCasBundle, AuthoringMeshV2HighArtifactCommit,
     AuthoringMeshV2HighArtifactStoreRecord,
@@ -160,10 +204,41 @@ pub use weaponry_knife_source_binding::{
 pub use weaponry_knife_uv_bake_v2::{
     AggregateRecord as WeaponryKnifeUvBakeV2AggregateRecord,
     ComponentRef as WeaponryKnifeUvBakeV2ComponentRef,
-    RECORD_SCHEMA_VERSION as WEAPONRY_KNIFE_UV_BAKE_V2_RECORD_SCHEMA_VERSION,
     RECEIPT_MIME as WEAPONRY_KNIFE_UV_BAKE_V2_RECEIPT_MIME,
     RECEIPT_OBJECT_KIND as WEAPONRY_KNIFE_UV_BAKE_V2_RECEIPT_OBJECT_KIND,
+    RECORD_SCHEMA_VERSION as WEAPONRY_KNIFE_UV_BAKE_V2_RECORD_SCHEMA_VERSION,
     SCHEMA_VERSION as WEAPONRY_KNIFE_UV_BAKE_V2_SCHEMA_VERSION,
+};
+pub use weaponry_threejs_design::{
+    WeaponryThreeJsDesignCommit, WeaponryThreeJsDesignStoreRecord, WeaponryThreeJsExecutionCommit,
+    WeaponryThreeJsExecutionStoreRecord, WeaponryThreeJsPreviewCommit,
+    WeaponryThreeJsPreviewStoreRecord, WEAPONRY_THREEJS_DESIGN_RECORD_SCHEMA,
+    WEAPONRY_THREEJS_EXECUTION_RECORD_SCHEMA, WEAPONRY_THREEJS_GLB_KIND, WEAPONRY_THREEJS_GLB_MIME,
+    WEAPONRY_THREEJS_MAX_GLB_BYTES, WEAPONRY_THREEJS_MAX_PROGRAM_BYTES,
+    WEAPONRY_THREEJS_MAX_WORKER_RESULT_BYTES, WEAPONRY_THREEJS_PROGRAM_MIME,
+    WEAPONRY_THREEJS_PROGRAM_OBJECT_KIND, WEAPONRY_THREEJS_PROGRAM_SCHEMA,
+    WEAPONRY_THREEJS_PREVIEW_AOV_KIND, WEAPONRY_THREEJS_PREVIEW_AOV_MIME,
+    WEAPONRY_THREEJS_PREVIEW_AOV_COUNT, WEAPONRY_THREEJS_PREVIEW_AOVS_PER_VIEW,
+    WEAPONRY_THREEJS_PREVIEW_MAX_AOV_BYTES, WEAPONRY_THREEJS_PREVIEW_RECEIPT_KIND,
+    WEAPONRY_THREEJS_PREVIEW_RECEIPT_MIME, WEAPONRY_THREEJS_PREVIEW_RECEIPT_SCHEMA,
+    WEAPONRY_THREEJS_PREVIEW_RECORD_SCHEMA, WEAPONRY_THREEJS_PREVIEW_RUNTIME_ID,
+    WEAPONRY_THREEJS_PREVIEW_VIEW_COUNT,
+    WEAPONRY_THREEJS_WORKER_RESULT_KIND, WEAPONRY_THREEJS_WORKER_RESULT_MIME,
+};
+pub use weaponry_threejs_comparison::{
+    WeaponryThreeJsComparisonCommit, WeaponryThreeJsComparisonStoreRecord,
+    WEAPONRY_THREEJS_COMPARISON_AOV_ID, WEAPONRY_THREEJS_COMPARISON_AOV_ID as
+        WEAPONRY_THREEJS_COMPARISON_SEMANTIC_ID_AOV,
+    WEAPONRY_THREEJS_COMPARISON_COMMERCIAL_STATUS, WEAPONRY_THREEJS_COMPARISON_ENGINE_STATUS,
+    WEAPONRY_THREEJS_COMPARISON_EDITABLE_PART_IDS,
+    WEAPONRY_THREEJS_COMPARISON_FROZEN_PART_IDS, WEAPONRY_THREEJS_COMPARISON_HUMAN_STATUS,
+    WEAPONRY_THREEJS_COMPARISON_HANDEDNESS_TRANSFORM,
+    WEAPONRY_THREEJS_COMPARISON_MAX_CROP_PIXELS, WEAPONRY_THREEJS_COMPARISON_MAX_RECEIPT_BYTES,
+    WEAPONRY_THREEJS_COMPARISON_METRIC_POLICY, WEAPONRY_THREEJS_COMPARISON_OPERATION,
+    WEAPONRY_THREEJS_COMPARISON_RECEIPT_KIND, WEAPONRY_THREEJS_COMPARISON_RECEIPT_MIME,
+    WEAPONRY_THREEJS_COMPARISON_RECEIPT_SCHEMA, WEAPONRY_THREEJS_COMPARISON_RECORD_SCHEMA,
+    WEAPONRY_THREEJS_COMPARISON_SEMANTIC_PART_IDS, WEAPONRY_THREEJS_COMPARISON_STATUS,
+    WEAPONRY_THREEJS_COMPARISON_VIEW_ID, WEAPONRY_THREEJS_COMPARISON_VISUAL_STATUS,
 };
 
 fn v2_value_string<'a>(value: &'a Value, field: &str) -> Result<&'a str, StoreError> {
@@ -19130,6 +19205,10 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
     weaponry_knife_source_binding::ensure_table(&transaction)?;
     weaponry_knife_pass_state::ensure_table(&transaction)?;
     weaponry_knife_uv_bake_v2::ensure_table(&transaction)?;
+    weaponry_blender_durable::ensure_table(&transaction)?;
+    weaponry_threejs_design::ensure_table(&transaction)?;
+    weaponry_threejs_design::ensure_preview_table(&transaction)?;
+    weaponry_threejs_comparison::ensure_table(&transaction)?;
     authoring_mesh_v2_high_bridge::ensure_table(&transaction)?;
     authoring_mesh_v2_high_artifact::ensure_table(&transaction)?;
     let version: String = transaction.query_row(
@@ -62438,6 +62517,10 @@ fn authoring_mesh_edit_object_is_linked(
     weaponry_knife_source_binding::ensure_table(transaction)?;
     weaponry_knife_pass_state::ensure_table(transaction)?;
     weaponry_knife_uv_bake_v2::ensure_table(transaction)?;
+    weaponry_blender_durable::ensure_table(transaction)?;
+    weaponry_threejs_design::ensure_table(transaction)?;
+    weaponry_threejs_design::ensure_preview_table(transaction)?;
+    weaponry_threejs_comparison::ensure_table(transaction)?;
     authoring_mesh_v2_high_bridge::ensure_table(transaction)?;
     authoring_mesh_v2_high_artifact::ensure_table(transaction)?;
     let linked: i64 = transaction.query_row(
@@ -62454,6 +62537,13 @@ fn authoring_mesh_edit_object_is_linked(
             OR EXISTS (SELECT 1 FROM weaponry_curve_evaluated_mesh_records WHERE evaluation_plan_object_sha256 = ?1 OR evaluated_mesh_object_sha256 = ?1 OR evaluated_mesh_identity_object_sha256 = ?1 OR evaluated_mesh_link_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM reference_evidence WHERE object_sha256 = ?1 OR derived_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM weaponry_knife_production_brief_records WHERE brief_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM weaponry_threejs_design_records WHERE program_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM weaponry_threejs_execution_records WHERE program_object_sha256 = ?1 OR worker_result_object_sha256 = ?1 OR glb_object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM weaponry_threejs_preview_records WHERE program_object_sha256 = ?1 OR worker_result_object_sha256 = ?1 OR preview_receipt_object_sha256 = ?1 OR instr(record_json, ?1) > 0)
+            OR EXISTS (SELECT 1 FROM weaponry_threejs_preview_aov_refs WHERE object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM weaponry_threejs_comparison_records WHERE comparison_receipt_object_sha256 = ?1 OR instr(record_json, ?1) > 0)
+            OR EXISTS (SELECT 1 FROM weaponry_threejs_comparison_roots WHERE object_sha256 = ?1)
+            OR EXISTS (SELECT 1 FROM weaponry_blender_execution_roots WHERE object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM knife_reference_intent_bundle_records WHERE intent_bundle_object_sha256 = ?1 OR intake_manifest_object_sha256 = ?1 OR detail_inventory_object_sha256 = ?1 OR quality_contract_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM knife_source_binding_records WHERE source_binding_object_sha256 = ?1 OR intent_bundle_object_sha256 = ?1 OR brief_object_sha256 = ?1 OR reference_object_sha256 = ?1 OR quality_contract_object_sha256 = ?1 OR authoring_mesh_revision_object_sha256 = ?1)
             OR EXISTS (SELECT 1 FROM knife_pass_state_records WHERE pass_state_object_sha256 = ?1 OR source_binding_object_sha256 = ?1 OR intent_bundle_object_sha256 = ?1 OR brief_object_sha256 = ?1 OR reference_object_sha256 = ?1 OR authoring_mesh_revision_object_sha256 = ?1 OR baseline_artifact_sha256 = ?1 OR baseline_geometry_program_object_sha256 = ?1 OR baseline_artifact_readback_object_sha256 = ?1 OR attempt_artifact_sha256 = ?1 OR attempt_geometry_program_object_sha256 = ?1 OR attempt_artifact_readback_object_sha256 = ?1 OR render_set_object_sha256 = ?1 OR reference_comparison_object_sha256 = ?1 OR quality_report_object_sha256 = ?1)

@@ -1,0 +1,139 @@
+{
+  "schema_version": "KnifeSceneProgram@1",
+  "asset_id": "dragonfang-kukri-threejs-slice",
+  "family": "kukri",
+  "design_basis": "authorized-reference-inspired",
+  "coordinate_convention": "weapon-front-z-up-right-handed@1",
+  "blade_surface": {
+    "spine_curve": {
+      "curve_id": "dragonfang-spine",
+      "basis": "nurbs-like",
+      "control_points": [[-1.0, 0.092627, 0.0], [-0.714286, 0.158123, 0.0], [-0.428571, 0.20669, 0.0], [-0.142857, 0.221565, 0.0], [0.142857, 0.219611, 0.0], [0.428571, 0.153123, 0.0], [0.714286, 0.035304, 0.0], [1.0, -0.053005, 0.0]]
+    },
+    "cutting_edge_curve": {
+      "curve_id": "dragonfang-edge",
+      "basis": "nurbs-like",
+      "control_points": [[-1.0, -0.091974, 0.0], [-0.714286, -0.055901, 0.000046], [-0.428571, 0.055547, 0.000369], [-0.142857, 0.027285, 0.001244], [0.142857, -0.079603, 0.002948], [0.428571, -0.147308, 0.005759], [0.714286, -0.13925, 0.009951], [1.0, -0.064013, 0.015802]]
+    },
+    "sections": [
+      { "section_id": "section-root", "role": "root", "u": 0.0, "half_width": 0.12, "thickness": 0.08, "edge_offset": -0.04, "spine_offset": 0.02, "asymmetry": 0.0, "twist": 0.0 },
+      { "section_id": "section-fit-01", "role": "intermediate", "u": 0.14, "half_width": 0.18, "thickness": 0.075, "edge_offset": -0.06, "spine_offset": 0.025, "asymmetry": 0.03, "twist": 0.0 },
+      { "section_id": "section-shoulder", "role": "shoulder", "u": 0.28, "half_width": 0.24, "thickness": 0.07, "edge_offset": -0.08, "spine_offset": 0.03, "asymmetry": 0.06, "twist": 0.0 },
+      { "section_id": "section-fit-02", "role": "intermediate", "u": 0.413333, "half_width": 0.273333, "thickness": 0.063333, "edge_offset": -0.107632, "spine_offset": 0.033333, "asymmetry": 0.071506, "twist": 0.0 },
+      { "section_id": "section-fit-03", "role": "intermediate", "u": 0.546667, "half_width": 0.306667, "thickness": 0.056667, "edge_offset": -0.135263, "spine_offset": 0.036667, "asymmetry": 0.083013, "twist": 0.0 },
+      { "section_id": "section-belly", "role": "belly", "u": 0.68, "half_width": 0.34, "thickness": 0.05, "edge_offset": -0.162895, "spine_offset": 0.04, "asymmetry": 0.094519, "twist": 0.0 },
+      { "section_id": "section-fit-04", "role": "intermediate", "u": 0.84, "half_width": 0.175, "thickness": 0.03, "edge_offset": -0.081447, "spine_offset": 0.010996, "asymmetry": 0.047259, "twist": 0.0 },
+      { "section_id": "section-tip", "role": "tip", "u": 1.0, "half_width": 0.01, "thickness": 0.01, "edge_offset": 0.0, "spine_offset": -0.018008, "asymmetry": 0.0, "twist": 0.0 }
+    ],
+    "surface_roles": ["blade-body", "cutting-edge", "spine", "root-transition"]
+  },
+  "assembly": {
+    "guard": {
+      "primitive": "guard",
+      "part_id": "guard",
+      "style": "dragon-guard",
+      "center": [-1.04, 0.01, 0.0],
+      "span": 0.44,
+      "thickness": 0.12,
+      "depth": 0.18,
+      "jaw_gap": 0.1,
+      "upper_jaw": { "span": 0.34, "thickness": 0.045, "depth": 0.08, "offset_y": 0.01, "offset_z": 0.0, "curvature": 0.055 },
+      "lower_jaw": { "span": 0.3, "thickness": 0.04, "depth": 0.075, "offset_y": -0.02, "offset_z": 0.0, "curvature": 0.045 },
+      "horns": [
+        { "feature_id": "guard-horn-upper", "side": 1, "length": 0.15, "radius": 0.025, "sweep": 0.42, "offset_z": 0.0 },
+        { "feature_id": "guard-horn-lower", "side": -1, "length": 0.13, "radius": 0.023, "sweep": 0.36, "offset_z": 0.0 }
+      ],
+      "eye_sockets": [
+        { "feature_id": "guard-eye-front", "side": 1, "radius": 0.05, "depth": 0.03, "offset_y": 0.075, "offset_z": 0.092 },
+        { "feature_id": "guard-eye-back", "side": -1, "radius": 0.05, "depth": 0.03, "offset_y": 0.075, "offset_z": -0.092 }
+      ]
+    },
+    "grip": {
+      "primitive": "grip",
+      "part_id": "grip",
+      "style": "segmented-grip",
+      "center": [-1.47, -0.01, 0.0],
+      "length": 0.72,
+      "radius": 0.11,
+      "taper": 0.22,
+      "facets": 12,
+      "centerline": [[-0.36, -0.1, 0.0], [-0.12, -0.075, 0.0], [0.12, -0.03, 0.0], [0.36, 0.0, 0.0]],
+      "segments": [
+        { "feature_id": "grip-wrap-a", "start_u": 0.0, "end_u": 0.25, "radius_scale": 0.94 },
+        { "feature_id": "grip-wrap-b", "start_u": 0.25, "end_u": 0.5, "radius_scale": 1.0 },
+        { "feature_id": "grip-wrap-c", "start_u": 0.5, "end_u": 0.75, "radius_scale": 1.04 },
+        { "feature_id": "grip-wrap-d", "start_u": 0.75, "end_u": 1.0, "radius_scale": 1.0 }
+      ],
+      "metal_frames": [
+        { "feature_id": "grip-frame-rear", "at": 0.02, "width": 0.12, "thickness": 0.025 },
+        { "feature_id": "grip-frame-mid", "at": 0.5, "width": 0.1, "thickness": 0.022 },
+        { "feature_id": "grip-frame-front", "at": 0.98, "width": 0.12, "thickness": 0.025 }
+      ],
+      "fasteners": [
+        { "feature_id": "grip-fastener-a", "at": 0.18, "side": 1, "radius": 0.025, "depth": 0.03 },
+        { "feature_id": "grip-fastener-b", "at": 0.4, "side": 1, "radius": 0.025, "depth": 0.03 },
+        { "feature_id": "grip-fastener-c", "at": 0.62, "side": 1, "radius": 0.025, "depth": 0.03 },
+        { "feature_id": "grip-fastener-d", "at": 0.84, "side": 1, "radius": 0.025, "depth": 0.03 }
+      ]
+    },
+    "pommel": {
+      "primitive": "pommel",
+      "part_id": "pommel",
+      "style": "hooked-pommel",
+      "center": [-2.02, -0.11, 0.0],
+      "length": 0.24,
+      "radius": 0.13,
+      "depth": 0.18,
+      "hook": { "length": 0.38, "radius": 0.035, "bend": 0.72, "direction": -1 },
+      "gem_seat": { "feature_id": "pommel-gem-seat", "radius": 0.055, "depth": 0.03, "offset_x": 0.0, "offset_y": 0.0, "offset_z": 0.09, "axis": "z" }
+    },
+    "fasteners": [
+      { "primitive": "fastener", "part_id": "fastener-grip-a", "center": [-1.7, -0.09, 0.13], "radius": 0.026, "depth": 0.035, "axis": "z" },
+      { "primitive": "fastener", "part_id": "fastener-grip-b", "center": [-1.54, -0.07, 0.13], "radius": 0.026, "depth": 0.035, "axis": "z" },
+      { "primitive": "fastener", "part_id": "fastener-grip-c", "center": [-1.38, -0.04, 0.13], "radius": 0.026, "depth": 0.035, "axis": "z" },
+      { "primitive": "fastener", "part_id": "fastener-grip-d", "center": [-1.22, -0.015, 0.13], "radius": 0.026, "depth": 0.035, "axis": "z" }
+    ],
+    "gems": [
+      { "primitive": "gem", "part_id": "gem-guard-eye", "center": [-1.04, 0.085, 0.115], "radius": 0.044, "depth": 0.045, "axis": "z" },
+      { "primitive": "gem", "part_id": "gem-pommel", "center": [-2.02, -0.11, 0.105], "radius": 0.05, "depth": 0.05, "axis": "z" }
+    ],
+    "reliefs": [
+      { "primitive": "relief", "part_id": "relief-dragon-spine", "center": [0.0, 0.115, 0.066], "width": 0.86, "height": 0.075, "depth": 0.022, "shape": "panel", "axis": "z" },
+      { "primitive": "relief", "part_id": "relief-dragon-belly", "center": [0.26, -0.02, 0.068], "width": 0.42, "height": 0.07, "depth": 0.022, "shape": "diamond", "axis": "z" }
+    ]
+  },
+  "parts": [
+    { "part_id": "blade-body", "role": "blade-body", "source_class": "observed", "material_zone_id": "blade-red", "frozen": true },
+    { "part_id": "cutting-edge", "role": "cutting-edge", "source_class": "observed", "material_zone_id": "edge-gold", "frozen": true },
+    { "part_id": "guard", "role": "guard", "source_class": "observed", "material_zone_id": "ornament-gold", "frozen": false },
+    { "part_id": "grip", "role": "grip", "source_class": "observed", "material_zone_id": "grip-black", "frozen": false },
+    { "part_id": "pommel", "role": "pommel", "source_class": "observed", "material_zone_id": "ornament-gold", "frozen": false },
+    { "part_id": "fastener-grip-a", "role": "fastener", "source_class": "observed", "material_zone_id": "ornament-gold", "frozen": false },
+    { "part_id": "fastener-grip-b", "role": "fastener", "source_class": "observed", "material_zone_id": "ornament-gold", "frozen": false },
+    { "part_id": "fastener-grip-c", "role": "fastener", "source_class": "observed", "material_zone_id": "ornament-gold", "frozen": false },
+    { "part_id": "fastener-grip-d", "role": "fastener", "source_class": "observed", "material_zone_id": "ornament-gold", "frozen": false },
+    { "part_id": "gem-guard-eye", "role": "gem", "source_class": "observed", "material_zone_id": "ruby-red", "frozen": false },
+    { "part_id": "gem-pommel", "role": "gem", "source_class": "inferred", "material_zone_id": "ruby-red", "frozen": false },
+    { "part_id": "relief-dragon-spine", "role": "relief", "source_class": "observed", "material_zone_id": "ornament-gold", "frozen": false },
+    { "part_id": "relief-dragon-belly", "role": "relief", "source_class": "original-choice", "material_zone_id": "ornament-gold", "frozen": false }
+  ],
+  "material_zones": [
+    { "material_zone_id": "blade-red", "model": "mesh-standard-layered@1", "base_color": "#8F1D16", "metalness": 0.8, "roughness": 0.28 },
+    { "material_zone_id": "edge-gold", "model": "mesh-standard-layered@1", "base_color": "#B97816", "metalness": 1.0, "roughness": 0.2 },
+    { "material_zone_id": "ornament-gold", "model": "mesh-standard-layered@1", "base_color": "#9F6818", "metalness": 0.95, "roughness": 0.3 },
+    { "material_zone_id": "grip-black", "model": "mesh-standard-layered@1", "base_color": "#151719", "metalness": 0.1, "roughness": 0.68 },
+    { "material_zone_id": "ruby-red", "model": "mesh-standard-layered@1", "base_color": "#8E0D20", "metalness": 0.18, "roughness": 0.16 }
+  ],
+  "presentation": {
+    "camera_set": "knife-fixed-eight-view@1",
+    "renderer": "threejs-browser-authority@1",
+    "aovs": ["beauty", "silhouette", "depth", "normal", "part-id", "material-id", "wireframe", "curvature"]
+  },
+  "budgets": { "max_triangles": 45000, "max_draw_calls": 48, "max_texture_bytes": 67108864 },
+  "unknowns": [
+    "hidden-side guard and pommel topology remain inferred",
+    "relief primitives are structural placeholders rather than sculpted dragon anatomy",
+    "procedural material controls are readability aids and do not prove texture or PBR delivery"
+  ],
+  "canonical_sha256": "f7750c5e532d514e19d17d6f89dcd03a0fca7ed3f6d27642b4c0c3ed5835a47b"
+}

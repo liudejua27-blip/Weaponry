@@ -244,6 +244,15 @@ const KNIFE_REFERENCE_INTENT_BUNDLE_OPERATIONS: &[&str] = &[
 ];
 const KNIFE_SOURCE_BINDING_OPERATIONS: &[&str] =
     &["knife_source_binding_get", "knife_source_binding_prepare"];
+const WEAPONRY_THREEJS_DESIGN_OPERATIONS: &[&str] = &[
+    "weaponry_threejs_knife_design_execute",
+    "weaponry_threejs_knife_design_get",
+    "weaponry_threejs_knife_design_prepare",
+];
+const WEAPONRY_THREEJS_COMPARISON_OPERATIONS: &[&str] = &[
+    "weaponry_threejs_knife_comparison_get",
+    "weaponry_threejs_knife_comparison_prepare",
+];
 const FOUNDATION_MATERIALIZATION_OPERATIONS: &[&str] = &[
     "weapon_foundation_authoring_materialization_get",
     "weapon_foundation_authoring_materialization_prepare",
@@ -357,6 +366,30 @@ const EXPORT_CONFIRM_OPERATIONS: &[&str] = &["export_confirm"];
 /// registry; unlisted legacy operations do not acquire active knife ownership
 /// merely by existing in the old registry.
 pub const KNIFE_CAPABILITY_MAPPINGS: &[WeaponryCapabilityMapping] = &[
+    WeaponryCapabilityMapping {
+        capability: "weaponry_threejs_knife_design",
+        domain: WeaponryServiceDomain::Authoring,
+        contract: Some("KnifeSceneProgram@1"),
+        runtime_service: Some("authoring_service::weaponry_threejs_design::{prepare,get,execute}"),
+        store_record: Some(
+            "WeaponryThreeJsDesignStoreRecord + WeaponryThreeJsExecutionStoreRecord",
+        ),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("authoring_transaction"),
+        mcp_operations: WEAPONRY_THREEJS_DESIGN_OPERATIONS,
+        status: MappingStatus::Complete,
+    },
+    WeaponryCapabilityMapping {
+        capability: "weaponry_threejs_knife_comparison",
+        domain: WeaponryServiceDomain::Authoring,
+        contract: Some("WeaponryThreeJsKnifeComparisonResult@1"),
+        runtime_service: Some("authoring_service::weaponry_threejs_comparison::{prepare,get}"),
+        store_record: Some("WeaponryThreeJsKnifeComparisonStoreRecord"),
+        persistence: PersistenceKind::DurableTransaction,
+        mcp_facade: Some("authoring_transaction"),
+        mcp_operations: WEAPONRY_THREEJS_COMPARISON_OPERATIONS,
+        status: MappingStatus::Partial,
+    },
     WeaponryCapabilityMapping {
         capability: "knife_source_binding",
         domain: WeaponryServiceDomain::Authoring,

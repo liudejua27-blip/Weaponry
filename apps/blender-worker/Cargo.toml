@@ -1,0 +1,18 @@
+[package]
+name = "forgecad-blender-worker"
+version = "0.1.0"
+edition = "2021"
+description = "Closed, offline launcher boundary for Weaponry's fixed Blender worker"
+
+[lib]
+name = "forgecad_blender_worker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "forgecad-blender-worker"
+path = "src/bin/forgecad-blender-worker.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"

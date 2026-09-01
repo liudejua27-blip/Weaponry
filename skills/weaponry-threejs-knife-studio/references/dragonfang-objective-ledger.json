@@ -1,0 +1,24 @@
+{
+  "schema_version": "KnifeObjectiveLedger@1",
+  "ledger_id": "dragonfang-blade-browser-ledger",
+  "revision": 2,
+  "parent_ledger_sha256": "e202946d53e5752f5ff3c13029ca3fbe0f1266e808dc02c04bcf881883275c9a",
+  "program_sha256": "2fbec694dfeeef384633cc6acad6ce43a5dfa7bcffe227bd0b033994c425419b",
+  "baseline_candidate_sha256": "0e8cd1f75d4d2946d183c1be01bafdff621abb8310b1b3687099946d8a41422d",
+  "stage": "form",
+  "allowed_scope": ["blade-body", "cutting-edge"],
+  "frozen_parts": ["guard", "grip", "pommel"],
+  "hypothesis": "A second bounded blade-only successor can improve the frozen-camera FRONT mask while preserving all assembly and presentation inputs.",
+  "objective_metrics": ["silhouette-iou", "boundary-f1", "symmetric-chamfer", "p95-contour-distance", "tip-landmark-error"],
+  "regression_limits": ["thickness-continuity", "normal-continuity", "part-id-coverage", "material-id-coverage"],
+  "candidate_budget": 16,
+  "minimum_improvement": 0.001,
+  "plateau_limit": 2,
+  "evidence_sha256": [
+    "7e1bd17f939b0aa288bcf010e4eb6ff3156d1e504d52d8755b1c8c25b8f953ec",
+    "39cbc77400aca167ab6f2d8518df1b5b981f8f83c2c8f71b71c1b77d4fd21ae5",
+    "9c16a96dfdc7f40f886a56ecea694a3a78a5c8610a292384d7b5a4d6810a409e"
+  ],
+  "status": "active",
+  "canonical_sha256": "1a1f6a60266eaa2aa0d8dd840e87844d1e07fc532df075424eba36f371796be8"
+}

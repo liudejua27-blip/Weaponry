@@ -832,6 +832,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
+name = "forgecad-blender-worker"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "forgecad-contracts"
 version = "0.1.0"
 dependencies = [
@@ -899,6 +908,7 @@ name = "forgecad-runtime"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "forgecad-blender-worker",
  "forgecad-contracts",
  "forgecad-core",
  "forgecad-geometry-worker",

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Weaponry Three.js Knife Studio"
+  short_description: "Generate and refine high-quality Three.js knife assets"
+  default_prompt: "Use $weaponry-threejs-knife-studio to create an evidence-bound KnifeSceneProgram, compile it to Three.js, and refine one bounded knife scope with fixed-view metrics."
+
+policy:
+  allow_implicit_invocation: false

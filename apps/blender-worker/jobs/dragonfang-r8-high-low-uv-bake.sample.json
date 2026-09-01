@@ -1,0 +1,31 @@
+{
+  "schema_version": "WeaponryBlenderKnifeWorkerRequest@1",
+  "operation": "knife_high_low_uv_bake@1",
+  "request_id": "dragonfang-r8-blender-worker-sample",
+  "project_id": "weaponry-dragonfang",
+  "candidate_id": "dragonfang-kukri-r8",
+  "input_glb": {
+    "kind": "authoring_mesh_glb",
+    "relative_path": "input/source.glb",
+    "sha256": "ec6fbbfa929d885d00eb9d6092006a550541f77e0a2a7100325e1cb99afeb344",
+    "byte_size": 907104,
+    "mime": "model/gltf-binary"
+  },
+  "recipe_id": "weaponry.knife.blender.high-low-uv-bake@1",
+  "recipe_sha256": "2252319ee179752fce75ad83bd95e49e6df5f6736205894b9ed21de66d474321",
+  "budgets": {
+    "max_runtime_ms": 120000,
+    "max_memory_bytes": 536870912,
+    "max_input_bytes": 100663296,
+    "max_output_bytes": 209715200,
+    "max_triangles": 250000,
+    "texture_size": 512
+  },
+  "policies": {
+    "network_policy": "disabled",
+    "filesystem_policy": "runtime_scratch_only",
+    "script_policy": "frozen_bundle_only",
+    "output_policy": "temporary_observation_runtime_adoption"
+  },
+  "canonical_sha256": "acd588fbaf09f898ae26f6622e5e929a4026b00bf5f8dd7132fdbfab62b286bb"
+}

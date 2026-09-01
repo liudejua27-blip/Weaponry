@@ -1,0 +1,82 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "name": "Weaponry fixed Blender knife worker resource",
+  "documentNamespace": "https://github.com/liudejua27-blip/Weaponry/spdx/weaponry-blender-worker/0.1.0",
+  "creationInfo": {
+    "created": "2026-09-01T00:00:00Z",
+    "creators": [
+      "Organization: Weaponry project"
+    ],
+    "licenseListVersion": "3.25"
+  },
+  "documentDescribes": [
+    "SPDXRef-Package-WeaponryBlenderWorker",
+    "SPDXRef-Package-Blender-5.2.1"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-WeaponryBlenderWorker",
+      "name": "weaponry-blender-knife-worker",
+      "versionInfo": "0.1.0",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "filesAnalyzed": false,
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "f80d80f1f8bf2a1efe5408c9e41acb5ac2189cbcbf5d2c6798136cfea54c6e7e"
+        }
+      ],
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/weaponry-blender-knife-worker@0.1.0"
+        }
+      ],
+      "description": "Closed, offline, first-party prototype entrypoint; the source license is intentionally unresolved pending a product/legal decision."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-Blender-5.2.1",
+      "name": "Blender",
+      "versionInfo": "5.2.1 LTS",
+      "downloadLocation": "https://www.blender.org/download/releases/",
+      "homepage": "https://www.blender.org/",
+      "originator": "Organization: Blender Foundation",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "GPL-3.0-or-later",
+      "copyrightText": "Copyright Blender Foundation; see the bundled copyright.txt and license resources.",
+      "filesAnalyzed": false,
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "ea651e507c6b197df0e234bfa04e5ed43e7f4d498267a7df93fcb38f21928a5c"
+        }
+      ],
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/blender@5.2.1"
+        },
+        {
+          "referenceCategory": "OTHER",
+          "referenceType": "other",
+          "referenceLocator": "blender-build:9e2066aef7ef"
+        }
+      ],
+      "sourceInfo": "The staged macOS arm64 bundle reports build hash 9e2066aef7ef and has bundle-tree SHA-256 a1719f3e1c7fc846e811de3c9d32ff72f2130016a3290fa88eb4c8e9e1032317. Blender's embedded third-party license index and license texts remain authoritative; this supplement does not replace their per-component notices."
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Package-WeaponryBlenderWorker",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-Blender-5.2.1"
+    }
+  ]
+}

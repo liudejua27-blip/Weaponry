@@ -1,0 +1,52 @@
+{
+  "schema_version": "WeaponryThreeJsReferenceViewMappingEvidence@1",
+  "task_id": "WPN-THREE-REFERENCE-VIEW-MAP-010",
+  "recorded_date": "2026-09-01",
+  "asset_id": "Dragonfang Kukri",
+  "status": "PASS_MAPPING_FROZEN",
+  "program_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+  "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+  "mapping": {
+    "path": "skills/weaponry-threejs-knife-studio/references/dragonfang-r7-reference-view-mapping.json",
+    "canonical_sha256": "bb3239cf72b1d468fd536f3179d9fa533135eb867a8c4ab5074274a7ca76cf6d",
+    "file_sha256": "8300fce8c4c5f69b81f73cecd9d13ea43585c3e6df3b1a163e9c8be938789cee",
+    "mapped_reference_views": 9,
+    "independent_global_directions": 4
+  },
+  "resolved": [
+    "FRONT and BACK are explicit broadside mappings with an explicit X handedness transform.",
+    "TOP and BOTTOM are explicit independent edge-profile mappings.",
+    "Sheet-labelled LEFT and RIGHT are explicit aliases of TOP and BOTTOM; they are not treated as world -X/+X cameras and do not inflate coverage.",
+    "Guard-bottom and pommel require component isolation; FPS-hold requires the presentation camera and none enter global silhouette scoring."
+  ],
+  "remaining_truth": {
+    "reference_coverage_status": "PARTIAL_VISIBLE_VIEW_ONLY",
+    "visual_status": "NOT_APPROVED",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "commercial_status": "NOT_RUN"
+  },
+  "next_correction": {
+    "action": "refine-spec",
+    "single_scope": [
+      "blade-body",
+      "cutting-edge"
+    ],
+    "allowed_parameters": [
+      "centerline-curvature",
+      "tip-convergence",
+      "belly-depth"
+    ],
+    "frozen": [
+      "relief",
+      "guard",
+      "grip",
+      "pommel",
+      "materials"
+    ]
+  },
+  "geometry_modified": false,
+  "candidate_created": false,
+  "version_created": false,
+  "export_performed": false
+}

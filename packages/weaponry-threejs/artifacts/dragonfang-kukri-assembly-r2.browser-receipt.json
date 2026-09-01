@@ -1,0 +1,1925 @@
+{
+  "schema_version": "WeaponryThreeJsBrowserEvidence@1",
+  "preview": {
+    "schema_version": "WeaponryThreeJsBrowserPreviewReceipt@2",
+    "route": "weaponry-threejs-knife-preview@1",
+    "asset_id": "dragonfang-kukri-threejs-slice",
+    "source_fingerprint": "5f8ed42dba9d6cd5",
+    "scene_fingerprint": "9dcc4dbefabc63a8",
+    "rig_schema_version": "KnifeFixedEightViewRig@1",
+    "rig_id": "knife-fixed-eight-view@1",
+    "rig_fingerprint": "81f2ed3e4f6b3dba",
+    "manifest": {
+      "schema_version": "WeaponryThreeJsPreviewManifest@1",
+      "view_ids": [
+        "FRONT",
+        "BACK",
+        "TOP",
+        "BOTTOM",
+        "LEFT",
+        "RIGHT",
+        "REAR_THREE_QUARTER",
+        "FPS_HOLD"
+      ],
+      "capture": "settled",
+      "aovs": "required",
+      "framing": "full-asset-baseline"
+    },
+    "selected_view_ids": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "views": [
+      {
+        "view_id": "FRONT",
+        "viewport": {
+          "x": 0,
+          "y": 1024,
+          "width": 512,
+          "height": 512
+        },
+        "camera": {
+          "view_id": "FRONT",
+          "uuid": "81b8af71-6f11-bb71-81b8-ae716f11b9be",
+          "name": "knife-camera:FRONT",
+          "type": "OrthographicCamera",
+          "position": [
+            -0.5699999986588955,
+            -0.03198100924491881,
+            3.5
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.5699999986588955,
+            -0.03198100924491881,
+            3.5,
+            1
+          ],
+          "matrix_world": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -0.5699999986588955,
+            -0.03198100924491881,
+            3.5,
+            1
+          ],
+          "matrix_world_inverse": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0.5699999986588955,
+            0.03198100924491881,
+            -3.5,
+            1
+          ],
+          "projection_matrix": [
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            -0.040008001600320066,
+            0,
+            0,
+            0,
+            -1.0004000800160031,
+            1
+          ],
+          "viewport": {
+            "x": 0,
+            "y": 1024,
+            "width": 512,
+            "height": 512
+          },
+          "deterministic_fingerprint": "193141a677ff1bd4"
+        },
+        "render_status": "RENDERED",
+        "renderer_invoked": true,
+        "quality_status": "NOT_RUN"
+      },
+      {
+        "view_id": "BACK",
+        "viewport": {
+          "x": 512,
+          "y": 1024,
+          "width": 512,
+          "height": 512
+        },
+        "camera": {
+          "view_id": "BACK",
+          "uuid": "247e4119-65da-11cd-247e-401965da101a",
+          "name": "knife-camera:BACK",
+          "type": "OrthographicCamera",
+          "position": [
+            -0.5699999986588955,
+            -0.03198100924491881,
+            -3.5
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            -0.5699999986588955,
+            -0.03198100924491881,
+            -3.5,
+            1
+          ],
+          "matrix_world": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            -0.5699999986588955,
+            -0.03198100924491881,
+            -3.5,
+            1
+          ],
+          "matrix_world_inverse": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            -0.5699999986588955,
+            0.03198100924491881,
+            -3.5,
+            1
+          ],
+          "projection_matrix": [
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            -0.040008001600320066,
+            0,
+            0,
+            0,
+            -1.0004000800160031,
+            1
+          ],
+          "viewport": {
+            "x": 512,
+            "y": 1024,
+            "width": 512,
+            "height": 512
+          },
+          "deterministic_fingerprint": "0e3247c6465979a6"
+        },
+        "render_status": "RENDERED",
+        "renderer_invoked": true,
+        "quality_status": "NOT_RUN"
+      },
+      {
+        "view_id": "TOP",
+        "viewport": {
+          "x": 1024,
+          "y": 1024,
+          "width": 512,
+          "height": 512
+        },
+        "camera": {
+          "view_id": "TOP",
+          "uuid": "813d3efa-8b08-5035-813d-3dfa8b084e82",
+          "name": "knife-camera:TOP",
+          "type": "OrthographicCamera",
+          "position": [
+            -0.5699999986588955,
+            3.4680189907550814,
+            0
+          ],
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -2.220446049250313e-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313e-16,
+            0,
+            -0.5699999986588955,
+            3.4680189907550814,
+            0,
+            1
+          ],
+          "matrix_world": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -2.220446049250313e-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313e-16,
+            0,
+            -0.5699999986588955,
+            3.4680189907550814,
+            0,
+            1
+          ],
+          "matrix_world_inverse": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -2.220446049250313e-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313e-16,
+            0,
+            -0.5699999986588955,
+            7.700549066747178e-16,
+            -3.4680189907550814,
+            1
+          ],
+          "projection_matrix": [
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            -0.040008001600320066,
+            0,
+            0,
+            0,
+            -1.0004000800160031,
+            1
+          ],
+          "viewport": {
+            "x": 1024,
+            "y": 1024,
+            "width": 512,
+            "height": 512
+          },
+          "deterministic_fingerprint": "7b2cab18f805b1e8"
+        },
+        "render_status": "RENDERED",
+        "renderer_invoked": true,
+        "quality_status": "NOT_RUN"
+      },
+      {
+        "view_id": "BOTTOM",
+        "viewport": {
+          "x": 0,
+          "y": 512,
+          "width": 512,
+          "height": 512
+        },
+        "camera": {
+          "view_id": "BOTTOM",
+          "uuid": "0117c15c-5220-be2d-0117-c05c5220bc7a",
+          "name": "knife-camera:BOTTOM",
+          "type": "OrthographicCamera",
+          "position": [
+            -0.5699999986588955,
+            -3.5319810092449186,
+            0
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            2.220446049250313e-16,
+            1,
+            0,
+            0,
+            -1,
+            2.220446049250313e-16,
+            0,
+            -0.5699999986588955,
+            -3.5319810092449186,
+            0,
+            1
+          ],
+          "matrix_world": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            2.220446049250313e-16,
+            1,
+            0,
+            0,
+            -1,
+            2.220446049250313e-16,
+            0,
+            -0.5699999986588955,
+            -3.5319810092449186,
+            0,
+            1
+          ],
+          "matrix_world_inverse": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            2.220446049250313e-16,
+            -1,
+            0,
+            0,
+            1,
+            2.220446049250313e-16,
+            0,
+            0.5699999986588955,
+            7.842573278005013e-16,
+            -3.5319810092449186,
+            1
+          ],
+          "projection_matrix": [
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            -0.040008001600320066,
+            0,
+            0,
+            0,
+            -1.0004000800160031,
+            1
+          ],
+          "viewport": {
+            "x": 0,
+            "y": 512,
+            "width": 512,
+            "height": 512
+          },
+          "deterministic_fingerprint": "f10a890a6e310d6b"
+        },
+        "render_status": "RENDERED",
+        "renderer_invoked": true,
+        "quality_status": "NOT_RUN"
+      },
+      {
+        "view_id": "LEFT",
+        "viewport": {
+          "x": 512,
+          "y": 512,
+          "width": 512,
+          "height": 512
+        },
+        "camera": {
+          "view_id": "LEFT",
+          "uuid": "e9ca93ad-b097-2507-e9ca-92adb0972354",
+          "name": "knife-camera:LEFT",
+          "type": "OrthographicCamera",
+          "position": [
+            -4.069999998658895,
+            -0.03198100924491881,
+            0
+          ],
+          "matrix": [
+            2.220446049250313e-16,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            2.220446049250313e-16,
+            0,
+            -4.069999998658895,
+            -0.03198100924491881,
+            0,
+            1
+          ],
+          "matrix_world": [
+            2.220446049250313e-16,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            2.220446049250313e-16,
+            0,
+            -4.069999998658895,
+            -0.03198100924491881,
+            0,
+            1
+          ],
+          "matrix_world_inverse": [
+            2.220446049250313e-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313e-16,
+            0,
+            9.037215417470924e-16,
+            0.03198100924491881,
+            -4.069999998658895,
+            1
+          ],
+          "projection_matrix": [
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            -0.040008001600320066,
+            0,
+            0,
+            0,
+            -1.0004000800160031,
+            1
+          ],
+          "viewport": {
+            "x": 512,
+            "y": 512,
+            "width": 512,
+            "height": 512
+          },
+          "deterministic_fingerprint": "26e9048f642e649d"
+        },
+        "render_status": "RENDERED",
+        "renderer_invoked": true,
+        "quality_status": "NOT_RUN"
+      },
+      {
+        "view_id": "RIGHT",
+        "viewport": {
+          "x": 1024,
+          "y": 512,
+          "width": 512,
+          "height": 512
+        },
+        "camera": {
+          "view_id": "RIGHT",
+          "uuid": "d10e3b25-713a-4994-d10e-3c25713a4b47",
+          "name": "knife-camera:RIGHT",
+          "type": "OrthographicCamera",
+          "position": [
+            2.9300000013411047,
+            -0.03198100924491881,
+            0
+          ],
+          "matrix": [
+            2.220446049250313e-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313e-16,
+            0,
+            2.9300000013411047,
+            -0.03198100924491881,
+            0,
+            1
+          ],
+          "matrix_world": [
+            2.220446049250313e-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313e-16,
+            0,
+            2.9300000013411047,
+            -0.03198100924491881,
+            0,
+            1
+          ],
+          "matrix_world_inverse": [
+            2.220446049250313e-16,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            2.220446049250313e-16,
+            0,
+            -6.505906927281268e-16,
+            0.03198100924491881,
+            -2.9300000013411047,
+            1
+          ],
+          "projection_matrix": [
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            -0.040008001600320066,
+            0,
+            0,
+            0,
+            -1.0004000800160031,
+            1
+          ],
+          "viewport": {
+            "x": 1024,
+            "y": 512,
+            "width": 512,
+            "height": 512
+          },
+          "deterministic_fingerprint": "9ac9dccd1c060148"
+        },
+        "render_status": "RENDERED",
+        "renderer_invoked": true,
+        "quality_status": "NOT_RUN"
+      },
+      {
+        "view_id": "REAR_THREE_QUARTER",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 512,
+          "height": 512
+        },
+        "camera": {
+          "view_id": "REAR_THREE_QUARTER",
+          "uuid": "07a6248f-46d6-8cdc-07a6-258f46d68e8f",
+          "name": "knife-camera:REAR_THREE_QUARTER",
+          "type": "OrthographicCamera",
+          "position": [
+            1.6300000013411047,
+            1.118018990755081,
+            -2.6
+          ],
+          "matrix": [
+            -0.7633862853691145,
+            0,
+            -0.6459422414661737,
+            0,
+            -0.20664183803662936,
+            0.9474487435671547,
+            0.24421308131601654,
+            0,
+            0.6119971650940779,
+            0.3199076090264498,
+            -0.723269376929365,
+            0,
+            1.6300000013411047,
+            1.118018990755081,
+            -2.6,
+            1
+          ],
+          "matrix_world": [
+            -0.7633862853691145,
+            0,
+            -0.6459422414661737,
+            0,
+            -0.20664183803662936,
+            0.9474487435671547,
+            0.24421308131601654,
+            0,
+            0.6119971650940779,
+            0.3199076090264498,
+            -0.723269376929365,
+            0,
+            1.6300000013411047,
+            1.118018990755081,
+            -2.6,
+            1
+          ],
+          "matrix_world_inverse": [
+            -0.7633862853691146,
+            -0.20664183803662936,
+            0.6119971650940779,
+            0,
+            -8.32667268468867e-17,
+            0.9474487435671548,
+            0.3199076090264498,
+            0,
+            -0.6459422414661734,
+            0.24421308131601657,
+            -0.723269376929365,
+            0,
+            -0.4351301816366133,
+            -0.08748548037664274,
+            -3.235718542119071,
+            1
+          ],
+          "projection_matrix": [
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            0.5490885135373418,
+            0,
+            0,
+            0,
+            0,
+            -0.040008001600320066,
+            0,
+            0,
+            0,
+            -1.0004000800160031,
+            1
+          ],
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "width": 512,
+            "height": 512
+          },
+          "deterministic_fingerprint": "32fab4a297d5424b"
+        },
+        "render_status": "RENDERED",
+        "renderer_invoked": true,
+        "quality_status": "NOT_RUN"
+      },
+      {
+        "view_id": "FPS_HOLD",
+        "viewport": {
+          "x": 512,
+          "y": 0,
+          "width": 512,
+          "height": 512
+        },
+        "camera": {
+          "view_id": "FPS_HOLD",
+          "uuid": "654ce82d-36ca-949b-654c-e72d36ca92e8",
+          "name": "knife-camera:FPS_HOLD",
+          "type": "PerspectiveCamera",
+          "position": [
+            -0.7499999986588954,
+            -0.23198100924491882,
+            2.8
+          ],
+          "matrix": [
+            0.9979400560503333,
+            4.336808689942018e-19,
+            0.06415328931752141,
+            0,
+            -0.0045613648052525105,
+            0.9974691192463851,
+            0.07095456363726128,
+            0,
+            -0.06399092499230662,
+            -0.0711010277692296,
+            0.9954143887692142,
+            0,
+            -0.7499999986588954,
+            -0.23198100924491882,
+            2.8,
+            1
+          ],
+          "matrix_world": [
+            0.9979400560503333,
+            4.336808689942018e-19,
+            0.06415328931752141,
+            0,
+            -0.0045613648052525105,
+            0.9974691192463851,
+            0.07095456363726128,
+            0,
+            -0.06399092499230662,
+            -0.0711010277692296,
+            0.9954143887692142,
+            0,
+            -0.7499999986588954,
+            -0.23198100924491882,
+            2.8,
+            1
+          ],
+          "matrix_world_inverse": [
+            0.9979400560503333,
+            -0.0045613648052525105,
+            -0.06399092499230662,
+            0,
+            0,
+            0.9974691192463851,
+            -0.0711010277692296,
+            0,
+            0.06415328931752143,
+            0.07095456363726128,
+            0.9954143887692142,
+            0,
+            0.5688258306103482,
+            0.029300091191263023,
+            -2.8516475703924677,
+            1
+          ],
+          "projection_matrix": [
+            3.077683537175254,
+            0,
+            0,
+            0,
+            0,
+            3.077683537175254,
+            0,
+            0,
+            0,
+            0,
+            -1.005012531328321,
+            -1,
+            0,
+            0,
+            -0.10025062656641605,
+            0
+          ],
+          "viewport": {
+            "x": 512,
+            "y": 0,
+            "width": 512,
+            "height": 512
+          },
+          "deterministic_fingerprint": "f2b128ae5c8d12a1"
+        },
+        "render_status": "RENDERED",
+        "renderer_invoked": true,
+        "quality_status": "NOT_RUN"
+      }
+    ],
+    "render_target": {
+      "width": 1536,
+      "height": 1536,
+      "pixel_ratio": 2
+    },
+    "renderer": {
+      "type": "THREE.WebGLRenderer",
+      "three_revision": "185",
+      "antialias": true
+    },
+    "renderer_invoked": true,
+    "network_policy": "bundled-static-only@1",
+    "external_network_used": false,
+    "render_status": "RENDERED",
+    "capture_status": "SETTLED",
+    "capture_ready": true,
+    "settled": true,
+    "visual_status": "NOT_REVIEWED",
+    "quality_status": "NOT_RUN",
+    "deterministic_fingerprint": "a7fe8631c4013b62"
+  },
+  "capture": {
+    "manifest": {
+      "schema_version": "WeaponryThreeJsCaptureManifest@1",
+      "manifest_id": "capture-d44cb1d4ff8aa00da925caa6",
+      "rig_id": "knife-fixed-eight-view@1",
+      "rig_fingerprint": "81f2ed3e4f6b3dba",
+      "rig_margin": 0.08,
+      "program_fingerprint": "5f8ed42dba9d6cd5",
+      "scene_fingerprint": "853139f71f6a8c5090c7bd5f79bfc8638754a3a4eefff25b585377335a8f7e5e",
+      "frame_width": 512,
+      "frame_height": 512,
+      "view_ids": [
+        "FRONT",
+        "BACK",
+        "TOP",
+        "BOTTOM",
+        "LEFT",
+        "RIGHT",
+        "REAR_THREE_QUARTER",
+        "FPS_HOLD"
+      ],
+      "aov_ids": [
+        "beauty",
+        "silhouette",
+        "depth",
+        "normal",
+        "part-id",
+        "material-id",
+        "wireframe"
+      ],
+      "views": [
+        {
+          "view_id": "FRONT",
+          "camera": {
+            "view_id": "FRONT",
+            "projection": "orthographic",
+            "matrix_world": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              -0.5699999986588955,
+              -0.03198100924491881,
+              3.5,
+              1
+            ],
+            "matrix_world_inverse": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0.5699999986588955,
+              0.03198100924491881,
+              -3.5,
+              1
+            ],
+            "projection_matrix": [
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "bd95c660b7f17700cbe3ebd0b9fb0c2a5d27a97f63915edfdd469225c70dc6ab"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "72ae133fa74ae64b176e3688a1a21c326f7e6fe7e0d3ecf0b7ea87c9b29272d2",
+              "png_size_bytes": 47327
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "45224e5d6607740f611d3dce4bcacc4be6004fc146d5fa944be280c61f274e3e",
+              "png_size_bytes": 11615
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "7ee57f151e5b537ceba4f3afac7b056fb806468aa30aa9fd258a37624bc45142",
+              "png_size_bytes": 12708
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "1c4c5a36912b4d47ed56b6f34807c5cf071eff607a43ddfeb2efc532a04f41df",
+              "png_size_bytes": 44317
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "0a245eadae1ea3afd9050d5c7db6b06f3e0f281aab1f104be103f6189b8b2078",
+              "png_size_bytes": 13340
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "464b5d2a58ceb4206146e04a4d82e46a37cce54196ef97ac22b8611f42932ea7",
+              "png_size_bytes": 12832
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "f7d78fb4225ec27f9fc4c73276a2eb843c167de2229292226dd37ff2c3748685",
+              "png_size_bytes": 25269
+            }
+          ]
+        },
+        {
+          "view_id": "BACK",
+          "camera": {
+            "view_id": "BACK",
+            "projection": "orthographic",
+            "matrix_world": [
+              -1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              -1,
+              0,
+              -0.5699999986588955,
+              -0.03198100924491881,
+              -3.5,
+              1
+            ],
+            "matrix_world_inverse": [
+              -1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              -1,
+              0,
+              -0.5699999986588955,
+              0.03198100924491881,
+              -3.5,
+              1
+            ],
+            "projection_matrix": [
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "cc0e8dfc02161adfa425d7bb6cdef0b157841a6dfca8440cdde5f06ebe0ffb1b"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "551248820666ac43f3df69bc6af2a8eefff5fc157f74d847d6669af6b8ea141d",
+              "png_size_bytes": 26584
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "a327e76bfdecf54689f09b26f014276251aa868836f43c3a309f7add61860548",
+              "png_size_bytes": 11590
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "582e580d15b2274f82ddc2c34b46ecce967f7c56cef747bde804be3e753ef572",
+              "png_size_bytes": 12118
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "e6dfd9c356ea6d3e4f3bcca2616f1bd8ae173cf3873f996f27f327f87ebe2985",
+              "png_size_bytes": 42409
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "71e9e744345fb90d50dcbba564036f817b4364887178c2a23c85640baf4813b3",
+              "png_size_bytes": 11468
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "916afcf33e21a8ea0bb6e032d07343f30bd3cb5a557afa7521493d5659d02ad3",
+              "png_size_bytes": 11448
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "a5fd3a917197eef0b4a1614c15088a2d0d10de92fd47846c9b4006a5c7e75412",
+              "png_size_bytes": 25235
+            }
+          ]
+        },
+        {
+          "view_id": "TOP",
+          "camera": {
+            "view_id": "TOP",
+            "projection": "orthographic",
+            "matrix_world": [
+              -1,
+              0,
+              0,
+              0,
+              0,
+              -2.220446049250313e-16,
+              1,
+              0,
+              0,
+              1,
+              2.220446049250313e-16,
+              0,
+              -0.5699999986588955,
+              3.4680189907550814,
+              0,
+              1
+            ],
+            "matrix_world_inverse": [
+              -1,
+              0,
+              0,
+              0,
+              0,
+              -2.220446049250313e-16,
+              1,
+              0,
+              0,
+              1,
+              2.220446049250313e-16,
+              0,
+              -0.5699999986588955,
+              7.700549066747178e-16,
+              -3.4680189907550814,
+              1
+            ],
+            "projection_matrix": [
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "bd295accbe0df8fc822868014f3d6186ec9c2b4cbd9924024f8720082a6a36c0"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "8ab5171e3802ab8d4e64f8c69b52b09545ceced15433347f9bac398750603a8a",
+              "png_size_bytes": 24775
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "ba96532665c1e3493b36958142bf412ed2791f39edc75a07ab1f8e0b098069d1",
+              "png_size_bytes": 9036
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "1d24d5bf7d6291362730ee821fea71929c297f48877724ff9e00e23622e77f08",
+              "png_size_bytes": 9435
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "d55f9ad89174e5ebd58ea18c21675b2a8f31937106bc3065a1fc48ba36a434bc",
+              "png_size_bytes": 24744
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "4b7713dc7b8fe7237219b0a995b77596a3a505d9b8d1a8ddafa1c91bd4fca12b",
+              "png_size_bytes": 8944
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "8ae138f17477ec9a65fcca3f1566bb911a0821c96dd158bd6671626514378dc6",
+              "png_size_bytes": 8827
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "9f61130ff53b8c939fb2b29310045622c6f474d7cffeb032aabb8ef260507056",
+              "png_size_bytes": 13751
+            }
+          ]
+        },
+        {
+          "view_id": "BOTTOM",
+          "camera": {
+            "view_id": "BOTTOM",
+            "projection": "orthographic",
+            "matrix_world": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              2.220446049250313e-16,
+              1,
+              0,
+              0,
+              -1,
+              2.220446049250313e-16,
+              0,
+              -0.5699999986588955,
+              -3.5319810092449186,
+              0,
+              1
+            ],
+            "matrix_world_inverse": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              2.220446049250313e-16,
+              -1,
+              0,
+              0,
+              1,
+              2.220446049250313e-16,
+              0,
+              0.5699999986588955,
+              7.842573278005013e-16,
+              -3.5319810092449186,
+              1
+            ],
+            "projection_matrix": [
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "4307cca2c7f4366fdd7f26c8429cb9b4ac391f276100f89e5078c484bbf3c0cb"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "0332cdc92184dc2bcc026ecce20f4c38d9e39bb203a414f919674229be0a4228",
+              "png_size_bytes": 23915
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "9fa18ea1e2ffb415173d0fbf9f209e7431f1b71bb9c10bf653bcdcd95b29783f",
+              "png_size_bytes": 8949
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "b443374801ef71f0183a8076b779d3746b5a1981c07cd1d8cc24ebc30a9f575d",
+              "png_size_bytes": 9592
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "0f60f0d309b6b08ca132c5812ba745fae7f938ad716fad19b250ea92074af45f",
+              "png_size_bytes": 24570
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "b9a014788eec323aeda2f3c1186dfe077a172f763ac6c1f829a3756de2e53772",
+              "png_size_bytes": 8956
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "3658c25d70e27a6501268f0d752c62b80b188c20e07a1fd7204ecfdb8915b568",
+              "png_size_bytes": 8871
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "748b442e234a5e5cf59d66303348dcc500cf8fba5d859b39fd8818bf6bb8d2c8",
+              "png_size_bytes": 13712
+            }
+          ]
+        },
+        {
+          "view_id": "LEFT",
+          "camera": {
+            "view_id": "LEFT",
+            "projection": "orthographic",
+            "matrix_world": [
+              2.220446049250313e-16,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              -1,
+              0,
+              2.220446049250313e-16,
+              0,
+              -4.069999998658895,
+              -0.03198100924491881,
+              0,
+              1
+            ],
+            "matrix_world_inverse": [
+              2.220446049250313e-16,
+              0,
+              -1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0,
+              2.220446049250313e-16,
+              0,
+              9.037215417470924e-16,
+              0.03198100924491881,
+              -4.069999998658895,
+              1
+            ],
+            "projection_matrix": [
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "d1869b1d123b7e17ca3da2c85e52d3728f45e32b1421a75a99f08704401e9f72"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "ac07c208e2a2b106fa4d6e5ec26a9db47f681cad3985b78b958b4a984f4e3deb",
+              "png_size_bytes": 14153
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "eeef9b308cffd1e20dca25f50b21cdb11eb821fb063af29ebf2be995d7bdd73b",
+              "png_size_bytes": 8171
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "358bd8557865f33665dd98851f7b4fb2ee6f0d7dc97048c2c3b5bf686e68fabe",
+              "png_size_bytes": 8930
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "ab0cdf1989710344424e51d46746d3a6632cd76beb7fa3bbe5462edefb7620c6",
+              "png_size_bytes": 14820
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "722d93ba5e5899a4e70532dd8aeec7974d8bfdf92a481baf285fa0369197deaf",
+              "png_size_bytes": 8515
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "41b386d231d7ef826e367e5af821fa6a6cb1ab43ea0b8b860ac8e333bff72687",
+              "png_size_bytes": 8401
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "04a0f470aad6a8032e8ed9ce07847142fafced188803d3403a7d2b50d4398e6b",
+              "png_size_bytes": 8861
+            }
+          ]
+        },
+        {
+          "view_id": "RIGHT",
+          "camera": {
+            "view_id": "RIGHT",
+            "projection": "orthographic",
+            "matrix_world": [
+              2.220446049250313e-16,
+              0,
+              -1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0,
+              2.220446049250313e-16,
+              0,
+              2.9300000013411047,
+              -0.03198100924491881,
+              0,
+              1
+            ],
+            "matrix_world_inverse": [
+              2.220446049250313e-16,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0,
+              0,
+              -1,
+              0,
+              2.220446049250313e-16,
+              0,
+              -6.505906927281268e-16,
+              0.03198100924491881,
+              -2.9300000013411047,
+              1
+            ],
+            "projection_matrix": [
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "b15055444d47436695105edfa66120981ff2baa709b290ddc12dbd7ef6bdfb4a"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "f96406514a1bd87ceba19fd6b1c7a77ccdab56a8d81d051c2a66afebeeb438f4",
+              "png_size_bytes": 14586
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "1d314e6a6b4dffe0d2039d1fb6dc20232b2a34cd8677f134e2e7eb3a679aaa1f",
+              "png_size_bytes": 8193
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "0a1cc710ece7abc0e339650787bfabcebf7f2a70de17bc65ea7fc582dd9e8e38",
+              "png_size_bytes": 9547
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "108f87e9c9d16730a32e3e6c9fa66b2292039f3c8059578e94a24643e3834025",
+              "png_size_bytes": 15692
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "f98a325fc1271be23f04ed737e2ccc5fdc41359f7af9e75f473b942490758432",
+              "png_size_bytes": 8612
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "31e294437c973ce4f36dff62745c51d5fd94fcaa6f2fddbc3333313c04e267cd",
+              "png_size_bytes": 8388
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "041bce7be2f0fc343a977dd5e601a2a845ed2cbd7a4292f1811551c121adee1c",
+              "png_size_bytes": 8883
+            }
+          ]
+        },
+        {
+          "view_id": "REAR_THREE_QUARTER",
+          "camera": {
+            "view_id": "REAR_THREE_QUARTER",
+            "projection": "orthographic",
+            "matrix_world": [
+              -0.7633862853691145,
+              0,
+              -0.6459422414661737,
+              0,
+              -0.20664183803662936,
+              0.9474487435671547,
+              0.24421308131601654,
+              0,
+              0.6119971650940779,
+              0.3199076090264498,
+              -0.723269376929365,
+              0,
+              1.6300000013411047,
+              1.118018990755081,
+              -2.6,
+              1
+            ],
+            "matrix_world_inverse": [
+              -0.7633862853691146,
+              -0.20664183803662936,
+              0.6119971650940779,
+              0,
+              -8.32667268468867e-17,
+              0.9474487435671548,
+              0.3199076090264498,
+              0,
+              -0.6459422414661734,
+              0.24421308131601657,
+              -0.723269376929365,
+              0,
+              -0.4351301816366133,
+              -0.08748548037664274,
+              -3.235718542119071,
+              1
+            ],
+            "projection_matrix": [
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              0.5490885135373418,
+              0,
+              0,
+              0,
+              0,
+              -0.040008001600320066,
+              0,
+              0,
+              0,
+              -1.0004000800160031,
+              1
+            ],
+            "camera_fingerprint": "71044b9157ff4e3bd9477c53e79c025c19118d5d45bc5bfaeba961eccba7759e"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "7ee6179dafa9bf9f638da0fde672b822d98918fefaec82857fd681f135f07a33",
+              "png_size_bytes": 25365
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "45d929385a4cc0b127c561ae3a5f380134c91ddfda7f0b7463c95ac07a3e63b3",
+              "png_size_bytes": 10787
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "7383dbad5564800147d7f70efc72805dcd66ec2d1dd284dcd6f56dd8677c3281",
+              "png_size_bytes": 12122
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "acaaffd5e827f541e5cabd7ac8ce36f87601536a3875ea0559ba1730405a7a47",
+              "png_size_bytes": 39434
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "5390c70856d4c8da0ed31b16519f518bd458f93e94f1d30a0f1db64ac3dca874",
+              "png_size_bytes": 11037
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "8db93a9ce8bade0883c722dbc77e2294bb4da86b53117b51aca60db76876f693",
+              "png_size_bytes": 10891
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "acd73c0587c9b00f295efdb0a41988916c48041cc495761600123d1d6abf58d1",
+              "png_size_bytes": 18931
+            }
+          ]
+        },
+        {
+          "view_id": "FPS_HOLD",
+          "camera": {
+            "view_id": "FPS_HOLD",
+            "projection": "perspective",
+            "matrix_world": [
+              0.9979400560503333,
+              4.336808689942018e-19,
+              0.06415328931752141,
+              0,
+              -0.0045613648052525105,
+              0.9974691192463851,
+              0.07095456363726128,
+              0,
+              -0.06399092499230662,
+              -0.0711010277692296,
+              0.9954143887692142,
+              0,
+              -0.7499999986588954,
+              -0.23198100924491882,
+              2.8,
+              1
+            ],
+            "matrix_world_inverse": [
+              0.9979400560503333,
+              -0.0045613648052525105,
+              -0.06399092499230662,
+              0,
+              0,
+              0.9974691192463851,
+              -0.0711010277692296,
+              0,
+              0.06415328931752143,
+              0.07095456363726128,
+              0.9954143887692142,
+              0,
+              0.5688258306103482,
+              0.029300091191263023,
+              -2.8516475703924677,
+              1
+            ],
+            "projection_matrix": [
+              3.077683537175254,
+              0,
+              0,
+              0,
+              0,
+              3.077683537175254,
+              0,
+              0,
+              0,
+              0,
+              -1.005012531328321,
+              -1,
+              0,
+              0,
+              -0.10025062656641605,
+              0
+            ],
+            "camera_fingerprint": "820a57956a9ec406bdb9c4e3c25ce82c5fd2193f7e206a9611acb85435fc584f"
+          },
+          "aovs": [
+            {
+              "aov_id": "beauty",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "e1d1440ba5c86d1155b15539635c48483d454e384fbdada9ec86d1252988ab2c",
+              "png_size_bytes": 78862
+            },
+            {
+              "aov_id": "silhouette",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "794c114138bc0f2eb3bd3b61f9e8be4c0afea2f66393b7fe2fd433837e022252",
+              "png_size_bytes": 11397
+            },
+            {
+              "aov_id": "depth",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "7b4da4b0545cd13494a3901cdd42cc8195c879c60ab9b3dd064e7c9c29ce6944",
+              "png_size_bytes": 11287
+            },
+            {
+              "aov_id": "normal",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "b66a9594a1d0f94ca885e8f0b7d8156a1cf43c7661cf22e70d5aa908e283cefe",
+              "png_size_bytes": 76284
+            },
+            {
+              "aov_id": "part-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "d59ac38f80ce0ac4f6fd3a2bf1a1e86542df63a54b6300f83620efd3b2d8c554",
+              "png_size_bytes": 14226
+            },
+            {
+              "aov_id": "material-id",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "e0bd9ff18bf740688fee7939bb156910183670c616d0b038839a505357f1cfc8",
+              "png_size_bytes": 13692
+            },
+            {
+              "aov_id": "wireframe",
+              "mime_type": "image/png",
+              "width": 512,
+              "height": 512,
+              "png_sha256": "fc7ec8a695538851252116e3ae3ccd512853d3a40b04f64418f8a59c875daf69",
+              "png_size_bytes": 41065
+            }
+          ]
+        }
+      ],
+      "renderer": "browser-webgl@1",
+      "capture_mode": "browser-canvas-to-png@1",
+      "renderer_invoked": true,
+      "render_status": "RENDERED",
+      "quality_status": "RENDERED_NOT_APPROVED",
+      "visual_status": "NOT_RUN",
+      "human_status": "NOT_RUN",
+      "engine_status": "NOT_RUN",
+      "commercial_status": "NOT_RUN",
+      "canonical_sha256": "2b6f62c00a09eb9a32f3b088c1541aba749a7f29fa9fb7e61563b93136793656"
+    },
+    "receipt": {
+      "schema_version": "WeaponryThreeJsBrowserCaptureReceipt@1",
+      "manifest_sha256": "2b6f62c00a09eb9a32f3b088c1541aba749a7f29fa9fb7e61563b93136793656",
+      "manifest_id": "capture-d44cb1d4ff8aa00da925caa6",
+      "rig_fingerprint": "81f2ed3e4f6b3dba",
+      "rig_margin": 0.08,
+      "program_fingerprint": "5f8ed42dba9d6cd5",
+      "scene_fingerprint": "853139f71f6a8c5090c7bd5f79bfc8638754a3a4eefff25b585377335a8f7e5e",
+      "expected_view_count": 8,
+      "captured_view_count": 8,
+      "expected_aov_count_per_view": 7,
+      "captured_aov_count": 56,
+      "missing_capture_count": 0,
+      "renderer_invoked": true,
+      "render_status": "RENDERED",
+      "quality_status": "RENDERED_NOT_APPROVED",
+      "visual_status": "NOT_RUN",
+      "human_status": "NOT_RUN",
+      "engine_status": "NOT_RUN",
+      "commercial_status": "NOT_RUN",
+      "canonical_sha256": "6424a43ded8bcfdcc10df0dc1f17e448111936ffa7006c97775faaea70b23515"
+    }
+  },
+  "payload_summary": {
+    "count": 56,
+    "views": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "aovs": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "part-id",
+      "material-id",
+      "wireframe"
+    ]
+  }
+}

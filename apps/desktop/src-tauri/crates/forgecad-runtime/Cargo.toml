@@ -15,6 +15,7 @@ test-geometry-worker-fallback = ["dep:forgecad-geometry-worker", "test-render-wo
 base64 = "0.22"
 forgecad-core = { path = "../forgecad-core" }
 forgecad-contracts = { path = "../forgecad-contracts" }
+forgecad-blender-worker = { path = "../../../../blender-worker" }
 forgecad-geometry-worker = { path = "../../../../../apps/geometry-worker", optional = true }
 forgecad-render-core = { path = "../../../../../apps/render-core", optional = true }
 forgecad-store = { path = "../forgecad-store" }

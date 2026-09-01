@@ -1,0 +1,96 @@
+{
+  "schema_version": "WeaponryThreeJsKnifeComparisonLiveEvidence@1",
+  "task_id": "WPN-THREE-COMPARE-006",
+  "recorded_date": "2026-09-01",
+  "asset_id": "Dragonfang Kukri",
+  "display_name": "尼泊尔-屠龙",
+  "status": "PASS_DURABLE_MEASUREMENT_NOT_VISUAL_APPROVAL",
+  "build": {
+    "build_cohort_sha256": "d584727d87c20403a500a168eb60222fea62080022a14de002d6df08d11a63b5",
+    "packaged_worker_manifest_sha256": "8d4861863ef44d98395db193fece7fcd4aa414498007dec684151de8f82d62d8",
+    "execution_mode": "PACKAGED_RELOCATABLE",
+    "fixed_worker_runtime_sha256": "d3c2101e22c034d340361828c7a65b928917888e780d296713ede50711d92796",
+    "fixed_dependency_lock_sha256": "df43fa1e8751ac40561bfa76eb6bc082d232a5b61366e95109522b0eb03d02b7",
+    "preview_worker_cohort_sha256": "92f8d4ca303851e9eead9cd337f5bf6821980fd76eb8026d617d744b0c7f5044"
+  },
+  "source": {
+    "user_reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+    "admitted_front_crop_sha256": "bb8e3393c4504ced283d83179b85c874b851403ab8883f4d918f597108d7394b",
+    "program_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+    "program_object_sha256": "8eced459ec61684788d4bed2b8ea88d5d8ed54c9524a9608852bcd59a738446d"
+  },
+  "preview": {
+    "view_count": 8,
+    "aov_count": 48,
+    "comparison_view_id": "FRONT",
+    "comparison_aov_id": "semantic-id",
+    "semantic_aov_sha256": "f9d3afaa3931584d5f978402e350c172cd79b1c38c6316947d830816af23622d",
+    "preview_receipt_sha256": "3b2cc71d836b5c1a17805e2c75a0f52c0aad0d97c6a30e1044fa393679a63a3d",
+    "preview_receipt_object_sha256": "f2d885e83bd257a255f21657219eed75e4973973eef7134823974ff41d8d9c4f",
+    "worker_result_sha256": "e5e6297abde80ce8a438410bbd78aacb3a75d4ee73d80a29ed2329ba330c3d51",
+    "worker_result_object_sha256": "6ae8701305ee63d29b553d7e42cd97a3d57ce48871b55025bc0582fbdc2a5260"
+  },
+  "artifact": {
+    "glb_sha256": "540be799be965746d29fe79d044ef3d5667f8692bc7705252b9012d7bf25cbe6",
+    "glb_object_sha256": "540be799be965746d29fe79d044ef3d5667f8692bc7705252b9012d7bf25cbe6",
+    "glb_bytes": 901372,
+    "triangle_count": 4598
+  },
+  "comparison": {
+    "comparison_id": "three-comparison-0b721210dda8cf9c345369bb26c870b0523b633a",
+    "comparison_sha256": "69379711712e0f3648555dec91a7f583d0a17ae91c2a6d30ed61a7db08bbfd13",
+    "comparison_object_sha256": "66b1cb5942474c29f53a37cc849cd0f5cfb7f9ee12247a56114825e7a896a451",
+    "reference_crop": {
+      "x": 10,
+      "y": 20,
+      "width": 650,
+      "height": 200
+    },
+    "handedness_transform": "mirror-render-x-to-reference@1",
+    "normalization_policy": "aspect-preserving-foreground-bbox-fit@1:512x512:8px-margin",
+    "semantic_part_ids": {
+      "blade-body": 1,
+      "cutting-edge": 2
+    },
+    "editable_part_ids": [
+      "blade-body",
+      "cutting-edge"
+    ],
+    "frozen_part_ids": [
+      "fastener-grip-a",
+      "fastener-grip-b",
+      "fastener-grip-c",
+      "fastener-grip-d",
+      "gem-guard-eye",
+      "gem-pommel",
+      "grip",
+      "guard",
+      "pommel",
+      "relief-dragon-belly",
+      "relief-dragon-spine"
+    ],
+    "metrics": {
+      "silhouette_iou_milli": 482886,
+      "boundary_f1_milli": 215568,
+      "sdf_chamfer_milli": 28842
+    },
+    "comparison_status": "MEASURED_NOT_APPROVED",
+    "parent_retained": true
+  },
+  "durability": {
+    "prepare": "PASS_STORED",
+    "exact_replay": "PASS_NOT_TOUCHED",
+    "runtime_reopen": "PASS",
+    "get_after_reopen": "PASS_EXACT_HASH_AND_RECOMPUTED_METRICS"
+  },
+  "truth_boundary": {
+    "visual_status": "NOT_RUN",
+    "human_status": "NOT_RUN",
+    "engine_status": "NOT_RUN",
+    "commercial_status": "NOT_RUN",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "conclusion": "The fixed packaged Worker, authorized reference, semantic blade-only AOV and deterministic metrics are durably bound in Store/CAS and survive exact replay plus Runtime reopen. The measured score is not a calibrated visual pass and does not promote the asset."
+  }
+}

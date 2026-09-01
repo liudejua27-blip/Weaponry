@@ -1,0 +1,51 @@
+{
+  "schema_version": "WeaponryThreeJsKnifeReviewLedger@1",
+  "asset_id": "dragonfang-kukri-threejs-slice",
+  "program_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+  "program_file_sha256": "208fdb12ddf062309a43a8c3fb5e1594bc2c6bea56962610e6e40e8b52a7ea84",
+  "reviews": [
+    {
+      "review_id": "weaponry-review-d187e3b7c9f593b6e928d2e7601ee2ad75389ae6",
+      "sequence": 1,
+      "pass_id": "blockout",
+      "action": "refine-spec",
+      "correction_scope": "reference-view-camera-contract",
+      "estimated_fidelity": 0.32,
+      "score_kind": "agent-estimate-not-calibrated",
+      "layer_scores": {
+        "silhouette": 0.45,
+        "proportions": 0.35,
+        "structure": 0.3,
+        "material": 0.25,
+        "lighting": 0.3
+      },
+      "strengths": [
+        "The fixed Worker produced a real non-degenerate volume in broadside and edge-profile views.",
+        "The asset remains recognizable as a curved fantasy kukri blockout."
+      ],
+      "failures": [
+        "The blade is too leaf-shaped, wide and blunt relative to the supplied reference.",
+        "The guard, grip and relief are primitive and remain outside commercial quality.",
+        "Reference LEFT/RIGHT labels and fixed camera LEFT/RIGHT axes are not semantically equivalent."
+      ],
+      "single_next_action": "Freeze an explicit reference-view to render-camera mapping before any new likeness score or geometry correction.",
+      "evidence": {
+        "pass_gate_sha256": "4a94636daa90388229e9d81f332b06bf538f915e520a7728f4026ca304a7d36e",
+        "comparison_evidence_sha256": "933b9ff74010ab11993d071ac81eae127a9a59d8fbee56c3726211df7ae42276",
+        "multi_angle_evidence_sha256": "c0e403ded90a087b44124277b70a3c16202f14b4105c6d67729cc56f51164d63",
+        "comparison_image_path": "packages/weaponry-threejs/evidence/rendered-r7-fixed-views/r7-front-reference-comparison.png",
+        "comparison_image_sha256": "c5b740af4a3779db9b75b97c8a676c709cbeb0c5382e620a29ab7fd858a114ce"
+      },
+      "visual_status": "NOT_APPROVED",
+      "human_status": "NOT_RUN",
+      "engine_status": "NOT_RUN",
+      "commercial_status": "NOT_RUN",
+      "parent_retained": true,
+      "geometry_modified": false,
+      "candidate_created": false,
+      "version_created": false,
+      "export_performed": false
+    }
+  ],
+  "canonical_sha256": "88d7a3c635591ab25cdf77644872534f27449209d758cbf789fb65e51c6a9c12"
+}

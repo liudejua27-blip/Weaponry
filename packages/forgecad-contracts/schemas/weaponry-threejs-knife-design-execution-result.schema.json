@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weaponry-threejs-knife-design-execution-result.schema.json",
+  "title": "WeaponryThreeJsKnifeDesignExecutionResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "operation", "request_kind", "status", "execution_status", "action", "project_id", "execution_id", "design_id", "program_sha256", "program_object_sha256", "worker_id", "worker_result_sha256", "worker_result_object_sha256", "deterministic_fingerprint", "triangle_count", "part_ids", "preview_manifest", "glb_sha256", "glb_object_sha256", "glb_bytes", "idempotency_key", "replayed", "worker_invoked", "store_effect", "cas_effect", "runtime_write_performed", "persistent_user_data_touched", "visual_status", "human_status", "commercial_status", "writer_policy", "canonicalization_policy", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "WeaponryThreeJsKnifeDesignExecutionResult@1"},
+    "operation": {"const": "weaponry_threejs_knife_design_execute"},
+    "request_kind": {"const": "execute"},
+    "status": {"enum": ["executed", "replayed"]},
+    "execution_status": {"enum": ["built", "preview-ready", "exported"]},
+    "action": {"enum": ["build", "preview", "export"]},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "execution_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "design_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "program_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "program_object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "worker_id": {"const": "weaponry-threejs-fixed-knife-worker@1"},
+    "worker_result_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "worker_result_object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "deterministic_fingerprint": {"type": "string", "minLength": 1, "maxLength": 128},
+    "triangle_count": {"type": "integer", "minimum": 1, "maximum": 1000000},
+    "part_ids": {"type": "array", "minItems": 2, "maxItems": 64, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"}},
+    "preview_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "view_ids", "frame_width", "frame_height", "margin", "capture", "aovs", "framing"],
+      "properties": {
+        "schema_version": {"const": "WeaponryThreeJsPreviewManifest@1"},
+        "view_ids": {"const": ["FRONT", "BACK", "TOP", "BOTTOM", "LEFT", "RIGHT", "REAR_THREE_QUARTER", "FPS_HOLD"]},
+        "frame_width": {"const": 512},
+        "frame_height": {"const": 512},
+        "margin": {"const": 0.08},
+        "capture": {"const": "settled"},
+        "aovs": {"const": "required"},
+        "framing": {"const": "full-asset-baseline"}
+      }
+    },
+    "preview_runtime_id": {"type": ["string", "null"], "pattern": "^[A-Za-z][A-Za-z0-9_.@-]{0,127}$"},
+    "preview_runtime_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "preview_dependency_lock_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "preview_worker_cohort_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "preview_receipt_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "preview_receipt_object_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "preview_view_count": {"type": "integer", "const": 8},
+    "preview_aov_count": {"type": "integer", "const": 48},
+    "renderer_invoked": {"type": "boolean"},
+    "preview_views": {
+      "type": ["array", "null"],
+      "minItems": 8,
+      "maxItems": 8,
+      "prefixItems": [
+        {"$ref": "#/$defs/front_view"},
+        {"$ref": "#/$defs/back_view"},
+        {"$ref": "#/$defs/top_view"},
+        {"$ref": "#/$defs/bottom_view"},
+        {"$ref": "#/$defs/left_view"},
+        {"$ref": "#/$defs/right_view"},
+        {"$ref": "#/$defs/rear_three_quarter_view"},
+        {"$ref": "#/$defs/fps_hold_view"}
+      ],
+      "items": false
+    },
+    "glb_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "glb_object_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "glb_bytes": {"type": "integer", "minimum": 0, "maximum": 33554432},
+    "idempotency_key": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "replayed": {"type": "boolean"},
+    "worker_invoked": {"type": "boolean"},
+    "store_effect": {"enum": ["inserted", "not-touched"]},
+    "cas_effect": {"enum": ["inserted", "not-touched"]},
+    "runtime_write_performed": {"type": "boolean"},
+    "persistent_user_data_touched": {"type": "boolean"},
+    "visual_status": {"const": "NOT_RUN"},
+    "human_status": {"const": "NOT_RUN"},
+    "commercial_status": {"const": "NOT_RUN"},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "allOf": [
+    {"if": {"properties": {"status": {"const": "executed"}}}, "then": {"properties": {"replayed": {"const": false}, "worker_invoked": {"const": true}, "store_effect": {"const": "inserted"}, "cas_effect": {"const": "inserted"}, "runtime_write_performed": {"const": true}, "persistent_user_data_touched": {"const": true}}}},
+    {"if": {"properties": {"status": {"const": "replayed"}}}, "then": {"properties": {"replayed": {"const": true}, "worker_invoked": {"const": false}, "store_effect": {"const": "not-touched"}, "cas_effect": {"const": "not-touched"}, "runtime_write_performed": {"const": false}, "persistent_user_data_touched": {"const": false}}}},
+    {"if": {"properties": {"action": {"const": "preview"}}}, "then": {"required": ["preview_runtime_id", "preview_runtime_sha256", "preview_dependency_lock_sha256", "preview_worker_cohort_sha256", "preview_receipt_sha256", "preview_receipt_object_sha256", "preview_view_count", "preview_aov_count", "preview_views", "renderer_invoked"], "properties": {"execution_status": {"const": "preview-ready"}, "glb_sha256": {"const": null}, "glb_object_sha256": {"const": null}, "glb_bytes": {"const": 0}, "renderer_invoked": {"const": true}, "preview_runtime_id": {"const": "weaponry-threejs-fixed-preview-worker@1"}, "preview_runtime_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "preview_dependency_lock_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "preview_worker_cohort_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "preview_receipt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "preview_receipt_object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "preview_view_count": {"const": 8}, "preview_aov_count": {"const": 48}, "preview_views": {"type": "array", "minItems": 8, "maxItems": 8}}}},
+    {"if": {"properties": {"action": {"enum": ["build", "export"]}}}, "then": {"properties": {"preview_runtime_id": {"const": null}, "preview_runtime_sha256": {"const": null}, "preview_dependency_lock_sha256": {"const": null}, "preview_worker_cohort_sha256": {"const": null}, "preview_receipt_sha256": {"const": null}, "preview_receipt_object_sha256": {"const": null}, "preview_views": {"const": null}, "renderer_invoked": {"const": false}}}},
+    {"if": {"properties": {"action": {"enum": ["build", "export"]}}}, "then": {"properties": {"glb_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "glb_object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "glb_bytes": {"type": "integer", "minimum": 1, "maximum": 33554432}}}}
+  ],
+  "$defs": {
+    "preview_pass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aov_id", "sha256", "object_sha256", "bytes", "mime"],
+      "properties": {
+        "aov_id": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 4194304},
+        "mime": {"const": "image/png"}
+      }
+    },
+    "preview_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["view_id", "camera_sha256", "worker_cohort_sha256", "width", "height", "passes"],
+      "properties": {
+        "view_id": {"type": "string"},
+        "camera_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "worker_cohort_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "width": {"const": 512},
+        "height": {"const": 512},
+        "passes": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "prefixItems": [
+            {"allOf": [{"$ref": "#/$defs/preview_pass"}, {"properties": {"aov_id": {"const": "beauty"}}}]},
+            {"allOf": [{"$ref": "#/$defs/preview_pass"}, {"properties": {"aov_id": {"const": "alpha-silhouette"}}}]},
+            {"allOf": [{"$ref": "#/$defs/preview_pass"}, {"properties": {"aov_id": {"const": "semantic-id"}}}]},
+            {"allOf": [{"$ref": "#/$defs/preview_pass"}, {"properties": {"aov_id": {"const": "depth"}}}]},
+            {"allOf": [{"$ref": "#/$defs/preview_pass"}, {"properties": {"aov_id": {"const": "normal"}}}]},
+            {"allOf": [{"$ref": "#/$defs/preview_pass"}, {"properties": {"aov_id": {"const": "roughness-material-id"}}}]}
+          ],
+          "items": false
+        }
+      }
+    },
+    "front_view": {"allOf": [{"$ref": "#/$defs/preview_view"}, {"properties": {"view_id": {"const": "FRONT"}}}]},
+    "back_view": {"allOf": [{"$ref": "#/$defs/preview_view"}, {"properties": {"view_id": {"const": "BACK"}}}]},
+    "top_view": {"allOf": [{"$ref": "#/$defs/preview_view"}, {"properties": {"view_id": {"const": "TOP"}}}]},
+    "bottom_view": {"allOf": [{"$ref": "#/$defs/preview_view"}, {"properties": {"view_id": {"const": "BOTTOM"}}}]},
+    "left_view": {"allOf": [{"$ref": "#/$defs/preview_view"}, {"properties": {"view_id": {"const": "LEFT"}}}]},
+    "right_view": {"allOf": [{"$ref": "#/$defs/preview_view"}, {"properties": {"view_id": {"const": "RIGHT"}}}]},
+    "rear_three_quarter_view": {"allOf": [{"$ref": "#/$defs/preview_view"}, {"properties": {"view_id": {"const": "REAR_THREE_QUARTER"}}}]},
+    "fps_hold_view": {"allOf": [{"$ref": "#/$defs/preview_view"}, {"properties": {"view_id": {"const": "FPS_HOLD"}}}]}
+  }
+}

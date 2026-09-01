@@ -1,5 +1,32 @@
 # ForgeCAD 能力—Gate 矩阵
 
+> 2026-09-01 `WPN-THREE-R8-FPS-RUNTIME-016`：fixed rigid clips/markers=`PASS`，
+> socket-grip presentation binding=`PASS_BOUND`，Rapier 0.20 kinematic preview body + 2 colliders=`PASS`，
+> 240-frame browser CPU budget p95=`0.80ms / MEASURED_WITHIN_BUDGET`。GLB hash 仍为
+> `ec6fbbfa…b344`，几何/材质未改。上限为浏览器展示与物理预览；skeleton/IK、
+> gameplay/damage、UE5.6、visual/human/commercial 仍为 `NOT_IMPLEMENTED/NOT_RUN/NOT_APPROVED`。
+> 证据：`docs/evidence/weaponry/wpn-three-r8-fps-runtime-016.json`。
+
+> 2026-09-01 `WPN-THREE-R8-ENGINE-INTERACTION-015`：Three.js production build=`PASS`，browser READY/
+> manifest+GLB SHA verify=`PASS`，actions/cameras/Part visibility/picking/explode/resize/WebGL context
+> recovery=`PASS`。r8 GLB 仍为 `ec6fbbfa…b344`，几何/材质未改。能力上限严格为
+> `PRESENTATION_ONLY_NO_SKELETON + INTENT_ONLY collider`；正式 animation/physics/UE5.6/visual/human/
+> commercial 均未通过。证据：`docs/evidence/weaponry/wpn-three-r8-engine-interaction-015.json`。
+
+> 2026-09-01 `WPN-THREE-R8-PACKAGE-DELIVERY-014`：action-ready package=`PASS`，Runtime/Store/CAS
+> prepare→exact replay→reopen get→single export=`PASS`，same-cohort=`16bfe5a4…a386`；GLB/CAS=
+> `ec6fbbfa…b344`，907,104 bytes / 4,598 tris / 13 Parts。几何 buffer exact 冻结；13 pivots、3 sockets、
+> 2 collider intents、2 destruction groups 为结构/metadata 门。visual=`NOT_APPROVED`，human/engine/commercial=
+> `NOT_RUN`；不等于引擎导入、动画、真实碰撞、UV/bake 或商业验收。证据：
+> `docs/evidence/weaponry/wpn-three-r8-package-delivery-014-live.json`。
+
+> 2026-09-01 `WPN-THREE-R8-RENDER-COMPARE-013`：packaged Chromium fixed render=`PASS`（8 views /
+> 48 AOV / 512²），program-bound mapping=`PASS`，same-reference/same-FRONT-camera/no-refit binding=`PASS`；
+> deterministic likeness gate=`FAIL`。r8 相对 r7 四项均小幅改善，但 P95 最差轮廓距离回退；Agent 八视图
+> review=`refine-spec / REVIEWED_NOT_APPROVED`。结构证据不得提升为质量通过；visual=`NOT_APPROVED`，
+> human/engine/commercial=`NOT_RUN`。证据：`packages/weaponry-threejs/evidence/rendered-r8-fixed-views/manifest.json`
+> 与 `packages/weaponry-threejs/evidence/dragonfang-r8-front-comparison/comparison.receipt.json`。
+
 > 2026-08-30 `WPN-ARCH-RUNTIME-STORE-SPLIT-001`：第一批物理纵切 PASS。Runtime Evaluation family 迁出使根 **52,542→51,603**；Store ApprovalLifecycle family 迁出使根 **79,841→78,865**；compatibility session/checkpoint/recovery 迁出使 `agentic_write_tools.rs` **16,674→16,532**。Runtime root modules=92，MCP default/compat=996/19,332，fresh dep-info=10/44；architecture-fast same-cohort=`81a58a3d…217ee5`、90/0/0，Store/MCP full=192/192、41/41、237/237，compat replay=131/95/226。整体 Runtime/Store split 仍未完成，下一原子=`WPN-ARCH-RUNTIME-STORE-SPLIT-002`，RETIRE 继续 blocked。Stage0 的视觉 FAIL/MISSING 与 `QUALITY_TARGET_NOT_MET` 保留；本 Gate 不提升 High→Low→UV→Bake、视觉、人审、引擎或 commercial 状态。证据：`docs/evidence/weaponry/wpn-arch-runtime-store-split-001-source-gate-20260830.json`。
 
 > 2026-08-30 `WPN-ARCH-MCP-SPLIT-001`：MCP active session、manifest、共享 result adapter 与 compatibility Runtime handler 已物理抽出；default/compat root=`996/19,332` 行，`agentic_write_tools.rs=16,674`，fresh dep-info=`10/43`，default/compat full=`41/41`、`237/237 PASS`，compatibility manifest=`131/95/226` 不变。Runtime/Store 仍为 `52,542/79,841` 行，本 Gate 不证明其物理迁移，也不提升 High→Low→UV→Bake、视觉、人审、引擎或 commercial 状态。下一原子=`WPN-ARCH-RUNTIME-STORE-SPLIT-001`；`WPN-ARCH-RETIRE-001` 继续 blocked by replacement/replay/consumer-zero/migration/CAS/recovery。

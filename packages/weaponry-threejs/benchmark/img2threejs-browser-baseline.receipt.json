@@ -1,0 +1,873 @@
+{
+  "schema_version": "WeaponryThreeJsImg2ThreeJsBrowserBaselineReceipt@1",
+  "task_id": "WPN-THREE-UPSTREAM-RENDER-001",
+  "benchmark_only": true,
+  "status": "PASS_STRUCTURAL_BROWSER_BUNDLE",
+  "quality_status": "NOT_RUN",
+  "visual_superiority": "NOT_COMPUTED",
+  "upstream_execution_scope": "isolated-temporary-benchmark-only",
+  "upstream_generator_executed": true,
+  "browser_entry_executed": true,
+  "browser_bundle_built": true,
+  "renderer_invoked": false,
+  "product_runtime_execution": false,
+  "network_used": false,
+  "dependencies_installed": false,
+  "source": {
+    "project": "img2threejs",
+    "revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+    "tree": "0ee3c2a6d781407808df98b33174539842f85fcc",
+    "tree_manifest_sha256": "bf4b35eb5b468a77ae6d8a24fc2e4b7a42fa27ad87c2afacd32bf635e069d91e",
+    "tracked_file_count": 337,
+    "tracked_blob_bytes": 4126550,
+    "generator_sha256": "b090d5258a8009570ef24d6de2b84651c8bcc5e7c8b065905e47755f63acdbbb",
+    "validator_sha256": "734b9c502df3f0e711e13cc0ae0f4da7a7dada611d52dcf4a162b7148419efde",
+    "requirements_sha256": "ba54ff109c11e499749a42fd6a4e4eb5b1055073a57df55d606c9f243befbeb4"
+  },
+  "input": {
+    "spec_path": "benchmark/dragonfang-like-objects-sculpt-spec.json",
+    "spec_sha256": "d2b61601e8d25ccc19f6cb39c0241f26dfcfd4adcaa185d74599c1ad49cfb4fa",
+    "schema_version": "2.1",
+    "target_name": "Dragonfang Like Baseline",
+    "component_count": 7,
+    "material_count": 4
+  },
+  "factory": {
+    "generator": "forge/stage3_build/generate_threejs_factory.py",
+    "factory_sha256": "525e9c5d87b996adec26ca426c85c22941796d270badd0a9fb7beeb6a388511a",
+    "factory_bytes": 59662,
+    "temporary_only": true,
+    "generated_source_persisted": false
+  },
+  "entry": {
+    "template_path": "benchmark/upstream-browser-entry.template.ts",
+    "template_sha256": "2f93c0ec3e5ddebc5f2644231b2dae598a62aedfdccc1e4a6484dff72dcb5d19",
+    "contract_path": "benchmark/upstream-render-normalization.contract.json",
+    "contract_sha256": "409a594a9ed41ec41aee1b743cb0570ef6f7ce7a6c12cd3a45cf18fac0482e1a",
+    "temporary_import_path": "generated/DragonfangLikeBaseline.ts",
+    "scene_entry": "createUpstreamBaselineScene",
+    "camera_entry": "createUpstreamFixedCameras"
+  },
+  "normalization": {
+    "contract_id": "weaponry-threejs-upstream-normalization@1",
+    "schema_version": "WeaponryThreeJsSceneNormalization@1",
+    "bounds_before": {
+      "min": [
+        -2.000000001490116,
+        -0.3100000023841858,
+        -0.07999999821186066
+      ],
+      "max": [
+        1,
+        0.3799999952316284,
+        0.11999999731779099
+      ],
+      "center": [
+        -0.500000000745058,
+        0.034999996423721313,
+        0.019999999552965164
+      ],
+      "size": [
+        3.000000001490116,
+        0.6899999976158142,
+        0.19999999552965164
+      ],
+      "max_extent": 3.000000001490116
+    },
+    "bounds_after": {
+      "min": [
+        -1.0999999999999999,
+        -0.2529999990001321,
+        -0.07333333165778054
+      ],
+      "max": [
+        1.1,
+        0.2529999990001321,
+        0.07333333165778054
+      ],
+      "center": [
+        1.1102230246251565e-16,
+        0,
+        0
+      ],
+      "size": [
+        2.2,
+        0.5059999980002642,
+        0.14666666331556108
+      ],
+      "max_extent": 2.2
+    },
+    "source_center": [
+      -0.500000000745058,
+      0.034999996423721313,
+      0.019999999552965164
+    ],
+    "source_size": [
+      3.000000001490116,
+      0.6899999976158142,
+      0.19999999552965164
+    ],
+    "uniform_scale": 0.7333333329690828,
+    "target_max_extent": 2.2,
+    "normalized_center_error": 1.1102230246251565e-16,
+    "normalized_extent_error": 0,
+    "bounds_centered": true,
+    "target_extent_reached": true,
+    "stable_object_id_count": 16,
+    "stable_object_ids_repeatable": true,
+    "stable_scene_identity_count": 30,
+    "stable_scene_identity_repeatable": true
+  },
+  "camera": {
+    "rig_schema_version": "KnifeFixedEightViewRig@1",
+    "rig_id": "knife-fixed-eight-view@1",
+    "coordinate_convention": "weapon-front-z-up-right-handed@1",
+    "rig_fingerprint": "3fa0202473e3352b",
+    "frame_width": 256,
+    "frame_height": 256,
+    "margin": 0.08,
+    "view_ids": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "view_count": 8,
+    "matrix_binding_status": "STRUCTURAL_ONLY",
+    "views": [
+      {
+        "index": 0,
+        "view_id": "FRONT",
+        "projection": "orthographic",
+        "camera_uuid": "53b35691-5703-18c5-53b3-559157031712",
+        "camera_name": "knife-camera:FRONT",
+        "position": [
+          0,
+          0,
+          3.5
+        ],
+        "matrix_world": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          3.5,
+          1
+        ],
+        "matrix_world_inverse": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ],
+        "camera_fingerprint": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        },
+        "projected_corner_count": 8,
+        "clip_visible_corner_count": 8,
+        "all_bounds_corners_clip_visible": true
+      },
+      {
+        "index": 1,
+        "view_id": "BACK",
+        "projection": "orthographic",
+        "camera_uuid": "171702d9-0e25-b5c9-1717-01d90e25b416",
+        "camera_name": "knife-camera:BACK",
+        "position": [
+          0,
+          0,
+          -3.5
+        ],
+        "matrix_world": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          0,
+          0,
+          0,
+          -3.5,
+          1
+        ],
+        "matrix_world_inverse": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          0,
+          0,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ],
+        "camera_fingerprint": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        },
+        "projected_corner_count": 8,
+        "clip_visible_corner_count": 8,
+        "all_bounds_corners_clip_visible": true
+      },
+      {
+        "index": 2,
+        "view_id": "TOP",
+        "projection": "orthographic",
+        "camera_uuid": "96e802d7-efb9-64a9-96e8-01d7efb962f6",
+        "camera_name": "knife-camera:TOP",
+        "position": [
+          0,
+          3.5,
+          0
+        ],
+        "matrix_world": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          -2.220446049250313e-16,
+          1,
+          0,
+          0,
+          1,
+          2.220446049250313e-16,
+          0,
+          0,
+          3.5,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          -2.220446049250313e-16,
+          1,
+          0,
+          0,
+          1,
+          2.220446049250313e-16,
+          0,
+          0,
+          7.771561172376096e-16,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ],
+        "camera_fingerprint": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        },
+        "projected_corner_count": 8,
+        "clip_visible_corner_count": 8,
+        "all_bounds_corners_clip_visible": true
+      },
+      {
+        "index": 3,
+        "view_id": "BOTTOM",
+        "projection": "orthographic",
+        "camera_uuid": "86ef386f-8cd2-9c81-86ef-376f8cd29ace",
+        "camera_name": "knife-camera:BOTTOM",
+        "position": [
+          0,
+          -3.5,
+          0
+        ],
+        "matrix_world": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          2.220446049250313e-16,
+          1,
+          0,
+          0,
+          -1,
+          2.220446049250313e-16,
+          0,
+          0,
+          -3.5,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          2.220446049250313e-16,
+          -1,
+          0,
+          0,
+          1,
+          2.220446049250313e-16,
+          0,
+          0,
+          7.771561172376096e-16,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ],
+        "camera_fingerprint": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        },
+        "projected_corner_count": 8,
+        "clip_visible_corner_count": 8,
+        "all_bounds_corners_clip_visible": true
+      },
+      {
+        "index": 4,
+        "view_id": "LEFT",
+        "projection": "orthographic",
+        "camera_uuid": "e619a706-a717-30b3-e619-a606a7172f00",
+        "camera_name": "knife-camera:LEFT",
+        "position": [
+          -3.5,
+          0,
+          0
+        ],
+        "matrix_world": [
+          2.220446049250313e-16,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          -1,
+          0,
+          2.220446049250313e-16,
+          0,
+          -3.5,
+          0,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          2.220446049250313e-16,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          2.220446049250313e-16,
+          0,
+          7.771561172376096e-16,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ],
+        "camera_fingerprint": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        },
+        "projected_corner_count": 8,
+        "clip_visible_corner_count": 8,
+        "all_bounds_corners_clip_visible": true
+      },
+      {
+        "index": 5,
+        "view_id": "RIGHT",
+        "projection": "orthographic",
+        "camera_uuid": "5016aaeb-b66a-a7b8-5016-abebb66aa96b",
+        "camera_name": "knife-camera:RIGHT",
+        "position": [
+          3.5,
+          0,
+          0
+        ],
+        "matrix_world": [
+          2.220446049250313e-16,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          2.220446049250313e-16,
+          0,
+          3.5,
+          0,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          2.220446049250313e-16,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          -1,
+          0,
+          2.220446049250313e-16,
+          0,
+          -7.771561172376096e-16,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ],
+        "camera_fingerprint": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        },
+        "projected_corner_count": 8,
+        "clip_visible_corner_count": 8,
+        "all_bounds_corners_clip_visible": true
+      },
+      {
+        "index": 6,
+        "view_id": "REAR_THREE_QUARTER",
+        "projection": "orthographic",
+        "camera_uuid": "0b534228-ed72-2980-0b53-4328ed722b33",
+        "camera_name": "knife-camera:REAR_THREE_QUARTER",
+        "position": [
+          2.2,
+          1.15,
+          -2.6
+        ],
+        "matrix_world": [
+          -0.7633862853691145,
+          0,
+          -0.6459422414661737,
+          0,
+          -0.20664183803662936,
+          0.9474487435671547,
+          0.24421308131601654,
+          0,
+          0.6119971650940779,
+          0.3199076090264498,
+          -0.723269376929365,
+          0,
+          2.2,
+          1.15,
+          -2.6,
+          1
+        ],
+        "matrix_world_inverse": [
+          -0.7633862853691146,
+          -0.20664183803662936,
+          0.6119971650940779,
+          0,
+          -8.32667268468867e-17,
+          0.9474487435671548,
+          0.3199076090264498,
+          0,
+          -0.6459422414661734,
+          0.24421308131601657,
+          -0.723269376929365,
+          0,
+          1.43119075209042e-15,
+          -2.8033652553918487e-16,
+          -3.5947878936037374,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ],
+        "camera_fingerprint": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        },
+        "projected_corner_count": 8,
+        "clip_visible_corner_count": 8,
+        "all_bounds_corners_clip_visible": true
+      },
+      {
+        "index": 7,
+        "view_id": "FPS_HOLD",
+        "projection": "perspective",
+        "camera_uuid": "6df2f6d5-71b1-b8bf-6df2-f5d571b1b70c",
+        "camera_name": "knife-camera:FPS_HOLD",
+        "position": [
+          0,
+          -0.2,
+          2.8
+        ],
+        "matrix_world": [
+          0.9979400560503333,
+          4.336808689942018e-19,
+          0.06415328931752144,
+          0,
+          -0.004561364805252512,
+          0.9974691192463851,
+          0.07095456363726128,
+          0,
+          -0.06399092499230664,
+          -0.0711010277692296,
+          0.9954143887692142,
+          0,
+          0,
+          -0.2,
+          2.8,
+          1
+        ],
+        "matrix_world_inverse": [
+          0.9979400560503333,
+          -0.004561364805252512,
+          -0.06399092499230664,
+          0,
+          0,
+          0.9974691192463851,
+          -0.0711010277692296,
+          0,
+          0.06415328931752146,
+          0.07095456363726128,
+          0.9954143887692142,
+          0,
+          -0.17962921008906005,
+          0.0008210456649454525,
+          -2.8013804941076454,
+          1
+        ],
+        "projection_matrix": [
+          3.077683537175254,
+          0,
+          0,
+          0,
+          0,
+          3.077683537175254,
+          0,
+          0,
+          0,
+          0,
+          -1.005012531328321,
+          -1,
+          0,
+          0,
+          -0.10025062656641605,
+          0
+        ],
+        "camera_fingerprint": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        },
+        "projected_corner_count": 8,
+        "clip_visible_corner_count": 2,
+        "all_bounds_corners_clip_visible": false
+      }
+    ],
+    "all_bounds_corners_clip_visible": false
+  },
+  "execution": {
+    "mode": "isolated-generated-factory-node-and-vite-build",
+    "node_version": "v22.23.2",
+    "vite_version": "vite/7.3.6 darwin-arm64 node-v22.23.2",
+    "mesh_count": 7,
+    "triangles": 1049,
+    "parts": [
+      {
+        "id": "blade",
+        "primitive": "ground-blade",
+        "triangles": 89,
+        "material_count": 1
+      },
+      {
+        "id": "guard-dragon-head",
+        "primitive": "extrude",
+        "triangles": 12,
+        "material_count": 1
+      },
+      {
+        "id": "grip",
+        "primitive": "curve-sweep",
+        "triangles": 260,
+        "material_count": 1
+      },
+      {
+        "id": "pommel",
+        "primitive": "sphere",
+        "triangles": 288,
+        "material_count": 1
+      },
+      {
+        "id": "grip-fastener",
+        "primitive": "cylinder",
+        "triangles": 100,
+        "material_count": 1
+      },
+      {
+        "id": "dragon-eye",
+        "primitive": "sphere",
+        "triangles": 288,
+        "material_count": 1
+      },
+      {
+        "id": "blade-relief",
+        "primitive": "extrude",
+        "triangles": 12,
+        "material_count": 1
+      }
+    ],
+    "vite_build_status": "PASS",
+    "renderer_invoked": false,
+    "network_used": false,
+    "dependencies_installed": false,
+    "product_runtime_invoked": false,
+    "runtime_store_cas_write": false
+  },
+  "bundle": {
+    "build_status": "BUILT",
+    "renderer_bundle_role": "browser-loadable-scene-entry-only",
+    "network_policy": "bundled-static-only@1",
+    "artifact_persisted": false,
+    "output_discarded_after_receipt": true,
+    "file_count": 2,
+    "bytes": 200763,
+    "sha256": "50e41f6b805589fc2d6289fa27b8eeeb6847ab3198701e4ca82cbae79d5feb9b",
+    "files": [
+      {
+        "path": "assets/index-8ScyibOI.js",
+        "bytes": 200545,
+        "sha256": "7523b28b35ddf69c92e83e725eb7aeffc110ff70d5c8cc96101759eb86f01d54"
+      },
+      {
+        "path": "index.html",
+        "bytes": 218,
+        "sha256": "14dcdc4fe284395484b7ad427898398158bc5f1d441e35a6eb169743b791820f"
+      }
+    ],
+    "repeatability": "PASS_SAME_INPUT_HASHED_OUTPUT"
+  },
+  "aov": {
+    "required": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "part-id",
+      "material-id",
+      "wireframe"
+    ],
+    "optional": [
+      "curvature",
+      "uv-stretch"
+    ],
+    "capture_mode": "browser-canvas-to-png@1",
+    "capture_status": "NOT_RUN",
+    "renderer_invoked": false,
+    "png_count": 0,
+    "missing_boundary": "live-browser-WebGLRenderer-with-preserveDrawingBuffer",
+    "existing_weaponry_capture_reuse": {
+      "direct_reuse": false,
+      "module": "captureKnifeAovs",
+      "reason": "captureKnifeAovs requires a CompiledKnifeScene binding, while the upstream entry exposes a raw THREE.Group",
+      "minimum_adapter": [
+        "map sculptComponent id/primitive and material metadata to bounded CompiledKnifePart records",
+        "attach the generated group to a THREE.Scene and provide deterministic_fingerprint plus triangle counts",
+        "run the existing browser capture only after a live WebGLRenderer(preserveDrawingBuffer=true) is available"
+      ]
+    }
+  },
+  "gap": {
+    "minimum_next_step": "Add the bounded raw-THREE.Group-to-CompiledKnifeScene adapter, run the temporary entry in a real browser with THREE.WebGLRenderer(preserveDrawingBuffer=true), then produce the closed 8x7 PNG capture manifest.",
+    "capture_adapter_required": true,
+    "capture_adapter_reason": "Existing captureKnifeAovs validates CompiledKnifeScene ownership and cannot consume the raw upstream Group directly.",
+    "visual_quality": "NOT_RUN",
+    "visual_superiority": "NOT_COMPUTED",
+    "human_review": "NOT_RUN",
+    "engine_acceptance": "NOT_RUN",
+    "commercial_acceptance": "NOT_RUN"
+  }
+}

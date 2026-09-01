@@ -1,0 +1,95 @@
+{
+  "schema_version": "WeaponryThreeJsReferenceImageAnalysis@1",
+  "asset_id": "dragonfang-kukri",
+  "reference_path_role": "user-authorized-local-intake-only",
+  "classification": {
+    "primary_type": "kukri-inspired fantasy FPS melee prop",
+    "primary_domain": "object",
+    "broad_classification": "non-functional game bladed prop",
+    "confidence": 0.98,
+    "suitability": "conditional-multi-view-sheet"
+  },
+  "observations": {
+    "overall_form": [
+      "asymmetric forward-curved blade with a broad distal belly and converging pointed tip",
+      "thin top/bottom projection relative to the front silhouette",
+      "downward-curved segmented grip terminated by an enlarged pommel"
+    ],
+    "macro_components": [
+      "blade-body",
+      "cutting-edge",
+      "spine-ornament",
+      "dragon-head-guard",
+      "segmented-grip",
+      "gem-pommel"
+    ],
+    "meso_features": [
+      "raised dragon-scale spine band",
+      "recessed red blade field with gold perimeter trim",
+      "guard jaw negative space and horn projections",
+      "grip border rails and repeated circular fasteners",
+      "guard and pommel red gem settings"
+    ],
+    "micro_features": [
+      "engraved gold linework",
+      "scale cells",
+      "edge wear and highlight bands",
+      "small rivets and trim seams"
+    ],
+    "spatial_relationships": [
+      "guard overlaps the blade root and sockets the grip",
+      "spine ornament is attached above the blade field and continues into the guard",
+      "cutting edge follows the lower blade boundary from root to tip",
+      "pommel caps the curved grip and embeds a red gem"
+    ],
+    "material_observations": [
+      "red blade field reads as opaque low-to-medium roughness coated metal",
+      "gold trim and relief read as metallic with mixed polished and worn response",
+      "grip panels read as dark high-roughness wrapped or molded dielectric",
+      "red gems read as glossy translucent or clear-coated inserts"
+    ],
+    "identity_features": [
+      "kukri belly and tip silhouette",
+      "dragon-scale relief flowing along the spine",
+      "dragon-head guard with open jaw",
+      "red-and-gold blade field",
+      "curved black segmented grip with gold border",
+      "paired red gem accents"
+    ]
+  },
+  "view_coverage": [
+    "FRONT",
+    "BACK",
+    "TOP",
+    "BOTTOM",
+    "LEFT",
+    "RIGHT",
+    "GUARD_BOTTOM_DETAIL",
+    "POMMEL_DETAIL",
+    "FPS_HOLD_SET"
+  ],
+  "unknowns": [
+    "exact hidden attachment topology inside guard and grip",
+    "physically separated depth of individual engraving layers",
+    "material calibration without neutral-light albedo captures",
+    "exact rear-side relief symmetry beyond the supplied presentation renders"
+  ],
+  "current_iteration_scope": {
+    "editable_parts": [
+      "blade-body",
+      "cutting-edge"
+    ],
+    "frozen_parts": [
+      "spine-ornament",
+      "dragon-head-guard",
+      "segmented-grip",
+      "gem-pommel"
+    ],
+    "frozen_systems": [
+      "materials",
+      "lighting",
+      "ornament"
+    ]
+  },
+  "quality_boundary": "Reference sheet is suitable for bounded silhouette and multi-view form comparison, but not for manufacturing dimensions, hidden topology truth, calibrated PBR extraction or commercial acceptance."
+}

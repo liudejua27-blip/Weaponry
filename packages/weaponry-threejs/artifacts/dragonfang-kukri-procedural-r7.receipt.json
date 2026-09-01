@@ -1,0 +1,100 @@
+{
+  "schema_version": "WeaponryThreeJsProceduralSuccessorLineage@1",
+  "route": "weaponry-threejs-procedural-draft@1",
+  "asset_id": "dragonfang-kukri-threejs-slice",
+  "baseline": {
+    "program_path": "skills/weaponry-threejs-knife-studio/references/dragonfang-first-slice.json",
+    "program_bytes_sha256": "c113578c2a43a0e794c7342955d992e18e6a25ec9c5b0e2943d33c207581a5f5",
+    "program_sha256": "f7750c5e532d514e19d17d6f89dcd03a0fca7ed3f6d27642b4c0c3ed5835a47b",
+    "compiled_fingerprint": "5f8ed42dba9d6cd5"
+  },
+  "generation": {
+    "objective_ledger_path": "skills/weaponry-threejs-knife-studio/references/dragonfang-objective-ledger-r6-intrinsic.json",
+    "objective_ledger_sha256": "8a9b91857e95b6682721004c56fadde6da0ce2999a945330ef0f8121ce5c41c9",
+    "candidate_plan_fingerprint": "30cdd1c3f088206a",
+    "candidate_count": 3,
+    "seed": 1146242870,
+    "selection_policy": "maximum-fixed-eight-view-structural-delta-then-lowest-ordinal@1",
+    "selected_candidate_id": "knowledge-candidate-01-0e985ceffeec",
+    "selected_candidate_ordinal": 1,
+    "selected_mutation_scope": "grip-taper",
+    "changed_parameter_paths": [
+      "assembly.grip.taper"
+    ],
+    "changes": [
+      {
+        "schema_version": "KnifeKnowledgeParameterChange@1",
+        "path": "assembly.grip.taper",
+        "old_value": 0.22,
+        "new_value": 0.31,
+        "delta": 0.09,
+        "hard_bounds": {
+          "min": -0.9,
+          "max": 0.9
+        },
+        "source_rationale": "A moderate grip taper keeps the attachment subordinate while preserving a stable centerline and visual continuity; normalized ratios are soft priors only.",
+        "source_refs": [
+          "claim:segmented-grip-readability",
+          "ratio:grip-length-to-blade-length"
+        ]
+      }
+    ],
+    "proposal_status": "REVIEW_ONLY"
+  },
+  "successor": {
+    "program_path": "skills/weaponry-threejs-knife-studio/references/dragonfang-procedural-successor-r7.json",
+    "program_bytes_sha256": "3362820ed731b171b1bfe692bada2ebb9d9432e2149a600c4e6e7aa22a5da5f6",
+    "program_sha256": "86352241001555c2a7a9f93d24185533d2b36415311cff1ad0f65e75efdcd58d",
+    "compiled_fingerprint": "837792501f599a1f",
+    "glb_path": "packages/weaponry-threejs/artifacts/dragonfang-kukri-procedural-r7.glb",
+    "glb_sha256": "540be799be965746d29fe79d044ef3d5667f8692bc7705252b9012d7bf25cbe6",
+    "glb_bytes": 901372,
+    "triangle_count": 4598,
+    "part_ids": [
+      "blade-body",
+      "cutting-edge",
+      "guard",
+      "grip",
+      "pommel",
+      "fastener-grip-a",
+      "fastener-grip-b",
+      "fastener-grip-c",
+      "fastener-grip-d",
+      "gem-guard-eye",
+      "gem-pommel",
+      "relief-dragon-belly",
+      "relief-dragon-spine"
+    ],
+    "material_zone_ids": [
+      "blade-red",
+      "edge-gold",
+      "grip-black",
+      "ornament-gold",
+      "ruby-red"
+    ]
+  },
+  "structural_delta": {
+    "schema_version": "KnifeCandidateStructuralDelta@1",
+    "baseline_source_fingerprint": "5f8ed42dba9d6cd5",
+    "candidate_source_fingerprint": "837792501f599a1f",
+    "changed_view_count": 7,
+    "silhouette_changed_pixel_count": 139,
+    "part_id_changed_pixel_count": 184,
+    "minimum_changed_pixel_count": 1,
+    "status": "MEASURED_NONZERO",
+    "quality_status": "NOT_RUN"
+  },
+  "readiness": {
+    "receipt_path": "packages/weaponry-threejs/artifacts/dragonfang-kukri-procedural-r7.readiness.json",
+    "status": "THREEJS_DESIGN_READY",
+    "deterministic_fingerprint": "2107747e5edfc3b5"
+  },
+  "status": "SUCCESSOR_MATERIALIZED_REVIEW_ONLY",
+  "likeness_status": "NOT_REQUESTED",
+  "visual_status": "NOT_REVIEWED",
+  "quality_status": "NOT_RUN",
+  "human_status": "NOT_RUN",
+  "commercial_status": "NOT_RUN",
+  "runtime_persistence_status": "NOT_RUN",
+  "canonical_sha256": "91ae4aa569a5fd037e2d843db7c8dcb0ee3604405fc65d60c21c421be87a8c9d"
+}

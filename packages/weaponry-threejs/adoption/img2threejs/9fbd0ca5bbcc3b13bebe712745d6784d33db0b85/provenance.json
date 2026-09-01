@@ -1,0 +1,38 @@
+{
+  "schema_version": "ForgeCadUpstreamAdoptionProvenance@1",
+  "adoption_id": "weaponry-threejs-img2threejs-9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+  "generated_at": "2026-08-31T00:00:00Z",
+  "subject": {
+    "metadata_package": "packages/weaponry-threejs/adoption/img2threejs/9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+    "manifest": "manifest.json",
+    "manifest_sha256": "a0aeec2fb6aa93e443eb53b285b10fef8266902e856c6c81f284ca0bda6c1551"
+  },
+  "materials": [
+    {
+      "uri": "https://github.com/img2threejs/img2threejs",
+      "revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+      "digest": {
+        "git_commit_sha1": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+        "git_tree_sha1": "0ee3c2a6d781407808df98b33174539842f85fcc",
+        "canonical_tree_manifest_sha256": "bf4b35eb5b468a77ae6d8a24fc2e4b7a42fa27ad87c2afacd32bf635e069d91e"
+      }
+    }
+  ],
+  "source_observation": {
+    "official_ref": "refs/heads/main",
+    "tracked_file_count": 337,
+    "tracked_blob_bytes": 4126550,
+    "license_spdx": "Apache-2.0",
+    "license_sha256": "4595055948a67e91177115c57e154804046878e77ff223de22accc880012827a",
+    "notice": "absent-at-frozen-revision",
+    "core_dependency_claim": "Python standard library only; optional integrations have separate lockfiles and are excluded."
+  },
+  "repository_policy": {
+    "strategy": "isolated-cache",
+    "vendored_upstream_files": [],
+    "upstream_execution": "forbidden",
+    "network_at_runtime": false,
+    "runtime_state_write": false,
+    "restore_script_is_maintenance_only": true
+  }
+}

@@ -1,0 +1,1491 @@
+{
+  "schema_version": "WeaponryThreeJsSameInputBenchmarkReceipt@1",
+  "task_id": "WPN-THREE-LOSSLESS-BENCH-001",
+  "benchmark_only": true,
+  "status": "PASS_SAME_INPUT_BROWSER_AOV_CAPTURE",
+  "quality_status": "NOT_RUN",
+  "visual_superiority": "NOT_PROVEN",
+  "classification": {
+    "structural": "STRUCTURAL_PARITY",
+    "metric": "NOT_PROVEN",
+    "conclusion": "NOT_PROVEN",
+    "allowed_values": [
+      "STRUCTURAL_PARITY",
+      "METRICALLY_SUPERIOR",
+      "NOT_PROVEN"
+    ],
+    "rules": {
+      "STRUCTURAL_PARITY": "Only when all source component/material IDs are imported, mapped, and preserved with unique source_order mappings under the same input, normalization, rig, renderer, and AOV cohort; this is structural equivalence, never superiority.",
+      "METRICALLY_SUPERIOR": "Only when an authorized reference pixel target and explicit thresholds are bound to the same fixed rig/AOV capture and one output wins the declared metrics.",
+      "NOT_PROVEN": "Required structural preservation or authorized reference/threshold evidence is absent; measurements remain non-ranking evidence."
+    }
+  },
+  "network_used": false,
+  "dependencies_installed": false,
+  "product_runtime_execution": false,
+  "runtime_store_cas_write": false,
+  "source": {
+    "project": "img2threejs",
+    "revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+    "tree": "0ee3c2a6d781407808df98b33174539842f85fcc",
+    "tree_manifest_sha256": "bf4b35eb5b468a77ae6d8a24fc2e4b7a42fa27ad87c2afacd32bf635e069d91e",
+    "tracked_file_count": 337,
+    "tracked_blob_bytes": 4126550,
+    "generator_sha256": "b090d5258a8009570ef24d6de2b84651c8bcc5e7c8b065905e47755f63acdbbb",
+    "validator_sha256": "734b9c502df3f0e711e13cc0ae0f4da7a7dada611d52dcf4a162b7148419efde",
+    "requirements_sha256": "ba54ff109c11e499749a42fd6a4e4eb5b1055073a57df55d606c9f243befbeb4"
+  },
+  "input": {
+    "spec_path": "benchmark/dragonfang-like-objects-sculpt-spec.json",
+    "spec_sha256": "d2b61601e8d25ccc19f6cb39c0241f26dfcfd4adcaa185d74599c1ad49cfb4fa",
+    "schema_version": "2.1",
+    "target_name": "Dragonfang Like Baseline",
+    "component_ids": [
+      "blade",
+      "guard-dragon-head",
+      "grip",
+      "pommel",
+      "grip-fastener",
+      "dragon-eye",
+      "blade-relief"
+    ],
+    "material_ids": [
+      "blade-red",
+      "ornament-gold",
+      "grip-black",
+      "ruby-accent"
+    ],
+    "component_count": 7,
+    "material_count": 4,
+    "browser_bound_spec_sha256": "d2b61601e8d25ccc19f6cb39c0241f26dfcfd4adcaa185d74599c1ad49cfb4fa",
+    "compatibility_import_receipt": {
+      "schema_version": "Img2ThreeJsKnifeImportReceipt@1",
+      "upstream_revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+      "source_schema_version": "2.1",
+      "source_identity": {
+        "revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+        "tree": "0ee3c2a6d781407808df98b33174539842f85fcc",
+        "generator_sha256": "b090d5258a8009570ef24d6de2b84651c8bcc5e7c8b065905e47755f63acdbbb",
+        "validator_sha256": "734b9c502df3f0e711e13cc0ae0f4da7a7dada611d52dcf4a162b7148419efde"
+      },
+      "source_target_name": "Dragonfang Like Baseline",
+      "source_blade_component_id": "blade",
+      "imported_station_count": 7,
+      "imported_component_ids": [
+        "blade",
+        "blade-relief",
+        "dragon-eye",
+        "grip",
+        "grip-fastener",
+        "guard-dragon-head",
+        "pommel"
+      ],
+      "mapped_component_ids": [
+        "blade",
+        "blade-relief",
+        "dragon-eye",
+        "grip",
+        "grip-fastener",
+        "guard-dragon-head",
+        "pommel"
+      ],
+      "preserved_component_ids": [
+        "blade",
+        "blade-relief",
+        "dragon-eye",
+        "grip",
+        "grip-fastener",
+        "guard-dragon-head",
+        "pommel"
+      ],
+      "unsupported_component_ids": [],
+      "ignored_component_ids": [],
+      "imported_material_ids": [
+        "blade-red",
+        "grip-black",
+        "ornament-gold",
+        "ruby-accent"
+      ],
+      "mapped_material_ids": [
+        "blade-red",
+        "grip-black",
+        "ornament-gold",
+        "ruby-accent"
+      ],
+      "preserved_material_ids": [
+        "blade-red",
+        "grip-black",
+        "ornament-gold",
+        "ruby-accent"
+      ],
+      "unsupported_material_ids": [],
+      "component_mappings": [
+        {
+          "source_component_id": "blade",
+          "source_order": 0,
+          "source_role": "blade",
+          "source_primitive": "ground-blade",
+          "source_material_id": "blade-red",
+          "target_part_ids": [
+            "blade-body",
+            "cutting-edge"
+          ],
+          "target_material_zone_id": "blade-red",
+          "status": "MAPPED",
+          "projection": "exact"
+        },
+        {
+          "source_component_id": "guard-dragon-head",
+          "source_order": 1,
+          "source_role": "guard",
+          "source_primitive": "extrude",
+          "source_material_id": "ornament-gold",
+          "target_part_ids": [
+            "guard-dragon-head"
+          ],
+          "target_material_zone_id": "ornament-gold",
+          "status": "MAPPED",
+          "projection": "exact"
+        },
+        {
+          "source_component_id": "grip",
+          "source_order": 2,
+          "source_role": "grip",
+          "source_primitive": "curve-sweep",
+          "source_material_id": "grip-black",
+          "target_part_ids": [
+            "grip"
+          ],
+          "target_material_zone_id": "grip-black",
+          "status": "MAPPED",
+          "projection": "exact"
+        },
+        {
+          "source_component_id": "pommel",
+          "source_order": 3,
+          "source_role": "pommel",
+          "source_primitive": "sphere",
+          "source_material_id": "ornament-gold",
+          "target_part_ids": [
+            "pommel"
+          ],
+          "target_material_zone_id": "ornament-gold",
+          "status": "MAPPED",
+          "projection": "exact"
+        },
+        {
+          "source_component_id": "grip-fastener",
+          "source_order": 4,
+          "source_role": "fastener",
+          "source_primitive": "cylinder",
+          "source_material_id": "ornament-gold",
+          "target_part_ids": [
+            "grip-fastener"
+          ],
+          "target_material_zone_id": "ornament-gold",
+          "status": "MAPPED",
+          "projection": "exact"
+        },
+        {
+          "source_component_id": "dragon-eye",
+          "source_order": 5,
+          "source_role": "gem",
+          "source_primitive": "sphere",
+          "source_material_id": "ruby-accent",
+          "target_part_ids": [
+            "dragon-eye"
+          ],
+          "target_material_zone_id": "ruby-accent",
+          "status": "MAPPED",
+          "projection": "exact"
+        },
+        {
+          "source_component_id": "blade-relief",
+          "source_order": 6,
+          "source_role": "relief",
+          "source_primitive": "extrude",
+          "source_material_id": "ornament-gold",
+          "target_part_ids": [
+            "blade-relief"
+          ],
+          "target_material_zone_id": "ornament-gold",
+          "status": "MAPPED",
+          "projection": "exact"
+        }
+      ],
+      "material_mappings": [
+        {
+          "source_material_id": "blade-red",
+          "source_order": 0,
+          "target_material_zone_id": "blade-red",
+          "status": "MAPPED",
+          "projection": "exact"
+        },
+        {
+          "source_material_id": "ornament-gold",
+          "source_order": 1,
+          "target_material_zone_id": "ornament-gold",
+          "status": "MAPPED",
+          "projection": "exact"
+        },
+        {
+          "source_material_id": "grip-black",
+          "source_order": 2,
+          "target_material_zone_id": "grip-black",
+          "status": "MAPPED",
+          "projection": "exact"
+        },
+        {
+          "source_material_id": "ruby-accent",
+          "source_order": 3,
+          "target_material_zone_id": "ruby-accent",
+          "status": "MAPPED",
+          "projection": "exact"
+        }
+      ],
+      "transform_policy": {
+        "schema_version": "KnifeImportTransformPolicy@1",
+        "coordinate_convention": "weapon-front-z-up-right-handed@1",
+        "position_mode": "translation-preserved-normalized-design-units@1",
+        "scale_mode": "positive-axis-scale-applied-to-bounded-descriptor@1",
+        "rotation_mode": "axis-aligned-quarter-turn-euler-only@1",
+        "position_abs_max": 4,
+        "scale_min_exclusive": 0.0001,
+        "scale_max": 4,
+        "rotation_abs_max_radians": 6.283185307179586,
+        "quarter_turn_tolerance_radians": 0.0001,
+        "unsupported_behavior": "mark-component-unsupported-and-block-full-assembly@1",
+        "blade_longitudinal_normalization": "transformed-station-x-span-to-minus-one-plus-one@1"
+      },
+      "full_assembly_status": "COMPILED",
+      "full_assembly_blocked_by": [],
+      "execution_performed": false,
+      "network_used": false,
+      "quality_status": "NOT_RUN",
+      "deterministic_fingerprint": "2f14e0e035deb5f9"
+    }
+  },
+  "normalization": {
+    "contract_path": "benchmark/upstream-render-normalization.contract.json",
+    "contract_sha256": "54c99102df05433a8c1bf2d7997954d675d21b3589fda684ef3911f48154961f",
+    "contract_id": "weaponry-threejs-upstream-normalization@1",
+    "contract_schema_version": "WeaponryThreeJsUpstreamRenderNormalizationContract@1",
+    "same_contract": true,
+    "target_max_extent": 2.2,
+    "formula": "target_max_extent / max(source_size.x, source_size.y, source_size.z)",
+    "baseline": {
+      "source_bounds": {
+        "min": [
+          -2.000000001490116,
+          -0.3100000023841858,
+          -0.07999999821186066
+        ],
+        "max": [
+          1,
+          0.3799999952316284,
+          0.11999999731779099
+        ],
+        "center": [
+          -0.500000000745058,
+          0.034999996423721313,
+          0.019999999552965164
+        ],
+        "size": [
+          3.000000001490116,
+          0.6899999976158142,
+          0.19999999552965164
+        ],
+        "max_extent": 3.000000001490116
+      },
+      "normalized_bounds": {
+        "min": [
+          -1.1,
+          -0.2529999990001321,
+          -0.07333333165778054
+        ],
+        "max": [
+          1.1,
+          0.2529999990001321,
+          0.07333333165778054
+        ],
+        "center": [
+          1.1102230246251565e-16,
+          0,
+          0
+        ],
+        "size": [
+          2.2,
+          0.5059999980002642,
+          0.14666666331556108
+        ],
+        "max_extent": 2.2
+      },
+      "source_center": [
+        -0.500000000745058,
+        0.034999996423721313,
+        0.019999999552965164
+      ],
+      "source_size": [
+        3.000000001490116,
+        0.6899999976158142,
+        0.19999999552965164
+      ],
+      "uniform_scale": 0.7333333329690828,
+      "max_extent_error": 0,
+      "center_error": 1.1102230246251565e-16
+    },
+    "compatibility_import": {
+      "source_bounds": {
+        "min": [
+          -2.000000001490116,
+          -0.3100000023841858,
+          -0.07999999821186066
+        ],
+        "max": [
+          1,
+          0.3799999952316284,
+          0.11999999731779099
+        ],
+        "center": [
+          -0.500000000745058,
+          0.034999996423721313,
+          0.019999999552965164
+        ],
+        "size": [
+          3.000000001490116,
+          0.6899999976158142,
+          0.19999999552965164
+        ],
+        "max_extent": 3.000000001490116
+      },
+      "normalized_bounds": {
+        "min": [
+          -1.1,
+          -0.2529999990001321,
+          -0.07333333165778054
+        ],
+        "max": [
+          1.1,
+          0.2529999990001321,
+          0.07333333165778054
+        ],
+        "center": [
+          1.1102230246251565e-16,
+          0,
+          0
+        ],
+        "size": [
+          2.2,
+          0.5059999980002642,
+          0.14666666331556108
+        ],
+        "max_extent": 2.2
+      },
+      "source_center": [
+        -0.500000000745058,
+        0.034999996423721313,
+        0.019999999552965164
+      ],
+      "source_size": [
+        3.000000001490116,
+        0.6899999976158142,
+        0.19999999552965164
+      ],
+      "uniform_scale": 0.7333333329690828,
+      "max_extent_error": 0,
+      "center_error": 1.1102230246251565e-16
+    }
+  },
+  "rig": {
+    "rig_id": "knife-fixed-eight-view@1",
+    "rig_fingerprint": "3fa0202473e3352b",
+    "frame_width": 256,
+    "frame_height": 256,
+    "margin": 0.08,
+    "view_ids": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "same_rig": true,
+    "camera_bindings_equal": true,
+    "camera_bindings": [
+      {
+        "view_id": "FRONT",
+        "projection": "orthographic",
+        "camera_fingerprint": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+        "matrix_world": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          3.5,
+          1
+        ],
+        "matrix_world_inverse": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "BACK",
+        "projection": "orthographic",
+        "camera_fingerprint": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193",
+        "matrix_world": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          0,
+          0,
+          0,
+          -3.5,
+          1
+        ],
+        "matrix_world_inverse": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          0,
+          0,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "TOP",
+        "projection": "orthographic",
+        "camera_fingerprint": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f",
+        "matrix_world": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          -2.220446049250313e-16,
+          1,
+          0,
+          0,
+          1,
+          2.220446049250313e-16,
+          0,
+          0,
+          3.5,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          -2.220446049250313e-16,
+          1,
+          0,
+          0,
+          1,
+          2.220446049250313e-16,
+          0,
+          0,
+          7.771561172376096e-16,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "BOTTOM",
+        "projection": "orthographic",
+        "camera_fingerprint": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28",
+        "matrix_world": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          2.220446049250313e-16,
+          1,
+          0,
+          0,
+          -1,
+          2.220446049250313e-16,
+          0,
+          0,
+          -3.5,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          2.220446049250313e-16,
+          -1,
+          0,
+          0,
+          1,
+          2.220446049250313e-16,
+          0,
+          0,
+          7.771561172376096e-16,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "LEFT",
+        "projection": "orthographic",
+        "camera_fingerprint": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d",
+        "matrix_world": [
+          2.220446049250313e-16,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          -1,
+          0,
+          2.220446049250313e-16,
+          0,
+          -3.5,
+          0,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          2.220446049250313e-16,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          2.220446049250313e-16,
+          0,
+          7.771561172376096e-16,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "RIGHT",
+        "projection": "orthographic",
+        "camera_fingerprint": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d",
+        "matrix_world": [
+          2.220446049250313e-16,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          2.220446049250313e-16,
+          0,
+          3.5,
+          0,
+          0,
+          1
+        ],
+        "matrix_world_inverse": [
+          2.220446049250313e-16,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          -1,
+          0,
+          2.220446049250313e-16,
+          0,
+          -7.771561172376096e-16,
+          0,
+          -3.5,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "REAR_THREE_QUARTER",
+        "projection": "orthographic",
+        "camera_fingerprint": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d",
+        "matrix_world": [
+          -0.7633862853691145,
+          0,
+          -0.6459422414661737,
+          0,
+          -0.20664183803662936,
+          0.9474487435671547,
+          0.24421308131601654,
+          0,
+          0.6119971650940779,
+          0.3199076090264498,
+          -0.723269376929365,
+          0,
+          2.2,
+          1.15,
+          -2.6,
+          1
+        ],
+        "matrix_world_inverse": [
+          -0.7633862853691146,
+          -0.20664183803662936,
+          0.6119971650940779,
+          0,
+          -8.32667268468867e-17,
+          0.9474487435671548,
+          0.3199076090264498,
+          0,
+          -0.6459422414661734,
+          0.24421308131601657,
+          -0.723269376929365,
+          0,
+          1.43119075209042e-15,
+          -2.8033652553918487e-16,
+          -3.5947878936037374,
+          1
+        ],
+        "projection_matrix": [
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          0.6157635467980296,
+          0,
+          0,
+          0,
+          0,
+          -0.040008001600320066,
+          0,
+          0,
+          0,
+          -1.0004000800160031,
+          1
+        ]
+      },
+      {
+        "view_id": "FPS_HOLD",
+        "projection": "perspective",
+        "camera_fingerprint": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489",
+        "matrix_world": [
+          0.9979400560503333,
+          4.336808689942018e-19,
+          0.06415328931752144,
+          0,
+          -0.004561364805252512,
+          0.9974691192463851,
+          0.07095456363726128,
+          0,
+          -0.06399092499230664,
+          -0.0711010277692296,
+          0.9954143887692142,
+          0,
+          0,
+          -0.2,
+          2.8,
+          1
+        ],
+        "matrix_world_inverse": [
+          0.9979400560503333,
+          -0.004561364805252512,
+          -0.06399092499230664,
+          0,
+          0,
+          0.9974691192463851,
+          -0.0711010277692296,
+          0,
+          0.06415328931752146,
+          0.07095456363726128,
+          0.9954143887692142,
+          0,
+          -0.17962921008906005,
+          0.0008210456649454525,
+          -2.8013804941076454,
+          1
+        ],
+        "projection_matrix": [
+          3.077683537175254,
+          0,
+          0,
+          0,
+          0,
+          3.077683537175254,
+          0,
+          0,
+          0,
+          0,
+          -1.005012531328321,
+          -1,
+          0,
+          0,
+          -0.10025062656641605,
+          0
+        ]
+      }
+    ]
+  },
+  "cohort": {
+    "id": "weaponry-threejs-same-input@1:2da06b2b64db0b282bb4b8c55eb3ac56",
+    "canonical_sha256": "2da06b2b64db0b282bb4b8c55eb3ac568c940e3104a6882c9265193304b5d923",
+    "spec_sha256": "d2b61601e8d25ccc19f6cb39c0241f26dfcfd4adcaa185d74599c1ad49cfb4fa",
+    "contract_sha256": "54c99102df05433a8c1bf2d7997954d675d21b3589fda684ef3911f48154961f",
+    "factory_sha256": "525e9c5d87b996adec26ca426c85c22941796d270badd0a9fb7beeb6a388511a",
+    "rig_id": "knife-fixed-eight-view@1",
+    "rig_fingerprint": "3fa0202473e3352b",
+    "frame_width": 256,
+    "frame_height": 256,
+    "margin": 0.08,
+    "renderer": "browser-webgl@1",
+    "capture_mode": "browser-canvas-to-png@1",
+    "aov_ids": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "part-id",
+      "material-id",
+      "wireframe"
+    ],
+    "view_ids": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "same_renderer_instance": true
+  },
+  "renderer_cohort": {
+    "renderer": "browser-webgl@1",
+    "capture_mode": "browser-canvas-to-png@1",
+    "same_renderer_instance": true,
+    "aov_ids": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "part-id",
+      "material-id",
+      "wireframe"
+    ],
+    "capture_count": 2,
+    "external_network_used": false
+  },
+  "captures": [
+    {
+      "capture_name": "pinned-img2threejs-baseline",
+      "manifest_id": "same-input-pinned-img2threejs-baseline",
+      "manifest_sha256": "29e3391a791f56773d6911812f42c054391b7d82cff156cebd6fb3a6e2b6eab6",
+      "receipt_sha256": "77d01ff35f24dacba85c17c5835e5381331246b607af5ce48873e6f3ec9c2291",
+      "program_fingerprint": "1fff9ce8ce2da73d",
+      "scene_fingerprint": "8da1125c39a2d5414e5171e1a7bfd645a5eceaa99a3503b5787d315fee73160f",
+      "render_status": "RENDERED",
+      "quality_status": "RENDERED_NOT_APPROVED",
+      "renderer_invoked": true,
+      "view_count": 8,
+      "aov_count": 56,
+      "png_count": 56,
+      "png_total_bytes": 238667,
+      "normalized_scene": {
+        "source_bounds": {
+          "min": [
+            -2.000000001490116,
+            -0.3100000023841858,
+            -0.07999999821186066
+          ],
+          "max": [
+            1,
+            0.3799999952316284,
+            0.11999999731779099
+          ],
+          "center": [
+            -0.500000000745058,
+            0.034999996423721313,
+            0.019999999552965164
+          ],
+          "size": [
+            3.000000001490116,
+            0.6899999976158142,
+            0.19999999552965164
+          ],
+          "max_extent": 3.000000001490116
+        },
+        "normalized_bounds": {
+          "min": [
+            -1.1,
+            -0.2529999990001321,
+            -0.07333333165778054
+          ],
+          "max": [
+            1.1,
+            0.2529999990001321,
+            0.07333333165778054
+          ],
+          "center": [
+            1.1102230246251565e-16,
+            0,
+            0
+          ],
+          "size": [
+            2.2,
+            0.5059999980002642,
+            0.14666666331556108
+          ],
+          "max_extent": 2.2
+        },
+        "source_center": [
+          -0.500000000745058,
+          0.034999996423721313,
+          0.019999999552965164
+        ],
+        "source_size": [
+          3.000000001490116,
+          0.6899999976158142,
+          0.19999999552965164
+        ],
+        "uniform_scale": 0.7333333329690828,
+        "max_extent_error": 0,
+        "center_error": 1.1102230246251565e-16
+      },
+      "part_ids": [
+        "blade",
+        "guard-dragon-head",
+        "grip",
+        "pommel",
+        "grip-fastener",
+        "dragon-eye",
+        "blade-relief"
+      ],
+      "material_zone_ids": [
+        "blade-red",
+        "grip-black",
+        "ornament-gold",
+        "ruby-accent"
+      ]
+    },
+    {
+      "capture_name": "weaponry-compatibility-import",
+      "manifest_id": "same-input-weaponry-compatibility-import",
+      "manifest_sha256": "d8a9a9111098f38e6343c1208cf3d1906bbe069f700c7cb3fa678088a4963cf0",
+      "receipt_sha256": "e4b6117d2b84a7184357823c7acbbb0e4c7443e3cec9670ddd1f6a5162175bb0",
+      "program_fingerprint": "e93e41ad7e5aec30",
+      "scene_fingerprint": "1b8f107ff9c7156cd062a793dadbaec3c9848d115ede5f9316855cec99e02ffe",
+      "render_status": "RENDERED",
+      "quality_status": "RENDERED_NOT_APPROVED",
+      "renderer_invoked": true,
+      "view_count": 8,
+      "aov_count": 56,
+      "png_count": 56,
+      "png_total_bytes": 231490,
+      "normalized_scene": {
+        "source_bounds": {
+          "min": [
+            -2.000000001490116,
+            -0.3100000023841858,
+            -0.07999999821186066
+          ],
+          "max": [
+            1,
+            0.3799999952316284,
+            0.11999999731779099
+          ],
+          "center": [
+            -0.500000000745058,
+            0.034999996423721313,
+            0.019999999552965164
+          ],
+          "size": [
+            3.000000001490116,
+            0.6899999976158142,
+            0.19999999552965164
+          ],
+          "max_extent": 3.000000001490116
+        },
+        "normalized_bounds": {
+          "min": [
+            -1.1,
+            -0.2529999990001321,
+            -0.07333333165778054
+          ],
+          "max": [
+            1.1,
+            0.2529999990001321,
+            0.07333333165778054
+          ],
+          "center": [
+            1.1102230246251565e-16,
+            0,
+            0
+          ],
+          "size": [
+            2.2,
+            0.5059999980002642,
+            0.14666666331556108
+          ],
+          "max_extent": 2.2
+        },
+        "source_center": [
+          -0.500000000745058,
+          0.034999996423721313,
+          0.019999999552965164
+        ],
+        "source_size": [
+          3.000000001490116,
+          0.6899999976158142,
+          0.19999999552965164
+        ],
+        "uniform_scale": 0.7333333329690828,
+        "max_extent_error": 0,
+        "center_error": 1.1102230246251565e-16
+      },
+      "part_ids": [
+        "blade-body",
+        "cutting-edge",
+        "guard-dragon-head",
+        "grip",
+        "pommel",
+        "grip-fastener",
+        "dragon-eye",
+        "blade-relief"
+      ],
+      "material_zone_ids": [
+        "blade-red",
+        "grip-black",
+        "ornament-gold",
+        "ruby-accent"
+      ]
+    }
+  ],
+  "structure": {
+    "same_input_spec": true,
+    "baseline_component_count": 7,
+    "compatibility_imported_component_count": 7,
+    "baseline_renderable_part_count": 7,
+    "compatibility_renderable_part_count": 8,
+    "baseline_triangle_count": 1049,
+    "compatibility_triangle_count": 1049,
+    "baseline_part_ids": [
+      "blade",
+      "guard-dragon-head",
+      "grip",
+      "pommel",
+      "grip-fastener",
+      "dragon-eye",
+      "blade-relief"
+    ],
+    "compatibility_part_ids": [
+      "blade-body",
+      "cutting-edge",
+      "guard-dragon-head",
+      "grip",
+      "pommel",
+      "grip-fastener",
+      "dragon-eye",
+      "blade-relief"
+    ],
+    "common_part_ids": [
+      "blade-relief",
+      "dragon-eye",
+      "grip",
+      "grip-fastener",
+      "guard-dragon-head",
+      "pommel"
+    ],
+    "missing_from_compatibility_import": [],
+    "source_component_ids": [
+      "blade",
+      "guard-dragon-head",
+      "grip",
+      "pommel",
+      "grip-fastener",
+      "dragon-eye",
+      "blade-relief"
+    ],
+    "imported_component_ids": [
+      "blade",
+      "blade-relief",
+      "dragon-eye",
+      "grip",
+      "grip-fastener",
+      "guard-dragon-head",
+      "pommel"
+    ],
+    "mapped_component_ids": [
+      "blade",
+      "blade-relief",
+      "dragon-eye",
+      "grip",
+      "grip-fastener",
+      "guard-dragon-head",
+      "pommel"
+    ],
+    "preserved_component_ids": [
+      "blade",
+      "blade-relief",
+      "dragon-eye",
+      "grip",
+      "grip-fastener",
+      "guard-dragon-head",
+      "pommel"
+    ],
+    "unsupported_component_ids": [],
+    "ignored_component_ids": [],
+    "component_mappings": [
+      {
+        "source_component_id": "blade",
+        "source_order": 0,
+        "source_role": "blade",
+        "source_primitive": "ground-blade",
+        "source_material_id": "blade-red",
+        "target_part_ids": [
+          "blade-body",
+          "cutting-edge"
+        ],
+        "target_material_zone_id": "blade-red",
+        "status": "MAPPED",
+        "projection": "exact"
+      },
+      {
+        "source_component_id": "guard-dragon-head",
+        "source_order": 1,
+        "source_role": "guard",
+        "source_primitive": "extrude",
+        "source_material_id": "ornament-gold",
+        "target_part_ids": [
+          "guard-dragon-head"
+        ],
+        "target_material_zone_id": "ornament-gold",
+        "status": "MAPPED",
+        "projection": "exact"
+      },
+      {
+        "source_component_id": "grip",
+        "source_order": 2,
+        "source_role": "grip",
+        "source_primitive": "curve-sweep",
+        "source_material_id": "grip-black",
+        "target_part_ids": [
+          "grip"
+        ],
+        "target_material_zone_id": "grip-black",
+        "status": "MAPPED",
+        "projection": "exact"
+      },
+      {
+        "source_component_id": "pommel",
+        "source_order": 3,
+        "source_role": "pommel",
+        "source_primitive": "sphere",
+        "source_material_id": "ornament-gold",
+        "target_part_ids": [
+          "pommel"
+        ],
+        "target_material_zone_id": "ornament-gold",
+        "status": "MAPPED",
+        "projection": "exact"
+      },
+      {
+        "source_component_id": "grip-fastener",
+        "source_order": 4,
+        "source_role": "fastener",
+        "source_primitive": "cylinder",
+        "source_material_id": "ornament-gold",
+        "target_part_ids": [
+          "grip-fastener"
+        ],
+        "target_material_zone_id": "ornament-gold",
+        "status": "MAPPED",
+        "projection": "exact"
+      },
+      {
+        "source_component_id": "dragon-eye",
+        "source_order": 5,
+        "source_role": "gem",
+        "source_primitive": "sphere",
+        "source_material_id": "ruby-accent",
+        "target_part_ids": [
+          "dragon-eye"
+        ],
+        "target_material_zone_id": "ruby-accent",
+        "status": "MAPPED",
+        "projection": "exact"
+      },
+      {
+        "source_component_id": "blade-relief",
+        "source_order": 6,
+        "source_role": "relief",
+        "source_primitive": "extrude",
+        "source_material_id": "ornament-gold",
+        "target_part_ids": [
+          "blade-relief"
+        ],
+        "target_material_zone_id": "ornament-gold",
+        "status": "MAPPED",
+        "projection": "exact"
+      }
+    ],
+    "source_material_ids": [
+      "blade-red",
+      "ornament-gold",
+      "grip-black",
+      "ruby-accent"
+    ],
+    "imported_material_ids": [
+      "blade-red",
+      "grip-black",
+      "ornament-gold",
+      "ruby-accent"
+    ],
+    "mapped_material_ids": [
+      "blade-red",
+      "grip-black",
+      "ornament-gold",
+      "ruby-accent"
+    ],
+    "preserved_material_ids": [
+      "blade-red",
+      "grip-black",
+      "ornament-gold",
+      "ruby-accent"
+    ],
+    "unsupported_material_ids": [],
+    "material_mappings": [
+      {
+        "source_material_id": "blade-red",
+        "source_order": 0,
+        "target_material_zone_id": "blade-red",
+        "status": "MAPPED",
+        "projection": "exact"
+      },
+      {
+        "source_material_id": "ornament-gold",
+        "source_order": 1,
+        "target_material_zone_id": "ornament-gold",
+        "status": "MAPPED",
+        "projection": "exact"
+      },
+      {
+        "source_material_id": "grip-black",
+        "source_order": 2,
+        "target_material_zone_id": "grip-black",
+        "status": "MAPPED",
+        "projection": "exact"
+      },
+      {
+        "source_material_id": "ruby-accent",
+        "source_order": 3,
+        "target_material_zone_id": "ruby-accent",
+        "status": "MAPPED",
+        "projection": "exact"
+      }
+    ],
+    "full_assembly_status": "COMPILED",
+    "full_assembly_blocked_by": [],
+    "component_id_parity": true,
+    "material_id_parity": true,
+    "stable_part_ids": true,
+    "stable_material_ids": true,
+    "all_input_components_preserved_by_compatibility_import": true,
+    "comparable_capture_cohort": true,
+    "classification": "STRUCTURAL_PARITY",
+    "reason": "The compatibility import retained and mapped all source components/materials under the same bounded ID/capture cohort; this is structural parity only, not superiority."
+  },
+  "pixel_metrics": {
+    "reference_available": false,
+    "compared_outputs": [
+      "pinned-img2threejs-baseline",
+      "weaponry-compatibility-import"
+    ],
+    "pairwise": {
+      "beauty": {
+        "pair_count": 8,
+        "mean_absolute_rgba_error": 0.0028282315123310947,
+        "mean_exact_rgba_fraction": 0.9531402587890625,
+        "mean_silhouette_iou": 0.9881926480730743,
+        "mean_part_id_exact_fraction": 0,
+        "mean_material_id_exact_fraction": 0
+      },
+      "silhouette": {
+        "pair_count": 8,
+        "mean_absolute_rgba_error": 0,
+        "mean_exact_rgba_fraction": 1,
+        "mean_silhouette_iou": 1,
+        "mean_part_id_exact_fraction": 0,
+        "mean_material_id_exact_fraction": 0
+      },
+      "depth": {
+        "pair_count": 8,
+        "mean_absolute_rgba_error": 0,
+        "mean_exact_rgba_fraction": 1,
+        "mean_silhouette_iou": 1,
+        "mean_part_id_exact_fraction": 0,
+        "mean_material_id_exact_fraction": 0
+      },
+      "normal": {
+        "pair_count": 8,
+        "mean_absolute_rgba_error": 0,
+        "mean_exact_rgba_fraction": 1,
+        "mean_silhouette_iou": 1,
+        "mean_part_id_exact_fraction": 0,
+        "mean_material_id_exact_fraction": 0
+      },
+      "part-id": {
+        "pair_count": 8,
+        "mean_absolute_rgba_error": 2.300225052179067e-05,
+        "mean_exact_rgba_fraction": 0.9765377044677734,
+        "mean_silhouette_iou": 0.99694127733461,
+        "mean_part_id_exact_fraction": 0.9765377044677734,
+        "mean_material_id_exact_fraction": 0
+      },
+      "material-id": {
+        "pair_count": 8,
+        "mean_absolute_rgba_error": 0,
+        "mean_exact_rgba_fraction": 1,
+        "mean_silhouette_iou": 1,
+        "mean_part_id_exact_fraction": 0,
+        "mean_material_id_exact_fraction": 1
+      },
+      "wireframe": {
+        "pair_count": 8,
+        "mean_absolute_rgba_error": 0,
+        "mean_exact_rgba_fraction": 1,
+        "mean_silhouette_iou": 1,
+        "mean_part_id_exact_fraction": 0,
+        "mean_material_id_exact_fraction": 0
+      }
+    },
+    "classification": "NOT_PROVEN",
+    "reason": "The fixture contains no authorized reference pixel target or threshold; pairwise differences are measurements, not a quality ranking."
+  },
+  "capture_source": {
+    "route": "existing-captureKnifeAovs@1",
+    "entry_template": "benchmark/same-input-capture-entry.template.ts",
+    "adapter": "benchmark/img2threejs-compiled-scene-adapter.ts",
+    "files": {
+      "src/knife-browser-capture.ts": "ee3aa6896ecb9617a3338ad6cea3a9b4a4af938198225ea0feb0c79985bbc3d5",
+      "src/knife-view-evaluation.ts": "36dd6177cb401cce1fffdef09ac709327266bd6dcc05e81301851a1dd78422a2",
+      "src/knife-scene-compiler.ts": "065c69b042818b3badc85571a4bc75525e721805b941a1532fda44945d668042",
+      "src/knife-scene-program.ts": "e9971909875883c1b95f990a627285d35cc3802d06ae43df86dcb978d82fbf7e",
+      "src/knife-assembly-compiler.ts": "6d6bdc447fd883328fb05feebd89f55e91f69ad15bd889eb01351fd653478492",
+      "src/knife-material.ts": "58eb97c6c9df56c4be11c3274acbe0cc50039c55824002081014f2ef0421f357",
+      "src/knife-surface-field.ts": "9b5c6aa8cb12e0f5394959cfd0257feef52eab583f326f26c94449c22e4a926c",
+      "src/knife-attachment-loft.ts": "5ebbc05df83e6a0c076d05281a143301db4b179aa401ec41c0d029586d583f88",
+      "src/knife-relief-curve.ts": "0131111ef3624f4e0756558bb15a8b9e0a1a26c7c71b022dce2e49a80dfe9174",
+      "src/img2threejs-source-envelope.ts": "94aa0c14624c0e665230b7e10a1b1e89d172e720d0dc961006f86e946c1bf200",
+      "src/img2threejs-compatibility-compiler.ts": "666c801ebba5a83a8b516a3fb27bf9025ceda716fef35f59df2fc316bb3cb9dc",
+      "src/img2threejs-object-sculpt-adapter.ts": "34ddbb2e42b901b8dcb50857b1e5145b8208c94e20f741c18ac0a0eebbff3eb5"
+    }
+  },
+  "generation": {
+    "generator": "forge/stage3_build/generate_threejs_factory.py",
+    "mode": "allow-nonstrict-test-fixture",
+    "factory_sha256": "525e9c5d87b996adec26ca426c85c22941796d270badd0a9fb7beeb6a388511a",
+    "factory_bytes": 59662,
+    "factory_persisted": false,
+    "baseline_receipt": "benchmark/img2threejs-baseline.receipt.json"
+  },
+  "browser": {
+    "engine": "Playwright Chromium",
+    "vite_version": "vite/7.3.6 darwin-arm64 node-v22.23.2",
+    "static_network_policy": "local-static-bundle-only@1",
+    "external_network_used": false,
+    "dependencies_installed": false,
+    "bundle": {
+      "file_count": 4,
+      "bytes": 934363,
+      "sha256": "56d44a88b5ef42ea23b342ffa760753d15406bf1fc31c38e4d6fe49ec3987b4d",
+      "files": [
+        {
+          "path": "assets/index-CKo-Aigu.js",
+          "bytes": 192725,
+          "sha256": "ce3d0d66aa01c6e58ff6d5c440f9fd3ab89c67d749485e11a139495bcfe295a3"
+        },
+        {
+          "path": "assets/three.core-CnHQJ43b.js",
+          "bytes": 379730,
+          "sha256": "30c6daf0a66951b8c8156a8ce46ef4f14daafcdab816dc2144c061d9362c8309"
+        },
+        {
+          "path": "assets/three.module-D2JEsn8o.js",
+          "bytes": 361608,
+          "sha256": "6ab46ce30491da0d346ff8af06e938c12164b86a2cef51d6bb5a9a3569b586c1"
+        },
+        {
+          "path": "index.html",
+          "bytes": 300,
+          "sha256": "a8f17b99d99764f9ee0d8994c7ce5efdab57ef0202941cc03b4d7b3de28f6c97"
+        }
+      ]
+    },
+    "temporary_artifacts_persisted": false
+  },
+  "canonical_sha256": "e02b3ceb66c8182c1b2db524f8e6461532daf77dd362f4fc6289dca98eb454a6"
+}

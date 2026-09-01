@@ -1,0 +1,450 @@
+{
+  "schema_version": "KnifeKnowledge@1",
+  "knowledge_id": "crossfire-knife-visual-priors-v1",
+  "route": "weaponry-threejs-knife-studio",
+  "scope": "nonfunctional-game-film-display",
+  "unit_system": "normalized-visual-units@1",
+  "real_world_dimensions_permitted": false,
+  "silhouette_grammar": {
+    "families": [
+      {
+        "family_id": "kukri",
+        "classification": "design-prior",
+        "curve_roles": ["spine", "cutting-edge", "return-tip", "transition"],
+        "section_rhythm": "narrow root, controlled shoulder, dominant forward belly, then a fast converging tip",
+        "cue": "A readable forward-weighted belly and a decisive tip convergence carry the family identity."
+      },
+      {
+        "family_id": "karambit",
+        "classification": "design-prior",
+        "curve_roles": ["spine", "cutting-edge", "transition"],
+        "section_rhythm": "compact root and continuous hook-like arc with a narrow terminal region",
+        "cue": "The continuous hook silhouette matters more than small surface decoration."
+      },
+      {
+        "family_id": "original-knife",
+        "classification": "design-prior",
+        "curve_roles": ["spine", "cutting-edge", "fuller", "transition"],
+        "section_rhythm": "author-declared rhythm with positive width and thickness through every ordered section",
+        "cue": "Original choices remain explicit and must not be described as recovered reference truth."
+      }
+    ],
+    "invariants": [
+      {
+        "formula_id": "positive-blade-width",
+        "expression": "width(u) = spine(u) - edge(u) > 0",
+        "variables": ["width", "spine", "edge", "u"],
+        "classification": "design-prior",
+        "enforcement": "hard-sanity",
+        "rationale": "Prevents a self-crossing or inverted blade envelope."
+      },
+      {
+        "formula_id": "ordered-sections",
+        "expression": "0 <= u_root < u_shoulder < u_belly < u_tip <= 1",
+        "variables": ["u_root", "u_shoulder", "u_belly", "u_tip"],
+        "classification": "design-prior",
+        "enforcement": "hard-sanity",
+        "rationale": "Keeps longitudinal section meaning stable across revisions."
+      },
+      {
+        "formula_id": "positive-thickness",
+        "expression": "thickness(section) > 0 for every section",
+        "variables": ["thickness", "section"],
+        "classification": "design-prior",
+        "enforcement": "hard-sanity",
+        "rationale": "Avoids a degenerate loft while remaining unitless."
+      },
+      {
+        "formula_id": "tip-convergence",
+        "expression": "width_tip < width_belly and thickness_tip <= thickness_belly",
+        "variables": ["width_tip", "width_belly", "thickness_tip", "thickness_belly"],
+        "classification": "design-prior",
+        "enforcement": "soft-ranking-prior",
+        "rationale": "Ranks readable tips without asserting one universal shape."
+      }
+    ],
+    "derived_quantities": [
+      {
+        "formula_id": "belly-dominance",
+        "expression": "belly_dominance = width_belly / max(width_root, epsilon)",
+        "variables": ["belly_dominance", "width_belly", "width_root", "epsilon"],
+        "classification": "design-prior",
+        "enforcement": "soft-ranking-prior",
+        "rationale": "Provides a unitless ranking cue for forward-weighted silhouettes."
+      },
+      {
+        "formula_id": "tip-rate",
+        "expression": "tip_rate = (width_belly - width_tip) / max(u_tip - u_belly, epsilon)",
+        "variables": ["tip_rate", "width_belly", "width_tip", "u_tip", "u_belly", "epsilon"],
+        "classification": "design-prior",
+        "enforcement": "review-only",
+        "rationale": "Separates a decisive tip from a blunt or over-extended terminal region."
+      },
+      {
+        "formula_id": "curve-complexity",
+        "expression": "curve_complexity = extrema_spine + extrema_edge",
+        "variables": ["curve_complexity", "extrema_spine", "extrema_edge"],
+        "classification": "design-prior",
+        "enforcement": "soft-ranking-prior",
+        "rationale": "Penalizes noisy control curves that do not add readable form."
+      }
+    ]
+  },
+  "curve_families": [
+    {
+      "curve_family_id": "kukri-spine-arc",
+      "role": "spine",
+      "behavior": "monotone-u",
+      "continuity": "G1",
+      "extrema_budget": 2,
+      "classification": "design-prior",
+      "formula": {
+        "formula_id": "kukri-spine-regularity",
+        "expression": "turning_sign_changes(spine) <= 2",
+        "variables": ["spine"],
+        "classification": "design-prior",
+        "enforcement": "soft-ranking-prior",
+        "rationale": "Allows a strong arc without accidental waviness."
+      }
+    },
+    {
+      "curve_family_id": "kukri-edge-belly",
+      "role": "cutting-edge",
+      "behavior": "convex-belly",
+      "continuity": "G1",
+      "extrema_budget": 2,
+      "classification": "design-prior",
+      "formula": {
+        "formula_id": "belly-before-tip",
+        "expression": "u_belly_peak < u_tip and width_belly > width_tip",
+        "variables": ["u_belly_peak", "u_tip", "width_belly", "width_tip"],
+        "classification": "design-prior",
+        "enforcement": "soft-ranking-prior",
+        "rationale": "Maintains a readable belly-to-tip transition."
+      }
+    },
+    {
+      "curve_family_id": "relief-fuller-run",
+      "role": "fuller",
+      "behavior": "fuller-run",
+      "continuity": "C1",
+      "extrema_budget": 2,
+      "classification": "design-prior",
+      "formula": {
+        "formula_id": "relief-inset",
+        "expression": "0 < relief_inset and relief_inset < local_half_width",
+        "variables": ["relief_inset", "local_half_width"],
+        "classification": "design-prior",
+        "enforcement": "hard-sanity",
+        "rationale": "Keeps ornamental relief inside the blade envelope."
+      }
+    }
+  ],
+  "section_constraints": {
+    "required_roles": ["root", "shoulder", "belly", "tip"],
+    "invariants": [
+      {
+        "formula_id": "section-order",
+        "expression": "u_root < u_shoulder < u_belly < u_tip",
+        "variables": ["u_root", "u_shoulder", "u_belly", "u_tip"],
+        "classification": "design-prior",
+        "enforcement": "hard-sanity",
+        "rationale": "Preserves the stable semantic section sequence."
+      },
+      {
+        "formula_id": "section-width-positive",
+        "expression": "half_width(section) > 0",
+        "variables": ["half_width", "section"],
+        "classification": "design-prior",
+        "enforcement": "hard-sanity",
+        "rationale": "Rejects collapsed cross-sections."
+      },
+      {
+        "formula_id": "section-thickness-positive",
+        "expression": "thickness(section) > 0",
+        "variables": ["thickness", "section"],
+        "classification": "design-prior",
+        "enforcement": "hard-sanity",
+        "rationale": "Rejects zero-volume sections."
+      },
+      {
+        "formula_id": "section-twist-bounded",
+        "expression": "abs(twist(section)) <= twist_budget",
+        "variables": ["twist", "section", "twist_budget"],
+        "classification": "design-prior",
+        "enforcement": "soft-ranking-prior",
+        "rationale": "Avoids unstable corkscrew artifacts in a knife loft."
+      }
+    ],
+    "role_rules": [
+      {
+        "role": "root",
+        "classification": "design-prior",
+        "checks": [
+          {
+            "formula_id": "root-positive",
+            "expression": "half_width_root > 0",
+            "variables": ["half_width_root"],
+            "classification": "design-prior",
+            "enforcement": "hard-sanity"
+          },
+          {
+            "formula_id": "root-attachment-room",
+            "expression": "root_transition_length > 0",
+            "variables": ["root_transition_length"],
+            "classification": "design-prior",
+            "enforcement": "review-only"
+          }
+        ],
+        "inspection_focus": "Check a clean blade-to-guard transition and avoid a paper-thin root."
+      },
+      {
+        "role": "shoulder",
+        "classification": "design-prior",
+        "checks": [
+          {
+            "formula_id": "shoulder-after-root",
+            "expression": "u_shoulder > u_root",
+            "variables": ["u_shoulder", "u_root"],
+            "classification": "design-prior",
+            "enforcement": "hard-sanity"
+          },
+          {
+            "formula_id": "shoulder-continuity",
+            "expression": "normal_jump_root_shoulder <= continuity_budget",
+            "variables": ["normal_jump_root_shoulder", "continuity_budget"],
+            "classification": "design-prior",
+            "enforcement": "soft-ranking-prior"
+          }
+        ],
+        "inspection_focus": "Check the onset of curvature and cross-section continuity."
+      },
+      {
+        "role": "belly",
+        "classification": "design-prior",
+        "checks": [
+          {
+            "formula_id": "belly-readable",
+            "expression": "half_width_belly >= half_width_shoulder",
+            "variables": ["half_width_belly", "half_width_shoulder"],
+            "classification": "design-prior",
+            "enforcement": "soft-ranking-prior"
+          },
+          {
+            "formula_id": "belly-before-tip-rule",
+            "expression": "u_belly < u_tip",
+            "variables": ["u_belly", "u_tip"],
+            "classification": "design-prior",
+            "enforcement": "hard-sanity"
+          }
+        ],
+        "inspection_focus": "Check forward mass, lower-edge rhythm, and the transition into the tip."
+      },
+      {
+        "role": "tip",
+        "classification": "design-prior",
+        "checks": [
+          {
+            "formula_id": "tip-narrower",
+            "expression": "half_width_tip < half_width_belly",
+            "variables": ["half_width_tip", "half_width_belly"],
+            "classification": "design-prior",
+            "enforcement": "soft-ranking-prior"
+          },
+          {
+            "formula_id": "tip-not-inverted",
+            "expression": "half_width_tip > 0",
+            "variables": ["half_width_tip"],
+            "classification": "design-prior",
+            "enforcement": "hard-sanity"
+          }
+        ],
+        "inspection_focus": "Check decisive convergence, no bulbous cap, and stable top-bottom thickness."
+      }
+    ],
+    "profile_families": ["diamond", "lenticular", "wedge", "faceted", "custom"]
+  },
+  "attachment_ratios": [
+    {
+      "ratio_id": "guard-width-to-root-width",
+      "numerator": "guard_visual_width",
+      "denominator": "blade_root_width",
+      "suggested_range": {"min": 1.0, "max": 3.2, "unit": "ratio"},
+      "classification": "design-prior",
+      "enforcement": "soft-ranking-prior",
+      "reason": "Keeps the guard readable without allowing it to erase the blade root."
+    },
+    {
+      "ratio_id": "grip-length-to-blade-length",
+      "numerator": "grip_visual_length",
+      "denominator": "blade_visual_length",
+      "suggested_range": {"min": 0.22, "max": 0.58, "unit": "ratio"},
+      "classification": "design-prior",
+      "enforcement": "soft-ranking-prior",
+      "reason": "Provides a broad visual prior without asserting real dimensions."
+    },
+    {
+      "ratio_id": "pommel-width-to-grip-width",
+      "numerator": "pommel_visual_width",
+      "denominator": "grip_visual_width",
+      "suggested_range": {"min": 0.8, "max": 2.4, "unit": "ratio"},
+      "classification": "design-prior",
+      "enforcement": "review-only",
+      "reason": "Prevents an accidental toy-like or invisible pommel."
+    },
+    {
+      "ratio_id": "fastener-diameter-to-grip-width",
+      "numerator": "fastener_visual_diameter",
+      "denominator": "grip_visual_width",
+      "suggested_range": {"min": 0.04, "max": 0.28, "unit": "ratio"},
+      "classification": "design-prior",
+      "enforcement": "soft-ranking-prior",
+      "reason": "Keeps repeated fasteners legible while subordinate to the grip."
+    },
+    {
+      "ratio_id": "gem-diameter-to-guard-width",
+      "numerator": "gem_visual_diameter",
+      "denominator": "guard_visual_width",
+      "suggested_range": {"min": 0.05, "max": 0.34, "unit": "ratio"},
+      "classification": "design-prior",
+      "enforcement": "review-only",
+      "reason": "Keeps the accent visible without becoming the primary silhouette."
+    }
+  ],
+  "fps_occupancy": {
+    "nonfunctional": true,
+    "viewport_space": "normalized-viewport@1",
+    "metrics": [
+      {"metric_id": "asset-width-fraction", "expression": "bbox_width / viewport_width", "unit": "fraction", "classification": "design-prior"},
+      {"metric_id": "asset-height-fraction", "expression": "bbox_height / viewport_height", "unit": "fraction", "classification": "design-prior"},
+      {"metric_id": "tip-safe-margin", "expression": "distance(tip, viewport_boundary)", "unit": "pixels-normalized", "classification": "design-prior"},
+      {"metric_id": "guard-overlap-fraction", "expression": "guard_hand_overlap / guard_area", "unit": "fraction", "classification": "design-prior"},
+      {"metric_id": "negative-space-visibility", "expression": "visible_guard_void / guard_bbox_area", "unit": "fraction", "classification": "design-prior"},
+      {"metric_id": "accent-pixel-fraction", "expression": "accent_pixels / asset_pixels", "unit": "fraction", "classification": "design-prior"}
+    ],
+    "starter_priors": [
+      {"metric_id": "asset-width-fraction", "suggested_range": {"min": 0.34, "max": 0.9, "unit": "ratio"}, "enforcement": "soft-ranking-prior"},
+      {"metric_id": "asset-height-fraction", "suggested_range": {"min": 0.18, "max": 0.82, "unit": "ratio"}, "enforcement": "soft-ranking-prior"},
+      {"metric_id": "negative-space-visibility", "suggested_range": {"min": 0.01, "max": 0.42, "unit": "ratio"}, "enforcement": "soft-ranking-prior"}
+    ],
+    "inspection_order": ["silhouette", "negative-space", "part-id", "material-zone"]
+  },
+  "material_readability": {
+    "channels": ["base-tone", "metalness", "roughness", "normal-strength", "emissive", "wear-mask"],
+    "zone_roles": ["blade-body", "cutting-edge", "spine", "root-transition", "guard", "grip", "pommel", "relief", "fastener", "gem", "accent"],
+    "neighbor_formula": {
+      "formula_id": "neighbor-readability",
+      "expression": "readability(i,j) = sum(alpha_k * abs(channel_i_k - channel_j_k))",
+      "variables": ["readability", "alpha_k", "channel_i_k", "channel_j_k"],
+      "classification": "design-prior",
+      "enforcement": "review-only",
+      "rationale": "Uses multiple cues to rank adjacent zone readability without hiding geometry errors."
+    },
+    "use_policy": "auxiliary-signal-only"
+  },
+  "claims": [
+    {
+      "claim_id": "kukri-forward-belly",
+      "statement": "A kukri-inspired silhouette is usually more readable when the forward belly dominates the root width.",
+      "classification": "design-prior",
+      "confidence": "high",
+      "source_refs": ["knife-design-language"],
+      "permitted_use": "rank-candidate",
+      "uncertainty": "Stylized variants may deliberately invert or flatten this rhythm."
+    },
+    {
+      "claim_id": "tip-convergence-prior",
+      "statement": "The tip should converge through both spine and cutting-edge curves instead of ending as a capped extrusion.",
+      "classification": "design-prior",
+      "confidence": "high",
+      "source_refs": ["knife-design-language"],
+      "permitted_use": "rank-candidate",
+      "uncertainty": "The exact convergence rate remains asset-specific."
+    },
+    {
+      "claim_id": "semantic-surfaces-prior",
+      "statement": "Blade body, cutting edge, spine, and root transition remain independently addressable semantic surfaces.",
+      "classification": "design-prior",
+      "confidence": "high",
+      "source_refs": ["knife-design-language"],
+      "permitted_use": "provisional-geometry",
+      "uncertainty": "This does not prescribe final topology or bake ownership."
+    },
+    {
+      "claim_id": "dragon-guard-negative-space",
+      "statement": "A dragon-themed guard reads more clearly when jaw, muzzle, horn, eye, and negative-space cues are separate semantic components.",
+      "classification": "design-prior",
+      "confidence": "medium",
+      "source_refs": ["dragonfang-authorized-reference"],
+      "permitted_use": "provisional-geometry",
+      "uncertainty": "Hidden guard anatomy is not recovered from the visible sheet."
+    },
+    {
+      "claim_id": "segmented-grip-readability",
+      "statement": "A curved grip can be represented by stable centerline segments, wrap bands, border rails, and a small repeated fastener set.",
+      "classification": "design-prior",
+      "confidence": "medium",
+      "source_refs": ["dragonfang-authorized-reference"],
+      "permitted_use": "provisional-geometry",
+      "uncertainty": "Backside segmentation remains inferred."
+    },
+    {
+      "claim_id": "hooked-pommel-cue",
+      "statement": "A hooked pommel benefits from a distinct return curve and a separately addressable gem seat.",
+      "classification": "design-prior",
+      "confidence": "medium",
+      "source_refs": ["dragonfang-authorized-reference"],
+      "permitted_use": "provisional-geometry",
+      "uncertainty": "The hidden-side hook cross-section remains unknown."
+    },
+    {
+      "claim_id": "material-zone-separation",
+      "statement": "Red lacquer, antique gold, black wrap, and ruby accents need geometry or ID boundaries in addition to color contrast.",
+      "classification": "design-prior",
+      "confidence": "high",
+      "source_refs": ["knife-design-language"],
+      "permitted_use": "rank-candidate",
+      "uncertainty": "Specific shader parameters require later rendering evidence."
+    },
+    {
+      "claim_id": "wear-secondary-only",
+      "statement": "Procedural edge wear and engraving masks are secondary readability layers and cannot repair an incorrect silhouette.",
+      "classification": "design-prior",
+      "confidence": "high",
+      "source_refs": ["knife-design-language"],
+      "permitted_use": "rank-candidate",
+      "uncertainty": "Wear density and placement remain art-direction choices."
+    },
+    {
+      "claim_id": "fixed-view-comparison",
+      "statement": "All candidate comparisons retain the same handedness, camera, crop, allowed Part IDs, renderer cohort, and reference calibration.",
+      "classification": "design-prior",
+      "confidence": "high",
+      "source_refs": ["objective-and-quality"],
+      "permitted_use": "preserve-gap",
+      "uncertainty": "Metrics still do not replace independent artistic acceptance."
+    },
+    {
+      "claim_id": "single-scope-correction",
+      "statement": "A correction revision changes one declared semantic scope while frozen Part hashes remain unchanged.",
+      "classification": "design-prior",
+      "confidence": "high",
+      "source_refs": ["objective-and-quality"],
+      "permitted_use": "preserve-gap",
+      "uncertainty": "A broader redesign requires a successor objective, not an implicit scope expansion."
+    }
+  ],
+  "non_claims": [
+    "hidden-geometry",
+    "backside-topology",
+    "real-world-dimensions",
+    "manufacturing-or-machining",
+    "structural-performance",
+    "real-world-operation",
+    "reference-likeness-from-formula",
+    "commercial-quality-from-metrics",
+    "pbr-or-engine-readiness",
+    "human-or-partner-approval",
+    "release-permission"
+  ]
+}

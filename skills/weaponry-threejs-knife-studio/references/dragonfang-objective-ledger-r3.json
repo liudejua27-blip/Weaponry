@@ -1,0 +1,24 @@
+{
+  "schema_version": "KnifeObjectiveLedger@1",
+  "ledger_id": "dragonfang-blade-browser-ledger",
+  "revision": 3,
+  "parent_ledger_sha256": "1a1f6a60266eaa2aa0d8dd840e87844d1e07fc532df075424eba36f371796be8",
+  "program_sha256": "6eedd438d781e5637a8a9866a29e7b6f09365668a962292c289c3ece2e529ab9",
+  "baseline_candidate_sha256": "2fbec694dfeeef384633cc6acad6ce43a5dfa7bcffe227bd0b033994c425419b",
+  "stage": "form",
+  "allowed_scope": ["blade-body", "cutting-edge"],
+  "frozen_parts": ["guard", "grip", "pommel"],
+  "hypothesis": "One final bounded blade-only residual correction can improve FRONT boundary agreement while the accepted multi-point curve topology and all assembly inputs remain fixed.",
+  "objective_metrics": ["silhouette-iou", "boundary-f1", "symmetric-chamfer", "p95-contour-distance", "tip-landmark-error"],
+  "regression_limits": ["thickness-continuity", "normal-continuity", "part-id-coverage", "material-id-coverage"],
+  "candidate_budget": 8,
+  "minimum_improvement": 0.005,
+  "plateau_limit": 2,
+  "evidence_sha256": [
+    "7e1bd17f939b0aa288bcf010e4eb6ff3156d1e504d52d8755b1c8c25b8f953ec",
+    "30f76e829d08d7948b965b749ed90501f3de597cbc49a5239938a20b0f5b30d0",
+    "d95b3caa69030a9210a115d7b7a67f64e2a26b8658775c592e25fde3589bbf6b"
+  ],
+  "status": "active",
+  "canonical_sha256": "f376a6bef455885527cea1c9a05666cf45ffed68a7a05244caa566cb099ad5b9"
+}

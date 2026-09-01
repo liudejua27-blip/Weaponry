@@ -9,6 +9,10 @@
 
 ## 当前 successor queue
 
+> 2026-08-31 用户优先级切换：Rust 商业 DCC 的 `WPN-KNIFE-HIGH-001` 保留既有证据但暂停继续
+> 扩张；当前唯一 design/implementation successor 改为 Three.js 轻量刀类路线。目标变化只能通过
+> `KnifeObjectiveLedger@1` immutable successor 记录，不能由聊天上下文覆盖。
+
 | Task | Status | Scope |
 | --- | --- | --- |
 | `WPN-DOC-001` | `done` | 原 Weaponry 文档覆盖与 current-source truth 重建；历史 evidence 保持不变 |
@@ -31,13 +35,28 @@
 | `WPN-ARCH-RETIRE-001` | `queued_after_runtime_store_split_002_and_retirement_gates` | 仅在 replacement、compatibility replay、consumer-zero、migration/CAS/recovery 与脏 worktree deletion gate 全部通过后退役历史模块 |
 | `WPN-MOD-001` | `pending_general_modifier_evaluation` | CurveProfile 的 bounded blade sweep/loft 已产生 EvaluatedMesh；通用 Modifier stack 几何评估仍未实现 |
 | `WPN-KNIFE-BRIEF-RUNTIME-001` | `done_isolated_live_authoring_eligible_successor` | Brief closed Contract → Runtime → Store/CAS → MCP；真实图片导入、blocked parent、immutable eligible successor、replay/restart readback PASS；无 candidate/Stage/version/export |
-| `WPN-KNIFE-HIGH-001` | `in_progress_slice_a_design_locked_implementation_pending_no_high_mesh` | 先实现 Brief/reference-bound `ReferenceIntentBundle → PassState → CorrectionLedger` durable 收敛控制层，再执行 KnifeCurve + ModifierGraph + EvaluatedMesh 的 blade/guard/grip 主形；不跳过 secondary-form approval，不以 formal High API、单视图或材质补偿形体 |
+| `WPN-KNIFE-HIGH-001` | `paused_user_priority_shift_evidence_retained` | Rust 商业 DCC High 路线未删除、未完成；现有结构与失败 evidence 保留，等待用户恢复优先级 |
 | `WPN-KNIFE-LOW-001` | `pending` | artist-editable Low/retopo correspondence |
 | `WPN-KNIFE-UVBAKE-001` | `pending` | Hero UV、Cage、normal/AO/curvature/thickness/ID bake diagnostics |
 | `WPN-KNIFE-MAT-001` | `pending` | 刀刃/护手/握柄 Material Layer Graph 与 wear |
 | `WPN-KNIFE-FPS-001` | `pending` | first-person idle/inspect/slash/stab、socket 与九 AOV |
 | `WPN-KNIFE-ENGINE-001` | `pending` | LOD/collision/export/目标引擎真实验证 |
 | `WPN-KNIFE-ACCEPT-001` | `pending` | 授权刀类 + original control 的同 cohort 独立美术验收 |
+| `WPN-THREE-ADOPT-001` | `done_source_baseline_isolated_generator_benchmark_pass_runtime_not_adopted` | 固定 img2threejs commit，Apache-2.0 LICENSE/NOTICE/SBOM/provenance 与隔离恢复校验已闭合；bounded adapter PASS；pinned generator 已在临时隔离目录离线执行为 7 meshes/1,049 tris、重复 receipt hash 一致，strict quality 仍 BYPASSED_FOR_FIXTURE；不进入 Runtime/CAS |
+| `WPN-THREE-SPEC-001` | `done_runtime_store_contract_mcp_persistence` | `KnifeSceneProgram@1` package Contract、Runtime-owned prepare/get、Store/CAS root、same-key replay、restart-safe get 与 MCP `authoring_transaction` 路由已闭合；active closure 145/145，旧 compatibility 131/95/226 不变 |
+| `WPN-THREE-COMPILER-001` | `in_progress_multi_point_multi_section_blade_pass_detail_asset_pending` | 编译器已覆盖 Bezier/NURBS-like、4–64 控制点、4–32 截面；Dragonfang 当前采用独立 8 点 spine/edge + 8 截面、64 段 blade，并生成 65,484-byte / 1,390-triangle / 5-Part 派生 GLB `9e015f07…eca0da`；guard/grip/pommel 保持冻结，relief/gem/fastener detail 尚未 author |
+| `WPN-THREE-EVAL-001` | `done_browser_fixed_eight_view_7aov_and_reference_calibration_render_not_approved_runtime_store_pending` | 固定八视图 CPU projection/mask 与指标 evaluator 已闭合；真实 THREE.WebGLRenderer 已捕获 8×7 AOV=56 PNG；FRONT reference→browser baseline fit 已一次性冻结，候选 replay 禁止 refit；状态仅 MEASURED/RENDERED_NOT_APPROVED，Runtime/Store/CAS 与视觉批准未执行 |
+| `WPN-THREE-OBJECTIVE-INTRINSIC-002` | `done_local_append_only_metric_catalog_and_studio_v2_runtime_persistence_pending` | 旧 12 metric/r5/Adapter@1 保持；新增 blade/assembly intrinsic evaluators、Adapter@2 与 r6 immutable successor；Dragonfang r6 三候选真实返回 PARENT_RETAINED，blade focused successor 可 REVIEW_ONLY_SELECTION；两者均 NOT_REVIEWED/NOT_RUN，未写 Runtime/Store/CAS |
+| `WPN-THREE-PROCEDURAL-READINESS-003` | `done_exact_baseline_successor_glb_replay_runtime_persistence_pending` | R2 exact program→r6 bounded 3 candidates→grip-taper r7；固定八视图 delta=7 views/323 pixels；4598-triangle、901372-byte GLB strict readback；二次 program/GLB/receipt hashes exact；`THREEJS_DESIGN_READY` 仅 Procedural Draft，visual/quality/commercial 未通过 |
+| `WPN-THREE-STUDIO-PERSIST-004` | `done_structural_runtime_store_cas_mcp_fixed_worker` | closed prepare/get/execute 已经 Contract → Runtime → Store/CAS → MCP；固定 Worker 只允许 build/preview/export，caller 不能给脚本/模块/路径/URL。r7 prepare→replay→reopen→get、build/export GLB 和 Runtime 独立 GLB v2/Part-lineage inspector PASS。preview 仅 manifest，未渲染 PNG/AOV；打包级 Worker 固定尚缺 |
+| `WPN-THREE-PREVIEW-PACKAGED-005` | `done_packaged_fixed_browser_cas_replay_reopen_structural` | 322 MB 固定 Chromium headless sidecar、Node/Three/Vite/依赖树与许可证已作为 Tauri resource 锁定；packaged Dragonfang r7 真实输出 8 视图 × 6 AOV=48 张 512×512 PNG，Runtime 逐张校验并写入 CAS，exact replay + Runtime reopen/get PASS。packaged Vite 已禁止依赖自动发现并使用临时隔离 cache，不再逃逸到开发机绝对路径。该 Gate 只证明打包渲染/持久化；视觉/人审/商业仍 `NOT_RUN` |
+| `WPN-THREE-DRAGONFANG-001` | `in_progress_multi_point_blade_improved_threshold_fail_upstream_reference_binding_pending` | 浏览器 baseline IoU/F1=0.404717/0.094143；8 点/8 截面 successor 002 在同 camera/frozen fit 下达到 0.565626/0.181272，五项均改善但硬门仍 FAIL；pinned upstream 已完成受限 Group adapter 与同 rig 8×7 AOV，但缺授权 reference/Part-ID calibration，superiority 仍 NOT_COMPUTED |
+| `WPN-THREE-CANONICAL-MIGRATION-011` | `done_identity_successor_only` | 历史 r7 `86352241…d58d` / bytes `3362820e…a5f6` 原样恢复；Rust/Node policy successor=`24b4f6e5…113f`，两者除 canonical 字段外 payload exact 相等。migration=`4f8fef7b…6a0f`；无几何、材质或质量晋级 |
+| `WPN-THREE-BLADE-R8-012` | `done_compiled_rendered_not_approved` | 仅修改 stable spine/edge rail 与截面 half-width/edge/spine offset；其余 11 Parts、assembly、材质、presentation、budgets、unknowns exact 冻结。program=`0c495db1…51e1`，GLB=`cfe9055a…d10d` / 901,380 bytes / 4,598 tris；后续固定视图比较已完成但质量门 FAIL |
+| `WPN-THREE-R8-RENDER-COMPARE-013` | `done_render_mapping_measurement_failed_non_promoting` | 固定 Chromium Worker 真实输出 8×6=48 PNG；manifest=`ee86d240…dcf2`，program-bound mapping=`dbdf2986…d9e3`，r7/r8 FRONT camera 同为 `6f92f25e…1104`。同 reference/frozen fit 下 r8 四项小幅改善但 P95 回退，r7/r8 gate 均 FAIL；decision=`refine-spec`，visual NOT_APPROVED，未改几何 |
+| `WPN-THREE-R8-PACKAGE-DELIVERY-014` | `done_action_ready_runtime_store_cas_delivery_not_visual_approval` | r8 几何/材质冻结；新增 13 个稳定 Part pivot、3 个 socket、2 个 collider intent 和 2 个 destruction group。same-cohort `16bfe5a4…a386` 完成 prepare→exact replay→Runtime reopen→get→单次 export；GLB/CAS=`ec6fbbfa…b344` / 907,104 bytes / 4,598 tris / 13 Parts。visual=`NOT_APPROVED`，human/engine/commercial=`NOT_RUN` |
+| `WPN-THREE-R8-ENGINE-INTERACTION-015` | `done_threejs_browser_interaction_prototype_no_engine_acceptance` | r8 几何/材质/GLB hash 不变；外置不可变 simulation state 驱动 idle/light/heavy/inspect/sheath、FPS/inspect/orbit、Part 可见性/拾取/explode；WebGL context loss/recovery 实机 PASS。动作仅 `PRESENTATION_ONLY_NO_SKELETON`，collider 仅 `INTENT_ONLY`；UE5.6/正式动画/物理/人审/商业验收未运行 |
+| `WPN-THREE-R8-FPS-RUNTIME-016` | `done_threejs_rigid_clips_socket_and_rapier_preview_no_engine_acceptance` | r8 GLB `ec6fbbfa…b344` 不变；5 个固定 root-pivot `AnimationClip` + marker、`socket-grip→right-hand` typed 展示绑定、Rapier 0.20 零重力 kinematic body + 2 colliders 浏览器实跑 PASS；240 帧 CPU p95=0.80ms。仅为浏览器 FPS 展示/物理预览，不是 skeleton/IK/gameplay/damage/UE5.6/视觉/人审/商业验收 |
 
 > 2026-08-30 Brief successor fixture 已完成合同级冻结校验：
 > `dragonfang-kukri-brief-resolved-001` 精确绑定父 Brief `dragonfang-kukri-brief` /

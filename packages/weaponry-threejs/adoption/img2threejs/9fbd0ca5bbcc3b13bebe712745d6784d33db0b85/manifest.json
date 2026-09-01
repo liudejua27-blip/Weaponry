@@ -1,0 +1,225 @@
+{
+  "schema_version": "ForgeCadUpstreamAdoptionManifest@1",
+  "adoption_id": "weaponry-threejs-img2threejs-9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+  "task_id": "WPN-THREE-ADOPT-001",
+  "product": "Weaponry Three.js Knife Studio",
+  "status": "SOURCE_BASELINE_ACCEPTED_ADAPTER_PARTIAL",
+  "approval": "user-authorized-full-source-baseline",
+  "source": {
+    "project": "img2threejs",
+    "source_url": "https://github.com/img2threejs/img2threejs",
+    "revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+    "official_ref": "refs/heads/main",
+    "official_ref_verified_at_audit": true,
+    "commit_subject": "chore: swap the Buy Me a Coffee badge and button for Ko-fi (#114)",
+    "parent_revision": "441af85a96523569511154b6321859b79f3592f5",
+    "git_tree": "0ee3c2a6d781407808df98b33174539842f85fcc",
+    "canonical_tree_manifest": "path<TAB>git_blob_sha1<TAB>byte_size<LF>",
+    "canonical_tree_manifest_sha256": "bf4b35eb5b468a77ae6d8a24fc2e4b7a42fa27ad87c2afacd32bf635e069d91e",
+    "tracked_file_count": 337,
+    "tracked_blob_bytes": 4126550,
+    "commit_signature_verification": "not-run-gpg-unavailable"
+  },
+  "license": {
+    "spdx": "Apache-2.0",
+    "upstream_license_path": "LICENSE",
+    "upstream_license_sha256": "4595055948a67e91177115c57e154804046878e77ff223de22accc880012827a",
+    "upstream_notice": "absent-at-frozen-revision",
+    "repository_copy": "LICENSES/Apache-2.0.txt"
+  },
+  "snapshot": {
+    "strategy": "isolated-cache",
+    "cache_layout": "<cache-root>/img2threejs/<revision>/",
+    "restored_scope": "all tracked upstream files at the exact pinned revision",
+    "vendored_upstream_files": [],
+    "submodule": false,
+    "lockfile_or_package_change": false,
+    "runtime_allowlist_change": false,
+    "restore_script": "restore_pinned_snapshot.py",
+    "verify_script": "verify_adoption.py",
+    "source_is_not_product_runtime": true,
+    "required_repository_files": [
+      "manifest.json",
+      "NOTICE",
+      "LICENSES/Apache-2.0.txt",
+      "LICENSES/ForgeCAD-FIRST-PARTY.txt",
+      "sbom.spdx.json",
+      "provenance.json",
+      "restore_pinned_snapshot.py",
+      "verify_adoption.py"
+    ]
+  },
+  "reference_files": [
+    {
+      "path": "README.md",
+      "bytes": 39829,
+      "sha256": "49b22dabce0bb35b674aa5d43365a77c334009005d2fdc92c58eb48d558eb259",
+      "role": "upstream workflow overview; static reference"
+    },
+    {
+      "path": "SKILL.md",
+      "bytes": 30633,
+      "sha256": "819dc8115c04001cfd8e79cb6e14fed081d0480431acad6193d3a87026fdba08",
+      "role": "upstream skill contract; parsed as reference only"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "bytes": 14326,
+      "sha256": "484f8307e45efec38227c2e3ed4fa91e45f8f38745e6042ae50c20afc546d116",
+      "role": "pipeline architecture reference"
+    },
+    {
+      "path": "docs/cs2/review-gates.md",
+      "bytes": 2553,
+      "sha256": "bf6c611e71e695daaecb21a22946ebe9708bd612c3913f748bda0154c2551ec5",
+      "role": "CS2 review-gate reference"
+    },
+    {
+      "path": "grimoire/intake/cs2_intake_contract.md",
+      "bytes": 5629,
+      "sha256": "1c2bd214b69bd2c3a9c7bca5de5573159e89cf10997e4a0ef2e06fa5409b6ad8",
+      "role": "intake contract reference"
+    },
+    {
+      "path": "grimoire/intake/detail_inventory.md",
+      "bytes": 7117,
+      "sha256": "9d5886bb4176b6043aaee36e2e85f01f617be37478d9e8c84826ffcb6ba36b51",
+      "role": "detail inventory reference"
+    },
+    {
+      "path": "grimoire/intake/quality_contract.md",
+      "bytes": 4289,
+      "sha256": "40065c2f8209db305afb7d532f302bd27134f4a66dbefb67d65d850dee14f55e",
+      "role": "quality contract reference"
+    },
+    {
+      "path": "grimoire/intake/surface_topology.md",
+      "bytes": 4139,
+      "sha256": "36417236d44e1e523e16279121b433be39606f3fd1c709b9b697ff8e55df1dd6",
+      "role": "surface topology reference"
+    },
+    {
+      "path": "grimoire/review/gates_reference.md",
+      "bytes": 10118,
+      "sha256": "e195b24eb25658d8881850e1f3e834e1e64ba396efa2721d49abaf5344ac9a00",
+      "role": "review gate reference"
+    },
+    {
+      "path": "grimoire/review/self_correction.md",
+      "bytes": 7580,
+      "sha256": "9e40e5c3ecd86925cd57e24f329a8a41a014ebdaa0c7117f40ec0d9187c427b7",
+      "role": "bounded self-correction reference"
+    },
+    {
+      "path": "grimoire/build/cs2_finishes.md",
+      "bytes": 7556,
+      "sha256": "d66cc99466ea31fc4a16a3ac9e0bec575121bc2fe6f65539c5b13557599115d9",
+      "role": "material/finish reference"
+    },
+    {
+      "path": "forge/requirements.txt",
+      "bytes": 335,
+      "sha256": "ba54ff109c11e499749a42fd6a4e4eb5b1055073a57df55d606c9f243befbeb4",
+      "role": "core dependency declaration; confirms stdlib-only claim"
+    }
+  ],
+  "compatibility_import": {
+    "bounded_scope": "ObjectSculptSpec/component hierarchy concepts normalized into first-party KnifeSceneProgram@1",
+    "upstream_reference_entrypoints": [
+      "forge/stage2_spec/new_sculpt_spec.py",
+      "forge/stage2_spec/validate_sculpt_spec.py",
+      "forge/stage3_build/generate_threejs_factory.py",
+      "forge/stage3_build/orchestrate_passes.py",
+      "forge/stage4_review/turntable_gate.py"
+    ],
+    "upstream_cli_entrypoints": [
+      "forge/state.py",
+      "forge/next.py",
+      "forge/report.py",
+      "forge/stage1_intake/probe_image.py",
+      "forge/stage1_intake/probe_glb.py"
+    ],
+    "adapter_execution": "static-ground-blade-import-only",
+    "first_party_program": "packages/weaponry-threejs/src/knife-scene-program.ts",
+    "first_party_adapter": "packages/weaponry-threejs/src/img2threejs-object-sculpt-adapter.ts",
+    "derived_output": "TypeScript THREE.Group and preview artifacts only",
+    "direct_runtime_store_cas_write": false,
+    "status": "PASS_STATIC_BOUNDED_IMPORT"
+  },
+  "product_runtime_policy": {
+    "upstream_script_execution": false,
+    "network": false,
+    "shell_or_subprocess": false,
+    "dynamic_code_or_eval": false,
+    "caller_path_url_environment_or_secret": false,
+    "direct_sqlite_write": false,
+    "direct_cas_write": false,
+    "model_or_provider_call": false
+  },
+  "maintenance_restore_policy": {
+    "network_fetch": true,
+    "fixed_source_url_and_revision": true,
+    "upstream_script_execution": false,
+    "permitted_only_for_isolated_cache": true,
+    "cache_root_must_be_outside_product_tree": true
+  },
+  "excluded_from_product_adapter": [
+    "integrations/**",
+    "scripts/**",
+    "assets/**",
+    "skills/**",
+    "all upstream forge Python execution until each module is rewritten or separately gated"
+  ],
+  "dependency_inventory": {
+    "core_claim": "Python >=3.10 standard library only per forge/requirements.txt",
+    "core_transitive_dependencies": [],
+    "optional_integration_manifests": [
+      "integrations/glb_character_pipeline/pyproject.toml",
+      "integrations/glb_character_pipeline/node/package.json",
+      "integrations/glb_character_pipeline/uv.lock",
+      "integrations/glb_character_pipeline/node/package-lock.json",
+      "integrations/vision/pyproject.toml",
+      "integrations/vision/uv.lock"
+    ],
+    "optional_lockfile_inventory": [
+      {
+        "path": "integrations/glb_character_pipeline/uv.lock",
+        "bytes": 21982,
+        "sha256": "fb3dc23313dc5a7484d3b8b29421e6a62faf4415cfe0a9a6c2db097b2580b2a8",
+        "locked_entry_count": 4
+      },
+      {
+        "path": "integrations/glb_character_pipeline/node/package-lock.json",
+        "bytes": 15477,
+        "sha256": "79d529441e9afa797e44abb5b330698a2659f03230df06408b0ff6360d019561",
+        "locked_entry_count": 29
+      },
+      {
+        "path": "integrations/vision/uv.lock",
+        "bytes": 163198,
+        "sha256": "8c06ef21302d7177338911519babf575b918408dcd7df579d4f00ee7f2f77ad9",
+        "locked_entry_count": 64
+      }
+    ],
+    "optional_integration_status": "excluded-not-adopted",
+    "optional_transitive_sbom": "deferred-until-an-integration-is-separately-approved"
+  },
+  "gates": {
+    "pinned_revision_and_tree": "PASS",
+    "license_and_notice_inventory": "PASS",
+    "repository_metadata_sbom": "PASS",
+    "provenance": "PASS",
+    "one_bounded_import": "PASS",
+    "closed_adapter_worker": "PARTIAL_STATIC_ADAPTER_WORKER_NOT_RUN",
+    "malicious_input": "NOT_RUN",
+    "deterministic_benchmark": "NOT_RUN",
+    "resource_caps": "NOT_RUN",
+    "fixed_browser_renderer": "NOT_RUN",
+    "packaged_runtime": "NOT_RUN",
+    "human_visual_gate": "NOT_RUN"
+  },
+  "accepted_as_source_baseline": true,
+  "accepted_as_runtime_dependency": false,
+  "accepted_as_dependency": false,
+  "fallback_or_removal_plan": "Remove this metadata directory and any future adapter together; leave the existing first-party Three.js compiler and Rust Runtime routes unchanged. The external cache is disposable and never product truth."
+}

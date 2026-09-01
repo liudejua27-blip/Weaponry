@@ -1,0 +1,20 @@
+{
+  "schema_version": "WeaponryThreeJsCompileReceipt@1",
+  "compiler": "weaponry-threejs-knife-compiler@1",
+  "asset_id": "dragonfang-kukri-threejs-slice",
+  "program_sha256": "6eedd438d781e5637a8a9866a29e7b6f09365668a962292c289c3ece2e529ab9",
+  "program_bytes_sha256": "6c6969f940b576359a566144e64464011e034eee73d0c7c3522f545eb0ed38a3",
+  "program_fingerprint": "9aa07f8c97fc49ed",
+  "glb_sha256": "9e015f07939fdf59fd75437ac2fca33c238cd6ee23260a157107a5e866eca0da",
+  "glb_bytes": 65484,
+  "triangles": 1390,
+  "longitudinal_segments": 64,
+  "part_ids": ["blade-body", "cutting-edge", "guard", "grip", "pommel"],
+  "renderer_invoked": false,
+  "render_status": "NOT_RUN",
+  "quality_status": "MEASURED_NOT_APPROVED",
+  "visual_status": "NOT_RUN",
+  "human_status": "NOT_RUN",
+  "engine_status": "NOT_RUN",
+  "commercial_status": "NOT_RUN"
+}

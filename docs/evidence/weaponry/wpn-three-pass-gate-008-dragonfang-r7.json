@@ -1,0 +1,55 @@
+{
+  "schema_version": "WeaponryThreeJsKnifePassGateResult@1",
+  "route": "weaponry-threejs-knife-studio@0.1.0",
+  "pass_id": "blockout",
+  "program_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+  "program_file_sha256": "208fdb12ddf062309a43a8c3fb5e1594bc2c6bea56962610e6e40e8b52a7ea84",
+  "comparison_evidence_sha256": "933b9ff74010ab11993d071ac81eae127a9a59d8fbee56c3726211df7ae42276",
+  "multi_angle_evidence_sha256": "c0e403ded90a087b44124277b70a3c16202f14b4105c6d67729cc56f51164d63",
+  "upstream_img2threejs_checker": {
+    "status": "INCOMPATIBLE_CANONICAL_SPEC_SHAPE",
+    "reason": "ObjectSculptSpec.sculptPipeline is not part of KnifeSceneProgram@1"
+  },
+  "geometry_hard_gate": "PASS_NON_DEGENERATE_VOLUME",
+  "reference_likeness_gate": "FAIL_MEASURED_NOT_APPROVED",
+  "reference_view_mapping_gate": "FAIL_MAPPING_REQUIRED",
+  "decision": "refine-spec",
+  "pass_gate_status": "FAIL",
+  "blockers": [
+    {
+      "code": "FRONT_REFERENCE_NOT_APPROVED",
+      "detail": "The durable FRONT blade-only comparison is measured but not approved."
+    },
+    {
+      "code": "REFERENCE_VIEW_MAPPING_REQUIRED",
+      "detail": "Reference view labels are not acceptance-equivalent to fixed camera axes."
+    },
+    {
+      "code": "CALIBRATED_VISUAL_GATE_NOT_RUN",
+      "detail": "Deterministic metrics do not replace calibrated visual or human review."
+    }
+  ],
+  "required_successor": {
+    "schema_version": "WeaponryThreeJsReferenceViewMapping@1",
+    "must_separate": [
+      "reference_view_kind",
+      "render_view_id",
+      "camera_axis",
+      "handedness_transform"
+    ],
+    "must_preserve": [
+      "program_sha256",
+      "preview_worker_cohort_sha256",
+      "reference hashes"
+    ]
+  },
+  "parent_retained": true,
+  "candidate_created": false,
+  "version_created": false,
+  "export_performed": false,
+  "visual_status": "NOT_RUN_CALIBRATED_GATE",
+  "human_status": "NOT_RUN",
+  "engine_status": "NOT_RUN",
+  "commercial_status": "NOT_RUN",
+  "canonical_sha256": "ec5b92aeb1667cfd54d1f20a1707efaea685bfadff2ef622e78f2aae523528ec"
+}

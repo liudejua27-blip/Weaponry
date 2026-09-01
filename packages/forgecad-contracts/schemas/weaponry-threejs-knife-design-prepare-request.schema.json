@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weaponry-threejs-knife-design-prepare-request.schema.json",
+  "title": "WeaponryThreeJsKnifeDesignPrepareRequest@1",
+  "description": "Closed Runtime-owned intake for one immutable KnifeSceneProgram. This operation persists design truth only and does not execute caller JavaScript.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "program", "idempotency_key",
+    "max_response_bytes", "runtime_write_performed", "writer_policy",
+    "canonicalization_policy", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponryThreeJsKnifeDesignPrepareRequest@1"},
+    "operation": {"const": "weaponry_threejs_knife_design_prepare"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "program": {
+      "allOf": [
+        {"$ref": "https://forgecad.local/contracts/weaponry-threejs-knife-scene-program.schema.json"},
+        {"properties": {"design_basis": {"enum": ["authorized-reference-inspired", "original-design"]}}}
+      ]
+    },
+    "idempotency_key": {"$ref": "#/$defs/identifier"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-input-sha256@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

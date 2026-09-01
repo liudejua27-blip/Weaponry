@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weaponry Three Asset Studio</title>
+    <style>
+      :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background: #080b10; color: #d8dee9; }
+      * { box-sizing: border-box; }
+      html, body, #app { min-height: 100%; margin: 0; }
+      body { background: radial-gradient(circle at 70% 15%, #1b2836 0, #080b10 48%, #050608 100%); }
+      #app { display: grid; grid-template-columns: minmax(230px, 290px) 1fr; gap: 20px; padding: 24px; }
+      aside { align-self: start; display: grid; gap: 16px; padding: 18px; border: 1px solid #273241; border-radius: 14px; background: #0d131bdb; box-shadow: 0 18px 60px #0007; }
+      h1 { margin: 0; color: #fff; font-size: 18px; letter-spacing: .02em; }
+      p { margin: 0; color: #92a0b2; font-size: 12px; line-height: 1.55; }
+      .actions { display: grid; gap: 8px; }
+      button { border: 1px solid #3c4d62; border-radius: 8px; padding: 9px 10px; color: #dce8f6; background: #172231; text-align: left; cursor: pointer; }
+      button:hover { border-color: #78a8d8; background: #1d3149; }
+      button:disabled { cursor: wait; opacity: .55; }
+      #status { min-height: 2.8em; color: #9fc7ee; font-size: 12px; }
+      main { min-width: 0; display: grid; grid-template-rows: minmax(360px, 62vh) auto; gap: 14px; }
+      .canvas-wrap { display: grid; place-items: center; min-height: 360px; border: 1px solid #273241; border-radius: 14px; background: #080b10; overflow: hidden; }
+      canvas { display: block; width: min(62vh, 100%); height: min(62vh, 100%); max-width: 100%; max-height: 100%; image-rendering: auto; }
+      pre { margin: 0; max-height: 28vh; overflow: auto; padding: 14px; border: 1px solid #273241; border-radius: 12px; background: #080b10cc; color: #b9c7d7; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      @media (max-width: 760px) { #app { grid-template-columns: 1fr; padding: 12px; } aside { order: 2; } main { order: 1; } }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <aside>
+        <h1>Three Asset Studio</h1>
+        <p>Closed in-process knife slice. Renderer/export are host capabilities; quality remains NOT_RUN.</p>
+        <div class="actions" aria-label="bounded studio actions">
+          <button data-action="knife_design_create">1 · knife_design_create</button>
+          <button data-action="candidates_generate">2 · candidates_generate</button>
+          <button data-action="optimize">3 · optimize</button>
+          <button data-action="three_asset_build">4 · three_asset_build</button>
+          <button data-action="preview">5 · preview + fixed view/AOV</button>
+          <button data-action="export">6 · export GLB</button>
+        </div>
+        <div id="status" role="status">ready · no Runtime/Store/MCP state</div>
+      </aside>
+      <main>
+        <div class="canvas-wrap"><canvas id="studio-canvas" width="256" height="256" aria-label="Three.js knife preview"></canvas></div>
+        <pre id="receipt" aria-live="polite">{}</pre>
+      </main>
+    </div>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

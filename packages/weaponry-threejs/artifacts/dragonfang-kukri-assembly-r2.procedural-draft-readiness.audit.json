@@ -1,0 +1,220 @@
+{
+  "schema_version": "WeaponryThreeJsProceduralDraftReadinessAudit@1",
+  "route": "weaponry-threejs-procedural-draft@1",
+  "target": "PROCEDURAL_DRAFT",
+  "r2_binding": {
+    "program_path": "skills/weaponry-threejs-knife-studio/references/dragonfang-first-slice.json",
+    "program_bytes_sha256": "c113578c2a43a0e794c7342955d992e18e6a25ec9c5b0e2943d33c207581a5f5",
+    "receipt_program_bytes_sha256": "c113578c2a43a0e794c7342955d992e18e6a25ec9c5b0e2943d33c207581a5f5",
+    "program_bytes_match_receipt": true,
+    "glb_path": "packages/weaponry-threejs/artifacts/dragonfang-kukri-assembly-r2.glb",
+    "glb_sha256": "8c8b851e574ffd750011c30b06db296a108dc208588c0c66c2eb9bf7c0fd9311",
+    "receipt_glb_sha256": "8c8b851e574ffd750011c30b06db296a108dc208588c0c66c2eb9bf7c0fd9311",
+    "glb_sha256_match_receipt": true,
+    "glb_bytes": 901376,
+    "receipt_glb_bytes": 901376,
+    "glb_bytes_match_receipt": true,
+    "compiled_fingerprint": "5f8ed42dba9d6cd5",
+    "receipt_deterministic_fingerprint": "5f8ed42dba9d6cd5",
+    "compiled_fingerprint_match_receipt": true,
+    "r2_receipt_contains_structural_delta": false,
+    "compiled_triangle_count": 4598,
+    "receipt_triangle_count": 4598,
+    "compiled_part_count": 13,
+    "receipt_part_count": 13
+  },
+  "fixed_view_metrics": {
+    "schema_version": "KnifePartVisibilityMetrics@1",
+    "source_fingerprint": "5f8ed42dba9d6cd5",
+    "rig_fingerprint": "3fa0202473e3352b",
+    "view_ids": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "visible_part_count": 13,
+    "total_part_count": 13,
+    "missing_part_ids": [],
+    "underexposed_part_ids": [
+      "gem-pommel"
+    ],
+    "deterministic_fingerprint": "0b157778571846f4"
+  },
+  "browser_receipt": {
+    "status": "INSPECTED_NOT_A_STRUCTURAL_DELTA",
+    "schema_version": "WeaponryThreeJsBrowserEvidence@1",
+    "asset_id": "dragonfang-kukri-threejs-slice",
+    "source_fingerprint": "5f8ed42dba9d6cd5",
+    "source_fingerprint_matches_r2": true,
+    "selected_view_count": 8,
+    "selected_view_ids": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "browser_receipt_sha256": "2da938cf21d33aaf0e3539c2bb03a447d066f75431d254565c4f5d7c52a5f992",
+    "expected_receipt_sha256": "2da938cf21d33aaf0e3539c2bb03a447d066f75431d254565c4f5d7c52a5f992",
+    "browser_receipt_sha256_matches_r2": true,
+    "note": "browser AOV metadata is supplemental candidate evidence; it is not passed as structural_delta"
+  },
+  "historical_metric_status": {
+    "status": "PRESENT_BUT_NOT_R2_REPLAYABLE",
+    "selected_program_sha256": "2fbec694dfeeef384633cc6acad6ce43a5dfa7bcffe227bd0b033994c425419b",
+    "selected_program_sha256_matches_r2_bytes": false,
+    "compiled_fingerprint": "5f8ed42dba9d6cd5",
+    "structural_delta_summary": {
+      "changed_view_count": 4,
+      "silhouette_changed_pixel_count": 67,
+      "part_id_changed_pixel_count": 67,
+      "status": "MEASURED_NONZERO"
+    },
+    "reason": "summary lacks baseline_source_fingerprint/candidate_source_fingerprint and does not bind to the R2 compiled fingerprint"
+  },
+  "baseline": {
+    "status": "BLOCKED_MISSING_RECOMPUTABLE_BASELINE",
+    "required_inputs": [
+      "an explicit baseline KnifeSceneProgram@1 JSON from the same semantic Part/compiler cohort, or a serialized KnifeEightViewEvaluation with full fixed-view masks",
+      "the same KnifeFixedEightViewRig@1 identity and frame resolution for baseline and R2 candidate",
+      "a baseline program-bytes SHA-256 (or equivalent exact source binding) so the delta can be replayed rather than inferred from screenshots"
+    ],
+    "provided_baseline_program": null,
+    "inspected_prior_evidence": [
+      {
+        "kind": "R1 compile receipt",
+        "path": "packages/weaponry-threejs/artifacts/dragonfang-kukri-assembly-r1.receipt.json",
+        "usable": false,
+        "reason": "legacy receipt has only an older program_fingerprint and no current-cohort fixed-view evaluation masks"
+      },
+      {
+        "kind": "R1 browser receipt",
+        "path": "packages/weaponry-threejs/artifacts/dragonfang-kukri-assembly-r1.browser-receipt.json",
+        "usable": false,
+        "reason": "rendered capture metadata has no KnifeEightViewEvaluation mask binding and uses a different rig fingerprint"
+      },
+      {
+        "kind": "R1 GLB",
+        "path": "packages/weaponry-threejs/artifacts/dragonfang-kukri-assembly-r1.glb",
+        "usable": false,
+        "reason": "derived GLB bytes alone do not provide a baseline KnifeSceneProgram or typed fixed-view mask evaluation"
+      },
+      {
+        "kind": "DRAGONFANG_METRIC_STATUS summary",
+        "path": "packages/weaponry-threejs/DRAGONFANG_METRIC_STATUS.json",
+        "usable": false,
+        "reason": "its structural_delta summary is from the knowledge-candidate workbench, omits baseline/candidate source fingerprints, and is not R2-bound"
+      }
+    ]
+  },
+  "readiness_receipt_path": "packages/weaponry-threejs/artifacts/dragonfang-kukri-assembly-r2.procedural-draft-readiness.json",
+  "readiness_receipt": {
+    "schema_version": "WeaponryThreeJsProceduralDraftReadiness@1",
+    "route": "weaponry-threejs-procedural-draft@1",
+    "target": "PROCEDURAL_DRAFT",
+    "status": "BLOCKED",
+    "decision": "BLOCKED",
+    "asset_id": "dragonfang-kukri-threejs-slice",
+    "program_fingerprint": "f7750c5e532d514e19d17d6f89dcd03a0fca7ed3f6d27642b4c0c3ed5835a47b",
+    "program_bytes_sha256": "c113578c2a43a0e794c7342955d992e18e6a25ec9c5b0e2943d33c207581a5f5",
+    "compiled_fingerprint": "5f8ed42dba9d6cd5",
+    "gates": {
+      "closed_program": {
+        "status": "PASS",
+        "reason": null,
+        "schema_version": "KnifeSceneProgram@1",
+        "asset_id": "dragonfang-kukri-threejs-slice",
+        "canonical_sha256": "f7750c5e532d514e19d17d6f89dcd03a0fca7ed3f6d27642b4c0c3ed5835a47b"
+      },
+      "compilation": {
+        "status": "PASS",
+        "reason": null,
+        "deterministic_fingerprint": "5f8ed42dba9d6cd5",
+        "triangle_count": 4598,
+        "draw_call_count": 13
+      },
+      "parts_materials": {
+        "status": "PASS",
+        "reason": null,
+        "part_count": 13,
+        "compiled_part_count": 13,
+        "material_zone_count": 5,
+        "missing_part_ids": [],
+        "missing_material_zone_ids": [],
+        "duplicate_part_ids": [],
+        "orphan_compiled_part_ids": []
+      },
+      "fixed_view_observability": {
+        "status": "PASS",
+        "reason": null,
+        "rig_fingerprint": "3fa0202473e3352b",
+        "view_ids": [
+          "FRONT",
+          "BACK",
+          "TOP",
+          "BOTTOM",
+          "LEFT",
+          "RIGHT",
+          "REAR_THREE_QUARTER",
+          "FPS_HOLD"
+        ],
+        "visible_part_count": 13,
+        "total_part_count": 13,
+        "total_visible_view_count": 68,
+        "missing_part_ids": [],
+        "underexposed_part_ids": [
+          "gem-pommel"
+        ]
+      },
+      "structural_delta": {
+        "status": "BLOCKED",
+        "reason": "baseline_program is required for a recomputable structural delta",
+        "changed_view_count": 0,
+        "changed_pixel_count": 0,
+        "baseline_source_fingerprint": null,
+        "candidate_source_fingerprint": null
+      },
+      "budgets": {
+        "status": "PASS",
+        "reason": null,
+        "triangle_count": 4598,
+        "max_triangles": 45000,
+        "draw_call_count": 13,
+        "max_draw_calls": 48,
+        "texture_bytes": 0,
+        "max_texture_bytes": 67108864
+      },
+      "glb_receipt": {
+        "status": "PASS",
+        "reason": null,
+        "present": true,
+        "program_bytes_sha256": "c113578c2a43a0e794c7342955d992e18e6a25ec9c5b0e2943d33c207581a5f5",
+        "glb_sha256": "8c8b851e574ffd750011c30b06db296a108dc208588c0c66c2eb9bf7c0fd9311",
+        "glb_bytes": 901376,
+        "glb_header_version": 2,
+        "mesh_count": 13,
+        "mesh_node_count": 13,
+        "material_count": 5,
+        "triangle_count": 4598,
+        "deterministic_fingerprint": "5f8ed42dba9d6cd5"
+      }
+    },
+    "reasons": [
+      "structural_delta: baseline_program is required for a recomputable structural delta"
+    ],
+    "likeness_status": "NOT_REQUESTED",
+    "visual_status": "NOT_REQUESTED",
+    "human_status": "NOT_RUN",
+    "commercial_status": "NOT_RUN",
+    "quality_status": "NOT_RUN",
+    "deterministic_fingerprint": "e10a6497ebef7100"
+  }
+}

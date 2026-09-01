@@ -1,0 +1,146 @@
+{
+  "targetName": "Dragonfang Like Baseline",
+  "schemaVersion": "2.1",
+  "suitability": "conditional",
+  "coordinateFrame": {
+    "up": "+Y",
+    "forward": "+Z",
+    "units": "normalized design units"
+  },
+  "silhouette": {
+    "description": "Closed Dragonfang-like knife fixture for structural generator benchmarking only.",
+    "hidden": ["ornament relief depth and rear-side attachment details are not observed"]
+  },
+  "proceduralStrategy": [
+    "Independent ground-blade component for the primary blade.",
+    "Bounded assembled primitives and a curve sweep for the secondary knife assembly."
+  ],
+  "materials": [
+    { "id": "blade-red", "baseColor": "#8F1D16", "metalness": { "base": 0.8 }, "roughness": { "base": 0.28 } },
+    { "id": "ornament-gold", "baseColor": "#9F6818", "metalness": { "base": 0.95 }, "roughness": { "base": 0.3 } },
+    { "id": "grip-black", "baseColor": "#151719", "metalness": { "base": 0.1 }, "roughness": { "base": 0.68 } },
+    { "id": "ruby-accent", "baseColor": "#8E101B", "metalness": { "base": 0.15 }, "roughness": { "base": 0.24 } }
+  ],
+  "componentTree": [
+    {
+      "id": "blade",
+      "name": "Primary curved blade",
+      "level": "macro",
+      "role": "blade",
+      "primitive": "ground-blade",
+      "topologyClass": "continuous-sculpt",
+      "topologyRationale": "The primary blade is one changing beveled volume following the supplied spine and edge stations.",
+      "geometryDescriptor": {
+        "bladeSpec": {
+          "stations": [
+            [-1.0, 0.12, -0.08],
+            [-0.72, 0.2, -0.16],
+            [-0.34, 0.31, -0.25],
+            [0.1, 0.38, -0.31],
+            [0.5, 0.35, -0.24],
+            [0.78, 0.2, -0.08],
+            [1.0, 0.05, 0.02]
+          ],
+          "thickness": 0.06,
+          "grindFrac": 0.55,
+          "swedgeFromTipFrac": 0.34
+        }
+      },
+      "parent": null,
+      "material": "blade-red",
+      "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] }
+    },
+    {
+      "id": "guard-dragon-head",
+      "name": "Guard head blockout",
+      "level": "macro",
+      "role": "guard",
+      "primitive": "extrude",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A closed planar guard blockout is a separate solid at the blade-to-grip junction.",
+      "geometryDescriptor": {
+        "profile2D": {
+          "points": [[-0.18, -0.12], [0.18, -0.12], [0.23, 0.12], [-0.23, 0.12]],
+          "depth": 0.12
+        }
+      },
+      "parent": null,
+      "material": "ornament-gold",
+      "transform": { "position": [-1.05, 0, 0], "rotation": [0, 0, 0], "scale": [0.7, 1, 1] }
+    },
+    {
+      "id": "grip",
+      "name": "Curved black grip",
+      "level": "macro",
+      "role": "grip",
+      "primitive": "curve-sweep",
+      "topologyClass": "continuous-sculpt",
+      "topologyRationale": "A compact swept volume keeps the handle centerline continuous while allowing a bounded offset.",
+      "geometryDescriptor": {
+        "curveSweep": {
+          "spine": [[-0.35, 0.12, 0], [-0.1, 0.04, 0], [0.12, -0.08, 0], [0.35, -0.15, 0]],
+          "crossSection": { "points": [[-0.08, -0.06], [0.08, -0.06], [0.08, 0.06], [-0.08, 0.06]] },
+          "closed": false
+        }
+      },
+      "parent": null,
+      "material": "grip-black",
+      "transform": { "position": [-1.48, -0.03, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] }
+    },
+    {
+      "id": "pommel",
+      "name": "Terminal pommel",
+      "level": "macro",
+      "role": "pommel",
+      "primitive": "sphere",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A bounded closed terminal volume represents the pommel without asserting its hidden ornament topology.",
+      "parent": null,
+      "material": "ornament-gold",
+      "transform": { "position": [-1.9, -0.18, 0], "rotation": [0, 0, 0], "scale": [0.2, 0.16, 0.14] }
+    },
+    {
+      "id": "grip-fastener",
+      "name": "Grip fastener",
+      "level": "macro",
+      "role": "fastener",
+      "primitive": "cylinder",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A repeated handle fastener is represented as a separate closed radial insert.",
+      "parent": null,
+      "material": "ornament-gold",
+      "transform": { "position": [-1.5, -0.05, 0.075], "rotation": [1.5708, 0, 0], "scale": [0.07, 0.07, 0.04] }
+    },
+    {
+      "id": "dragon-eye",
+      "name": "Guard focal gem",
+      "level": "macro",
+      "role": "gem",
+      "primitive": "sphere",
+      "topologyClass": "assembled-solid",
+      "topologyRationale": "A small closed accent volume marks the guard focal seat without claiming a gem cut profile.",
+      "parent": null,
+      "material": "ruby-accent",
+      "transform": { "position": [-1.08, 0.08, 0.08], "rotation": [0, 0, 0], "scale": [0.06, 0.06, 0.04] }
+    },
+    {
+      "id": "blade-relief",
+      "name": "Shallow blade relief",
+      "level": "macro",
+      "role": "relief",
+      "primitive": "extrude",
+      "topologyClass": "surface-relief",
+      "topologyRationale": "A thin raised planar accent is isolated from the primary blade so its later topology can be refined independently.",
+      "geometryDescriptor": {
+        "profile2D": {
+          "points": [[-0.22, -0.025], [0.22, -0.025], [0.26, 0.025], [-0.26, 0.025]],
+          "depth": 0.025
+        }
+      },
+      "parent": null,
+      "material": "ornament-gold",
+      "transform": { "position": [-0.1, 0.16, 0.035], "rotation": [0, 0, 0], "scale": [1.2, 1, 1] }
+    }
+  ],
+  "performanceBudget": { "targetTriangles": 5000 }
+}

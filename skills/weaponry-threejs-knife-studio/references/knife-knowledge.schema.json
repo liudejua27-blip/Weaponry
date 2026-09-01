@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "knife-knowledge.schema.json",
+  "title": "KnifeKnowledge@1",
+  "description": "Closed normalized-unit design priors for nonfunctional knife visual assets. Priors guide plausible candidates; they do not assert hidden reference truth or commercial quality.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "knowledge_id",
+    "route",
+    "scope",
+    "unit_system",
+    "real_world_dimensions_permitted",
+    "silhouette_grammar",
+    "curve_families",
+    "section_constraints",
+    "attachment_ratios",
+    "fps_occupancy",
+    "material_readability",
+    "claims",
+    "non_claims"
+  ],
+  "properties": {
+    "schema_version": { "const": "KnifeKnowledge@1" },
+    "knowledge_id": { "$ref": "#/$defs/id" },
+    "route": { "const": "weaponry-threejs-knife-studio" },
+    "scope": { "const": "nonfunctional-game-film-display" },
+    "unit_system": { "const": "normalized-visual-units@1" },
+    "real_world_dimensions_permitted": { "const": false },
+    "silhouette_grammar": { "$ref": "#/$defs/silhouetteGrammar" },
+    "curve_families": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/curveFamily" }
+    },
+    "section_constraints": { "$ref": "#/$defs/sectionConstraints" },
+    "attachment_ratios": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 24,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/ratioConstraint" }
+    },
+    "fps_occupancy": { "$ref": "#/$defs/fpsOccupancy" },
+    "material_readability": { "$ref": "#/$defs/materialReadability" },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/claim" }
+    },
+    "non_claims": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "hidden-geometry",
+          "backside-topology",
+          "real-world-dimensions",
+          "manufacturing-or-machining",
+          "structural-performance",
+          "real-world-operation",
+          "reference-likeness-from-formula",
+          "commercial-quality-from-metrics",
+          "pbr-or-engine-readiness",
+          "human-or-partner-approval",
+          "release-permission"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$"
+    },
+    "classification": {
+      "enum": ["observed", "inferred", "design-prior", "original-choice", "unknown"]
+    },
+    "confidence": {
+      "enum": ["high", "medium", "low"]
+    },
+    "formula": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formula_id",
+        "expression",
+        "variables",
+        "classification",
+        "enforcement"
+      ],
+      "properties": {
+        "formula_id": { "$ref": "#/$defs/id" },
+        "expression": { "type": "string", "minLength": 3, "maxLength": 300 },
+        "variables": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "domain": {
+          "type": "array",
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/domain" }
+        },
+        "classification": { "enum": ["design-prior", "inferred", "original-choice"] },
+        "enforcement": {
+          "enum": ["hard-sanity", "soft-ranking-prior", "review-only"]
+        },
+        "rationale": { "type": "string", "maxLength": 240 }
+      }
+    },
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variable", "min", "max", "unit"],
+      "properties": {
+        "variable": { "$ref": "#/$defs/id" },
+        "min": { "type": "number", "minimum": -1, "maximum": 1 },
+        "max": { "type": "number", "minimum": -1, "maximum": 1 },
+        "unit": { "enum": ["normalized", "ratio", "radian", "fraction"] }
+      }
+    },
+    "silhouetteGrammar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["families", "invariants", "derived_quantities"],
+      "properties": {
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/silhouetteFamily" }
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/formula" }
+        },
+        "derived_quantities": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/formula" }
+        }
+      }
+    },
+    "silhouetteFamily": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family_id", "classification", "curve_roles", "section_rhythm", "cue"],
+      "properties": {
+        "family_id": {
+          "enum": [
+            "straight-tanto",
+            "drop-point",
+            "clip-point",
+            "kukri",
+            "machete",
+            "karambit",
+            "bayonet",
+            "original-knife"
+          ]
+        },
+        "classification": { "const": "design-prior" },
+        "curve_roles": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": { "enum": ["spine", "cutting-edge", "fuller", "return-tip", "transition"] }
+        },
+        "section_rhythm": { "type": "string", "minLength": 8, "maxLength": 220 },
+        "cue": { "type": "string", "minLength": 8, "maxLength": 180 }
+      }
+    },
+    "curveFamily": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "curve_family_id",
+        "role",
+        "behavior",
+        "continuity",
+        "extrema_budget",
+        "classification",
+        "formula"
+      ],
+      "properties": {
+        "curve_family_id": { "$ref": "#/$defs/id" },
+        "role": { "enum": ["spine", "cutting-edge", "fuller", "transition"] },
+        "behavior": {
+          "enum": ["monotone-u", "convex-belly", "recurve-edge", "return-tip", "straight", "fuller-run"]
+        },
+        "continuity": { "enum": ["C0", "G1", "C1"] },
+        "extrema_budget": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "classification": { "const": "design-prior" },
+        "formula": { "$ref": "#/$defs/formula" }
+      }
+    },
+    "sectionConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_roles", "invariants", "role_rules", "profile_families"],
+      "properties": {
+        "required_roles": {
+          "const": ["root", "shoulder", "belly", "tip"]
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/formula" }
+        },
+        "role_rules": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sectionRoleRule" }
+        },
+        "profile_families": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "enum": ["diamond", "lenticular", "wedge", "faceted", "custom"] }
+        }
+      }
+    },
+    "sectionRoleRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "classification", "checks", "inspection_focus"],
+      "properties": {
+        "role": { "enum": ["root", "shoulder", "belly", "tip"] },
+        "classification": { "const": "design-prior" },
+        "checks": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/formula" }
+        },
+        "inspection_focus": { "type": "string", "minLength": 8, "maxLength": 220 }
+      }
+    },
+    "ratioConstraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ratio_id",
+        "numerator",
+        "denominator",
+        "suggested_range",
+        "classification",
+        "enforcement",
+        "reason"
+      ],
+      "properties": {
+        "ratio_id": { "$ref": "#/$defs/id" },
+        "numerator": { "$ref": "#/$defs/id" },
+        "denominator": { "$ref": "#/$defs/id" },
+        "suggested_range": { "$ref": "#/$defs/range" },
+        "classification": { "const": "design-prior" },
+        "enforcement": { "enum": ["soft-ranking-prior", "review-only"] },
+        "reason": { "type": "string", "minLength": 8, "maxLength": 220 }
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max", "unit"],
+      "properties": {
+        "min": { "type": "number", "minimum": 0, "maximum": 16 },
+        "max": { "type": "number", "minimum": 0, "maximum": 16 },
+        "unit": { "const": "ratio" }
+      }
+    },
+    "fpsOccupancy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nonfunctional", "viewport_space", "metrics", "starter_priors", "inspection_order"],
+      "properties": {
+        "nonfunctional": { "const": true },
+        "viewport_space": { "const": "normalized-viewport@1" },
+        "metrics": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/fpsMetric" }
+        },
+        "starter_priors": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/fpsPrior" }
+        },
+        "inspection_order": {
+          "const": ["silhouette", "negative-space", "part-id", "material-zone"]
+        }
+      }
+    },
+    "fpsMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_id", "expression", "unit", "classification"],
+      "properties": {
+        "metric_id": { "$ref": "#/$defs/id" },
+        "expression": { "type": "string", "minLength": 3, "maxLength": 220 },
+        "unit": { "enum": ["fraction", "normalized", "pixels-normalized"] },
+        "classification": { "const": "design-prior" }
+      }
+    },
+    "fpsPrior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_id", "suggested_range", "enforcement"],
+      "properties": {
+        "metric_id": { "$ref": "#/$defs/id" },
+        "suggested_range": { "$ref": "#/$defs/range" },
+        "enforcement": { "const": "soft-ranking-prior" }
+      }
+    },
+    "materialReadability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channels", "zone_roles", "neighbor_formula", "use_policy"],
+      "properties": {
+        "channels": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["base-tone", "metalness", "roughness", "normal-strength", "clearcoat", "emissive", "wear-mask"]
+          }
+        },
+        "zone_roles": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "enum": ["blade-body", "cutting-edge", "spine", "root-transition", "guard", "grip", "pommel", "fuller", "relief", "fastener", "gem", "accent"] }
+        },
+        "neighbor_formula": { "$ref": "#/$defs/formula" },
+        "use_policy": { "const": "auxiliary-signal-only" }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "statement", "classification", "confidence", "source_refs", "permitted_use", "uncertainty"],
+      "properties": {
+        "claim_id": { "$ref": "#/$defs/id" },
+        "statement": { "type": "string", "minLength": 3, "maxLength": 300 },
+        "classification": { "$ref": "#/$defs/classification" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "source_refs": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "supporting_claims": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "permitted_use": {
+          "enum": ["lock-visible-feature", "provisional-geometry", "rank-candidate", "author-original", "preserve-gap"]
+        },
+        "uncertainty": { "type": "string", "minLength": 3, "maxLength": 220 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "classification": { "enum": ["observed", "inferred"] } } },
+          "then": { "properties": { "source_refs": { "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "classification": { "const": "inferred" } } },
+          "then": { "properties": { "supporting_claims": { "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "classification": { "const": "unknown" } } },
+          "then": { "properties": { "permitted_use": { "const": "preserve-gap" } } }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weaponry-threejs-knife-design-result.schema.json",
+  "title": "WeaponryThreeJsKnifeDesignResult@1",
+  "description": "Closed durable design result. It proves only program persistence; Worker, GLB, visual, human and commercial gates remain not run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "request_kind", "status", "project_id", "design_id",
+    "asset_id", "family", "program_sha256", "program_object_sha256", "program",
+    "part_count", "material_zone_count", "idempotency_key", "replayed", "store_effect",
+    "cas_effect", "runtime_write_performed", "persistent_user_data_touched",
+    "worker_execution_status", "glb_created", "visual_status", "human_status",
+    "commercial_status", "writer_policy", "canonicalization_policy", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponryThreeJsKnifeDesignResult@1"},
+    "operation": {"enum": ["weaponry_threejs_knife_design_prepare", "weaponry_threejs_knife_design_get"]},
+    "request_kind": {"enum": ["prepare", "get"]},
+    "status": {"enum": ["prepared", "replayed", "found"]},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "design_id": {"$ref": "#/$defs/identifier"},
+    "asset_id": {"$ref": "#/$defs/identifier"},
+    "family": {"enum": ["kukri", "tanto", "karambit", "bayonet", "machete", "original-knife"]},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "program_object_sha256": {"$ref": "#/$defs/sha256"},
+    "program": {"$ref": "https://forgecad.local/contracts/weaponry-threejs-knife-scene-program.schema.json"},
+    "part_count": {"type": "integer", "minimum": 2, "maximum": 64},
+    "material_zone_count": {"type": "integer", "minimum": 1, "maximum": 32},
+    "idempotency_key": {"type": ["string", "null"], "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"},
+    "replayed": {"type": "boolean"},
+    "store_effect": {"enum": ["inserted", "not-touched"]},
+    "cas_effect": {"enum": ["inserted", "not-touched"]},
+    "runtime_write_performed": {"type": "boolean"},
+    "persistent_user_data_touched": {"type": "boolean"},
+    "worker_execution_status": {"const": "NOT_RUN_FIXED_WORKER"},
+    "glb_created": {"const": false},
+    "visual_status": {"const": "NOT_RUN"},
+    "human_status": {"const": "NOT_RUN"},
+    "commercial_status": {"const": "NOT_RUN"},
+    "writer_policy": {"const": "forgecad-runtime-only-state-writer@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "operation": {"const": "weaponry_threejs_knife_design_prepare"},
+        "request_kind": {"const": "prepare"}, "status": {"const": "prepared"},
+        "idempotency_key": {"type": "string"}, "replayed": {"const": false},
+        "store_effect": {"const": "inserted"}, "cas_effect": {"const": "inserted"},
+        "runtime_write_performed": {"const": true}, "persistent_user_data_touched": {"const": true}
+      }
+    },
+    {
+      "properties": {
+        "operation": {"const": "weaponry_threejs_knife_design_prepare"},
+        "request_kind": {"const": "prepare"}, "status": {"const": "replayed"},
+        "idempotency_key": {"type": "string"}, "replayed": {"const": true},
+        "store_effect": {"const": "not-touched"}, "cas_effect": {"const": "not-touched"},
+        "runtime_write_performed": {"const": false}, "persistent_user_data_touched": {"const": false}
+      }
+    },
+    {
+      "properties": {
+        "operation": {"const": "weaponry_threejs_knife_design_get"},
+        "request_kind": {"const": "get"}, "status": {"const": "found"},
+        "idempotency_key": {"type": "null"}, "replayed": {"const": false},
+        "store_effect": {"const": "not-touched"}, "cas_effect": {"const": "not-touched"},
+        "runtime_write_performed": {"const": false}, "persistent_user_data_touched": {"const": false}
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

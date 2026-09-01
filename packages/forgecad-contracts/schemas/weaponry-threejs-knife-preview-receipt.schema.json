@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weaponry-threejs-knife-preview-receipt.schema.json",
+  "title": "WeaponryThreeJsKnifePreviewReceipt@1",
+  "description": "Closed CAS receipt for one deterministic eight-view Three.js knife preview. Image bytes are referenced by hash and are never inlined.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "operation", "project_id", "execution_id", "design_id",
+    "program_sha256", "program_object_sha256", "worker_result_sha256",
+    "worker_result_object_sha256", "preview_runtime_id", "preview_runtime_sha256",
+    "preview_dependency_lock_sha256", "preview_worker_cohort_sha256", "view_count",
+    "aov_count", "views", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponryThreeJsPreviewReceipt@1"},
+    "operation": {"const": "weaponry_threejs_knife_design_preview"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "execution_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "design_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "program_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "program_object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "worker_result_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "worker_result_object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "preview_runtime_id": {"const": "weaponry-threejs-fixed-preview-worker@1"},
+    "preview_runtime_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "preview_dependency_lock_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "preview_worker_cohort_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "view_count": {"const": 8},
+    "aov_count": {"const": 48},
+    "views": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "prefixItems": [
+        {"$ref": "#/$defs/front_view"},
+        {"$ref": "#/$defs/back_view"},
+        {"$ref": "#/$defs/top_view"},
+        {"$ref": "#/$defs/bottom_view"},
+        {"$ref": "#/$defs/left_view"},
+        {"$ref": "#/$defs/right_view"},
+        {"$ref": "#/$defs/rear_view"},
+        {"$ref": "#/$defs/fps_view"}
+      ],
+      "items": false
+    },
+    "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "$defs": {
+    "pass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aov_id", "sha256", "object_sha256", "bytes", "mime"],
+      "properties": {
+        "aov_id": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 4194304},
+        "mime": {"const": "image/png"}
+      }
+    },
+    "passes": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/pass"}, {"properties": {"aov_id": {"const": "beauty"}}}]},
+        {"allOf": [{"$ref": "#/$defs/pass"}, {"properties": {"aov_id": {"const": "alpha-silhouette"}}}]},
+        {"allOf": [{"$ref": "#/$defs/pass"}, {"properties": {"aov_id": {"const": "semantic-id"}}}]},
+        {"allOf": [{"$ref": "#/$defs/pass"}, {"properties": {"aov_id": {"const": "depth"}}}]},
+        {"allOf": [{"$ref": "#/$defs/pass"}, {"properties": {"aov_id": {"const": "normal"}}}]},
+        {"allOf": [{"$ref": "#/$defs/pass"}, {"properties": {"aov_id": {"const": "roughness-material-id"}}}]}
+      ],
+      "items": false
+    },
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["view_id", "camera_sha256", "worker_cohort_sha256", "width", "height", "passes"],
+      "properties": {
+        "view_id": {"type": "string"},
+        "camera_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "worker_cohort_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "width": {"const": 512},
+        "height": {"const": 512},
+        "passes": {"$ref": "#/$defs/passes"}
+      }
+    },
+    "front_view": {"allOf": [{"$ref": "#/$defs/view"}, {"properties": {"view_id": {"const": "FRONT"}}}]},
+    "back_view": {"allOf": [{"$ref": "#/$defs/view"}, {"properties": {"view_id": {"const": "BACK"}}}]},
+    "top_view": {"allOf": [{"$ref": "#/$defs/view"}, {"properties": {"view_id": {"const": "TOP"}}}]},
+    "bottom_view": {"allOf": [{"$ref": "#/$defs/view"}, {"properties": {"view_id": {"const": "BOTTOM"}}}]},
+    "left_view": {"allOf": [{"$ref": "#/$defs/view"}, {"properties": {"view_id": {"const": "LEFT"}}}]},
+    "right_view": {"allOf": [{"$ref": "#/$defs/view"}, {"properties": {"view_id": {"const": "RIGHT"}}}]},
+    "rear_view": {"allOf": [{"$ref": "#/$defs/view"}, {"properties": {"view_id": {"const": "REAR_THREE_QUARTER"}}}]},
+    "fps_view": {"allOf": [{"$ref": "#/$defs/view"}, {"properties": {"view_id": {"const": "FPS_HOLD"}}}]}
+  }
+}

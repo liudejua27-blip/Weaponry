@@ -1,0 +1,105 @@
+{
+  "schema_version": "WeaponryThreeJsReferenceViewMapping@1",
+  "mapping_id": "dragonfang-r7-reference-view-mapping-001",
+  "asset_id": "Dragonfang Kukri",
+  "coordinate_convention": "weapon-front-z-up-right-handed@1",
+  "reference_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+  "program_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+  "aov_manifest_sha256": "2f024e4853fcefd4ff11cbfbd6258732653716a636adea7ebbc403758f5205c4",
+  "preview_worker_cohort_sha256": "92f8d4ca303851e9eead9cd337f5bf6821980fd76eb8026d617d744b0c7f5044",
+  "mappings": [
+    {
+      "reference_view_kind": "front",
+      "reference_semantics": "sheet broadside front",
+      "render_view_id": "FRONT",
+      "camera_axis": "+Z broadside",
+      "handedness_transform": "mirror-render-x-to-reference@1",
+      "independent_direction": true,
+      "comparison_eligible": true
+    },
+    {
+      "reference_view_kind": "back",
+      "reference_semantics": "sheet opposite broadside",
+      "render_view_id": "BACK",
+      "camera_axis": "-Z broadside",
+      "handedness_transform": "mirror-render-x-to-reference@1",
+      "independent_direction": true,
+      "comparison_eligible": true
+    },
+    {
+      "reference_view_kind": "top",
+      "reference_semantics": "sheet upper edge profile",
+      "render_view_id": "TOP",
+      "camera_axis": "+Y edge-profile",
+      "handedness_transform": "none",
+      "independent_direction": true,
+      "comparison_eligible": true
+    },
+    {
+      "reference_view_kind": "bottom",
+      "reference_semantics": "sheet lower edge profile",
+      "render_view_id": "BOTTOM",
+      "camera_axis": "-Y edge-profile",
+      "handedness_transform": "mirror-render-x-to-reference@1",
+      "independent_direction": true,
+      "comparison_eligible": true
+    },
+    {
+      "reference_view_kind": "left",
+      "reference_semantics": "sheet-labelled long upper edge profile, not world -X",
+      "render_view_id": "TOP",
+      "camera_axis": "+Y edge-profile",
+      "handedness_transform": "none",
+      "independent_direction": false,
+      "comparison_eligible": true
+    },
+    {
+      "reference_view_kind": "right",
+      "reference_semantics": "sheet-labelled long lower edge profile, not world +X",
+      "render_view_id": "BOTTOM",
+      "camera_axis": "-Y edge-profile",
+      "handedness_transform": "none",
+      "independent_direction": false,
+      "comparison_eligible": true
+    },
+    {
+      "reference_view_kind": "guard-bottom",
+      "reference_semantics": "component detail view",
+      "render_view_id": null,
+      "camera_axis": null,
+      "handedness_transform": null,
+      "independent_direction": false,
+      "comparison_eligible": false,
+      "required_route": "component-isolation-camera"
+    },
+    {
+      "reference_view_kind": "pommel",
+      "reference_semantics": "component detail view",
+      "render_view_id": null,
+      "camera_axis": null,
+      "handedness_transform": null,
+      "independent_direction": false,
+      "comparison_eligible": false,
+      "required_route": "component-isolation-camera"
+    },
+    {
+      "reference_view_kind": "fps-hold",
+      "reference_semantics": "presentation and hand-pose view",
+      "render_view_id": null,
+      "camera_axis": null,
+      "handedness_transform": null,
+      "independent_direction": false,
+      "comparison_eligible": false,
+      "required_route": "fps-presentation-camera"
+    }
+  ],
+  "independent_global_direction_count": 4,
+  "reference_coverage_status": "PARTIAL_VISIBLE_VIEW_ONLY",
+  "likeness_policy": "score only mapped global views; aliases do not increase independent-view coverage",
+  "geometry_modified": false,
+  "candidate_created": false,
+  "visual_status": "NOT_APPROVED",
+  "human_status": "NOT_RUN",
+  "commercial_status": "NOT_RUN",
+  "canonical_sha256": "bb3239cf72b1d468fd536f3179d9fa533135eb867a8c4ab5074274a7ca76cf6d"
+}

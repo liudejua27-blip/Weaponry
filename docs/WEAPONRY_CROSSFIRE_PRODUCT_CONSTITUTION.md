@@ -10,6 +10,12 @@
 > `WEAPONRY_KNIFE_10_DAY_DELIVERY_PLAN.md` 收缩为穿越火线刀类。允许固定版本、固定插件、
 > closed-job 的隔离 Blender 内部原型；它不改变 Rust Runtime 单写者和最终真值边界。
 
+> **Three.js lightweight-route addendum (2026-08-31):** ADR-0031 新增独立的
+> `Weaponry Three.js Knife Studio` 路线。该路线接受 pinned `img2threejs` 的 Apache-2.0
+> 代码式重建、ObjectSculptSpec、TypeScript factory 与浏览器渲染作为上游基线和派生资产，
+> 再以 `KnifeSceneProgram + KnifeObjectiveLedger + deterministic evaluator` 升级。它不替代
+> Rust 商业游戏资产路线，也不把 Three.js 可打开或指标收敛写成 UE5/商业验收。
+
 ## 1. 唯一产品目标
 
 Weaponry 是由 Codex 操控、Rust Runtime 唯一写入的武器专用 Agent-native

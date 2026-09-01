@@ -1,0 +1,52 @@
+{
+  "name": "@wushen/weaponry-threejs",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Deterministic KnifeSceneProgram blade compiler for the Weaponry Three.js route.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "smoke": "node --experimental-strip-types scripts/compile-smoke.ts",
+    "studio:smoke": "node --experimental-strip-types scripts/three-asset-studio-smoke.ts",
+    "studio:intrinsic:smoke": "node --experimental-strip-types scripts/three-asset-studio-intrinsic-smoke.ts",
+    "surface-field:smoke": "node --experimental-strip-types scripts/surface-field-smoke.ts",
+    "knowledge:candidate:smoke": "node --experimental-strip-types scripts/knowledge-candidate-smoke.ts",
+    "objective-ledger:smoke": "node --experimental-strip-types scripts/objective-ledger-smoke.ts",
+    "objective:v2:smoke": "node --experimental-strip-types scripts/objective-function-v2-smoke.ts",
+    "objective-v2:smoke": "npm run objective:v2:smoke",
+    "objective-metric-adapter:smoke": "node --experimental-strip-types scripts/objective-metric-adapter-smoke.ts",
+    "objective-metric-adapter:v2:smoke": "node --experimental-strip-types scripts/objective-metric-adapter-v2-smoke.ts",
+    "part:visibility:smoke": "node --experimental-strip-types scripts/part-visibility-metrics-smoke.ts",
+    "part:boundary:smoke": "node --experimental-strip-types scripts/part-boundary-metrics-smoke.ts",
+    "guard:fps:smoke": "node --experimental-strip-types scripts/guard-fps-metrics-smoke.ts",
+    "assembly:intrinsic:smoke": "node --experimental-strip-types scripts/assembly-intrinsic-metrics-smoke.ts",
+    "intrinsic:morphology:smoke": "node --experimental-strip-types scripts/intrinsic-morphology-smoke.ts",
+    "readiness:smoke": "node --experimental-strip-types scripts/procedural-draft-readiness-smoke.ts",
+    "readiness:dragonfang": "node --experimental-strip-types scripts/dragonfang-procedural-draft-readiness.ts",
+    "successor:dragonfang": "node --experimental-strip-types scripts/materialize-dragonfang-procedural-successor.ts",
+    "migration:dragonfang-r7": "node scripts/materialize-dragonfang-canonical-migration.mjs",
+    "successor:dragonfang-r8": "node --experimental-strip-types scripts/materialize-dragonfang-blade-r8.mjs",
+    "check:dragonfang-r8": "node scripts/check-dragonfang-r8.mjs",
+    "preview:dragonfang-r8": "node scripts/render-dragonfang-r8-fixed-preview.mjs",
+    "mapping:dragonfang-r8": "node scripts/materialize-dragonfang-r8-view-mapping.mjs",
+    "compare:dragonfang-r8": "python3 scripts/compare-dragonfang-r8-fixed-front.py",
+    "package:dragonfang-r8": "node --experimental-strip-types scripts/package-dragonfang-r8-delivery.mjs",
+    "preview:smoke": "node --experimental-strip-types scripts/preview-smoke.ts",
+    "capture:extract": "python3 scripts/extract-browser-capture.py",
+    "compile:program": "node --experimental-strip-types scripts/compile-program.mjs",
+    "preview:build": "vite build preview",
+    "studio:build": "vite build studio",
+    "engine:typecheck": "tsc -p engine-demo/tsconfig.json",
+    "engine:build": "vite build --config engine-demo/vite.config.ts",
+    "engine:dev": "vite --config engine-demo/vite.config.ts"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.20.0",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.0",
+    "typescript": "^5.8.0",
+    "vite": "^7.0.0"
+  }
+}

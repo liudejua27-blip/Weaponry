@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SKIP = {".git", "node_modules", "target", "dist", ".playwright-cli", ".venv", ".pytest_cache", ".ruff_cache"}
 PATTERNS = [
-    re.compile(r"(?i)(api[_-]?key|secret|token)\s*[:=]\s*[\"'][^\"']{12,}[\"']"),
+    re.compile(r"(?i)(api[_-]?key|secret|token)\s*[:=]\s*[\"'][^\"'\r\n]{12,}[\"']"),
     re.compile(r"(?i)sk-[a-z0-9]{16,}"),
 ]
 

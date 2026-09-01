@@ -1,5 +1,35 @@
 # Weaponry 当前交接
 
+> 2026-09-01 FPS Runtime 交接：`WPN-THREE-R8-FPS-RUNTIME-016` 已完成 Three.js 浏览器纵切。
+> 入口为 `packages/weaponry-threejs/src/engine/index.ts` 与 `packages/weaponry-threejs/engine-demo`；
+> `animation.ts` 提供 5 个固定 root-pivot clips/markers，`fps.ts` 仅把 typed right-hand
+> 展示目标绑到 `socket-grip`，`physics.ts` 把 2 个既有 collider intents 物化为 Rapier
+> kinematic preview body。继续时不要修改 r8 GLB/hash，也不要把展示目标写成真实手模/IK、
+> 把 kinematic preview 写成 gameplay/damage，或把浏览器 CPU p95 写成 UE5.6/商业性能验收。
+> 回执：`docs/evidence/weaponry/wpn-three-r8-fps-runtime-016.json`。
+
+> 2026-09-01 Three.js 引擎交接：`WPN-THREE-R8-ENGINE-INTERACTION-015` 已完成。核心入口在
+> `packages/weaponry-threejs/src/engine/index.ts`，浏览器工作台在
+> `packages/weaponry-threejs/engine-demo`。演示层会校验 delivery manifest 与 GLB SHA-256，再仅解码
+> 一次 GLB，不执行任意 TypeScript/URL/plugin。Playwright 实机已证明动作完成后回到
+> idle、inspect toggle、三类相机、Part 隐藏/拾取/explode、resize 与 WebGL context
+> recovery。当前不是 UE5.6 导入或引擎商业验收；collider 未生成 physics body，动作不是
+> skeleton/clip。回执：`docs/evidence/weaponry/wpn-three-r8-engine-interaction-015.json`。
+
+> 2026-09-01 Three.js 交付交接：`WPN-THREE-R8-PACKAGE-DELIVERY-014` 已完成。可独立加载包位于
+> `packages/weaponry-threejs/deliveries/dragonfang-r8`；manifest canonical=`3e2a7b9d…bb63`，
+> action-ready GLB/CAS=`ec6fbbfa…b344`。same-cohort=`16bfe5a4…a386` 已证明 prepare、无写 replay、
+> Runtime 重启精确 get 和单次 export。包含 13 Part pivots、3 sockets、2 collider intents、2 destruction groups；
+> collider 仍是意图元数据，不是引擎碰撞体。visual=`NOT_APPROVED`，human/engine/commercial=`NOT_RUN`。
+
+> 2026-09-01 Three.js 当前交接：`WPN-THREE-R8-RENDER-COMPARE-013` 已完成真实固定渲染、
+> program-bound view mapping 与同参考/同相机比较。r8 render manifest=`ee86d240…dcf2`，48 张
+> 512×512 PNG，Worker cohort=`92f8d4ca…5044`；mapping canonical=`dbdf2986…d9e3`，FRONT
+> camera=`6f92f25e…1104` 与 r7 exact 相同。frozen-fit 比较 receipt canonical=`0a4a3875…a10c`：
+> IoU/F1/平均 Chamfer/landmark 小幅改善，P95 回退，r7/r8 gate 均 FAIL。八视图显示刀身仍过短、
+> 刀尖过钝、三分之四体积偏薄，故唯一 review action=`refine-spec`，不是继续声称通过。
+> 本原子未修改几何；工作台停在 `pipeline-sync`，visual=`NOT_APPROVED`，human/engine/commercial=`NOT_RUN`。
+
 > 2026-08-30 High convergence handoff：`WPN-KNIFE-HIGH-001 / Slice A` 已完成设计锁定，未生成
 > High mesh。当前实现目标不是继续堆 High operation，而是先落地三个 Runtime-owned 聚合真值：
 > `KnifeReferenceIntentBundle@1`、`KnifePassState@1`、`KnifeCorrectionLedger@1`，经现有

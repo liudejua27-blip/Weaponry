@@ -1,5 +1,17 @@
 # Weaponry 文档地图
 
+> 2026-08-31 新增轻量化 Three.js 刀类路线：ADR-0031
+> `ADR/0031-weaponry-threejs-quality-workbench.md` 接受 pinned
+> `img2threejs@9fbd0ca5bbcc3b13bebe712745d6784d33db0b85` 作为 Apache-2.0 上游基线，
+> 但以 Weaponry-owned `KnifeSceneProgram@1`、`KnifeObjectiveLedger@1`、刀类双曲线/多截面
+> kernel 和确定性浏览器指标形成更高一级工作台。Codex Skill 位于
+> `skills/weaponry-threejs-knife-studio/`；Archify 高层图位于
+> `architecture/weaponry-threejs-quality-workbench.html`。当前 pinned source adoption、bounded
+> adapter、双曲线/四截面结构编译器、bounded 刀具装配、preview GLB 与一次真实 WebGL FRONT
+> 渲染已完成；固定八视图 CPU mask 和数学轮廓评价也已运行。授权 FRONT 首轮及 32 候选纠偏均
+> 未达到阈值，状态为 `METRICS_MEASURED_NOT_APPROVED`。真实 AOV、完整装饰、同输入上游基准和
+> Runtime/Store/CAS/MCP 仍未完成，没有质量 PASS。
+
 > 2026-08-30 `WPN-KNIFE-HIGH-001 / Slice A` 当前设计入口：
 > `WEAPONRY_KNIFE_REFERENCE_CONVERGENCE_DESIGN_20260830.md`。它冻结 img2threejs 静态研究到
 > Weaponry-owned ReferenceIntent/PassState/CorrectionLedger，并保持 11 façade、Runtime 唯一写者、

@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KnifeSceneProgram@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "asset_id",
+    "family",
+    "design_basis",
+    "coordinate_convention",
+    "blade_surface",
+    "parts",
+    "material_zones",
+    "presentation",
+    "budgets",
+    "unknowns",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "KnifeSceneProgram@1" },
+    "asset_id": { "$ref": "#/$defs/id" },
+    "family": { "enum": ["kukri", "tanto", "karambit", "bayonet", "machete", "original-knife"] },
+    "design_basis": { "enum": ["authorized-reference-inspired", "original-design", "img2threejs-compatible-import"] },
+    "coordinate_convention": { "const": "weapon-front-z-up-right-handed@1" },
+    "blade_surface": { "$ref": "#/$defs/bladeSurface" },
+    "assembly": { "$ref": "#/$defs/assembly" },
+    "parts": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/part" }
+    },
+    "material_zones": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/materialZone" }
+    },
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["camera_set", "renderer", "aovs"],
+      "properties": {
+        "camera_set": { "const": "knife-fixed-eight-view@1" },
+        "renderer": { "const": "threejs-browser-authority@1" },
+        "aovs": {
+          "type": "array",
+          "minItems": 6,
+          "uniqueItems": true,
+          "items": { "enum": ["beauty", "silhouette", "depth", "normal", "part-id", "material-id", "wireframe", "curvature", "uv-stretch"] }
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_triangles", "max_draw_calls", "max_texture_bytes"],
+      "properties": {
+        "max_triangles": { "type": "integer", "minimum": 64, "maximum": 200000 },
+        "max_draw_calls": { "type": "integer", "minimum": 1, "maximum": 128 },
+        "max_texture_bytes": { "type": "integer", "minimum": 0, "maximum": 268435456 }
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 120 }
+    },
+    "canonical_sha256": { "$ref": "#/$defs/sha" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$" },
+    "sha": { "type": "string", "pattern": "^(?:[a-f0-9]{64})?$" },
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number", "minimum": -4, "maximum": 4 },
+        { "type": "number", "minimum": -4, "maximum": 4 },
+        { "type": "number", "minimum": -4, "maximum": 4 }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "curve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["curve_id", "basis", "control_points"],
+      "properties": {
+        "curve_id": { "$ref": "#/$defs/id" },
+        "basis": { "enum": ["bezier", "nurbs-like"] },
+        "control_points": { "type": "array", "minItems": 4, "maxItems": 64, "items": { "$ref": "#/$defs/point" } }
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section_id", "role", "u", "half_width", "thickness", "edge_offset", "spine_offset", "asymmetry", "twist"],
+      "properties": {
+        "section_id": { "$ref": "#/$defs/id" },
+        "role": { "enum": ["root", "shoulder", "belly", "tip", "intermediate"] },
+        "u": { "type": "number", "minimum": 0, "maximum": 1 },
+        "half_width": { "type": "number", "exclusiveMinimum": 0, "maximum": 2 },
+        "thickness": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "edge_offset": { "type": "number", "minimum": -1, "maximum": 1 },
+        "spine_offset": { "type": "number", "minimum": -1, "maximum": 1 },
+        "asymmetry": { "type": "number", "minimum": -1, "maximum": 1 },
+        "twist": { "type": "number", "minimum": -1.5708, "maximum": 1.5708 }
+      }
+    },
+    "bladeSurface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spine_curve", "cutting_edge_curve", "sections", "surface_roles"],
+      "properties": {
+        "spine_curve": { "$ref": "#/$defs/curve" },
+        "cutting_edge_curve": { "$ref": "#/$defs/curve" },
+        "sections": { "type": "array", "minItems": 4, "maxItems": 32, "items": { "$ref": "#/$defs/section" } },
+        "surface_roles": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": { "enum": ["blade-body", "cutting-edge", "spine", "root-transition", "ricasso", "fuller"] }
+        }
+      }
+    },
+    "assembly": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "guard": { "$ref": "#/$defs/guard" },
+        "grip": { "$ref": "#/$defs/grip" },
+        "pommel": { "$ref": "#/$defs/pommel" },
+        "fasteners": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/fastener" } },
+        "gems": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/gem" } },
+        "reliefs": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/relief" } }
+      }
+    },
+    "assemblyBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center"],
+      "properties": {
+        "primitive": { "enum": ["guard", "grip", "pommel", "fastener", "gem", "relief"] },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" }
+      }
+    },
+    "guard": {
+      "oneOf": [
+        { "$ref": "#/$defs/classicGuard" },
+        { "$ref": "#/$defs/dragonGuard" }
+      ]
+    },
+    "classicGuard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center", "span", "thickness", "depth"],
+      "properties": {
+        "primitive": { "const": "guard" },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" },
+        "span": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 2 },
+        "thickness": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "depth": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "style": { "const": "classic" }
+      }
+    },
+    "dragonGuard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center", "span", "thickness", "depth", "style", "jaw_gap", "upper_jaw", "lower_jaw", "horns", "eye_sockets"],
+      "properties": {
+        "primitive": { "const": "guard" },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" },
+        "span": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 2 },
+        "thickness": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "depth": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "style": { "const": "dragon-guard" },
+        "jaw_gap": { "type": "number", "minimum": 0.01, "maximum": 0.6 },
+        "upper_jaw": { "$ref": "#/$defs/dragonJaw" },
+        "lower_jaw": { "$ref": "#/$defs/dragonJaw" },
+        "horns": { "type": "array", "minItems": 2, "maxItems": 4, "uniqueItems": true, "items": { "$ref": "#/$defs/dragonHorn" } },
+        "eye_sockets": { "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/dragonEyeSocket" } }
+      }
+    },
+    "dragonJaw": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["span", "thickness", "depth", "offset_y", "offset_z", "curvature"],
+      "properties": {
+        "span": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 2 },
+        "thickness": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.4 },
+        "depth": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.4 },
+        "offset_y": { "type": "number", "minimum": -1, "maximum": 1 },
+        "offset_z": { "type": "number", "minimum": -0.8, "maximum": 0.8 },
+        "curvature": { "type": "number", "minimum": -0.25, "maximum": 0.25 }
+      }
+    },
+    "dragonHorn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_id", "side", "length", "radius", "sweep", "offset_z"],
+      "properties": {
+        "feature_id": { "$ref": "#/$defs/id" },
+        "side": { "enum": [-1, 1] },
+        "length": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.8 },
+        "radius": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.2 },
+        "sweep": { "type": "number", "minimum": -0.75, "maximum": 0.75 },
+        "offset_z": { "type": "number", "minimum": -0.8, "maximum": 0.8 }
+      }
+    },
+    "dragonEyeSocket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_id", "side", "radius", "depth", "offset_y", "offset_z"],
+      "properties": {
+        "feature_id": { "$ref": "#/$defs/id" },
+        "side": { "enum": [-1, 1] },
+        "radius": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.25 },
+        "depth": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.2 },
+        "offset_y": { "type": "number", "minimum": -1, "maximum": 1 },
+        "offset_z": { "type": "number", "minimum": -0.8, "maximum": 0.8 }
+      }
+    },
+    "grip": {
+      "oneOf": [
+        { "$ref": "#/$defs/classicGrip" },
+        { "$ref": "#/$defs/segmentedGrip" }
+      ]
+    },
+    "classicGrip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center", "length", "radius", "taper", "facets"],
+      "properties": {
+        "primitive": { "const": "grip" },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" },
+        "length": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 2 },
+        "radius": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "taper": { "type": "number", "minimum": -0.9, "maximum": 0.9 },
+        "facets": { "type": "integer", "minimum": 6, "maximum": 32 },
+        "style": { "const": "classic" }
+      }
+    },
+    "segmentedGrip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center", "length", "radius", "taper", "facets", "style", "centerline", "segments", "metal_frames", "fasteners"],
+      "properties": {
+        "primitive": { "const": "grip" },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" },
+        "length": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 2 },
+        "radius": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "taper": { "type": "number", "minimum": -0.9, "maximum": 0.9 },
+        "facets": { "type": "integer", "minimum": 6, "maximum": 32 },
+        "style": { "const": "segmented-grip" },
+        "centerline": { "type": "array", "minItems": 3, "maxItems": 8, "items": { "$ref": "#/$defs/point" } },
+        "segments": { "type": "array", "minItems": 2, "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/gripSegment" } },
+        "metal_frames": { "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/gripFrame" } },
+        "fasteners": { "type": "array", "minItems": 3, "maxItems": 5, "uniqueItems": true, "items": { "$ref": "#/$defs/gripFastenerFeature" } }
+      }
+    },
+    "gripSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_id", "start_u", "end_u", "radius_scale"],
+      "properties": {
+        "feature_id": { "$ref": "#/$defs/id" },
+        "start_u": { "type": "number", "minimum": 0, "maximum": 1 },
+        "end_u": { "type": "number", "minimum": 0, "maximum": 1 },
+        "radius_scale": { "type": "number", "minimum": 0.5, "maximum": 1.5 }
+      }
+    },
+    "gripFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_id", "at", "width", "thickness"],
+      "properties": {
+        "feature_id": { "$ref": "#/$defs/id" },
+        "at": { "type": "number", "minimum": 0, "maximum": 1 },
+        "width": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.5 },
+        "thickness": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.15 }
+      }
+    },
+    "gripFastenerFeature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_id", "at", "side", "radius", "depth"],
+      "properties": {
+        "feature_id": { "$ref": "#/$defs/id" },
+        "at": { "type": "number", "minimum": 0, "maximum": 1 },
+        "side": { "enum": [-1, 1] },
+        "radius": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.1 },
+        "depth": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.25 }
+      }
+    },
+    "pommel": {
+      "oneOf": [
+        { "$ref": "#/$defs/classicPommel" },
+        { "$ref": "#/$defs/hookedPommel" }
+      ]
+    },
+    "classicPommel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center", "length", "radius", "depth"],
+      "properties": {
+        "primitive": { "const": "pommel" },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" },
+        "length": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "radius": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "depth": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "style": { "const": "classic" }
+      }
+    },
+    "hookedPommel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center", "length", "radius", "depth", "style", "hook", "gem_seat"],
+      "properties": {
+        "primitive": { "const": "pommel" },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" },
+        "length": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "radius": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "depth": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 1 },
+        "style": { "const": "hooked-pommel" },
+        "hook": { "$ref": "#/$defs/pommelHook" },
+        "gem_seat": { "$ref": "#/$defs/pommelGemSeat" }
+      }
+    },
+    "pommelHook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["length", "radius", "bend", "direction"],
+      "properties": {
+        "length": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.8 },
+        "radius": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.2 },
+        "bend": { "type": "number", "minimum": 0.2, "maximum": 1 },
+        "direction": { "enum": [-1, 1] }
+      }
+    },
+    "pommelGemSeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_id", "radius", "depth", "offset_x", "offset_y", "offset_z", "axis"],
+      "properties": {
+        "feature_id": { "$ref": "#/$defs/id" },
+        "radius": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.25 },
+        "depth": { "type": "number", "exclusiveMinimum": 0.0001, "maximum": 0.2 },
+        "offset_x": { "type": "number", "minimum": -0.8, "maximum": 0.8 },
+        "offset_y": { "type": "number", "minimum": -0.8, "maximum": 0.8 },
+        "offset_z": { "type": "number", "minimum": -0.8, "maximum": 0.8 },
+        "axis": { "enum": ["x", "y", "z"] }
+      }
+    },
+    "fastener": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center", "radius", "depth", "axis"],
+      "properties": {
+        "primitive": { "const": "fastener" },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" },
+        "radius": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5 },
+        "depth": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5 },
+        "axis": { "enum": ["x", "y", "z"] }
+      }
+    },
+    "gem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center", "radius", "depth", "axis"],
+      "properties": {
+        "primitive": { "const": "gem" },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" },
+        "radius": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5 },
+        "depth": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5 },
+        "axis": { "enum": ["x", "y", "z"] }
+      }
+    },
+    "relief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitive", "part_id", "center", "width", "height", "depth", "shape", "axis"],
+      "properties": {
+        "primitive": { "const": "relief" },
+        "part_id": { "$ref": "#/$defs/id" },
+        "center": { "$ref": "#/$defs/point" },
+        "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 2 },
+        "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 2 },
+        "depth": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5 },
+        "shape": { "enum": ["panel", "diamond"] },
+        "axis": { "enum": ["x", "y", "z"] }
+      }
+    },
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_id", "role", "source_class", "material_zone_id", "frozen"],
+      "properties": {
+        "part_id": { "$ref": "#/$defs/id" },
+        "role": { "enum": ["blade-body", "cutting-edge", "guard", "grip", "pommel", "fastener", "gem", "relief", "helper"] },
+        "source_class": { "enum": ["observed", "inferred", "design-prior", "original-choice"] },
+        "material_zone_id": { "$ref": "#/$defs/id" },
+        "frozen": { "type": "boolean" }
+      }
+    },
+    "materialZone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["material_zone_id", "model", "base_color", "metalness", "roughness"],
+      "properties": {
+        "material_zone_id": { "$ref": "#/$defs/id" },
+        "model": { "const": "mesh-standard-layered@1" },
+        "base_color": { "type": "string", "pattern": "^#[A-Fa-f0-9]{6}$" },
+        "metalness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "roughness": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}

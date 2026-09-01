@@ -1,0 +1,46 @@
+WPN-THREE-COMPILER-001 report
+
+Scope
+-----
+Implemented a new isolated packages/weaponry-threejs package. The compiler
+accepts KnifeSceneProgram@1 and emits a derived THREE.Group containing two
+blade meshes plus optional bounded semantic assembly primitives.
+
+Structural slice
+----------------
+- Spine and cutting-edge curves are evaluated independently.
+- Sections are required to be strict and monotonic, with at least four entries.
+- Four or more calibration sections drive changing width, edge/spine offsets,
+  twist, and asymmetric top/bottom thickness; the default render mesh samples
+  64 deterministic longitudinal segments between them.
+- The two curves are the actual silhouette rails. The body uses a six-point
+  faceted cross-section and the edge a separate three-point wedge, each in a
+  closed THREE.BufferGeometry.
+- Part and material IDs are bound to names, userData, and stable numeric
+  geometry attributes.
+- Derived object UUIDs and the structural fingerprint are deterministic across
+  repeated compilation of the same input.
+- Guard, grip, pommel, fastener, gem, and relief use a closed primitive
+  vocabulary bound to existing semantic Part and MaterialZone IDs.
+
+Verification
+------------
+Commands:
+
+  npm --prefix packages/weaponry-threejs run typecheck
+  npm --prefix packages/weaponry-threejs run smoke
+
+Observed smoke result after the quality-oriented tessellation upgrade: 4
+calibration sections, 64 longitudinal segments, 2 blade parts, 1,162
+triangles, and a deterministic fingerprint recorded by the smoke output. The fixture is an
+original-design structural fixture, not a visual or commercial acceptance
+asset.
+
+Deliberate non-claims
+---------------------
+The compiler smoke itself does not invoke WebGL. A separate browser preview was
+built and a fixed FRONT structural frame was rendered with software WebGL; that
+only proves that the derived scene is renderable. No fixed multi-view AOV,
+reference comparison, metric convergence, human review, High/Low/UV/Bake,
+engine import, Runtime readback, Store/CAS persistence, or quality PASS was
+produced by this slice.

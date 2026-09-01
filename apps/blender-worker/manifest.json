@@ -1,0 +1,120 @@
+{
+  "schema_version": "WeaponryBlenderFixedWorkerManifest@1",
+  "status": "isolated-prototype",
+  "worker_id": "weaponry-blender-knife-worker@1",
+  "worker_version": "0.1.0",
+  "entrypoint": "apps/blender-worker/weaponry_knife_worker.py",
+  "entrypoint_sha256": null,
+  "entrypoint_hash_policy": "DERIVED_FROM_STAGED_ENTRYPOINT_BYTES",
+  "protocol": "weaponry-fixed-worker-stdio-json@1",
+  "operation": "knife_high_low_uv_bake@1",
+  "request_schema": "WeaponryBlenderKnifeWorkerRequest@1",
+  "response_schema": "WeaponryBlenderKnifeWorkerResponse@1",
+  "result_schema": "WeaponryBlenderKnifeWorkerResult@1",
+  "recipe_id": "weaponry.knife.blender.high-low-uv-bake@1",
+  "recipe_sha256": "2252319ee179752fce75ad83bd95e49e6df5f6736205894b9ed21de66d474321",
+  "dependency_lock_sha256": "1d5086f15638f656d864e27c2a2129eaa2292a16f928742c761426b7ee101f11",
+  "policy": "fixed-built-in-bevel-weighted-normal-decimate-smart-uv-cycles-bake@1",
+  "host": {
+    "blender_version": "5.2.1",
+    "blender_display_version": "5.2.1 LTS",
+    "source_revision": "9e2066aef7ef",
+    "build_hash": "9e2066aef7ef",
+    "build_branch": "blender-v5.2-release",
+    "build_platform": "Darwin",
+    "build_type": "Release",
+    "bundle_id": "org.blenderfoundation.blender",
+    "team_id": "68UA947AUU",
+    "signing_authority": "Developer ID Application: Stichting Blender Foundation (68UA947AUU)",
+    "source_license": "GPL-3.0-or-later",
+    "binary_sha256": "ea651e507c6b197df0e234bfa04e5ed43e7f4d498267a7df93fcb38f21928a5c",
+    "bundle_tree_sha256": "a1719f3e1c7fc846e811de3c9d32ff72f2130016a3290fa88eb4c8e9e1032317",
+    "bundle_file_count": 6498,
+    "bundle_total_bytes": 934431449,
+    "python_bundle_sha256": "0fd0b83738e588928e8f6008138b8f812f66f9c837d984d6dd803495ce2dc7a0",
+    "license_resources": {
+      "copyright": {
+        "path": "Contents/Resources/text/copyright.txt",
+        "sha256": "770e6530a763692598a4d52431be0c4bda4499550b7c38cceda2053241453d73",
+        "byte_size": 1585
+      },
+      "license": {
+        "path": "Contents/Resources/text/license/license.md",
+        "sha256": "5cfbe909ac56d683c671faffabfcfbf6ba7d47f8fce0cff813d1002c46c13487",
+        "byte_size": 185192
+      },
+      "third_party_index": {
+        "path": "Contents/Resources/text/license/licenses.json",
+        "sha256": "6d03630395465b615e7be22cc3700d30daab725929e7b761090c53145a01b6db",
+        "byte_size": 3662
+      },
+      "gpl_text": {
+        "path": "Contents/Resources/text/license/spdx/GPL-3.0-or-later.txt",
+        "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+        "byte_size": 35147
+      }
+    },
+    "download_artifact": {
+      "kind": "blender-official-macos-arm64-dmg",
+      "status": "NOT_AVAILABLE_IN_WORKSPACE",
+      "sha256": null,
+      "provenance": "locally_installed_sidecar_only"
+    }
+  },
+  "transport": {
+    "kind": "stdin-stdout-json-one-shot",
+    "network": false,
+    "input_relative_path": "input/source.glb",
+    "output_relative_directory": "output",
+    "max_request_bytes": 2097152,
+    "max_stdout_bytes": 65536,
+    "max_input_bytes": 100663296,
+    "max_output_bytes": 209715200
+  },
+  "fixed_recipe": {
+    "high": [
+      "bevel",
+      "weighted_normal"
+    ],
+    "low": [
+      "decimate",
+      "weighted_normal",
+      "smart_project_uv"
+    ],
+    "bake": [
+      "tangent_normal",
+      "ambient_occlusion"
+    ],
+    "renderer": "cycles-cpu",
+    "texture_size": 512,
+    "margin_texels": 8,
+    "cage_extrusion_m": 0.02,
+    "randomness": "disabled"
+  },
+  "limits": {
+    "max_runtime_ms": 120000,
+    "max_memory_bytes": 536870912,
+    "max_triangles": 250000,
+    "max_objects": 128,
+    "max_texture_size": 512
+  },
+  "output_policy": {
+    "runtime_write_performed": false,
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "durability": "pending_runtime_adoption",
+    "readback_owner": "forgecad-runtime"
+  },
+  "distribution_gates": {
+    "gpl_source_offer": "NOT_INCLUDED_DEVELOPMENT_STAGING",
+    "notice": "NOT_INCLUDED_DEVELOPMENT_STAGING",
+    "spdx_sbom": "NOT_INCLUDED_DEVELOPMENT_STAGING",
+    "legal_review": "NOT_RUN",
+    "release_eligible": false
+  },
+  "runtime_integration": "not_connected",
+  "package_status": "not_packaged",
+  "removal_fallback": "forgecad-native-workers-and-capability-unavailable"
+}

@@ -1,0 +1,122 @@
+{
+  "schema_version": "WeaponryThreeJsFpsRuntimeReceipt@1",
+  "task_id": "WPN-THREE-R8-FPS-RUNTIME-016",
+  "recorded_at": "2026-09-01",
+  "status": "PASS_THREEJS_RIGID_FPS_RUNTIME_AND_RAPIER_PREVIEW",
+  "asset": {
+    "asset_id": "Dragonfang Kukri",
+    "asset_version": "r8",
+    "delivery_glb_sha256": "ec6fbbfa929d885d00eb9d6092006a550541f77e0a2a7100325e1cb99afeb344",
+    "delivery_glb_bytes": 907104,
+    "triangles": 4598,
+    "parts": 13,
+    "geometry_modified": false,
+    "materials_modified": false,
+    "glb_modified": false
+  },
+  "source": {
+    "engine_source_content_set_sha256": "c1ad2d29c45a96b5c063225dd47cd49981c97e1bb09f3735100ccbfc695f86bf",
+    "package_lock_sha256": "f03b3e250bba870f8c613c3ca9712a0eea01dfe81d6b0cc2cada47f933caba44",
+    "three_version": "0.185.1",
+    "rapier_version": "0.20.0",
+    "rapier_license": "Apache-2.0",
+    "rapier_package_integrity": "sha512-X4W9pJBdGRX5CO3c/gUNjBFEFG2fn4nYxp9k8STdBDaLa0/w5XTW2ArpayS+9jGFojTi3uFSOWAElCd4rkpekA=="
+  },
+  "animation": {
+    "schema_version": "WeaponryThreeJsAnimationClipSet@1",
+    "mode": "RIGID_ROOT_PIVOT_NO_SKELETON",
+    "clip_count": 5,
+    "clips": [
+      "idle",
+      "light",
+      "heavy",
+      "inspect",
+      "sheath"
+    ],
+    "tracks_per_clip": 2,
+    "track_types": [
+      "position",
+      "quaternion"
+    ],
+    "marker_kinds": [
+      "action-start",
+      "hit-window-open",
+      "hit-window-close",
+      "inspect-hold",
+      "action-end"
+    ],
+    "light_marker_and_idle_settle": "PASS",
+    "inspect_hold_and_toggle": "PASS"
+  },
+  "fps_binding": {
+    "schema_version": "WeaponryThreeJsFpsSocketBinding@1",
+    "binding_mode": "PRESENTATION_ONLY_NO_SKELETON",
+    "socket_id": "socket-grip",
+    "hand_id": "right-hand",
+    "status": "BOUND",
+    "real_hand_mesh": false,
+    "inverse_kinematics": false
+  },
+  "physics": {
+    "schema_version": "WeaponryThreeJsRapierPreviewSnapshot@1",
+    "body_type": "kinematic-position-based",
+    "gravity": [0, 0, 0],
+    "body_created": true,
+    "collider_count": 2,
+    "collision_groups_uint32": 65539,
+    "uniform_scale": 0.5732484081329847,
+    "part_coverage": "PASS_13_OF_13",
+    "gameplay_damage": "NOT_IMPLEMENTED",
+    "combat_hit_resolution": "NOT_IMPLEMENTED"
+  },
+  "browser_validation": {
+    "runtime_status": "ready",
+    "production_build": "PASS",
+    "typecheck": "PASS",
+    "fps_mouse_light_action": "PASS",
+    "fixed_clip_light_marker": "PASS",
+    "fixed_clip_idle_settle": "PASS",
+    "inspect_hold_toggle": "PASS",
+    "socket_readback": "PASS_BOUND",
+    "rapier_readback": "PASS_BODY_PLUS_2_COLLIDERS",
+    "frame_budget": {
+      "measurement_scope": "BROWSER_CPU_FRAME_ONLY_NOT_GPU_OR_COMMERCIAL",
+      "target_fps": 60,
+      "sample_count": 240,
+      "p50_ms": 0.5,
+      "p95_ms": 0.7999999970197678,
+      "maximum_ms": 1.6000000089406967,
+      "mean_ms": 0.5433333330477278,
+      "over_budget_frames": 0,
+      "status": "MEASURED_WITHIN_BUDGET"
+    },
+    "previous_context_loss_restore_receipt": "docs/evidence/weaponry/wpn-three-r8-engine-interaction-015.json"
+  },
+  "build": {
+    "minified_javascript_bytes": 3517192,
+    "minified_javascript_gzip_bytes": 1257545,
+    "large_bundle_warning": true,
+    "reason": "rapier3d-compat embeds WebAssembly for deterministic offline preview physics"
+  },
+  "visual_evidence": {
+    "path": "docs/evidence/weaponry/wpn-three-r8-fps-runtime-016.png",
+    "sha256": "e0488c92df63e23ae43ea353cf4b1978f36c0acc31602c64ff37b346ca930e4a",
+    "width": 1440,
+    "height": 900,
+    "camera_mode": "fps",
+    "physics_telemetry": "2 colliders",
+    "socket_telemetry": "bound"
+  },
+  "claim_boundaries": {
+    "threejs_rigid_animation_clips": "PASS",
+    "threejs_fps_presentation_binding": "PASS_PLACEHOLDER_TARGET",
+    "rapier_preview_physics": "PASS_KINEMATIC_PREVIEW_ONLY",
+    "skeletal_animation": "NOT_IMPLEMENTED",
+    "hand_mesh_and_ik": "NOT_IMPLEMENTED",
+    "gameplay_and_damage": "NOT_IMPLEMENTED",
+    "unreal_5_6_import": "NOT_RUN",
+    "visual_quality": "NOT_APPROVED",
+    "human_art_review": "NOT_RUN",
+    "commercial_acceptance": "NOT_RUN"
+  }
+}

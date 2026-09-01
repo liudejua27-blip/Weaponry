@@ -1,5 +1,11 @@
 # Weaponry 权威状态与版本真值
 
+> 2026-09-01 Three.js identity/form 权威增量：historical r7 semantic=`86352241…d58d`、bytes=
+> `3362820e…a5f6`；Runtime canonical successor=`24b4f6e5…113f`、bytes=`208fdb12…ea84`；migration=
+> `4f8fef7b…6a0f` 且 geometry/assembly/material change 均 false。其后 r8 semantic=
+> `0c495db1…51e1`，GLB=`cfe9055a…d10d` / 901,380 bytes / 4,598 triangles。r8 仅为
+> `BLADE_SUCCESSOR_COMPILED_REVIEW_ONLY`，固定视图、quality、human、engine、commercial 均未晋级。
+
 > 2026-08-30 `WPN-KNIFE-BRIEF-RUNTIME-001` 权威增量：Knife Production Brief 已成为
 > `reference_intake` 下的 Runtime-owned durable aggregate。初始 intake 可保存 `conflicted/BLOCKED`，
 > 但不会创建 candidate、推进 Stage、confirm、version 或 export；successor 必须引用 exact parent

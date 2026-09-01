@@ -1,0 +1,544 @@
+{
+  "schema_version": "WeaponryThreeJsFixedViewEvidenceManifest@2",
+  "task_id": "WPN-THREE-R8-RENDER-COMPARE-013",
+  "asset_id": "Dragonfang Kukri",
+  "program_sha256": "0c495db1c8ff2c0079cd5dafc3270eaafa9eae0ae1d0f41b6099d65db8ec51e1",
+  "program_object_sha256": "5c7d6e4bf10cc00df5085d93c1f96429fc4f3dc70185bf0f1e11d2d933e8893a",
+  "program_file_sha256": "da4fc90c64ef1f554b8426b222b911fecdc8fd68d1f53c4ec7e23e315d878478",
+  "packaged_worker_manifest_sha256": "e3f92e19aa7253d78ddd50f8dceded70b7b5d5c3883df1ecdd399190c8b5a86f",
+  "packaged_worker_build_cohort_sha256": "d584727d87c20403a500a168eb60222fea62080022a14de002d6df08d11a63b5",
+  "preview_runtime_sha256": "d3c2101e22c034d340361828c7a65b928917888e780d296713ede50711d92796",
+  "preview_dependency_lock_sha256": "df43fa1e8751ac40561bfa76eb6bc082d232a5b61366e95109522b0eb03d02b7",
+  "preview_worker_cohort_sha256": "92f8d4ca303851e9eead9cd337f5bf6821980fd76eb8026d617d744b0c7f5044",
+  "worker_result_sha256": "6167c4d553de9d69a68be4373590f9e454b9488c15db2c4d0be40920be1283f9",
+  "worker_receipt_sha256": "c9fdb7f905578c530c524af1ed547c4fb9789c644e6badd285854017128212eb",
+  "renderer_invoked": true,
+  "fixed_view_policy": "weaponry-threejs-fixed-eight-view-rig@1",
+  "framing_policy": "full-asset-baseline-no-candidate-refit@1",
+  "view_count": 8,
+  "aov_count": 48,
+  "frame_width": 512,
+  "frame_height": 512,
+  "cameras": [
+    {
+      "view_id": "FRONT",
+      "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104"
+    },
+    {
+      "view_id": "BACK",
+      "camera_sha256": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193"
+    },
+    {
+      "view_id": "TOP",
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f"
+    },
+    {
+      "view_id": "BOTTOM",
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28"
+    },
+    {
+      "view_id": "LEFT",
+      "camera_sha256": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d"
+    },
+    {
+      "view_id": "RIGHT",
+      "camera_sha256": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d"
+    },
+    {
+      "view_id": "REAR_THREE_QUARTER",
+      "camera_sha256": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d"
+    },
+    {
+      "view_id": "FPS_HOLD",
+      "camera_sha256": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489"
+    }
+  ],
+  "files": [
+    {
+      "path": "front-beauty.png",
+      "view_id": "FRONT",
+      "aov_id": "beauty",
+      "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+      "width": 512,
+      "height": 512,
+      "bytes": 44352,
+      "sha256": "5f060a1aa97430918059613ad9b30e3ff8713588b4c90de5ac101d3aa5a5f350"
+    },
+    {
+      "path": "front-alpha-silhouette.png",
+      "view_id": "FRONT",
+      "aov_id": "alpha-silhouette",
+      "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+      "width": 512,
+      "height": 512,
+      "bytes": 10545,
+      "sha256": "f50c86bcb000cef07d044cc053e77d52ca605d60204ab3f697db843c705fdc4d"
+    },
+    {
+      "path": "front-semantic-id.png",
+      "view_id": "FRONT",
+      "aov_id": "semantic-id",
+      "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+      "width": 512,
+      "height": 512,
+      "bytes": 12153,
+      "sha256": "3a951895236c595a76b6f05b854aa6f4cf56add526a7e1a75e93289286573c63"
+    },
+    {
+      "path": "front-depth.png",
+      "view_id": "FRONT",
+      "aov_id": "depth",
+      "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+      "width": 512,
+      "height": 512,
+      "bytes": 11531,
+      "sha256": "fe42de98e96c56be5774b6724acc94fcdbff143a7eddf94c0830ef25948c59c4"
+    },
+    {
+      "path": "front-normal.png",
+      "view_id": "FRONT",
+      "aov_id": "normal",
+      "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+      "width": 512,
+      "height": 512,
+      "bytes": 42117,
+      "sha256": "337d2f4a9277e9cf7bbafcc9c2ec0a44193c5d3f5c914dbd00fe13dc6a004e83"
+    },
+    {
+      "path": "front-roughness-material-id.png",
+      "view_id": "FRONT",
+      "aov_id": "roughness-material-id",
+      "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+      "width": 512,
+      "height": 512,
+      "bytes": 13942,
+      "sha256": "5e05ced16140cb210dae9ad2bd6968b041bebde71847f24de7f7212f2e08a662"
+    },
+    {
+      "path": "back-beauty.png",
+      "view_id": "BACK",
+      "aov_id": "beauty",
+      "camera_sha256": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193",
+      "width": 512,
+      "height": 512,
+      "bytes": 23518,
+      "sha256": "9c8398f66abc36d706f8aff2934f8e55b680595263dff5a2204d5e489f1a1d25"
+    },
+    {
+      "path": "back-alpha-silhouette.png",
+      "view_id": "BACK",
+      "aov_id": "alpha-silhouette",
+      "camera_sha256": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193",
+      "width": 512,
+      "height": 512,
+      "bytes": 10604,
+      "sha256": "c4e10b9a2d5b11b4492e19bc4d6893ff3b19977683dcf70edbdc77e96f1ee3c1"
+    },
+    {
+      "path": "back-semantic-id.png",
+      "view_id": "BACK",
+      "aov_id": "semantic-id",
+      "camera_sha256": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193",
+      "width": 512,
+      "height": 512,
+      "bytes": 10409,
+      "sha256": "3638af699600754d5ed41ace1d90d8eb60ac565c6024e7815ccee3f26c5d29fb"
+    },
+    {
+      "path": "back-depth.png",
+      "view_id": "BACK",
+      "aov_id": "depth",
+      "camera_sha256": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193",
+      "width": 512,
+      "height": 512,
+      "bytes": 10834,
+      "sha256": "127034e36ebed89a4ba06c7ab00eba2d7cbd32c6cb3d30e7b307487b20c74aab"
+    },
+    {
+      "path": "back-normal.png",
+      "view_id": "BACK",
+      "aov_id": "normal",
+      "camera_sha256": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193",
+      "width": 512,
+      "height": 512,
+      "bytes": 39099,
+      "sha256": "31e46ab84eeea7421fc6c439b0788a606fe5ace5c9fc62238c09c14ec0c35ed7"
+    },
+    {
+      "path": "back-roughness-material-id.png",
+      "view_id": "BACK",
+      "aov_id": "roughness-material-id",
+      "camera_sha256": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193",
+      "width": 512,
+      "height": 512,
+      "bytes": 11933,
+      "sha256": "b44e4796780fe5427d4951724f90da8f7a0e4435c66b694ad65ac1b78e1c5a42"
+    },
+    {
+      "path": "top-beauty.png",
+      "view_id": "TOP",
+      "aov_id": "beauty",
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f",
+      "width": 512,
+      "height": 512,
+      "bytes": 22608,
+      "sha256": "acfff20a4ab6238f9df8385fa503461811665c8de2851b559f9820ff71d66d48"
+    },
+    {
+      "path": "top-alpha-silhouette.png",
+      "view_id": "TOP",
+      "aov_id": "alpha-silhouette",
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f",
+      "width": 512,
+      "height": 512,
+      "bytes": 8463,
+      "sha256": "da4cb64a962096ac2483097e85b19dcc6f65a305938b465ddb50b8ab6f6e43ea"
+    },
+    {
+      "path": "top-semantic-id.png",
+      "view_id": "TOP",
+      "aov_id": "semantic-id",
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f",
+      "width": 512,
+      "height": 512,
+      "bytes": 8481,
+      "sha256": "f8acacf40af711b6b3ecf7e50dd421c5d67ac84de9001e520be0f8187e5d8b8e"
+    },
+    {
+      "path": "top-depth.png",
+      "view_id": "TOP",
+      "aov_id": "depth",
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f",
+      "width": 512,
+      "height": 512,
+      "bytes": 8896,
+      "sha256": "2ac96afad588cb8fbf9f64ee9006fc74d71a491f41d1df10316e8c1fe8b46d8d"
+    },
+    {
+      "path": "top-normal.png",
+      "view_id": "TOP",
+      "aov_id": "normal",
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f",
+      "width": 512,
+      "height": 512,
+      "bytes": 23368,
+      "sha256": "a1fa0962df051240eaa265dd3290234390bd4a1312bdf0c060d82cc551f64cde"
+    },
+    {
+      "path": "top-roughness-material-id.png",
+      "view_id": "TOP",
+      "aov_id": "roughness-material-id",
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f",
+      "width": 512,
+      "height": 512,
+      "bytes": 8940,
+      "sha256": "0da461b43765a64e345c283ca62bc245130985d2a7e296fea235966c0614c967"
+    },
+    {
+      "path": "bottom-beauty.png",
+      "view_id": "BOTTOM",
+      "aov_id": "beauty",
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28",
+      "width": 512,
+      "height": 512,
+      "bytes": 22130,
+      "sha256": "ad44a004cf9a19dd4e03ad0c5bdb41efe133c2102414a5665f191398d44d04e2"
+    },
+    {
+      "path": "bottom-alpha-silhouette.png",
+      "view_id": "BOTTOM",
+      "aov_id": "alpha-silhouette",
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28",
+      "width": 512,
+      "height": 512,
+      "bytes": 8412,
+      "sha256": "5da2eadf714ac6add5da8d5c4a0de9898abbab0eeef32ec1db5d8cf9a57a4794"
+    },
+    {
+      "path": "bottom-semantic-id.png",
+      "view_id": "BOTTOM",
+      "aov_id": "semantic-id",
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28",
+      "width": 512,
+      "height": 512,
+      "bytes": 8503,
+      "sha256": "10089385897e4b13fc64f7f3a9e1d0271061ab66bc0d41ef1b6d821f7f990622"
+    },
+    {
+      "path": "bottom-depth.png",
+      "view_id": "BOTTOM",
+      "aov_id": "depth",
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28",
+      "width": 512,
+      "height": 512,
+      "bytes": 8785,
+      "sha256": "7fb57fcd7f472ec8f29f74a670bef6aa4f1d3ce28fb1aad4f4fdb798d91ed340"
+    },
+    {
+      "path": "bottom-normal.png",
+      "view_id": "BOTTOM",
+      "aov_id": "normal",
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28",
+      "width": 512,
+      "height": 512,
+      "bytes": 22103,
+      "sha256": "b6e81406df92851108e730b367fc883636b639dc2aa1d173c589d201b473e365"
+    },
+    {
+      "path": "bottom-roughness-material-id.png",
+      "view_id": "BOTTOM",
+      "aov_id": "roughness-material-id",
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28",
+      "width": 512,
+      "height": 512,
+      "bytes": 9078,
+      "sha256": "3a8059a2abad0d2764d3f67c594bf586faff304043f4cf27373f6e889ac62de4"
+    },
+    {
+      "path": "left-beauty.png",
+      "view_id": "LEFT",
+      "aov_id": "beauty",
+      "camera_sha256": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d",
+      "width": 512,
+      "height": 512,
+      "bytes": 15475,
+      "sha256": "2829be25abb38689d29ab59b8dca9893bf7340ab86cfc10d20abb217d9690507"
+    },
+    {
+      "path": "left-alpha-silhouette.png",
+      "view_id": "LEFT",
+      "aov_id": "alpha-silhouette",
+      "camera_sha256": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d",
+      "width": 512,
+      "height": 512,
+      "bytes": 8342,
+      "sha256": "e4246b1e81aa99ab448e57bf54b9b8035bbb3dd9665ca8103ec898f638a77efd"
+    },
+    {
+      "path": "left-semantic-id.png",
+      "view_id": "LEFT",
+      "aov_id": "semantic-id",
+      "camera_sha256": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d",
+      "width": 512,
+      "height": 512,
+      "bytes": 8881,
+      "sha256": "b7b6af76f5dd3a2615a5ce0727ab2c21cf6d639a157ef35bbb28bbad277ef126"
+    },
+    {
+      "path": "left-depth.png",
+      "view_id": "LEFT",
+      "aov_id": "depth",
+      "camera_sha256": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d",
+      "width": 512,
+      "height": 512,
+      "bytes": 9314,
+      "sha256": "9f4a87227f509e75e4233651f52796f7f550287270dcecc968681182ce784716"
+    },
+    {
+      "path": "left-normal.png",
+      "view_id": "LEFT",
+      "aov_id": "normal",
+      "camera_sha256": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d",
+      "width": 512,
+      "height": 512,
+      "bytes": 16424,
+      "sha256": "4f8c59e473b5b1a085cbbc9c6ce54f81bde41576891f575dacfc8c637b290b4f"
+    },
+    {
+      "path": "left-roughness-material-id.png",
+      "view_id": "LEFT",
+      "aov_id": "roughness-material-id",
+      "camera_sha256": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d",
+      "width": 512,
+      "height": 512,
+      "bytes": 9358,
+      "sha256": "9665df4d26b8740106138caa36500bf391f319d3d849a80f8dc7fac3073e48d3"
+    },
+    {
+      "path": "right-beauty.png",
+      "view_id": "RIGHT",
+      "aov_id": "beauty",
+      "camera_sha256": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d",
+      "width": 512,
+      "height": 512,
+      "bytes": 16136,
+      "sha256": "f114a9f01b1760e5d51bb3dc75dac26e15c00111b769673cd6d6e0a45c123c94"
+    },
+    {
+      "path": "right-alpha-silhouette.png",
+      "view_id": "RIGHT",
+      "aov_id": "alpha-silhouette",
+      "camera_sha256": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d",
+      "width": 512,
+      "height": 512,
+      "bytes": 8362,
+      "sha256": "29dc8914a8f8d5cb59c82083f4e0fce361b4287aef9b9b30436179cdfde661ca"
+    },
+    {
+      "path": "right-semantic-id.png",
+      "view_id": "RIGHT",
+      "aov_id": "semantic-id",
+      "camera_sha256": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d",
+      "width": 512,
+      "height": 512,
+      "bytes": 9010,
+      "sha256": "3eeb8bee22faa3c9d8e2d8ec7515be2af026255a40c5db57fe65662104616c68"
+    },
+    {
+      "path": "right-depth.png",
+      "view_id": "RIGHT",
+      "aov_id": "depth",
+      "camera_sha256": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d",
+      "width": 512,
+      "height": 512,
+      "bytes": 9830,
+      "sha256": "465e7764f69410ba6b681e66f53afa8276d5509df2ba680945a8855bf77b1c2e"
+    },
+    {
+      "path": "right-normal.png",
+      "view_id": "RIGHT",
+      "aov_id": "normal",
+      "camera_sha256": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d",
+      "width": 512,
+      "height": 512,
+      "bytes": 17663,
+      "sha256": "a29c480482cbcfc147072eb0ca39c131c12a090da5054d32b03cd0ddca2df612"
+    },
+    {
+      "path": "right-roughness-material-id.png",
+      "view_id": "RIGHT",
+      "aov_id": "roughness-material-id",
+      "camera_sha256": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d",
+      "width": 512,
+      "height": 512,
+      "bytes": 9450,
+      "sha256": "3e7d1d9c0244b683ce4179f81f281db5fd6407ea61dca602013048bc4c625ca4"
+    },
+    {
+      "path": "rear_three_quarter-beauty.png",
+      "view_id": "REAR_THREE_QUARTER",
+      "aov_id": "beauty",
+      "camera_sha256": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d",
+      "width": 512,
+      "height": 512,
+      "bytes": 27508,
+      "sha256": "c735e3b0cc8b1a33f77c5cde2bb42e3daf426cc448e8b3c1e5695f0193901fdb"
+    },
+    {
+      "path": "rear_three_quarter-alpha-silhouette.png",
+      "view_id": "REAR_THREE_QUARTER",
+      "aov_id": "alpha-silhouette",
+      "camera_sha256": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d",
+      "width": 512,
+      "height": 512,
+      "bytes": 10886,
+      "sha256": "190f43e082fee1ffbd6f1741b27f539c661e99ee7edb99d5040bbea0aa7d3623"
+    },
+    {
+      "path": "rear_three_quarter-semantic-id.png",
+      "view_id": "REAR_THREE_QUARTER",
+      "aov_id": "semantic-id",
+      "camera_sha256": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d",
+      "width": 512,
+      "height": 512,
+      "bytes": 11289,
+      "sha256": "5f6970f3a021ae7c9fd8bcba9897f62891588b739b285382cae24fd88367301c"
+    },
+    {
+      "path": "rear_three_quarter-depth.png",
+      "view_id": "REAR_THREE_QUARTER",
+      "aov_id": "depth",
+      "camera_sha256": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d",
+      "width": 512,
+      "height": 512,
+      "bytes": 12422,
+      "sha256": "0b55384e16a0bb17b42f6850fa30c14636136ab42671cad88ec3f32fd5bd1e96"
+    },
+    {
+      "path": "rear_three_quarter-normal.png",
+      "view_id": "REAR_THREE_QUARTER",
+      "aov_id": "normal",
+      "camera_sha256": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d",
+      "width": 512,
+      "height": 512,
+      "bytes": 43437,
+      "sha256": "bbbc8971634bca6b00a227505b092672c3a688584d290d4bfcb671218d98fb06"
+    },
+    {
+      "path": "rear_three_quarter-roughness-material-id.png",
+      "view_id": "REAR_THREE_QUARTER",
+      "aov_id": "roughness-material-id",
+      "camera_sha256": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d",
+      "width": 512,
+      "height": 512,
+      "bytes": 12277,
+      "sha256": "04776ff1418323cbc4374c33b99f3639d83996a05f95fd476e5f1ee8516da64b"
+    },
+    {
+      "path": "fps_hold-beauty.png",
+      "view_id": "FPS_HOLD",
+      "aov_id": "beauty",
+      "camera_sha256": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489",
+      "width": 512,
+      "height": 512,
+      "bytes": 66907,
+      "sha256": "b91ea7f74ec4d3e5f525ed87b7c66e109e8439b6460de15afe77e0eabbb229f8"
+    },
+    {
+      "path": "fps_hold-alpha-silhouette.png",
+      "view_id": "FPS_HOLD",
+      "aov_id": "alpha-silhouette",
+      "camera_sha256": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489",
+      "width": 512,
+      "height": 512,
+      "bytes": 10209,
+      "sha256": "3a1d4ad9da7dec6a99690ad77f1cda261eccde19dfb4799e3e02e37dc293ff64"
+    },
+    {
+      "path": "fps_hold-semantic-id.png",
+      "view_id": "FPS_HOLD",
+      "aov_id": "semantic-id",
+      "camera_sha256": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489",
+      "width": 512,
+      "height": 512,
+      "bytes": 12698,
+      "sha256": "2617ea110bcf07bbb5b0a15642da18912b96dc6cded36bf73a107e5373762b11"
+    },
+    {
+      "path": "fps_hold-depth.png",
+      "view_id": "FPS_HOLD",
+      "aov_id": "depth",
+      "camera_sha256": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489",
+      "width": 512,
+      "height": 512,
+      "bytes": 10140,
+      "sha256": "dfca42ca42afd62163e70b56cc16781fa7051c1ea8c815b1fcbcc6f6264b9305"
+    },
+    {
+      "path": "fps_hold-normal.png",
+      "view_id": "FPS_HOLD",
+      "aov_id": "normal",
+      "camera_sha256": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489",
+      "width": 512,
+      "height": 512,
+      "bytes": 62436,
+      "sha256": "8e4932457f198a92824dd73ba888cfc249e70c28b96377800f8d765a11dbf4cb"
+    },
+    {
+      "path": "fps_hold-roughness-material-id.png",
+      "view_id": "FPS_HOLD",
+      "aov_id": "roughness-material-id",
+      "camera_sha256": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489",
+      "width": 512,
+      "height": 512,
+      "bytes": 14787,
+      "sha256": "141cd4fcbe039b80ce84581c6b91c19db337cc6915c3ae6086ed14f2ae57e210"
+    }
+  ],
+  "geometry_modified": false,
+  "quality_status": "MEASURED_NOT_APPROVED",
+  "visual_status": "NOT_APPROVED",
+  "human_status": "NOT_RUN",
+  "commercial_status": "NOT_RUN",
+  "canonical_sha256": "3b8af505bbb2f7e6f29bb53bcd972770ba7441433e554c0b571e0d3a4ceb28c8"
+}

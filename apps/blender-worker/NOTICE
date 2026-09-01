@@ -1,0 +1,56 @@
+Weaponry fixed Blender knife worker — offline resource notice
+
+This resource tree contains the fixed, macOS arm64 Blender 5.2.1 LTS sidecar
+used by the isolated Weaponry knife prototype, together with the first-party
+closed worker entrypoint and its compliance records. The sidecar is copied as
+an application resource so a user of a matching packaged application does not
+need to install Blender separately. This resource is macOS arm64 only; it is
+not a cross-platform distribution claim.
+
+Blender
+-------
+
+Blender is Copyright © Blender Foundation. The Blender program is distributed
+under the GNU General Public License, version 3 or later (GPL-3.0-or-later).
+The exact license and copyright notices shipped by Blender remain authoritative
+and are preserved inside:
+
+  runtime/Blender.app/Contents/Resources/text/copyright.txt
+  runtime/Blender.app/Contents/Resources/text/license/license.md
+  runtime/Blender.app/Contents/Resources/text/license/licenses.json
+  runtime/Blender.app/Contents/Resources/text/license/spdx/
+
+Blender's embedded third-party libraries and their notices are covered by the
+same in-bundle license index and license texts. This notice does not replace
+those texts and does not grant rights to Blender trademarks or to user-created
+artwork, references, textures, or other assets.
+
+The bundle is identified by Blender build hash 9e2066aef7ef and executable
+SHA-256
+ea651e507c6b197df0e234bfa04e5ed43e7f4d498267a7df93fcb38f21928a5c.
+The complete bundle tree SHA-256 is
+a1719f3e1c7fc846e811de3c9d32ff72f2130016a3290fa88eb4c8e9e1032317.
+The package manifest and the supplemental release-eligibility record bind the
+complete bundle tree hash and the separately verified upstream code signature.
+
+Weaponry worker
+---------------
+
+The fixed Python entrypoint is a first-party Weaponry prototype. It accepts
+only the closed typed job described by the source manifest; it does not accept
+caller Python, add-ons, URLs, executable paths, environment values, or network
+access. It writes no Runtime, Store, CAS, candidate, version, approval, or
+export state. Its source license is intentionally recorded as NOASSERTION in
+the SPDX supplement until the repository's product/legal owner supplies a
+standalone distribution license decision.
+
+Source and release status
+-------------------------
+
+The packaged binary does not include a Blender source archive. See
+GPL-SOURCE-OFFER.md for the exact build identity, official source locations,
+verification steps, and the limits of this development-only acquisition
+description. That document is not a legal opinion or a completed written
+source offer. The supplemental `compliance/release-eligibility.json` therefore
+keeps release eligibility false until the source/legal and product signing
+gates are independently closed.

@@ -26,6 +26,16 @@ Blender 的通用品类成熟度，而是让这些能力对刀类生产任务达
 
 ## Fixed revision and capability/provider boundary
 
+### Packaged LTS successor (2026-09-01)
+
+The development-packaged knife Worker now pins the installed Blender 5.2.1 LTS
+build `9e2066aef7ef` as the executable provider. This supersedes the 5.3.0-alpha
+snapshot below for packaged execution; the alpha snapshot remains research
+provenance only. The LTS provider is accepted only through the sealed resource
+manifest and Rust launcher, and external distribution remains fail-closed until
+the corresponding-source, legal, first-party Worker licensing, product signing
+and distribution-artifact gates are closed.
+
 The only currently named Blender source snapshot is
 [`72ccdd6e96ca119a1ffa3372559cc5654343b477`](https://github.com/blender/blender/commit/72ccdd6e96ca119a1ffa3372559cc5654343b477).
 The revision is an upstream commit rather than a release tag; its

@@ -1,0 +1,33 @@
+{
+  "schema_version": "KnifeViewCalibration@1",
+  "calibration_origin": "baseline-compiled-scene@1",
+  "fit_policy": "baseline-only-reuse@1",
+  "source_fingerprint": "5f8ed42dba9d6cd5",
+  "focus_part_ids": [
+    "blade-body",
+    "cutting-edge",
+    "fastener-grip-a",
+    "fastener-grip-b",
+    "fastener-grip-c",
+    "fastener-grip-d",
+    "gem-guard-eye",
+    "gem-pommel",
+    "grip",
+    "guard",
+    "pommel",
+    "relief-dragon-belly",
+    "relief-dragon-spine"
+  ],
+  "world_aabb": {
+    "min": [-2.139999997317791, -0.4320970332622528, -0.15148064494132996],
+    "max": [1.0, 0.36813501477241517, 0.15148064494132996],
+    "size": [3.139999997317791, 0.800232048034668, 0.3029612898826599]
+  },
+  "center": [-0.5699999986588955, -0.03198100924491881, 0.0],
+  "ortho_height": 3.139999997317791,
+  "depth_span": 3.139999997317791,
+  "frame_width": 512,
+  "frame_height": 512,
+  "margin": 0.08,
+  "deterministic_fingerprint": "fc7309d731e7610d"
+}

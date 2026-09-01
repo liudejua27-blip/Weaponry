@@ -1,5 +1,119 @@
 # Weaponry 当前状态账本
 
+> 2026-09-01 `WPN-THREE-R8-FPS-RUNTIME-016`：r8 GLB 保持 `ec6fbbfa…b344`，未改几何或材质。
+> 浏览器现已真实生成 5 个 root-pivot `THREE.AnimationClip`、闭合 marker、
+> `socket-grip→right-hand` typed 展示绑定，并由 Rapier 0.20 建立零重力 kinematic body
+> 和 2 个覆盖 13 Parts 的 cuboid colliders。Playwright 实跑 light marker→idle、inspect
+> hold/toggle、FPS 鼠标输入与物理读回；240 帧浏览器 CPU p95=`0.80ms`。这只是
+> `RIGID_ROOT_PIVOT_NO_SKELETON + PRESENTATION_ONLY_NO_SKELETON + kinematic preview`；
+> 真实手模/IK、gameplay/damage、UE5.6、visual/human/commercial 仍未通过。证据：
+> `docs/evidence/weaponry/wpn-three-r8-fps-runtime-016.json`。
+
+> 2026-09-01 `WPN-THREE-R8-ENGINE-INTERACTION-015`：r8 已进入 Three.js 引擎适配与交互验证。
+> 新增的核心 Engine 以外置不可变 state 驱动 `idle/light/heavy/inspect/sheath`、
+> FPS/inspect 相机、Part 可见性、拾取和 explode；浏览器实机完成 heavy→idle、inspect toggle、
+> 13→12→13 Part、blade/grip 拾取、resize 与真实 `WEBGL_lose_context`→restore。GLB 仍为
+> `ec6fbbfa…b344`，r8 几何与材质未改。本 Gate 只是 Three.js browser interaction prototype；
+> 动作=`PRESENTATION_ONLY_NO_SKELETON`，collider=`INTENT_ONLY`，正式动画/物理/UE5.6/visual/
+> human/commercial 仍为 `NOT_IMPLEMENTED/NOT_RUN/NOT_APPROVED`。证据：
+> `docs/evidence/weaponry/wpn-three-r8-engine-interaction-015.json`。
+
+> 2026-09-01 `WPN-THREE-R8-PACKAGE-DELIVERY-014`：r8 已收口为可独立加载的 action-ready
+> Three.js/GLB 内部交付包。same-cohort=`16bfe5a4…a386` 真实执行
+> prepare→exact replay→Runtime reopen→get→单次 export，GLB 与 CAS object 同为
+> `ec6fbbfa…b344`，907,104 bytes、4,598 tris、13 Parts。包内有 13 pivots、3 sockets、2 collider
+> intents、2 destruction groups、48 张固定视图 AOV 与 live receipt；几何 buffer 未改。
+> 这是用户接受近似的结构交付，不是视觉门通过；visual=`NOT_APPROVED`，human/engine/commercial=`NOT_RUN`。
+
+> 2026-09-01 `WPN-THREE-R8-RENDER-COMPARE-013`：r8 program=`0c495db1…51e1` 已由固定打包
+> Chromium Worker 真实生成 8 views × 6 AOV = 48 张 512×512 PNG；render manifest bytes=
+> `ee86d240…dcf2`，Worker cohort=`92f8d4ca…5044`，FRONT camera=`6f92f25e…1104`。
+> 新 program-bound mapping=`dbdf2986…d9e3` 精确绑定同一授权 reference、r8 manifest 和逐 view
+> camera hash。r7/r8 使用同一 FRONT camera、同一 reference、同一历史 normalized fit 且禁止候选
+> refit：r8 相对 r7 IoU `+0.003923`、Boundary F1 `+0.013851`、Chamfer `-0.000977`、landmark
+> `-0.001221`，但 P95 `+0.001083` 回退；两者 deterministic gate 均 `FAIL`。Agent 八视图审查结论为
+> `refine-spec / REVIEWED_NOT_APPROVED`：刀刃与刀柄比例仍过短、刀尖过钝、最差局部轮廓未改善、三分之四视图仍偏薄片。
+> visual=`NOT_APPROVED`，human/engine/commercial=`NOT_RUN`；未修改 r8 几何或解冻龙纹、护手、刀柄、材质。
+
+> 2026-09-01 `WPN-THREE-PREVIEW-PACKAGED-005` 当前为
+> `done_packaged_fixed_browser_cas_replay_reopen_structural`。固定 Worker 已由打包的真实
+> `THREE.WebGLRenderer` 生成 FRONT/BACK/TOP/BOTTOM/LEFT/RIGHT/REAR_THREE_QUARTER/FPS_HOLD
+> 八视图，每视图固定 beauty/alpha-silhouette/semantic-id/depth/normal/
+> roughness-material-id 六个 AOV，共 48 张 512×512 PNG。Runtime 逐张解码、校验尺寸/字节/hash、
+> 相机与顺序，移除临时 base64 transport 后重新封闭 25-field Worker result，并将 PNG、Worker result、
+> Preview Receipt 写入 Store/CAS；Dragonfang r7 exact replay 与 Runtime reopen/get PASS。receipt semantic=
+> `a4d6793d…f955`，receipt CAS=`bc80ca20…8c469`，Worker semantic=`e5e6297a…c3d51`，Worker
+> CAS=`6ae87013…a5260`。Tauri resource 已锁定 322 MB 的 Chromium headless sidecar（可执行文件
+> `aa25f2e7…dd7b`，许可证 `5b56ea1d…e4a00`）、Node/Three/Vite/依赖树和 build cohort
+> `2cffd366…9ee4`；packaged manifest=`44d34a01…9e87`。Vite 使用临时隔离 cache 并禁止依赖
+> 自动发现，已排除向开发机绝对路径逃逸。这只是 packaged render/CAS/replay 结构门；
+> 当前造型仍是基础程序化刀身，signed `.app`/notarization 与 visual/human/commercial
+> 均为 `NOT_RUN`，没有质量晋级。
+
+> 2026-09-01 `WPN-THREE-STUDIO-PERSIST-004` 结构纵切：轻量路线不再只停留在 Skill/浏览器文件。
+> Runtime 新增 closed `weaponry_threejs_knife_design_prepare/get/execute`，只接受受限
+> `authorized-reference-inspired|original-design` 的 `KnifeSceneProgram@1`，拒绝路径、URL、脚本和 secret-like
+> payload；Store 以 `WeaponryThreeJsDesignStoreRecord@1 + WeaponryThreeJsExecutionStoreRecord@1`
+> 持久化 program、Worker receipt 和 GLB CAS roots，并在重启读回时重验 action/program/GLB shape/
+> canonical hashes。package Contract、中央领域映射和 MCP 已将三个操作归属现有
+> `authoring_transaction → Authoring`；默认仍为 11 façade，active closure=`145/145`，compatibility=
+> `131/95/226`。Dragonfang r7 已实际完成 prepare → exact replay → Runtime reopen → get，
+> Runtime canonical program=`24b4f6e5…a113f`，program CAS=`8eced459…446d`；固定 Worker build/export
+> 生成同一 GLB=`540be799…cbe6`，901,372 bytes / 4,598 triangles / 13 Parts。preview 仅生成
+> 8-view manifest，`renderer_invoked=false`；Runtime 独立验证 GLB v2 header/chunks、r185 generator、
+> scene/mesh/primitive 和 13 个 Part-to-mesh lineage。打包级 Worker 固定、
+> PNG/AOV、视觉、人审和商业状态均未通过。
+
+> 2026-08-31：用户将轻量 Three.js 刀类路线设为当前设计优先级。ADR-0031、
+> `weaponry-threejs-knife-studio` Skill、closed design schemas 和 Archify 运行图已落地；
+> pinned upstream=`img2threejs@9fbd0ca5bbcc3b13bebe712745d6784d33db0b85`。
+> pinned 源码基线已完成 LICENSE/NOTICE/SBOM/provenance 与隔离恢复校验；bounded 静态 adapter、
+> `KnifeSceneProgram@1` 刀身结构切片、bounded guard/grip/pommel 装配、确定性 `THREE.Group`/GLB
+> 编译和真实 WebGL 固定八视图渲染已落地。浏览器已产生 8 views × 7 AOV=`56` 张 PNG，固定
+> camera matrix、rig/program/scene fingerprint 与逐 PNG SHA-256 已由 closed manifest/receipt 绑定；
+> 状态严格为 `RENDERED_NOT_APPROVED`。固定八视图 CPU projection/mask、轮廓 IoU、Boundary F1、
+> Chamfer/P95 和 landmark evaluator 也已实现。对授权 Dragonfang FRONT crop 的首轮 CPU 数学测量
+> 为 IoU=`0.378963`、Boundary F1=`0.050633`；32 候选搜索提出 `0.400504/0.063291` 的 successor。
+> 随后已把真实 FRONT Part-ID AOV、固定相机和一次性 reference fit 冻结为 calibration
+> `7e1bd17f…f953ec`；同一 fit 禁止按候选重算。浏览器 baseline=`0.404717/0.094143`，blade-only
+> successor 001=`0.411750/0.096644`；进一步的 8 控制点/8 截面 successor 002 在不 refit 的真实
+> browser replay 中达到 `0.565626/0.181272`，Chamfer=`0.015321`、P95=`0.035373`、landmark=`0.020141`，
+> 五项均改善但 IoU/F1 质量硬门仍 `FAIL`。
+> 当前派生 GLB=`packages/weaponry-threejs/artifacts/dragonfang-kukri-form-002.glb`，SHA-256=
+> `9e015f07…eca0da`，65,484 bytes / 1,390 triangles / 5 Parts；它是可打开的 form artifact，
+> 不是商业资产或批准版本。
+> 当前状态为
+> `SOURCE_BASELINE_ACCEPTED / STRUCTURAL_KNIFE_COMPILER_PASS / BROWSER_AOV_RENDERED_NOT_APPROVED /
+> METRICS_MEASURED_NOT_APPROVED`。pinned upstream generator 已在临时隔离目录离线执行，结构 fixture
+> 为 7 meshes/1,049 tris 且重复 receipt hash 一致；bounded adapter 又完成同 fixed rig 的真实
+> 8×7 AOV capture，但缺授权 reference/明确 focus Part-ID calibration，strict quality 仍未运行。
+> Runtime/Store/CAS/MCP、完整龙纹/宝石/紧固件/隐藏拓扑、同输入 upstream 浏览器 AOV、独立人审和商业
+> 验收仍未完成，不得声称超过上游或商业完成。
+
+> 2026-09-01 `WPN-THREE-OBJECTIVE-INTRINSIC-002`：刀类数学目标不再只依赖 raster/reference。
+> 新的 append-only Metric Catalog 保留旧 12 个 ID、r5 ledger 与 Adapter@1 语义不变，并新增
+> `KnifeIntrinsicMorphology@1`（截面连续、曲线 G1、刀尖收束、extrema headroom）和
+> `KnifeAssemblyIntrinsicMetrics@1`（比例先验、装配连续、MaterialZone readability proxy、复杂度效率）。
+> Studio 仅在 successor ledger 引用新 ID 时选择 `WeaponryThreeJsKnifeObjectiveMetricAdapter@2`。
+> Dragonfang r6 canonical=`8a9b9185…41c9` 已实际生成 guard-jaw/guard-horn/grip-taper 三个候选；基线
+> `part/material coverage=1/1`、assembly ratio/attachment=`1/1`，没有候选满足最小改善，故真实结果为
+> `PARENT_RETAINED / NOT_REVIEWED / NOT_RUN`，没有强行选“看起来更好”的候选。另一个 blade-only
+> focused cohort 已证明四项 blade intrinsic 可计算并可产生 `REVIEW_ONLY_SELECTION`。Archify showcase
+> validate/deliver/四档 visual-check 全 PASS；Runtime/Store/CAS/MCP persistence 仍 pending，视觉/人审/
+> 商业质量仍未证明。
+
+> 2026-09-01 `WPN-THREE-PROCEDURAL-READINESS-003`：现有 R2 program 被作为 exact baseline，而不是用
+> 同 program 的 R1 GLB 伪造差异。r6 ledger + seed=`0x44524736` 生成 3 个单范围候选，非视觉 fixed-8-view
+> structural ranking 选择 `grip-taper` r7；baseline/candidate compiled fingerprint 分别为
+> `5f8ed42dba9d6cd5 / 837792501f599a1f`，delta=`7 views / 139 silhouette + 184 Part-ID pixels`。
+> r7 历史 procedural receipt 使用旧数字序列化得到 program fingerprint=`86352241…d58d`；
+> 当前 Rust/Node 共享 canonical preimage 的 successor 为 `24b4f6e5…a113f`。两者均指向同一
+> GLB=`540be799…cbe6`，901,372 bytes / 4,598 triangles；closed
+> program、compile、13 Parts/5 Materials、八视图、delta、budget 与 GLB strict readback 全 PASS，故
+> `THREEJS_DESIGN_READY`。二次 materialize 的 program/GLB/lineage/readiness 文件 SHA-256 全等。
+> 这仍是 `SUCCESSOR_MATERIALIZED_REVIEW_ONLY / visual=NOT_REVIEWED / quality=NOT_RUN /
+> commercial=NOT_RUN`；新 successor receipt 已完成 Runtime/Store/CAS/MCP 结构持久化，不改写该历史 receipt。
+
 > 2026-08-30 `WPN-KNIFE-HIGH-001 / Slice A`：`design_locked_implementation_pending_no_high_mesh`。
 > 已静态审计 `img2threejs@9fbd0ca5bbcc3b13bebe712745d6784d33db0b85`，把可复用机制收口为
 > `KnifeReferenceIntentBundle@1 → KnifePassState@1 → KnifeCorrectionLedger@1` 的 Weaponry-owned

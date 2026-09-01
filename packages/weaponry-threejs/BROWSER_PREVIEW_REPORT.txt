@@ -1,0 +1,61 @@
+WPN-THREE-EVAL-002 report
+
+Scope
+-----
+The browser preview now resolves a closed WeaponryThreeJsPreviewManifest@1
+from either a local query or URI-encoded JSON manifest. The accepted query
+forms are `?view=FRONT`, `?views=FRONT,BACK`, `?views=ALL`, and
+`?manifest=<encoded JSON>`. View IDs are normalized to the canonical fixed
+order and unknown/duplicate views are rejected. No file, URL, fetch, or
+caller-provided code is read by this path.
+
+Real render path
+----------------
+The preview builds the canonical KnifeSceneProgram, creates the actual
+Three.js WebGLRenderer and one fixed camera per selected view, then calls
+renderer.render(scene, camera) for each selected viewport. The camera receipt
+records the live Three.js UUID, type, position, matrix, matrixWorld,
+matrixWorldInverse, projection matrix, viewport, and deterministic camera
+fingerprint. The scene receipt fingerprint is derived after scene transforms
+are resolved from the live Scene/Object3D graph, semantic metadata, geometry
+attribute layout, and stable object IDs.
+
+Capture boundary
+----------------
+After the synchronous render pass, `window.weaponryPreviewReceipt` is first
+published as `CAPTURE_READY`. With the default `capture=settled` mode it is
+updated exactly once on the next animation frame to `SETTLED`. The
+`?capture=capture-ready` mode leaves the one-shot receipt at the ready
+boundary. Both states
+retain renderer_invoked=true, visual_status=NOT_REVIEWED, and
+quality_status=NOT_RUN. The receipt declares bundled-static-only@1 and does
+not use external network resources. The same JSON receipt is mirrored into
+the stable `#weaponry-preview-receipt` output node for `--dump-dom` or other
+read-only extraction.
+
+Verification
+------------
+  npm --workspace @wushen/weaponry-threejs run preview:smoke
+  npm --workspace @wushen/weaponry-threejs run typecheck
+  npm --workspace @wushen/weaponry-threejs run preview:build
+  git diff --check
+
+The first local Chrome probe inherited a client extension and returned
+`ERR_BLOCKED_BY_CLIENT`. A clean temporary browser profile with extensions
+disabled then rendered the exact eight-view page successfully. The browser AOV
+entry subsequently captured 8 views x 7 required AOVs = 56 PNG byte streams.
+All PNG sizes and SHA-256 values were checked against the closed manifest.
+
+Current capture identity:
+  program_fingerprint=e97e6887f6cfd5d0
+  rig_fingerprint=3fa0202473e3352b
+  scene_fingerprint=486bd90b7851e3fc2810d603520b48ef2f502769814ccb31244b583b315fd0e9
+  manifest_sha256=f7773d477d9c8f3562ada742fe18a1baeb5b1e399b99788b3a21153d7796656f
+  receipt_sha256=7dff5b01e1038fe58b7efd8d3b70fc9f20cbfef77e09ec721caca3b8a79dfcf1
+  status=RENDERED_NOT_APPROVED
+
+Deliberate non-claims
+---------------------
+No same-camera reference comparison, metric convergence, human review, AOV
+quality approval, engine validation, Runtime/CAS write, or visual-quality PASS
+is produced.

@@ -1,0 +1,177 @@
+{
+  "schema_version": "WeaponryThreeJsUpstreamRenderNormalizationContract@1",
+  "contract_id": "weaponry-threejs-upstream-normalization@1",
+  "purpose": "Closed structural benchmark bridge from a pinned img2threejs factory to a browser-loadable Three.js scene.",
+  "scope": {
+    "mode": "benchmark-only",
+    "upstream_source_persisted": false,
+    "generated_factory_persisted": false,
+    "runtime_store_cas_write": false,
+    "network_allowed": false,
+    "quality_claim": "NOT_COMPUTED"
+  },
+  "source": {
+    "project": "img2threejs",
+    "revision": "9fbd0ca5bbcc3b13bebe712745d6784d33db0b85",
+    "tree": "0ee3c2a6d781407808df98b33174539842f85fcc",
+    "fixture_spec_sha256": "d2b61601e8d25ccc19f6cb39c0241f26dfcfd4adcaa185d74599c1ad49cfb4fa",
+    "factory_sha256": "525e9c5d87b996adec26ca426c85c22941796d270badd0a9fb7beeb6a388511a",
+    "generator_receipt": "benchmark/img2threejs-baseline.receipt.json",
+    "factory_lifecycle": "extract-to-temporary-directory-generate-import-discard"
+  },
+  "coordinate_convention": {
+    "id": "weapon-front-z-up-right-handed@1",
+    "up": "+Y",
+    "forward": "+Z",
+    "right": "+X",
+    "units": "normalized design units"
+  },
+  "scene_normalization": {
+    "schema_version": "WeaponryThreeJsSceneNormalization@1",
+    "source_bounds": "THREE.Box3.setFromObject(factory_root_after_updateMatrixWorld)",
+    "source_bounds_space": "factory-root-local-world-space",
+    "wrapper_role": "normalization-pivot-parent",
+    "center_mode": "axis-aligned-bounds-center",
+    "target_center": [0, 0, 0],
+    "scale_mode": "uniform-max-axis-extent",
+    "target_max_extent": 2.2,
+    "scale_formula": "target_max_extent / max(source_size.x, source_size.y, source_size.z)",
+    "translation_formula": "-source_center * uniform_scale",
+    "epsilon": 1e-9,
+    "camera_fit_policy": "report-full-bounds-clip-per-fixed-view-without-quality-promotion",
+    "preserve_factory_hierarchy": true,
+    "preserve_semantic_user_data": true,
+    "stable_object_identity": "entry-assigned-fnv1a64-uuid-from-structural-path"
+  },
+  "fixed_view_rig": {
+    "schema_version": "KnifeFixedEightViewRig@1",
+    "rig_id": "knife-fixed-eight-view@1",
+    "coordinate_convention": "weapon-front-z-up-right-handed@1",
+    "frame_width": 256,
+    "frame_height": 256,
+    "margin": 0.08,
+    "views": [
+      {
+        "view_id": "FRONT",
+        "projection": "orthographic",
+        "position": [0, 0, 3.5],
+        "target": [0, 0, 0],
+        "up": [0, 1, 0],
+        "near": 0.01,
+        "far": 50,
+        "ortho_height": 2.8
+      },
+      {
+        "view_id": "BACK",
+        "projection": "orthographic",
+        "position": [0, 0, -3.5],
+        "target": [0, 0, 0],
+        "up": [0, 1, 0],
+        "near": 0.01,
+        "far": 50,
+        "ortho_height": 2.8
+      },
+      {
+        "view_id": "TOP",
+        "projection": "orthographic",
+        "position": [0, 3.5, 0],
+        "target": [0, 0, 0],
+        "up": [0, 0, 1],
+        "near": 0.01,
+        "far": 50,
+        "ortho_height": 2.8
+      },
+      {
+        "view_id": "BOTTOM",
+        "projection": "orthographic",
+        "position": [0, -3.5, 0],
+        "target": [0, 0, 0],
+        "up": [0, 0, 1],
+        "near": 0.01,
+        "far": 50,
+        "ortho_height": 2.8
+      },
+      {
+        "view_id": "LEFT",
+        "projection": "orthographic",
+        "position": [-3.5, 0, 0],
+        "target": [0, 0, 0],
+        "up": [0, 1, 0],
+        "near": 0.01,
+        "far": 50,
+        "ortho_height": 2.8
+      },
+      {
+        "view_id": "RIGHT",
+        "projection": "orthographic",
+        "position": [3.5, 0, 0],
+        "target": [0, 0, 0],
+        "up": [0, 1, 0],
+        "near": 0.01,
+        "far": 50,
+        "ortho_height": 2.8
+      },
+      {
+        "view_id": "REAR_THREE_QUARTER",
+        "projection": "orthographic",
+        "position": [2.2, 1.15, -2.6],
+        "target": [0, 0, 0],
+        "up": [0, 1, 0],
+        "near": 0.01,
+        "far": 50,
+        "ortho_height": 2.8
+      },
+      {
+        "view_id": "FPS_HOLD",
+        "projection": "perspective",
+        "position": [0, -0.2, 2.8],
+        "target": [0.18, 0, 0],
+        "up": [0, 1, 0],
+        "near": 0.05,
+        "far": 20,
+        "fov_degrees": 36
+      }
+    ]
+  },
+  "aov_contract": {
+    "capture_mode": "browser-canvas-to-png@1",
+    "required": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "part-id",
+      "material-id",
+      "wireframe"
+    ],
+    "optional": [
+      "curvature",
+      "uv-stretch"
+    ],
+    "upstream_factory_capability": "scene-geometry-and-materials-only",
+    "capture_status": "SUPPORTED_AFTER_BOUNDED_ADAPTER",
+    "missing_renderer_boundary": "live-browser-WebGLRenderer-with-preserveDrawingBuffer",
+    "existing_weaponry_capture_reuse": {
+      "direct_reuse": false,
+      "adapter_reuse": true,
+      "adapter_module": "benchmark/img2threejs-compiled-scene-adapter.ts",
+      "adapter_status": "IMPLEMENTED_AND_BROWSER_VERIFIED_IN_AOV_RECEIPT",
+      "module": "captureKnifeAovs",
+      "reason": "captureKnifeAovs requires a CompiledKnifeScene binding, while the upstream entry exposes a raw THREE.Group",
+      "minimum_adapter": [
+        "map sculptComponent id/primitive and material metadata to bounded CompiledKnifePart records",
+        "attach the generated group to a THREE.Scene and provide deterministic_fingerprint plus triangle counts",
+        "run the existing browser capture only after a live WebGLRenderer(preserveDrawingBuffer=true) is available"
+      ]
+    }
+  },
+  "browser_entry": {
+    "schema_version": "WeaponryThreeJsUpstreamBrowserBaseline@1",
+    "entry_role": "temporary-vite-entry-importing-generated-factory",
+    "renderer_type": "THREE.WebGLRenderer",
+    "static_network_policy": "bundled-static-only@1",
+    "bundle_build": "offline-existing-node-modules-only",
+    "render_status": "NOT_RUN",
+    "aov_status": "NOT_RUN"
+  }
+}

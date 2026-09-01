@@ -1,0 +1,19 @@
+Weaponry Three.js knife compiler
+
+This package is the WPN-THREE-COMPILER-001 isolated source slice. It accepts a
+canonical KnifeSceneProgram@1 and creates derived Three.js blade objects with
+independent spine/cutting-edge curves, changing sections, stable semantic IDs,
+and deterministic output.
+
+It does not invoke browser/WebGL rendering, write Runtime/Store/CAS, or assign
+a visual-quality result. Compiled scenes report renderer_invoked=false and
+quality_status=NOT_RUN.
+
+The sibling preview/ entry is a disposable browser consumer for structural
+inspection. Rendering that preview does not mutate the compiled scene receipt
+and does not grant a visual-quality result.
+
+Checks:
+  npm --prefix packages/weaponry-threejs run typecheck
+  npm --prefix packages/weaponry-threejs run smoke
+  npm --prefix packages/weaponry-threejs run preview:build

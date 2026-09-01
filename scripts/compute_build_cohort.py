@@ -32,6 +32,15 @@ SOURCE_INPUTS = (
     ROOT / "apps" / "render-worker" / "src",
     ROOT / "packages" / "forgecad-contracts",
     ROOT / "packages" / "forgecad-skills",
+    # Exact first-party Three.js inputs staged into the fixed Worker. Keep
+    # generated artifacts/evidence/deliveries out of the cohort so packaging a
+    # result cannot recursively change the source identity.
+    ROOT / "packages" / "weaponry-threejs" / "src",
+    ROOT / "packages" / "weaponry-threejs" / "scripts" / "fixed-worker.mjs",
+    ROOT / "packages" / "weaponry-threejs" / "scripts" / "browser-preview-worker.mjs",
+    ROOT / "packages" / "weaponry-threejs" / "preview" / "worker-main.ts",
+    ROOT / "packages" / "weaponry-threejs" / "package.json",
+    ROOT / "packages" / "weaponry-threejs" / "tsconfig.json",
     ROOT / "package.json",
     ROOT / "package-lock.json",
     ROOT / "script" / "with_rust_toolchain.sh",

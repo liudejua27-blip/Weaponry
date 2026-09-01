@@ -1,0 +1,283 @@
+{
+  "schema_version": "WeaponryThreeJsR8FixedFrontComparison@1",
+  "task_id": "WPN-THREE-R8-RENDER-COMPARE-013",
+  "asset_id": "Dragonfang Kukri",
+  "reference_id": "dragonfang-front-blade-reference",
+  "reference_sha256": "d471982953841212d5b90906f9fb5627a6bd9593d754353f3f476c8702da57d2",
+  "reference_image_sha256": "a8f1a169a3957cbeaaff2a8ceebcb9dd03802fcd7e165f043d329e8a5172dbd2",
+  "reference_view_mapping_sha256": "dbdf2986c4e50ccd2597b641cb1bb7922a78dd4a1e0e64c717f3afa0a4c8d9e3",
+  "source_calibration_sha256": "7e1bd17f939b0aa288bcf010e4eb6ff3156d1e504d52d8755b1c8c25b8f953ec",
+  "calibration_policy": "reuse-normalized-r7-fit-at-512-no-refit@1",
+  "fit": {
+    "algorithm": "aspect-preserving-centered-reference-bbox-to-baseline-mask-bbox@1",
+    "source_coordinate_space": "unit-square@1",
+    "target_coordinate_space": "capture-pixel-normalized-top-left@1",
+    "axis_conversion": "reference-bottom-left-to-image-top-left@1",
+    "source_bbox": [
+      0.06,
+      0.773019391,
+      0.94,
+      0.938815443
+    ],
+    "target_bbox": [
+      0.02734375,
+      0.390625,
+      0.80859375,
+      0.62109375
+    ],
+    "source_center": [
+      0.5,
+      0.855917417
+    ],
+    "target_center": [
+      0.41796875,
+      0.505859375
+    ],
+    "scale": 0.887784090909,
+    "translation": [
+      -0.025923295455,
+      -0.254010490945
+    ]
+  },
+  "view_id": "FRONT",
+  "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104",
+  "handedness_transform": "mirror-render-x-to-reference@1",
+  "allowed_part_ids": [
+    1,
+    2
+  ],
+  "preview_worker_cohort_sha256": "92f8d4ca303851e9eead9cd337f5bf6821980fd76eb8026d617d744b0c7f5044",
+  "baseline": {
+    "program_sha256": "24b4f6e558f59c825daf1127cb5751a79204e44bd2b3b116420ef8112f8a113f",
+    "manifest_sha256": "2f024e4853fcefd4ff11cbfbd6258732653716a636adea7ebbc403758f5205c4",
+    "worker_result_sha256": "ce2ea661551e075748230fe9d6cd4f746d2256bb1fe5eba122e23aa31baf832c",
+    "mask": {
+      "png_sha256": "f9d3afaa3931584d5f978402e350c172cd79b1c38c6316947d830816af23622d",
+      "mask_sha256": "90bdc8de068bf7355a17d2aa9684b1b25956116f9fed074aa54e0a3ceafcdfcc",
+      "pixel_count": 15123,
+      "bounds_px": [
+        98,
+        202,
+        508,
+        308
+      ],
+      "bbox": [
+        0.19140625,
+        0.39453125,
+        0.994140625,
+        0.603515625
+      ],
+      "observed_part_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13
+      ],
+      "handedness_transform": "mirror-render-x-to-reference@1"
+    },
+    "metrics": {
+      "silhouette_iou": 0.258704516939,
+      "boundary_f1": 0.126306609658,
+      "boundary_precision": 0.105756358768,
+      "boundary_recall": 0.1567695962,
+      "symmetric_chamfer": 0.035429423124,
+      "p95_contour_distance": 0.116091827866,
+      "landmark_error": 0.07649679407,
+      "landmark_errors": [
+        {
+          "landmark_id": "root",
+          "error": 0.165049126099
+        },
+        {
+          "landmark_id": "shoulder",
+          "error": 0.057239479759
+        },
+        {
+          "landmark_id": "belly",
+          "error": 0.040066721548
+        },
+        {
+          "landmark_id": "tip",
+          "error": 0.043631848874
+        }
+      ],
+      "reference_area_px": 16979,
+      "predicted_area_px": 15123,
+      "grid_width": 512,
+      "grid_height": 512
+    },
+    "deterministic_gate": {
+      "status": "FAIL",
+      "passed": false,
+      "checks": {
+        "silhouette_iou": false,
+        "boundary_f1": false,
+        "symmetric_chamfer": false,
+        "p95_contour_distance": false,
+        "landmark_error": false
+      },
+      "thresholds": {
+        "silhouette_iou_min": 0.9,
+        "boundary_f1_min": 0.9,
+        "symmetric_chamfer_max": 0.03,
+        "p95_contour_distance_max": 0.05,
+        "landmark_error_max": 0.03
+      },
+      "basis": "deterministic FRONT blade-mask math only; PASS here never approves the asset"
+    }
+  },
+  "candidate": {
+    "program_sha256": "0c495db1c8ff2c0079cd5dafc3270eaafa9eae0ae1d0f41b6099d65db8ec51e1",
+    "manifest_sha256": "ee86d240b0cfdeee5ec28d730d232e58bd20b48e61168db18d21e103cd83dcf2",
+    "worker_result_sha256": "6167c4d553de9d69a68be4373590f9e454b9488c15db2c4d0be40920be1283f9",
+    "mask": {
+      "png_sha256": "3a951895236c595a76b6f05b854aa6f4cf56add526a7e1a75e93289286573c63",
+      "mask_sha256": "63ccd96d8aeedcaa3e78c644ac3985b4e2cdbfcca18efc83a33964cfab98be57",
+      "pixel_count": 12968,
+      "bounds_px": [
+        99,
+        202,
+        508,
+        308
+      ],
+      "bbox": [
+        0.193359375,
+        0.39453125,
+        0.994140625,
+        0.603515625
+      ],
+      "observed_part_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13
+      ],
+      "handedness_transform": "mirror-render-x-to-reference@1"
+    },
+    "metrics": {
+      "silhouette_iou": 0.262627540265,
+      "boundary_f1": 0.140157617451,
+      "boundary_precision": 0.1165438714,
+      "boundary_recall": 0.175771971496,
+      "symmetric_chamfer": 0.034452354627,
+      "p95_contour_distance": 0.117174341861,
+      "landmark_error": 0.075276103335,
+      "landmark_errors": [
+        {
+          "landmark_id": "root",
+          "error": 0.167002133403
+        },
+        {
+          "landmark_id": "shoulder",
+          "error": 0.051380104759
+        },
+        {
+          "landmark_id": "belly",
+          "error": 0.039090326303
+        },
+        {
+          "landmark_id": "tip",
+          "error": 0.043631848874
+        }
+      ],
+      "reference_area_px": 16979,
+      "predicted_area_px": 12968,
+      "grid_width": 512,
+      "grid_height": 512
+    },
+    "deterministic_gate": {
+      "status": "FAIL",
+      "passed": false,
+      "checks": {
+        "silhouette_iou": false,
+        "boundary_f1": false,
+        "symmetric_chamfer": false,
+        "p95_contour_distance": false,
+        "landmark_error": false
+      },
+      "thresholds": {
+        "silhouette_iou_min": 0.9,
+        "boundary_f1_min": 0.9,
+        "symmetric_chamfer_max": 0.03,
+        "p95_contour_distance_max": 0.05,
+        "landmark_error_max": 0.03
+      },
+      "basis": "deterministic FRONT blade-mask math only; PASS here never approves the asset"
+    }
+  },
+  "candidate_minus_baseline": {
+    "silhouette_iou": 0.003923023326,
+    "boundary_f1": 0.013851007793,
+    "symmetric_chamfer": -0.000977068497,
+    "p95_contour_distance": 0.001082513995,
+    "landmark_error": -0.001220690735
+  },
+  "agent_visual_review": {
+    "status": "REVIEWED_NOT_APPROVED",
+    "review_scope": [
+      "blade-body",
+      "cutting-edge"
+    ],
+    "reviewed_views": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ],
+    "global_fidelity_estimate": 0.4,
+    "decision": "refine-spec",
+    "improvements": [
+      "r8 modestly improves FRONT belly placement and the shoulder-to-belly transition over r7",
+      "r8 improves average contour distance and mean landmark error under the frozen reference fit"
+    ],
+    "blocking_mismatches": [
+      "blade-to-handle length ratio remains substantially too short and compact relative to the authorized reference",
+      "tip taper remains too blunt and does not reproduce the reference's long converging point",
+      "spine arch and lower belly inflection positions remain materially different from the reference contour",
+      "REAR_THREE_QUARTER still reads as a thin procedural slab rather than a resolved grind and asymmetric blade volume",
+      "p95 contour distance regressed slightly, so the worst local mismatch was not improved"
+    ],
+    "frozen_systems": [
+      "dragon-relief",
+      "guard",
+      "grip",
+      "pommel",
+      "material-zones"
+    ],
+    "limit": "deterministic FRONT mask and agent image review do not constitute human, engine, or commercial acceptance"
+  },
+  "comparison_image": {
+    "path": "r7-r8-front-reference-comparison.png",
+    "sha256": "37d6d22a9fa8815570c6971b384d4ceacac5fc79689541701cb47ec9ceb64e7d"
+  },
+  "eight_view_image": {
+    "path": "r8-fixed-eight-view-beauty.png",
+    "sha256": "af3b8508d002afd9da79a66620e140cd7938b706d149e91277bcf3bff114b32a"
+  },
+  "comparison_status": "MEASURED_NOT_APPROVED",
+  "geometry_modified": false,
+  "visual_status": "NOT_APPROVED",
+  "human_status": "NOT_RUN",
+  "commercial_status": "NOT_RUN",
+  "canonical_sha256": "0a4a38758cd9a6dc7d20776fe87503d0a1d3fd9956b30a2352332cf5bfd1a10c"
+}

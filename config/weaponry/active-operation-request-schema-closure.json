@@ -12,7 +12,7 @@
     "cross_view_promotion_confirm": "cross-view-promotion-request.schema.json",
     "authoring_mesh_v2_candidate_materialize": "authoring-mesh-v2-candidate-materialize-prepare-request.schema.json"
   },
-  "expected_mcp_consumed_closed_count": 142,
+  "expected_mcp_consumed_closed_count": 147,
   "request_schema_filename_templates": [
     "{operation_kebab}-request.schema.json"
   ]

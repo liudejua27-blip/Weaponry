@@ -1,0 +1,90 @@
+{
+  "schema_version": "WeaponryThreeJsFixedWorkerPreviewReceipt@1",
+  "operation": "preview",
+  "status": "preview-ready",
+  "worker_id": "weaponry-threejs-fixed-knife-worker@1",
+  "program_sha256": "0c495db1c8ff2c0079cd5dafc3270eaafa9eae0ae1d0f41b6099d65db8ec51e1",
+  "program_object_sha256": "5c7d6e4bf10cc00df5085d93c1f96429fc4f3dc70185bf0f1e11d2d933e8893a",
+  "deterministic_fingerprint": "c7286cc81efc34a6",
+  "triangle_count": 4598,
+  "part_ids": [
+    "blade-body",
+    "cutting-edge",
+    "guard",
+    "grip",
+    "pommel",
+    "fastener-grip-a",
+    "fastener-grip-b",
+    "fastener-grip-c",
+    "fastener-grip-d",
+    "gem-guard-eye",
+    "gem-pommel",
+    "relief-dragon-belly",
+    "relief-dragon-spine"
+  ],
+  "preview_manifest": {
+    "aovs": "required",
+    "capture": "settled",
+    "frame_height": 512,
+    "frame_width": 512,
+    "framing": "full-asset-baseline",
+    "margin": 0.08,
+    "schema_version": "WeaponryThreeJsPreviewManifest@1",
+    "view_ids": [
+      "FRONT",
+      "BACK",
+      "TOP",
+      "BOTTOM",
+      "LEFT",
+      "RIGHT",
+      "REAR_THREE_QUARTER",
+      "FPS_HOLD"
+    ]
+  },
+  "preview_runtime_id": "weaponry-threejs-fixed-preview-worker@1",
+  "preview_runtime_sha256": "d3c2101e22c034d340361828c7a65b928917888e780d296713ede50711d92796",
+  "preview_dependency_lock_sha256": "df43fa1e8751ac40561bfa76eb6bc082d232a5b61366e95109522b0eb03d02b7",
+  "preview_worker_cohort_sha256": "92f8d4ca303851e9eead9cd337f5bf6821980fd76eb8026d617d744b0c7f5044",
+  "preview_view_count": 8,
+  "preview_aov_count": 48,
+  "cameras": [
+    {
+      "view_id": "FRONT",
+      "camera_sha256": "6f92f25e1a01cda6fd7e0b78806a0351b753358b4eeb582393b5bc4c783b1104"
+    },
+    {
+      "view_id": "BACK",
+      "camera_sha256": "99d2782c422a741ab409203e845031547671a89efcb0f24a352525524b8d5193"
+    },
+    {
+      "view_id": "TOP",
+      "camera_sha256": "f5b9fef4ec0df3bcd313fe15f6d860a883f2765b5b226cccec748232865dff3f"
+    },
+    {
+      "view_id": "BOTTOM",
+      "camera_sha256": "1612a2286a6aa5e797f27bc174fa1eee96d4d7b8a03c4144224dc4612748db28"
+    },
+    {
+      "view_id": "LEFT",
+      "camera_sha256": "a1a91cbeae10b6682aebd32d64476d745fbde9ae006c42f7186d9b5e0171c50d"
+    },
+    {
+      "view_id": "RIGHT",
+      "camera_sha256": "2c89e689c694e5e684e70772636e3aa9a67bb062fd1c126b94f99a10e8dba98d"
+    },
+    {
+      "view_id": "REAR_THREE_QUARTER",
+      "camera_sha256": "db1c2fb03fbed87b0d1c22511069b64dc598b6dbe601e0bc719c282ec075783d"
+    },
+    {
+      "view_id": "FPS_HOLD",
+      "camera_sha256": "85f12d6d06c175930abe5158d8da7a8feb6ea91aa6c00fdf356d73231a8b3489"
+    }
+  ],
+  "renderer_invoked": true,
+  "visual_status": "NOT_RUN",
+  "human_status": "NOT_RUN",
+  "commercial_status": "NOT_RUN",
+  "source_worker_result_sha256": "6167c4d553de9d69a68be4373590f9e454b9488c15db2c4d0be40920be1283f9",
+  "canonical_sha256": "c9fdb7f905578c530c524af1ed547c4fb9789c644e6badd285854017128212eb"
+}

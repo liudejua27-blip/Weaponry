@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#06090d" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23d4a45e' d='M4 17 27 5 17 28l-2-9z'/%3E%3C/svg%3E" />
+    <title>Weaponry / Engine Demo</title>
+  </head>
+  <body>
+    <div id="app" data-testid="engine-demo-root">
+      <header class="topbar">
+        <div class="wordmark" aria-label="Weaponry engine demo">
+          <span class="wordmark-mark" aria-hidden="true">◒</span>
+          <span>ENGINE DEMO</span>
+        </div>
+        <div class="asset-line">
+          <span class="asset-name">DRAGONFANG KUKRI</span>
+          <span class="asset-version">R8</span>
+          <span class="quiet-dot" aria-hidden="true"></span>
+          <span>STANDALONE DELIVERY</span>
+        </div>
+        <div class="topbar-status" data-testid="engine-topbar-status" aria-live="polite">
+          <span class="status-light" data-testid="engine-status-light"></span>
+          <span data-testid="engine-status">Loading delivery</span>
+        </div>
+      </header>
+
+      <aside class="rail rail-left" aria-label="Camera and action controls">
+        <section class="rail-section">
+          <div class="section-label">CAMERA</div>
+          <div class="segmented-control" role="group" aria-label="Camera mode">
+            <button class="control-button is-active" data-camera="orbit" data-testid="camera-orbit" type="button">Orbit</button>
+            <button class="control-button" data-camera="inspect" data-testid="camera-inspect" type="button">Inspect</button>
+            <button class="control-button" data-camera="fps" data-testid="camera-fps" type="button">FPS</button>
+          </div>
+          <button class="text-button" data-testid="camera-reset" type="button">
+            <span>Reset camera</span><kbd>R</kbd>
+          </button>
+        </section>
+
+        <section class="rail-section">
+          <div class="section-label">ACTION</div>
+          <div class="action-list" role="group" aria-label="Weapon actions">
+            <button class="action-button is-active" data-action="idle" data-testid="action-idle" type="button"><span class="action-glyph">·</span><span>Idle</span><kbd>1</kbd></button>
+            <button class="action-button" data-action="light" data-testid="action-light" type="button"><span class="action-glyph">↗</span><span>Light</span><kbd>2</kbd></button>
+            <button class="action-button" data-action="heavy" data-testid="action-heavy" type="button"><span class="action-glyph">↯</span><span>Heavy</span><kbd>3</kbd></button>
+            <button class="action-button" data-action="inspect" data-testid="action-inspect" type="button"><span class="action-glyph">◎</span><span>Inspect</span><kbd>I</kbd></button>
+            <button class="action-button" data-action="sheath" data-testid="action-sheath" type="button"><span class="action-glyph">⌁</span><span>Sheath</span><kbd>S</kbd></button>
+          </div>
+        </section>
+
+        <section class="rail-section rail-section-bottom">
+          <div class="section-label">VIEWPORT</div>
+          <div class="viewport-help">Drag to orbit · scroll to zoom<br />Click a part to inspect</div>
+          <button class="text-button" data-testid="engine-context-recover" type="button">
+            <span>Recover context</span><span class="context-icon" aria-hidden="true">↻</span>
+          </button>
+        </section>
+      </aside>
+
+      <main class="stage" data-testid="engine-stage">
+        <div class="stage-grid" aria-hidden="true"></div>
+        <canvas id="engine-canvas" data-testid="engine-canvas" aria-label="Interactive Dragonfang Kukri 3D viewport"></canvas>
+        <div class="stage-corner stage-corner-top-left" aria-hidden="true"><span>Y</span><i></i><span>Z</span></div>
+        <div class="stage-corner stage-corner-bottom-right" aria-hidden="true">DRAGONFANG / R8</div>
+        <div class="loading-overlay" data-testid="engine-loading" aria-live="polite">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <span>Loading action-ready GLB</span>
+        </div>
+      </main>
+
+      <aside class="rail rail-right" aria-label="Part inspector">
+        <section class="rail-section inspector-header">
+          <div class="section-label">INSPECTOR</div>
+          <div class="selected-part" data-testid="engine-selected-part">Nothing selected</div>
+          <div class="selected-hint" data-testid="engine-selected-hint">Pick a part in the viewport</div>
+        </section>
+
+        <section class="rail-section parts-section">
+          <div class="parts-heading"><span class="section-label">PARTS</span><span class="parts-count" data-testid="engine-parts-count">—</span></div>
+          <div class="parts-list" data-testid="engine-parts-list" role="list" aria-label="Asset parts"></div>
+        </section>
+
+        <section class="rail-section explode-section">
+          <div class="slider-heading"><span class="section-label">EXPLODE</span><output data-testid="engine-explode-value">0%</output></div>
+          <input class="explode-slider" data-testid="engine-explode" type="range" min="0" max="100" step="1" value="0" aria-label="Explode amount" />
+          <div class="slider-scale" aria-hidden="true"><span>ASSEMBLED</span><span>SEPARATED</span></div>
+        </section>
+
+        <section class="rail-section telemetry-section">
+          <div class="section-label">RUNTIME</div>
+          <dl class="telemetry-list">
+            <div><dt>context</dt><dd data-testid="engine-context-status">waiting</dd></div>
+            <div><dt>animation</dt><dd data-testid="engine-animation-status">waiting</dd></div>
+            <div><dt>socket</dt><dd data-testid="engine-socket-status">waiting</dd></div>
+            <div><dt>physics</dt><dd data-testid="engine-physics-status">waiting</dd></div>
+            <div><dt>CPU p95</dt><dd data-testid="engine-frame-p95">—</dd></div>
+            <div><dt>budget</dt><dd data-testid="engine-frame-budget-status">warming</dd></div>
+            <div><dt>resolution</dt><dd data-testid="engine-resolution">—</dd></div>
+            <div><dt>frames</dt><dd data-testid="engine-frame-count">0</dd></div>
+            <div><dt>input</dt><dd data-testid="engine-input-status">ready</dd></div>
+          </dl>
+        </section>
+      </aside>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

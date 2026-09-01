@@ -54,6 +54,7 @@ mod optimization;
 mod parametric_group;
 mod process_lock;
 mod production_camera_lock_registration_lineage_preflight;
+mod production_knife_uv_bake_v2;
 mod production_weapon_art_decision_proposal;
 mod production_weapon_assembly_parameter_mutator;
 mod production_weapon_assembly_parameter_sink;
@@ -79,7 +80,6 @@ mod production_weapon_formal_high_factory;
 mod production_weapon_formal_high_public;
 mod production_weapon_high_low_bake;
 mod production_weapon_high_low_bake_preflight;
-mod production_knife_uv_bake_v2;
 mod production_weapon_owner_reviewed_void_calibration;
 mod production_weapon_retopology_cage_source;
 mod render_evidence_integrity;
@@ -100,6 +100,9 @@ mod weaponry_knife_delivery;
 mod weaponry_knife_production_brief;
 mod weaponry_knife_reference_intent;
 mod weaponry_knife_source_binding;
+mod weaponry_blender_provider;
+mod weaponry_threejs_comparison;
+mod weaponry_threejs_design;
 
 // The Runtime owns the final, strict GLB readback. Keeping the implementation
 // compiled into Runtime ensures a worker's self-reported metadata can never

@@ -1,0 +1,47 @@
+{
+  "schema_version": "KnifeObjectiveLedger@1",
+  "ledger_id": "dragonfang-assembly-intrinsic-ledger",
+  "revision": 6,
+  "parent_ledger_sha256": "bb2b5227203490ee863cc9baff38c72e4cbdc1061c49c8d91365d195b82e5955",
+  "program_sha256": "f7750c5e532d514e19d17d6f89dcd03a0fca7ed3f6d27642b4c0c3ed5835a47b",
+  "baseline_candidate_sha256": "8c8b851e574ffd750011c30b06db296a108dc208588c0c66c2eb9bf7c0fd9311",
+  "stage": "structural",
+  "allowed_scope": [
+    "guard",
+    "grip",
+    "pommel"
+  ],
+  "frozen_parts": [
+    "blade-body",
+    "cutting-edge",
+    "fastener-grip-a",
+    "fastener-grip-b",
+    "fastener-grip-c",
+    "fastener-grip-d",
+    "gem-guard-eye",
+    "gem-pommel",
+    "relief-dragon-spine",
+    "relief-dragon-belly"
+  ],
+  "hypothesis": "A bounded assembly-only search can improve ratio priors, attachment continuity, material readability, and complexity without changing the accepted blade or ornaments.",
+  "objective_metrics": [
+    "assembly-ratio-prior-score",
+    "assembly-attachment-continuity",
+    "assembly-material-readability",
+    "assembly-complexity-efficiency"
+  ],
+  "regression_limits": [
+    "part-id-coverage",
+    "material-id-coverage",
+    "fps-occupancy"
+  ],
+  "candidate_budget": 8,
+  "minimum_improvement": 0.005,
+  "plateau_limit": 2,
+  "evidence_sha256": [
+    "bb2b5227203490ee863cc9baff38c72e4cbdc1061c49c8d91365d195b82e5955",
+    "f7750c5e532d514e19d17d6f89dcd03a0fca7ed3f6d27642b4c0c3ed5835a47b"
+  ],
+  "status": "active",
+  "canonical_sha256": "8a9b91857e95b6682721004c56fadde6da0ce2999a945330ef0f8121ce5c41c9"
+}
